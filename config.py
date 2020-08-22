@@ -3,7 +3,6 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config(object):
     DEBUG = False
-    #SECRET_KEY = "pleasechangemetosomethingdifferent"
     SECURITY_PASSWORD_HASH = 'pbkdf2_sha512'
     SECURITY_TRACKABLE = True
     SECURITY_PASSWORD_SALT = 'something_super_secret_change_in_production'
@@ -11,7 +10,6 @@ class Config(object):
     API_VERSION = '1.0'
     API_DESCRIPTION = 'A framework for managing Penetration tests, the findings and the reports'
     WTF_CSRF_ENABLED = False
-    #MASTER_PASSWORD = "somethingdifferentthanthesecretkey"
 
 class ProductionConfig(Config):
     DEBUG = False
