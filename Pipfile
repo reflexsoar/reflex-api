@@ -1,0 +1,21 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+flask-migrate = "*"
+flask-script = "*"
+coverage = "*"
+pybadges = "*"
+coverage-badge = "*"
+
+[packages]
+flask = "*"
+flask-cors = "*"
+flask-bcrypt = "*"
+flask-restx = "*"
+pyjwt = "*"
+
+[requires]
+python_version = "3.8"
