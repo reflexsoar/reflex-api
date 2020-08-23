@@ -2,11 +2,11 @@ import os
 import unittest
 import coverage
 from pybadges import badge
-
 from flask_migrate import Migrate, MigrateCommand
 from flask_script import Manager
 
 from app import create_app, db
+from app.models import AuthTokenBlacklist, User, Role, Permission
 
 app = create_app()
 app.app_context().push()
@@ -82,6 +82,67 @@ def blacklist_token(token):
 
 @manager.command
 def setup():
+
+    # Create the Permissions for an administrator
+    perms = { 
+        'add_user': True,
+        'update_user': True,
+        'delete_user': True,
+        'add_user_to_role': True,
+        'remove_user_from_role': True,
+        'reset_user_password': True,
+        'unlock_user': True,
+        'view_users': True,
+        'add_role': True,
+        'update_role': True,
+        'delete_role': True,
+        'set_role_permissions': True,
+        'view_roles': True,
+        "add_tag": True,
+        "update_tag": True,
+        "delete_tag": True,
+        "view_tags": True,
+        "add_credential": True,
+        "update_credential": True,
+        "decrypt_credential": True,
+        "delete_credential": True,
+        "view_credentials": True ,
+        "add_playbook": True,
+        "update_playbook": True,
+        "delete_playbook": True,
+        "view_playbooks": True,
+        "add_tag_to_playbook": True,
+        "remove_tag_from_playbook": True
+    }
+    permissions = Permission(**perms)
+    db.session.add(permissions)
+    db.session.commit()
+
+    # Create the administrator role
+    details =  {
+        'name': 'Admin',
+        'description': 'Power overwhelming'
+    }
+    role = Role(**details)
+    db.session.add(role)
+    db.session.commit()
+
+    role.permissions = permissions
+
+    role.save()
+
+    # Create the default administrator account
+    default_admin = {
+        'email': 'admin@reflexsoar.com',
+        'username': 'reflex',
+        'password': 'reflex'
+    }
+    user = User(**default_admin)
+    db.session.add(user)
+    db.session.commit()
+
+    user.role = role
+    user.save()
     
     return 0
 

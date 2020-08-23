@@ -23,11 +23,11 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
-# Tag relationship example
-#org_tag_association = db.Table('tag_organization', db.metadata,
-#    db.Column('organization_uuid', db.String, db.ForeignKey('organization.uuid')),
-#    db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
-#)
+# Tag relationships
+playbook_tag_association = db.Table('tag_playbook', db.metadata,
+    db.Column('playbook_uuid', db.String, db.ForeignKey('playbook.uuid')),
+    db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
+)
 
 
 class Base(db.Model):
@@ -84,28 +84,20 @@ class Permission(Base):
     unlock_user = db.Column(db.Boolean, default=False)
     view_users = db.Column(db.Boolean, default=False)
 
-    # Organization Permissions
-    add_org = db.Column(db.Boolean, default=False)
-    update_org = db.Column(db.Boolean, default=False)
-    delete_org = db.Column(db.Boolean, default=False)
-    add_tag_to_org = db.Column(db.Boolean, default=False)
-    remove_tag_from_org = db.Column(db.Boolean, default=False)
-    view_orgs = db.Column(db.Boolean, default=False)
-
-    # Project Permissions
-    add_project = db.Column(db.Boolean, default=False)
-    update_project = db.Column(db.Boolean, default=False)
-    delete_project = db.Column(db.Boolean, default=False)
-    add_tag_to_project = db.Column(db.Boolean, default=False)
-    remove_tag_from_project = db.Column(db.Boolean, default=False)
-    view_projects = db.Column(db.Boolean, default=False)
-
     # Role Permissions
     add_role = db.Column(db.Boolean, default=False)
     update_role = db.Column(db.Boolean, default=False)
     delete_role = db.Column(db.Boolean, default=False)
     set_role_permissions = db.Column(db.Boolean, default=False)
     view_roles = db.Column(db.Boolean, default=False)
+
+    # Playbook Permission
+    add_playbook = db.Column(db.Boolean, default=False)
+    update_playbook = db.Column(db.Boolean, default=False)
+    delete_playbook = db.Column(db.Boolean, default=False)
+    view_playbooks = db.Column(db.Boolean, default=False)
+    add_tag_to_playbook = db.Column(db.Boolean, default=False)
+    remove_tag_from_playbook = db.Column(db.Boolean, default=False)
 
     # Tag Permissions
     add_tag = db.Column(db.Boolean, default=False)
@@ -213,6 +205,14 @@ class RefreshToken(Base):
 class AuthTokenBlacklist(Base):
 
     auth_token = db.Column(db.String(200))
+
+
+class Playbook(Base):
+
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    description = db.Column(db.String(255))
+    enabled = db.Column(db.Boolean(), default=True)
+    tags = db.relationship('Tag', secondary=playbook_tag_association)
 
 
 class Credential(Base):

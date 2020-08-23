@@ -5,7 +5,7 @@ import base64
 import cryptography
 from flask import request, current_app, abort
 from flask_restx import Api, Resource, Namespace, fields, Model
-from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission
+from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook
 from sqlalchemy.dialects.postgresql import UUID
 from .utils import token_required, user_has, _get_current_user
 from .schemas import *
@@ -17,6 +17,7 @@ ns_user = api.namespace('User', description='User operations', path='/user')
 ns_auth = api.namespace('Auth', description='Authentication operations', path='/auth')
 ns_role = api.namespace('Role', description='Role operations', path='/role')
 ns_perms = api.namespace('Permission', description='Permission operations', path='/permission')
+ns_playbook = api.namespace('Playbook', description='Playbook operations', path='/playbook')
 ns_tag = api.namespace('Tag', description='Tag operations', path='/tag')
 ns_credential = api.namespace('Credential', description='Credential operations', path='/credential')
 
@@ -264,6 +265,88 @@ class PermissionDetails(Resource):
             ns_perms.abort(404, 'Permission set not found.')
         return
 
+
+@ns_playbook.route("")
+class PlaybookList(Resource):
+    
+    @api.marshal_with(mod_playbook_list, as_list=True)
+    def get(self):
+        ''' Returns a list of playbook '''
+        return Playbook.query.all()
+
+    @api.expect(mod_playbook_create)
+    @api.response('409', 'Playbook already exists.')
+    @api.response('200', "Successfully created the playbook.")
+    def post(self):
+        ''' Creates a new playbook '''
+        playbook = Playbook.query.filter_by(name=api.payload['name']).first()
+        if not playbook:
+            playbook = Playbook(**api.payload)
+            playbook.create()
+            return {'message':'Successfully created the playbook.'}
+        else:
+            ns_playbook.abort(409, 'Playbook already exists.')
+
+
+@ns_playbook.route("/<uuid>")
+class PlaybookDetails(Resource):
+
+    @api.marshal_with(mod_playbook_full)
+    @api.response('200', 'Success')
+    @api.response('404', 'Playbook not found')
+    def get(self, uuid):
+        ''' Returns information about a playbook '''
+        playbook = Playbook.query.filter_by(uuid=uuid).first()
+        if playbook:
+            return playbook
+        else:
+            ns_playbook.abort(404, 'Playbook not found.')
+
+    @api.expect(mod_playbook_create)
+    @api.marshal_with(mod_playbook_full)
+    def put(self, uuid):
+        ''' Updates information for a playbook '''
+        playbook = Playbook.query.filter_by(uuid=uuid).first()
+        if playbook:
+            if 'name' in api.payload and Playbook.query.filter_by(name=api.payload['name']).first():
+                ns_playbook.abort(409, 'Playbook name already exists.')
+            else:
+                playbook.update(api.payload)
+                return playbook
+        else:
+            ns_playbook.abort(404, 'Playbook not found.')
+
+    def delete(self, uuid):
+        ''' Deletes a playbook '''
+        playbook = Playbook.query.filter_by(uuid=uuid).first()
+        if playbook:
+            playbook.delete()
+            return {'message': 'Sucessfully deleted playbook.'}
+
+
+@ns_playbook.route("/<uuid>/tag/<name>")
+class TagPlaybook(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('add_tag_to_playbook')
+    def post(self, uuid, name, current_user):
+        ''' Adds a tag to an playbook '''
+        tag = Tag.query.filter_by(name=name).first()
+        if not tag:
+            tag = Tag(**{'name': name, 'color':'#fffff'})
+            tag.create()
+            #ns_playbook.abort(404, 'Tag not found.')
+        
+        playbook = Playbook.query.filter_by(uuid=uuid).first()
+        if playbook:
+            playbook.tags += [tag]
+            playbook.save()
+        else:
+            ns_playbook.abort(404, 'Playbook not found.')
+        return {'message': 'Successfully added tag to playbook.'}
+
+
 @ns_role.route("")
 class RoleList(Resource):
 
@@ -393,18 +476,19 @@ class RemoveUserFromRole(Resource):
 class EncryptPassword(Resource):
 
     @api.doc(security="Bearer")
-    @token_required
-    @user_has('add_credential')
+    
+    
     @api.expect(mod_credential_create)
     @api.response('400', 'Successfully created credential.')
     @api.response('409', 'Credential already exists.')
+    @token_required
+    @user_has('add_credential')
     def post(self, current_user):
         ''' Encrypts the password '''
-        master_password = api.payload.pop('master_password')
         credential = Credential.query.filter_by(name=api.payload['name']).first()
         if not credential:
             credential = Credential(**api.payload)
-            credential.encrypt(api.payload['password'].encode(), master_password)
+            credential.encrypt(api.payload['secret'].encode(), current_app.config['MASTER_PASSWORD'])
             credential.create()
             return {'message': 'Successfully created credential.', 'uuid': credential.uuid}, 200
         else:
@@ -415,18 +499,19 @@ class EncryptPassword(Resource):
 class DecryptPassword(Resource):
     
     @api.doc(security="Bearer")
-    @token_required
-    @user_has('decrypt_credential')
+    
     @api.expect(mod_credential_decrypt)
     @api.marshal_with(mod_credential_return)
     @api.response('404', 'Credential not found.')
+    @token_required
+    @user_has('decrypt_credential')
     def post(self, current_user):
         ''' Decrypts the credential for use '''
         credential = Credential.query.filter_by(uuid=api.payload['uuid']).first()
         if credential:
-            value = credential.decrypt(api.payload['master_password'])
+            value = credential.decrypt(current_app.config['MASTER_PASSWORD'])
             if value:
-                return {'password': value}
+                return {'secret': value}
             else:
                 ns_credential.abort(401, 'Invalid master password.')
         else:
@@ -437,10 +522,11 @@ class DecryptPassword(Resource):
 class DeletePassword(Resource):
     
     @api.doc(security="Bearer")
-    @token_required
-    @user_has('view_credentials')
+    
     @api.marshal_with(mod_credential_full)
     @api.response('404', 'Credential not found.')
+    @token_required
+    @user_has('view_credentials')
     def get(self, uuid, current_user):
         ''' Gets the full details of a credential '''
         credential = Credential.query.filter_by(uuid=uuid).first()
@@ -463,22 +549,18 @@ class DeletePassword(Resource):
             if 'name' in api.payload and Credential.query.filter_by(name=api.payload['name']).first():
                 ns_credential.abort(409, 'Credential name already exists.')
             else:
-                master_password = None
-                if 'master_password' and 'password' in api.payload:
-                    master_password = api.payload.pop('master_password')
-                credential.update(api.payload)
-                if master_password:
-                    credential.encrypt(api.payload['password'].encode(), master_password)
-                    credential.save()
+                credential.encrypt(api.payload['secret'].encode(), current_app.config['MASTER_PASSWORD'])
+                credential.save()
                 return credential
         else:
             ns_credential.abort(404, 'Credential not found.')
 
     @api.doc(security="Bearer")
-    @token_required
-    @user_has('delete_credential')
+   
     @api.response('404', 'Credential not found.')
     @api.response('200', "Credential sucessfully deleted.")
+    @token_required
+    @user_has('delete_credential')
     def delete(self, uuid, current_user):
         ''' Deletes a credential '''
         credential = Credential.query.filter_by(uuid=uuid).first()
@@ -487,3 +569,63 @@ class DeletePassword(Resource):
             return {'message': 'Credential successfully deleted.'}
         else:
             ns_credential.abort(404, 'Credential not found.')
+
+
+@ns_tag.route('/')
+class TagList(Resource):
+
+    @api.marshal_with(mod_tag_list, as_list=True)
+    def get(self):
+        ''' Gets a list of tags '''
+        return Tag.query.all()
+
+    @api.expect(mod_tag)
+    @api.response('409', 'Tag already exists.')
+    @api.response('200', "Successfully created the tag.")
+    def post(self):
+        ''' Creates a new tag '''
+        tag = Tag.query.filter_by(name=api.payload['name']).first()
+        if not tag:
+            tag = Tag(**api.payload)
+            tag.create()
+            return {'message':'Successfully created the tag.'}
+        else:
+            ns_project.abort(409, 'Tag already exists.')
+        return
+
+@ns_tag.route('/<uuid>')
+class TagDetails(Resource):
+
+    @api.marshal_with(mod_tag_list)
+    @api.response('200', 'Success')
+    @api.response('404', 'Tag not found')
+    def get(self,uuid):
+        ''' Gets details on a specific tag '''
+        tag = Tag.query.filter_by(uuid=uuid).first()
+        if tag:
+            return tag
+        else:
+            ns_tag.abort(404, 'Tag not found.')
+        return
+    
+    @api.expect(mod_tag)
+    @api.marshal_with(mod_tag)
+    def put(self, uuid):
+        ''' Updates a tag '''
+        tag = Tag.query.filter_by(uuid=uuid).first()
+        if tag:
+            if 'name' in api.payload and Tag.query.filter_by(name=api.payload['name']).first():
+                ns_tag.abort(409, 'Tag name already exists.')
+            else:
+                tag.update(api.payload)
+                return tag
+        else:
+            ns_tag.abort(404, 'Tag not found.')
+        return
+
+    def delete(self, uuid):
+        ''' Deletes a tag '''
+        tag = Tag.query.filter_by(uuid=uuid).first()
+        if tag:
+            tag.delete()
+            return {'message': 'Sucessfully deleted tag.'}
