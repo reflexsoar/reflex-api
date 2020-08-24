@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 20ce5b1fbcf6
+Revision ID: d0dfae1e9f36
 Revises: 
-Create Date: 2020-08-23 21:53:43.708879
+Create Date: 2020-08-23 22:15:33.760752
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '20ce5b1fbcf6'
+revision = 'd0dfae1e9f36'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -79,6 +79,16 @@ def upgrade():
     sa.Column('delete_role', sa.Boolean(), nullable=True),
     sa.Column('set_role_permissions', sa.Boolean(), nullable=True),
     sa.Column('view_roles', sa.Boolean(), nullable=True),
+    sa.Column('add_alert', sa.Boolean(), nullable=True),
+    sa.Column('update_alert', sa.Boolean(), nullable=True),
+    sa.Column('delete_alert', sa.Boolean(), nullable=True),
+    sa.Column('add_tag_to_alert', sa.Boolean(), nullable=True),
+    sa.Column('remove_tag_from_alert', sa.Boolean(), nullable=True),
+    sa.Column('add_observable', sa.Boolean(), nullable=True),
+    sa.Column('update_observable', sa.Boolean(), nullable=True),
+    sa.Column('delete_observable', sa.Boolean(), nullable=True),
+    sa.Column('add_tag_to_observable', sa.Boolean(), nullable=True),
+    sa.Column('remove_tag_from_observable', sa.Boolean(), nullable=True),
     sa.Column('add_playbook', sa.Boolean(), nullable=True),
     sa.Column('update_playbook', sa.Boolean(), nullable=True),
     sa.Column('delete_playbook', sa.Boolean(), nullable=True),

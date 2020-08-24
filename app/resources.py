@@ -315,15 +315,28 @@ class PlaybookList(Resource):
         ''' Returns a list of playbook '''
         return Playbook.query.all()
 
+    @api.doc(security="Bearer")
     @api.expect(mod_playbook_create)
     @api.response('409', 'Playbook already exists.')
     @api.response('200', "Successfully created the playbook.")
-    def post(self):
+    @token_required
+    @user_has('create_playbook')
+    def post(self, current_user):
+        _tags = []
         ''' Creates a new playbook '''
         playbook = Playbook.query.filter_by(name=api.payload['name']).first()
         if not playbook:
+            if 'tags' in api.payload:
+                tags = api.payload.pop('tags')
+                _tags = parse_tags(tags)
+
             playbook = Playbook(**api.payload)
             playbook.create()
+
+            if len(_tags) > 0:
+                playbook.tags += _tags
+                playbook.save()
+
             return {'message':'Successfully created the playbook.'}
         else:
             ns_playbook.abort(409, 'Playbook already exists.')
@@ -365,6 +378,26 @@ class PlaybookDetails(Resource):
             return {'message': 'Sucessfully deleted playbook.'}
 
 
+@ns_playbook.route('/<uuid>/remove_tag/<name>')
+class DeletePlaybookTag(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    #@user_has('remove_tag_from_playbook')
+    def delete(self, uuid, name, current_user):
+        ''' Removes a tag from an playbook '''
+        tag = Tag.query.filter_by(name=name).first()
+        if not tag:
+            ns_playbook.abort(404, 'Tag not found.')
+        playbook = Playbook.query.filter_by(uuid=uuid).first()
+        if playbook:
+            playbook.tags.remove(tag)
+            playbook.save()
+        else:
+            ns_playbook.abort(404, 'Playbook not found.')
+        return {'message': 'Successfully rmeoved tag from playbook.'}
+                
+
 @ns_playbook.route("/<uuid>/tag/<name>")
 class TagPlaybook(Resource):
 
@@ -377,11 +410,40 @@ class TagPlaybook(Resource):
         if not tag:
             tag = Tag(**{'name': name, 'color':'#fffff'})
             tag.create()
-            #ns_playbook.abort(404, 'Tag not found.')
         
         playbook = Playbook.query.filter_by(uuid=uuid).first()
         if playbook:
             playbook.tags += [tag]
+            playbook.save()
+        else:
+            ns_alert.abort(404, 'Playbook not found.')
+        return {'message': 'Successfully added tag to playbook.'}
+
+
+@ns_playbook.route("/<uuid>/bulktag")
+class BulkTagPlaybook(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_bulk_tag)
+    @token_required
+    @user_has('add_tag_to_playbook')    
+    def post(self, uuid, current_user):
+        ''' Adds a tag to an playbook '''
+        _tags = []
+        if 'tags' in api.payload:
+            tags = api.payload['tags']
+            for t in tags:
+                tag = Tag.query.filter_by(name=t).first()
+                if not tag:
+                    tag = Tag(**{'name': t, 'color':'#fffff'})
+                    tag.create()
+                    _tags += [tag]
+                else:
+                    _tags += [tag]
+
+        playbook = Playbook.query.filter_by(uuid=uuid).first()
+        if playbook:
+            playbook.tags += _tags
             playbook.save()
         else:
             ns_playbook.abort(404, 'Playbook not found.')
@@ -485,7 +547,6 @@ class DeleteAlertTag(Resource):
             ns_alert.abort(404, 'Alert not found.')
         return {'message': 'Successfully rmeoved tag from alert.'}
                 
-
 
 @ns_alert.route("/<uuid>/tag/<name>")
 class TagAlert(Resource):

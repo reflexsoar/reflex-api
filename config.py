@@ -10,6 +10,7 @@ class Config(object):
     API_VERSION = '1.0'
     API_DESCRIPTION = 'A Security Orchestration and Automation Platform'
     WTF_CSRF_ENABLED = False
+    PERMISSIONS_DISABLED = True
 
 class ProductionConfig(Config):
     DEBUG = False

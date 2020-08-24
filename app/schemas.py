@@ -160,7 +160,8 @@ mod_credential_decrypted = Model('CredentialDecrypted', {
 
 mod_playbook_create = Model('ProjectCreate', {
     'name': fields.String,
-    'description': fields.String
+    'description': fields.String,
+    'tags': fields.List(fields.String)
 })
 
 mod_playbook_full = Model('Project', {

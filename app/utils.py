@@ -22,6 +22,8 @@ def user_has(permission):
 
     def decorator(f):
         def wrapper(*args, **kwargs):
+            if(current_app.config['PERMISSIONS_DISABLED']):
+                return f(*args, **kwargs)
             current_user = _check_token()
             if current_user.has_right(permission):
                 return f(*args, **kwargs)
