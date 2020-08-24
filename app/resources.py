@@ -759,6 +759,21 @@ class EncryptPassword(Resource):
         else:
             ns_credential.abort(409, 'Credential already exists.')
 
+@ns_credential.route('/')
+class CredentialList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_credential_list)
+    @token_required
+    @user_has('view_credentials')
+    def get(self, current_user):
+        credentials = Credential.query.all()
+        if credentials:
+            return credentials
+        else:
+            ns_credential.abort(404,'No credentials found.')
+
+
 
 @ns_credential.route('/decrypt')
 class DecryptPassword(Resource):
