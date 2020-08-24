@@ -5,7 +5,7 @@ import base64
 import cryptography
 from flask import request, current_app, abort
 from flask_restx import Api, Resource, Namespace, fields, Model
-from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook
+from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType
 from sqlalchemy.dialects.postgresql import UUID
 from .utils import token_required, user_has, _get_current_user
 from .schemas import *
@@ -19,6 +19,7 @@ ns_role = api.namespace('Role', description='Role operations', path='/role')
 ns_perms = api.namespace('Permission', description='Permission operations', path='/permission')
 ns_playbook = api.namespace('Playbook', description='Playbook operations', path='/playbook')
 ns_tag = api.namespace('Tag', description='Tag operations', path='/tag')
+ns_alert = api.namespace('Alert', description='Alert operations', path='/alert')
 ns_credential = api.namespace('Credential', description='Credential operations', path='/credential')
 
 # Expect an API token
@@ -29,6 +30,46 @@ expect_token.add_argument('Authorization', location='headers')
 # TODO: Fix this so this hack isn't required, app factory is jacking this up
 for model in schema_models:
     api.models[model.name] = model
+
+
+def parse_tags(tags):
+    ''' Tags a list of supplied tags and creates Tag objects for each one '''
+    _tags = []
+    for t in tags:
+        tag = Tag.query.filter_by(name=t).first()
+        if not tag:
+            tag = Tag(**{'name': t, 'color':'#fffff'})
+            tag.create()
+            _tags += [tag]
+        else:
+            _tags += [tag]
+    return _tags
+
+
+def create_observables(observables):
+    _observables = []
+    _tags = []
+    print(observables)
+    for o in observables:
+        if 'tags' in o:
+            tags = o.pop('tags')
+            _tags = parse_tags(tags)
+
+        observable_type = DataType.query.filter_by(name=o['dataType']).first()
+        if observable_type:
+            print(o)
+            observable = Observable.query.filter_by(value=o['value'],dataType_id=observable_type.uuid).first()
+            if not observable:
+                o['dataType'] = observable_type
+                observable = Observable(**o)
+                observable.create()
+                _observables += [observable]
+            else:
+                _observables += [observable]
+            if len(_tags) > 0:
+                observable.tags += _tags
+                observable.save()
+    return _observables
 
 
 @ns_auth.route("/login")
@@ -345,6 +386,136 @@ class TagPlaybook(Resource):
         else:
             ns_playbook.abort(404, 'Playbook not found.')
         return {'message': 'Successfully added tag to playbook.'}
+
+
+@ns_alert.route("")
+class AlertList(Resource):
+    
+    @api.marshal_with(mod_alert_list, as_list=True)
+    def get(self):
+        ''' Returns a list of alert '''
+        return Alert.query.all()
+
+    @api.expect(mod_alert_create)
+    @api.response('409', 'Alert already exists.')
+    @api.response('200', "Successfully created the alert.")
+    def post(self):
+        _observables = []
+        _tags = []
+        ''' Creates a new alert '''
+        alert = Alert.query.filter_by(reference=api.payload['reference']).first()
+        if not alert:
+            if 'tags' in api.payload:
+                tags = api.payload.pop('tags')
+                _tags = parse_tags(tags)
+
+            if 'observables' in api.payload:
+                observables = api.payload.pop('observables')
+                _observables = create_observables(observables)
+                print(_observables)
+                
+            alert = Alert(**api.payload)
+            alert.create()
+
+            if len(_tags) > 0:
+                alert.tags += _tags
+                alert.save()
+
+            if len(_observables) > 0:
+                alert.observables += _observables
+                alert.save()
+
+            return {'message':'Successfully created the alert.'}
+        else:
+            ns_alert.abort(409, 'Alert already exists.')
+
+
+@ns_alert.route("/<uuid>")
+class AlertDetails(Resource):
+
+    @api.marshal_with(mod_alert_details)
+    @api.response('200', 'Success')
+    @api.response('404', 'Alert not found')
+    def get(self, uuid):
+        ''' Returns information about a alert '''
+        alert = Alert.query.filter_by(uuid=uuid).first()
+        if alert:
+            return alert
+        else:
+            ns_alert.abort(404, 'Alert not found.')
+
+    @api.expect(mod_alert_create)
+    @api.marshal_with(mod_alert_details)
+    def put(self, uuid):
+        ''' Updates information for a alert '''
+        alert = Alert.query.filter_by(uuid=uuid).first()
+        if alert:
+            if 'name' in api.payload and Alert.query.filter_by(name=api.payload['name']).first():
+                ns_alert.abort(409, 'Alert name already exists.')
+            else:
+                alert.update(api.payload)
+                return alert
+        else:
+            ns_alert.abort(404, 'Alert not found.')
+
+    def delete(self, uuid):
+        ''' Deletes a alert '''
+        alert = Alert.query.filter_by(uuid=uuid).first()
+        if alert:
+            alert.delete()
+            return {'message': 'Sucessfully deleted alert.'}
+
+
+@ns_alert.route("/<uuid>/tag/<name>")
+class TagAlert(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    #@user_has('add_tag_to_alert')
+    def post(self, uuid, name, current_user):
+        ''' Adds a tag to an alert '''
+        tag = Tag.query.filter_by(name=name).first()
+        if not tag:
+            tag = Tag(**{'name': name, 'color':'#fffff'})
+            tag.create()
+        
+        alert = Alert.query.filter_by(uuid=uuid).first()
+        if alert:
+            alert.tags += [tag]
+            alert.save()
+        else:
+            ns_alert.abort(404, 'Alert not found.')
+        return {'message': 'Successfully added tag to alert.'}
+
+
+@ns_alert.route("/<uuid>/bulktag")
+class BulkTagAlert(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_bulk_tag)
+    @token_required
+    #@user_has('add_tag_to_alert')    
+    def post(self, uuid, current_user):
+        ''' Adds a tag to an alert '''
+        _tags = []
+        if 'tags' in api.payload:
+            tags = api.payload['tags']
+            for t in tags:
+                tag = Tag.query.filter_by(name=t).first()
+                if not tag:
+                    tag = Tag(**{'name': t, 'color':'#fffff'})
+                    tag.create()
+                    _tags += [tag]
+                else:
+                    _tags += [tag]
+
+        alert = Alert.query.filter_by(uuid=uuid).first()
+        if alert:
+            alert.tags += _tags
+            alert.save()
+        else:
+            ns_alert.abort(404, 'Alert not found.')
+        return {'message': 'Successfully added tag to alert.'}
 
 
 @ns_role.route("")

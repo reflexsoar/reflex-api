@@ -6,7 +6,7 @@ from flask_migrate import Migrate, MigrateCommand
 from flask_script import Manager
 
 from app import create_app, db
-from app.models import AuthTokenBlacklist, User, Role, Permission
+from app.models import AuthTokenBlacklist, User, Role, Permission, DataType, AlertStatus
 
 app = create_app()
 app.app_context().push()
@@ -83,6 +83,8 @@ def blacklist_token(token):
 @manager.command
 def setup():
 
+    print("Creating default adminstrator permissions...")
+
     # Create the Permissions for an administrator
     perms = { 
         'add_user': True,
@@ -118,6 +120,8 @@ def setup():
     db.session.add(permissions)
     db.session.commit()
 
+    print("Creating the default administrator role...")
+
     # Create the administrator role
     details =  {
         'name': 'Admin',
@@ -131,6 +135,8 @@ def setup():
 
     role.save()
 
+    print("Creating the administrator account...")
+
     # Create the default administrator account
     default_admin = {
         'email': 'admin@reflexsoar.com',
@@ -140,10 +146,43 @@ def setup():
     user = User(**default_admin)
     db.session.add(user)
     db.session.commit()
+    print("Username: reflex")
+    print("Password: reflex")
 
     user.role = role
     user.save()
+
+
+    print("Creating default Observable Types")
+    dataTypes = {
+        'ip': 'IP Address',
+        'domain': 'A domain name',
+        'fqdn': 'The fully qualified domain name of a host',
+        'host': 'The hosts name',
+        'mail': 'An e-mail address',
+        'hahs': 'A hash value'
+    }
+    for k in dataTypes:
+        dt = DataType(name=k, description=dataTypes[k])
+        db.session.add(dt)
+        db.session.commit()
+
+    print("Creating default alert statuses")
+    statuses = {
+        'New': 'A new alert.',
+        'Closed': 'An alert that has been closed.',
+        'Dismissed': 'An alert that has been ignored from some reason.'
+    }
+    for k in statuses:
+        status = AlertStatus(name=k, description=statuses[k])
+        db.session.add(status)
+        db.session.commit()
+        if k == 'Closed':
+            status.closed = True
+            status.save()
+        
     
+
     return 0
 
 if __name__ == '__main__':

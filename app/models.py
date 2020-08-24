@@ -23,11 +23,27 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
-# Tag relationships
+# Relationships
 playbook_tag_association = db.Table('tag_playbook', db.metadata,
     db.Column('playbook_uuid', db.String, db.ForeignKey('playbook.uuid')),
     db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
 )
+
+alert_tag_association = db.Table('tag_alert', db.metadata,
+    db.Column('alert_uuid', db.String, db.ForeignKey('alert.uuid')),
+    db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
+)
+
+observable_tag_association = db.Table('tag_observable', db.metadata,
+    db.Column('observable_uuid', db.String, db.ForeignKey('observable.uuid')),
+    db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
+)
+
+observable_alert_association = db.Table('observable_alert', db.metadata,
+    db.Column('observable_uuid', db.String, db.ForeignKey('observable.uuid')),
+    db.Column('alert_uuid', db.String, db.ForeignKey('alert.uuid'))
+)
+# End relationships
 
 
 class Base(db.Model):
@@ -205,6 +221,41 @@ class RefreshToken(Base):
 class AuthTokenBlacklist(Base):
 
     auth_token = db.Column(db.String(200))
+
+
+class Alert(Base):
+
+    title = db.Column(db.String(255), nullable=False)
+    reference = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.String, nullable=False)
+    tlp = db.Column(db.Integer, default=2)
+    status_id = db.Column(db.String, db.ForeignKey('alert_status.uuid'))
+    status = db.relationship("AlertStatus")
+    observables = db.relationship('Observable', secondary=observable_alert_association)
+    tags = db.relationship('Tag', secondary=alert_tag_association)
+
+
+class AlertStatus(Base):
+
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.String, nullable=False)
+    closed = db.Column(db.Boolean, default=False)
+
+
+class Observable(Base):
+
+    value = db.Column(db.String(255))
+    dataType_id = db.Column(db.String, db.ForeignKey('data_type.uuid'))
+    dataType = db.relationship("DataType")
+    tags = db.relationship('Tag', secondary=observable_tag_association)
+    ioc = db.Column(db.Boolean, default=False)
+    spotted = db.Column(db.Boolean, default=False)
+
+
+class DataType(Base):
+
+    name = db.Column(db.String(255))
+    description = db.Column(db.String)
 
 
 class Playbook(Base):
