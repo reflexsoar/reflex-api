@@ -310,7 +310,10 @@ class PermissionDetails(Resource):
 @ns_playbook.route("")
 class PlaybookList(Resource):
     
+    @api.doc(security="Bearer")
     @api.marshal_with(mod_playbook_list, as_list=True)
+    @token_required
+    @user_has('view_playbooks')
     def get(self):
         ''' Returns a list of playbook '''
         return Playbook.query.all()
@@ -345,9 +348,12 @@ class PlaybookList(Resource):
 @ns_playbook.route("/<uuid>")
 class PlaybookDetails(Resource):
 
+    @api.doc(security="Bearer")
     @api.marshal_with(mod_playbook_full)
     @api.response('200', 'Success')
     @api.response('404', 'Playbook not found')
+    @token_required
+    @user_has('view_playbooks')
     def get(self, uuid):
         ''' Returns information about a playbook '''
         playbook = Playbook.query.filter_by(uuid=uuid).first()
@@ -356,8 +362,11 @@ class PlaybookDetails(Resource):
         else:
             ns_playbook.abort(404, 'Playbook not found.')
 
+    @api.doc(security="Bearer")
     @api.expect(mod_playbook_create)
     @api.marshal_with(mod_playbook_full)
+    @token_required
+    @user_has('update_playbook')
     def put(self, uuid):
         ''' Updates information for a playbook '''
         playbook = Playbook.query.filter_by(uuid=uuid).first()
@@ -370,6 +379,9 @@ class PlaybookDetails(Resource):
         else:
             ns_playbook.abort(404, 'Playbook not found.')
 
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_playbook')
     def delete(self, uuid):
         ''' Deletes a playbook '''
         playbook = Playbook.query.filter_by(uuid=uuid).first()
@@ -383,7 +395,7 @@ class DeletePlaybookTag(Resource):
 
     @api.doc(security="Bearer")
     @token_required
-    #@user_has('remove_tag_from_playbook')
+    @user_has('remove_tag_from_playbook')
     def delete(self, uuid, name, current_user):
         ''' Removes a tag from an playbook '''
         tag = Tag.query.filter_by(name=name).first()
