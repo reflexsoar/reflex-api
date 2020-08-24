@@ -107,6 +107,20 @@ class Permission(Base):
     set_role_permissions = db.Column(db.Boolean, default=False)
     view_roles = db.Column(db.Boolean, default=False)
 
+    # Alert Permissions
+    add_alert = db.Column(db.Boolean, default=False)
+    update_alert = db.Column(db.Boolean, default=False)
+    delete_alert = db.Column(db.Boolean, default=False)
+    add_tag_to_alert = db.Column(db.Boolean, default=False)
+    remove_tag_from_alert = db.Column(db.Boolean, default=False)
+
+    # Observable Permissions
+    add_observable = db.Column(db.Boolean, default=False)
+    update_observable = db.Column(db.Boolean, default=False)
+    delete_observable = db.Column(db.Boolean, default=False)
+    add_tag_to_observable = db.Column(db.Boolean, default=False)
+    remove_tag_from_observable = db.Column(db.Boolean, default=False)
+
     # Playbook Permission
     add_playbook = db.Column(db.Boolean, default=False)
     update_playbook = db.Column(db.Boolean, default=False)

@@ -466,12 +466,33 @@ class AlertDetails(Resource):
             return {'message': 'Sucessfully deleted alert.'}
 
 
+@ns_alert.route('/<uuid>/remove_tag/<name>')
+class DeleteAlertTag(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    #@user_has('remove_tag_from_alert')
+    def delete(self, uuid, name, current_user):
+        ''' Removes a tag from an alert '''
+        tag = Tag.query.filter_by(name=name).first()
+        if not tag:
+            ns_alert.abort(404, 'Tag not found.')
+        alert = Alert.query.filter_by(uuid=uuid).first()
+        if alert:
+            alert.tags.remove(tag)
+            alert.save()
+        else:
+            ns_alert.abort(404, 'Alert not found.')
+        return {'message': 'Successfully rmeoved tag from alert.'}
+                
+
+
 @ns_alert.route("/<uuid>/tag/<name>")
 class TagAlert(Resource):
 
     @api.doc(security="Bearer")
     @token_required
-    #@user_has('add_tag_to_alert')
+    @user_has('add_tag_to_alert')
     def post(self, uuid, name, current_user):
         ''' Adds a tag to an alert '''
         tag = Tag.query.filter_by(name=name).first()
@@ -494,7 +515,7 @@ class BulkTagAlert(Resource):
     @api.doc(security="Bearer")
     @api.expect(mod_bulk_tag)
     @token_required
-    #@user_has('add_tag_to_alert')    
+    @user_has('add_tag_to_alert')    
     def post(self, uuid, current_user):
         ''' Adds a tag to an alert '''
         _tags = []

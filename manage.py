@@ -114,7 +114,17 @@ def setup():
         "delete_playbook": True,
         "view_playbooks": True,
         "add_tag_to_playbook": True,
-        "remove_tag_from_playbook": True
+        "remove_tag_from_playbook": True,
+        "add_alert": True,
+        "update_alert": True,
+        "delete_alert": True,
+        "add_tag_to_alert": True,
+        "remove_tag_from_alert": True,
+        "add_observable": True,
+        "update_observable": True,
+        "delete_observable": True,
+        "add_tag_to_observable": True,
+        "remove_tag_from_observable": True
     }
     permissions = Permission(**perms)
     db.session.add(permissions)
