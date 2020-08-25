@@ -3,7 +3,7 @@ import jwt
 import json
 import base64
 import cryptography
-from flask import request, current_app, abort
+from flask import request, current_app, abort, make_response
 from flask_restx import Api, Resource, Namespace, fields, Model
 from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input
 from sqlalchemy.dialects.postgresql import UUID
@@ -536,14 +536,23 @@ class CreateBulkAlerts(Resource):
 
     @api.expect(mod_alert_create_bulk)
     @api.response('200', 'Sucessfully created alerts.')
+    @api.response('207', 'Multi-Status')
     def post(self):
+        response = {
+            'results': [],
+            'success': True
+        }
         alerts = api.payload['alerts']
         for item in alerts:
-            print(item)
-            alert = Alert(**item)
-            alert.create()
-
-        return {'message': 'Alerts successfully created.'}
+            alert = Alert.query.filter_by(reference=item['reference']).first()
+            if not alert:
+                alert = Alert(**item)
+                alert.create()
+                response['results'].append({'reference': item['reference'], 'status': 200, 'message':'Alert successfully created.'})
+            else:
+                response['results'].append({'reference':item['reference'], 'status': 409, 'message':'Alert already exists.'})
+                response['success'] = False
+        return response,207
 
 
 @ns_alert.route("")
