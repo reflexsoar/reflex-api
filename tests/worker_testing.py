@@ -77,7 +77,7 @@ if response.status_code == 200:
 
         #print({'alerts':alerts})
         
-        response = requests.post('%s/alert/_bulk' % (API_URL), headers=headers, json=json.dumps({'alerts': alerts}))
+        response = requests.post('%s/alert/_bulk' % (API_URL), headers=headers, json={'alerts': alerts})
         if response.status_code == 200:
             print(response.content)
         #else:
