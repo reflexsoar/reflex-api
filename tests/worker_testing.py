@@ -1,8 +1,11 @@
 import ssl
+import json
 import requests
 from elasticsearch import Elasticsearch
 
-response = requests.get('http://localhost:5000/input')
+API_URL = 'http://localhost:5000'
+
+response = requests.get('%s/input' % (API_URL))
 if response.status_code == 200:
     inputs = response.json()
     for i in inputs:
@@ -11,13 +14,13 @@ if response.status_code == 200:
             
             # Fetch the credential details
             print("FETCHING CRED DETAILS")
-            response = requests.get('http://localhost:5000/credential/%s' % (i['credential']['uuid']))
+            response = requests.get('%s/credential/%s' % (API_URL, i['credential']['uuid']))
             if response.status_code == 200:
                 cred_details = response.json()
 
             print("FETCHING CRED SECRET")
             # Decrypt the secret
-            response = requests.get('http://localhost:5000/credential/decrypt/%s' % (i['credential']['uuid']))        
+            response = requests.get('%s/credential/decrypt/%s' % (API_URL, i['credential']['uuid']))        
             if response.status_code == 200:
                 cred_data = response.json()
                 secret = response.json()['secret']
@@ -58,7 +61,27 @@ if response.status_code == 200:
         es = Elasticsearch(config['hosts'], **es_config)
         body = {'query': {'range': {"@timestamp": {"gt": "now-{}".format("12d")}}}, 'size':200}
         response = es.search(index=config['index'], body=body)
-        print(response)
+        if response['hits']['total']['value'] > 0:
+            alerts = []
+            for record in response['hits']['hits']:
+                source = record['_source']
+                alert = {
+                    'title': source['signal']['rule']['name'],
+                    'description': source['signal']['rule']['description'],
+                    'reference': source['signal']['parent']['id']
+                }
+                alerts.append(alert)
+        headers = {
+            'content-type': 'application/json'
+        }
+
+        #print({'alerts':alerts})
+        
+        response = requests.post('%s/alert/_bulk' % (API_URL), headers=headers, json=json.dumps({'alerts': alerts}))
+        if response.status_code == 200:
+            print(response.content)
+        #else:
+         #   print(response)
         
 
 

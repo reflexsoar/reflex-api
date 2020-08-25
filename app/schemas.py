@@ -246,6 +246,10 @@ mod_alert_details = Model('AlertDetails', {
     'observables': fields.List(fields.Nested(mod_observable_create))
 })
 
+mod_alert_create_bulk = Model('AlertCreateBulk', {
+    'alerts': fields.List(fields.Nested(mod_alert_create))
+})
+
 mod_observable = Model('ObservableDetails', {
     'tags': fields.List(fields.Nested(mod_tag_list)),
     'value': fields.String,
@@ -301,4 +305,4 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_playbook_full,  mod_playbook_create, mod_playbook_list, mod_bulk_tag,
                  mod_observable, mod_observable_create, mod_observable_list, mod_observable_type, mod_observable_type_name,
                  mod_alert_create, mod_alert_details, mod_alert_list, mod_credential_list,
-                 mod_input_create, mod_input_list]
+                 mod_input_create, mod_input_list, mod_alert_create_bulk]

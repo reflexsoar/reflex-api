@@ -531,6 +531,19 @@ class InputDetails(Resource):
             inp.delete()
             return {'message': 'Sucessfully deleted input.'}
 
+@ns_alert.route("/_bulk")
+class CreateBulkAlerts(Resource):
+
+    @api.expect(mod_alert_create_bulk)
+    @api.response('200', 'Sucessfully created alerts.')
+    def post(self):
+        alerts = api.payload['alerts']
+        for item in alerts:
+            print(item)
+            alert = Alert(**item)
+            alert.create()
+
+        return {'message': 'Alerts successfully created.'}
 
 
 @ns_alert.route("")
