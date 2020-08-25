@@ -166,7 +166,6 @@ class User(Base):
     deleted = db.Column(db.Boolean, default=False)
     role = db.relationship('Role', back_populates='users')
     role_uuid = db.Column(db.String, db.ForeignKey('role.uuid'))
-    #tasks = db.relationship('CaseTask', back_populates='assigned_to')
 
     @property
     def password(self):
@@ -278,6 +277,16 @@ class Playbook(Base):
     description = db.Column(db.String(255))
     enabled = db.Column(db.Boolean(), default=True)
     tags = db.relationship('Tag', secondary=playbook_tag_association)
+
+
+class Input(Base):
+
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    description = db.Column(db.String, nullable=False)
+    enabled = db.Column(db.Boolean, default=True)
+    config = db.Column(db.JSON, nullable=False)
+    credential_id = db.Column(db.String, db.ForeignKey('credential.uuid'))
+    credential = db.relationship('Credential')
 
 
 class Credential(Base):

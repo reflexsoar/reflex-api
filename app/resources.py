@@ -5,7 +5,7 @@ import base64
 import cryptography
 from flask import request, current_app, abort
 from flask_restx import Api, Resource, Namespace, fields, Model
-from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType
+from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input
 from sqlalchemy.dialects.postgresql import UUID
 from .utils import token_required, user_has, _get_current_user
 from .schemas import *
@@ -18,6 +18,7 @@ ns_auth = api.namespace('Auth', description='Authentication operations', path='/
 ns_role = api.namespace('Role', description='Role operations', path='/role')
 ns_perms = api.namespace('Permission', description='Permission operations', path='/permission')
 ns_playbook = api.namespace('Playbook', description='Playbook operations', path='/playbook')
+ns_input = api.namespace('Input', description='Input operations', path='/input')
 ns_tag = api.namespace('Tag', description='Tag operations', path='/tag')
 ns_alert = api.namespace('Alert', description='Alert operations', path='/alert')
 ns_credential = api.namespace('Credential', description='Credential operations', path='/credential')
@@ -461,6 +462,76 @@ class BulkTagPlaybook(Resource):
             ns_playbook.abort(404, 'Playbook not found.')
         return {'message': 'Successfully added tag to playbook.'}
 
+@ns_input.route("")
+class InputList(Resource):
+
+    @api.marshal_with(mod_input_list, as_list=True)
+    @token_required
+    @user_has('view_inputs')
+    def get(self, current_user):
+        ''' Returns a list of inputs '''
+        return Input.query.all()
+
+    @api.expect(mod_input_create)
+    @api.response('409', 'Input already exists.')
+    @api.response('200', 'Successfully create the input.')
+    @token_required
+    @user_has('create_input')
+    def post(self, current_user):
+        inp = Input.query.filter_by(name=api.payload['name']).first()
+
+        if 'credential' in api.payload:
+            cred_uuid = api.payload.pop('credential')
+            cred = Credential.query.filter_by(uuid=cred_uuid).first()
+            api.payload['credential'] = cred
+        if not inp:
+            inp = Input(**api.payload)
+            inp.create()
+        else:
+            ns_input.abort(409,'Input already exists.')
+        return {'message': 'Successfully created the input.'}
+
+
+@ns_input.route("/<uuid>")
+class InputDetails(Resource):
+
+    @api.marshal_with(mod_input_list)
+    @token_required
+    @user_has('view_inputs')
+    def get(self, uuid, current_user):
+        ''' Returns information about an input '''
+        inp = Input.query.filter_by(uuid=uuid).first()
+        if inp:
+            return inp
+        else:
+            ns_input.abort(404, 'Input not found.')
+
+    @api.expect(mod_input_create)
+    @api.marshal_with(mod_input_list)
+    @token_required
+    @user_has('create_input')
+    def put(self, uuid, current_user):
+        ''' Updates information for an input '''
+        inp = Input.query.filter_by(uuid=uuid).first()
+        if inp:
+            if 'name' in api.payload and Input.query.filter_by(name=api.payload['name']).first():
+                ns_input.abort(409, 'Input name already exists.')
+            else:
+                inp.update(api.payload)
+                return inp
+        else:
+            ns_input.abort(404, 'Input not found.')
+
+    @token_required
+    @user_has('delete_input')
+    def delete(self, uuid, current_user):
+        ''' Deletes an input '''
+        inp = Input.query.filter_by(uuid=uuid).first()
+        if inp:
+            inp.delete()
+            return {'message': 'Sucessfully deleted input.'}
+
+
 
 @ns_alert.route("")
 class AlertList(Resource):
@@ -759,6 +830,7 @@ class EncryptPassword(Resource):
         else:
             ns_credential.abort(409, 'Credential already exists.')
 
+
 @ns_credential.route('/')
 class CredentialList(Resource):
 
@@ -772,7 +844,6 @@ class CredentialList(Resource):
             return credentials
         else:
             ns_credential.abort(404,'No credentials found.')
-
 
 
 @ns_credential.route('/decrypt')

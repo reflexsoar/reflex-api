@@ -11,6 +11,10 @@ class IOCCount(fields.Raw):
         iocs = [o for o in value if o.ioc == True]
         return len(iocs)
 
+class JSONField(fields.Raw):
+    def format(self, value):
+        return value
+
 
 # Models
 mod_user_list = Model('UserList', {
@@ -272,6 +276,23 @@ mod_create_observable_type = Model('ObservableTypeName', {
     'name': fields.String
 })
 
+mod_input_list = Model('InputList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String,
+    'enabled': fields.Boolean,
+    'credential': fields.Nested(mod_credential_list),
+    'config': JSONField()
+})
+
+mod_input_create = Model('CreateInput', {
+    'name': fields.String,
+    'description': fields.String,
+    'enabled': fields.Boolean,
+    'credential': fields.String(required=True),
+    'config': JSONField()
+})
+
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
                  mod_tag, mod_tag_list,mod_credential_create, mod_credential_full, mod_credential_return,
@@ -279,4 +300,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_permission_full, mod_permission_list, mod_role_uuid, mod_permission_role_view, mod_bulk_tag,
                  mod_playbook_full,  mod_playbook_create, mod_playbook_list, mod_bulk_tag,
                  mod_observable, mod_observable_create, mod_observable_list, mod_observable_type, mod_observable_type_name,
-                 mod_alert_create, mod_alert_details, mod_alert_list, mod_credential_list]
+                 mod_alert_create, mod_alert_details, mod_alert_list, mod_credential_list,
+                 mod_input_create, mod_input_list]

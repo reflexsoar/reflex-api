@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: d0dfae1e9f36
+Revision ID: fed199a43444
 Revises: 
-Create Date: 2020-08-23 22:15:33.760752
+Create Date: 2020-08-25 08:16:43.289692
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'd0dfae1e9f36'
+revision = 'fed199a43444'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -154,6 +154,21 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
+    op.create_table('input',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('name', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.String(), nullable=False),
+    sa.Column('enabled', sa.Boolean(), nullable=True),
+    sa.Column('config', sa.JSON(), nullable=False),
+    sa.Column('credential_id', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['credential_id'], ['credential.uuid'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('name'),
+    sa.UniqueConstraint('uuid')
+    )
     op.create_table('observable',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('uuid', sa.String(), nullable=True),
@@ -235,6 +250,7 @@ def downgrade():
     op.drop_table('tag_playbook')
     op.drop_table('role')
     op.drop_table('observable')
+    op.drop_table('input')
     op.drop_table('alert')
     op.drop_table('tag')
     op.drop_table('refresh_token')
