@@ -846,19 +846,18 @@ class CredentialList(Resource):
             ns_credential.abort(404,'No credentials found.')
 
 
-@ns_credential.route('/decrypt')
+@ns_credential.route('/decrypt/<uuid>')
 class DecryptPassword(Resource):
     
     @api.doc(security="Bearer")
     
-    @api.expect(mod_credential_decrypt)
     @api.marshal_with(mod_credential_return)
     @api.response('404', 'Credential not found.')
     @token_required
     @user_has('decrypt_credential')
-    def post(self, current_user):
+    def get(self, uuid, current_user):
         ''' Decrypts the credential for use '''
-        credential = Credential.query.filter_by(uuid=api.payload['uuid']).first()
+        credential = Credential.query.filter_by(uuid=uuid).first()
         if credential:
             value = credential.decrypt(current_app.config['MASTER_PASSWORD'])
             if value:
