@@ -5,6 +5,7 @@ import base64
 import cryptography
 from flask import request, current_app, abort, make_response
 from flask_restx import Api, Resource, Namespace, fields, Model
+from flask_socketio import emit
 from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus
 from sqlalchemy.dialects.postgresql import UUID
 from .utils import token_required, user_has, _get_current_user
@@ -22,6 +23,7 @@ ns_input = api.namespace('Input', description='Input operations', path='/input')
 ns_tag = api.namespace('Tag', description='Tag operations', path='/tag')
 ns_alert = api.namespace('Alert', description='Alert operations', path='/alert')
 ns_credential = api.namespace('Credential', description='Credential operations', path='/credential')
+ns_test = api.namespace('Test', description='Test', path='/test')
 
 # Expect an API token
 expect_token = api.parser()
@@ -1032,3 +1034,4 @@ class TagDetails(Resource):
         if tag:
             tag.delete()
             return {'message': 'Sucessfully deleted tag.'}
+

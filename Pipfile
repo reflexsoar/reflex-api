@@ -17,6 +17,8 @@ flask-cors = "*"
 flask-bcrypt = "*"
 flask-restx = "*"
 pyjwt = "*"
+flask-socketio = "*"
+cryptography = "*"
 
 [requires]
 python_version = "3.8"
