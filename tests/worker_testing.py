@@ -75,7 +75,7 @@ if response.status_code == 200:
             'content-type': 'application/json'
         }
 
-        #print({'alerts':alerts})
+        print({'alerts':alerts})
         
         response = requests.post('%s/alert/_bulk' % (API_URL), headers=headers, json={'alerts': alerts})
         if response.status_code == 200:
@@ -85,4 +85,14 @@ if response.status_code == 200:
         
 
 
-        
+'''       
+{
+    "hosts": ["https://localhost:9200"],
+    "scheme": "https",
+    "auth_method": "api_key",
+    "index": ".siem-signals-*",
+    "cafile": "",
+    "check_hostname": false,
+    "cert_verification": "none"
+}
+'''

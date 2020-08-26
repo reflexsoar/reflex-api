@@ -476,6 +476,7 @@ class InputList(Resource):
     @token_required
     @user_has('create_input')
     def post(self, current_user):
+        ''' Creates a new input '''
         _tags = []
         inp = Input.query.filter_by(name=api.payload['name']).first()
 
@@ -483,6 +484,12 @@ class InputList(Resource):
             cred_uuid = api.payload.pop('credential')
             cred = Credential.query.filter_by(uuid=cred_uuid).first()
             api.payload['credential'] = cred
+
+        if 'config' in api.payload:
+            try:
+                api.payload['config'] = json.loads(base64.b64decode(api.payload['config']).decode('ascii').strip())
+            except Exception:
+                ns_input.abort(400, 'Invalid JSON configuration, check your syntax')
 
         if not inp:
             if 'tags' in api.payload:
@@ -564,7 +571,7 @@ class CreateBulkAlerts(Resource):
                 alert = Alert(**item)
                 alert.create()
 
-                if len(tags) > 0:
+                if len(_tags) > 0:
                     alert.tags += _tags
                     alert.save()
 
