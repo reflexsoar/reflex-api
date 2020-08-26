@@ -8,6 +8,7 @@ from flask_restx import Api, Resource, Namespace, fields, Model
 from flask_socketio import emit
 from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import desc, asc
 from .utils import token_required, user_has, _get_current_user
 from .schemas import *
 
@@ -590,7 +591,7 @@ class AlertList(Resource):
     @api.marshal_with(mod_alert_list, as_list=True)
     def get(self):
         ''' Returns a list of alert '''
-        return Alert.query.all()
+        return Alert.query.order_by(desc(Alert.created_at)).all()
 
     @api.expect(mod_alert_create)
     @api.response('409', 'Alert already exists.')

@@ -170,7 +170,8 @@ def setup():
         'fqdn': 'The fully qualified domain name of a host',
         'host': 'The hosts name',
         'mail': 'An e-mail address',
-        'hahs': 'A hash value'
+        'hash': 'A hash value',
+        'user': 'A username'
     }
     for k in dataTypes:
         dt = DataType(name=k, description=dataTypes[k])
