@@ -237,7 +237,8 @@ mod_alert_create = Model('AlertCreate', {
     'tags': fields.List(fields.String),
     'tlp': fields.Integer,
     'severity': fields.Integer,
-    'observables': fields.List(fields.Nested(mod_observable_create))
+    'observables': fields.List(fields.Nested(mod_observable_create)),
+    'raw_log': fields.String
 })
 
 mod_alert_status = Model('AlertStatusString', {
@@ -258,7 +259,8 @@ mod_alert_details = Model('AlertDetails', {
     'observable_count': ObservableCount(attribute='observables'),
     'ioc_count': IOCCount(attribute='observables'),
     'created_at': fields.DateTime,
-    'modified_at': fields.DateTime
+    'modified_at': fields.DateTime,
+    'raw_log': JSONField()
 })
 
 mod_alert_create_bulk = Model('AlertCreateBulk', {

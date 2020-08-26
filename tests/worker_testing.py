@@ -68,7 +68,8 @@ if response.status_code == 200:
                 alert = {
                     'title': source['signal']['rule']['name'],
                     'description': source['signal']['rule']['description'],
-                    'reference': source['signal']['parent']['id']
+                    'reference': source['signal']['parent']['id'],
+                    'raw_log': source
                 }
                 alerts.append(alert)
         headers = {

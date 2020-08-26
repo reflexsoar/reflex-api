@@ -252,6 +252,7 @@ class Alert(Base):
     status = db.relationship("AlertStatus")
     observables = db.relationship('Observable', secondary=observable_alert_association)
     tags = db.relationship('Tag', secondary=alert_tag_association)
+    raw_log = db.Column(db.JSON)
 
 
 class AlertStatus(Base):
