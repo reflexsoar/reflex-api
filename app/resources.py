@@ -5,7 +5,7 @@ import base64
 import cryptography
 from flask import request, current_app, abort, make_response
 from flask_restx import Api, Resource, Namespace, fields, Model
-from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input
+from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus
 from sqlalchemy.dialects.postgresql import UUID
 from .utils import token_required, user_has, _get_current_user
 from .schemas import *
@@ -50,7 +50,6 @@ def parse_tags(tags):
 def create_observables(observables):
     _observables = []
     _tags = []
-    print(observables)
     for o in observables:
         if 'tags' in o:
             tags = o.pop('tags')
@@ -58,7 +57,6 @@ def create_observables(observables):
 
         observable_type = DataType.query.filter_by(name=o['dataType']).first()
         if observable_type:
-            print(o)
             observable = Observable.query.filter_by(value=o['value'],dataType_id=observable_type.uuid).first()
             if not observable:
                 o['dataType'] = observable_type
@@ -315,7 +313,7 @@ class PlaybookList(Resource):
     @api.marshal_with(mod_playbook_list, as_list=True)
     @token_required
     @user_has('view_playbooks')
-    def get(self):
+    def get(self, current_user):
         ''' Returns a list of playbook '''
         return Playbook.query.all()
 
@@ -478,15 +476,25 @@ class InputList(Resource):
     @token_required
     @user_has('create_input')
     def post(self, current_user):
+        _tags = []
         inp = Input.query.filter_by(name=api.payload['name']).first()
 
         if 'credential' in api.payload:
             cred_uuid = api.payload.pop('credential')
             cred = Credential.query.filter_by(uuid=cred_uuid).first()
             api.payload['credential'] = cred
+
         if not inp:
+            if 'tags' in api.payload:
+                tags = api.payload.pop('tags')
+                _tags = parse_tags(tags)
+
             inp = Input(**api.payload)
             inp.create()
+
+            if len(_tags) > 0:
+                inp.tags += _tags
+                inp.save()
         else:
             ns_input.abort(409,'Input already exists.')
         return {'message': 'Successfully created the input.'}
@@ -531,6 +539,7 @@ class InputDetails(Resource):
             inp.delete()
             return {'message': 'Sucessfully deleted input.'}
 
+
 @ns_alert.route("/_bulk")
 class CreateBulkAlerts(Resource):
 
@@ -538,16 +547,27 @@ class CreateBulkAlerts(Resource):
     @api.response('200', 'Sucessfully created alerts.')
     @api.response('207', 'Multi-Status')
     def post(self):
+        ''' Creates Alerts in bulk '''
         response = {
             'results': [],
             'success': True
         }
         alerts = api.payload['alerts']
         for item in alerts:
+            _tags = []
             alert = Alert.query.filter_by(reference=item['reference']).first()
             if not alert:
+                if 'tags' in item:
+                    tags = item.pop('tags')
+                    _tags = parse_tags(tags)
+
                 alert = Alert(**item)
                 alert.create()
+
+                if len(tags) > 0:
+                    alert.tags += _tags
+                    alert.save()
+
                 response['results'].append({'reference': item['reference'], 'status': 200, 'message':'Alert successfully created.'})
             else:
                 response['results'].append({'reference':item['reference'], 'status': 409, 'message':'Alert already exists.'})
@@ -579,10 +599,14 @@ class AlertList(Resource):
             if 'observables' in api.payload:
                 observables = api.payload.pop('observables')
                 _observables = create_observables(observables)
-                print(_observables)
                 
             alert = Alert(**api.payload)
             alert.create()
+
+            # Set the default status to New
+            alert_status = AlertStatus.query.filter_by(name="New").first()
+            alert.status = alert_status
+            alert.save()
 
             if len(_tags) > 0:
                 alert.tags += _tags
@@ -853,7 +877,7 @@ class EncryptPassword(Resource):
             ns_credential.abort(409, 'Credential already exists.')
 
 
-@ns_credential.route('/')
+@ns_credential.route("")
 class CredentialList(Resource):
 
     @api.doc(security="Bearer")
@@ -943,7 +967,7 @@ class DeletePassword(Resource):
             ns_credential.abort(404, 'Credential not found.')
 
 
-@ns_tag.route('/')
+@ns_tag.route("")
 class TagList(Resource):
 
     @api.marshal_with(mod_tag_list, as_list=True)

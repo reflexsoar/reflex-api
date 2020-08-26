@@ -235,15 +235,30 @@ mod_alert_create = Model('AlertCreate', {
     'reference': fields.String(required=True),
     'description': fields.String(required=True),
     'tags': fields.List(fields.String),
+    'tlp': fields.Integer,
+    'severity': fields.Integer,
     'observables': fields.List(fields.Nested(mod_observable_create))
 })
 
+mod_alert_status = Model('AlertStatusString', {
+    'name': fields.String
+})
+
+
 mod_alert_details = Model('AlertDetails', {
+    'uuid': fields.String,
     'title': fields.String(required=True),
     'reference': fields.String(required=True),
     'description': fields.String(required=True),
-    'tags': fields.List(fields.String),
-    'observables': fields.List(fields.Nested(mod_observable_create))
+    'tlp': fields.Integer,
+    'severity': fields.Integer,
+    'status': fields.Nested(mod_alert_status),
+    'tags': fields.List(fields.Nested(mod_tag_list)),
+    'observables': fields.List(fields.Nested(mod_observable_list)),
+    'observable_count': ObservableCount(attribute='observables'),
+    'ioc_count': IOCCount(attribute='observables'),
+    'created_at': fields.DateTime,
+    'modified_at': fields.DateTime
 })
 
 mod_alert_create_bulk = Model('AlertCreateBulk', {
@@ -263,8 +278,11 @@ mod_alert_list = Model('AlertList', {
     'title': fields.String(required=True),
     'reference': fields.String(required=True),
     'description': fields.String(required=True),
+    'tlp': fields.Integer,
+    'severity': fields.Integer,
+    'status': fields.Nested(mod_alert_status),
     'tags': fields.List(fields.Nested(mod_tag_list)),
-    'observables': fields.List(fields.Nested(mod_observable)),
+    'observables': fields.List(fields.Nested(mod_observable_list)),
     'observable_count': ObservableCount(attribute='observables'),
     'ioc_count': IOCCount(attribute='observables'),
     'created_at': fields.DateTime,
@@ -286,7 +304,10 @@ mod_input_list = Model('InputList', {
     'description': fields.String,
     'enabled': fields.Boolean,
     'credential': fields.Nested(mod_credential_list),
-    'config': JSONField()
+    'tags': fields.List(fields.Nested(mod_tag_list)),
+    'config': JSONField(),
+    'created_at': fields.DateTime,
+    'modified_at': fields.DateTime
 })
 
 mod_input_create = Model('CreateInput', {
@@ -294,6 +315,7 @@ mod_input_create = Model('CreateInput', {
     'description': fields.String,
     'enabled': fields.Boolean,
     'credential': fields.String(required=True),
+    'tags': fields.List(fields.String),
     'config': JSONField()
 })
 

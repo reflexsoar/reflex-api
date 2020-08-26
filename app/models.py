@@ -43,6 +43,11 @@ observable_alert_association = db.Table('observable_alert', db.metadata,
     db.Column('observable_uuid', db.String, db.ForeignKey('observable.uuid')),
     db.Column('alert_uuid', db.String, db.ForeignKey('alert.uuid'))
 )
+
+input_tag_association = db.Table('tag_input', db.metadata,
+    db.Column('input_uuid', db.String, db.ForeignKey('input.uuid')),
+    db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
+)
 # End relationships
 
 
@@ -242,6 +247,7 @@ class Alert(Base):
     reference = db.Column(db.String(255), nullable=False)
     description = db.Column(db.String, nullable=False)
     tlp = db.Column(db.Integer, default=2)
+    severity = db.Column(db.Integer, default=2)
     status_id = db.Column(db.String, db.ForeignKey('alert_status.uuid'))
     status = db.relationship("AlertStatus")
     observables = db.relationship('Observable', secondary=observable_alert_association)
@@ -287,6 +293,7 @@ class Input(Base):
     config = db.Column(db.JSON, nullable=False)
     credential_id = db.Column(db.String, db.ForeignKey('credential.uuid'))
     credential = db.relationship('Credential')
+    tags = db.relationship('Tag', secondary=input_tag_association)
 
 
 class Credential(Base):
