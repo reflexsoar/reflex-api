@@ -317,6 +317,7 @@ class Input(Base):
 
     name = db.Column(db.String(255), unique=True, nullable=False)
     description = db.Column(db.String, nullable=False)
+    plugin = db.Column(db.String, nullable=False)
     enabled = db.Column(db.Boolean, default=True)
     config = db.Column(db.JSON, nullable=False)
     credential_id = db.Column(db.String, db.ForeignKey('credential.uuid'))

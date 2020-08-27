@@ -303,6 +303,7 @@ mod_create_observable_type = Model('ObservableTypeName', {
 mod_input_list = Model('InputList', {
     'uuid': fields.String,
     'name': fields.String,
+    'plugin': fields.String,
     'description': fields.String,
     'enabled': fields.Boolean,
     'credential': fields.Nested(mod_credential_list),
@@ -316,6 +317,7 @@ mod_input_list = Model('InputList', {
 mod_input_create = Model('CreateInput', {
     'name': fields.String,
     'description': fields.String,
+    'plugin': fields.String,
     'enabled': fields.Boolean,
     'credential': fields.String(required=True),
     'tags': fields.List(fields.String),

@@ -484,24 +484,25 @@ class InputList(Resource):
         _tags = []
         inp = Input.query.filter_by(name=api.payload['name']).first()
 
-        if 'credential' in api.payload:
-            cred_uuid = api.payload.pop('credential')
-            cred = Credential.query.filter_by(uuid=cred_uuid).first()
-            api.payload['credential'] = cred
-
-        if 'config' in api.payload:
-            try:
-                api.payload['config'] = json.loads(base64.b64decode(api.payload['config']).decode('ascii').strip())
-            except Exception:
-                ns_input.abort(400, 'Invalid JSON configuration, check your syntax')
-
-        if 'field_mapping' in api.payload:
-            try:
-                api.payload['field_mapping'] = json.loads(base64.b64decode(api.payload['field_mapping']).decode('ascii').strip())
-            except Exception:
-                ns_input.abort(400, 'Invalid JSON in field_mapping, check your syntax')
-
         if not inp:
+
+            if 'credential' in api.payload:
+                cred_uuid = api.payload.pop('credential')
+                cred = Credential.query.filter_by(uuid=cred_uuid).first()
+                api.payload['credential'] = cred
+
+            if 'config' in api.payload:
+                try:
+                    api.payload['config'] = json.loads(base64.b64decode(api.payload['config']).decode('ascii').strip())
+                except Exception:
+                    ns_input.abort(400, 'Invalid JSON configuration, check your syntax')
+
+            if 'field_mapping' in api.payload:
+                try:
+                    api.payload['field_mapping'] = json.loads(base64.b64decode(api.payload['field_mapping']).decode('ascii').strip())
+                except Exception:
+                    ns_input.abort(400, 'Invalid JSON in field_mapping, check your syntax')
+
             if 'tags' in api.payload:
                 tags = api.payload.pop('tags')
                 _tags = parse_tags(tags)
@@ -787,8 +788,10 @@ class AgentList(Resource):
 
         agent = Agent.query.filter_by(name=api.payload['name']).first()
         if not agent:
-            roles = api.payload.pop('roles')
-            inputs = api.payload.pop('inputs')
+
+            if 'roles' in api.payload:
+                roles = api.payload.pop('roles')
+                
             agent = Agent(**api.payload)
             for role in roles:
                 agent_role = AgentRole.query.filter_by(name=role).first()
@@ -796,11 +799,6 @@ class AgentList(Resource):
                     agent.roles.append(agent_role)
                 else:
                     ns_agent.abort(400, 'Invalid agent role type')
-
-            for inp in inputs:
-                _input = Input.query.filter_by(uuid=inp).first()
-                if _input:
-                    agent.inputs.apend(_input)
 
             agent.create()
             
