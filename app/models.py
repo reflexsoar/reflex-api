@@ -48,6 +48,17 @@ input_tag_association = db.Table('tag_input', db.metadata,
     db.Column('input_uuid', db.String, db.ForeignKey('input.uuid')),
     db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
 )
+
+agent_role_agent_association = db.Table('agent_role_agent', db.metadata,
+    db.Column('agent_uuid', db.String, db.ForeignKey('agent.uuid')),
+    db.Column('agent_role_uuid', db.String, db.ForeignKey('agent_role.uuid'))
+)
+
+agent_input_association = db.Table('agent_input', db.metadata,
+    db.Column('agent_uuid', db.String, db.ForeignKey('agent.uuid')),
+    db.Column('input_uuid', db.String, db.ForeignKey('input.uuid'))
+)
+
 # End relationships
 
 
@@ -272,6 +283,22 @@ class Observable(Base):
     spotted = db.Column(db.Boolean, default=False)
 
 
+class Agent(Base):
+
+    name = db.Column(db.String(255))
+    inputs = db.relationship('Input', secondary=agent_input_association)
+    roles = db.relationship('AgentRole', secondary=agent_role_agent_association)
+    active = db.Column(db.Boolean, default=True)
+    ip_address = db.Column(db.String)
+    last_heartbeat = db.Column(db.DateTime)
+
+
+class AgentRole(Base):
+
+    name = db.Column(db.String(255))
+    description = db.Column(db.String)
+
+
 class DataType(Base):
 
     name = db.Column(db.String(255))
@@ -295,6 +322,7 @@ class Input(Base):
     credential_id = db.Column(db.String, db.ForeignKey('credential.uuid'))
     credential = db.relationship('Credential')
     tags = db.relationship('Tag', secondary=input_tag_association)
+    field_mapping = db.Column(db.JSON, nullable=False)
 
 
 class Credential(Base):

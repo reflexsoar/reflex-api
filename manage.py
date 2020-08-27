@@ -6,7 +6,7 @@ from flask_migrate import Migrate, MigrateCommand
 from flask_script import Manager
 
 from app import create_app, db
-from app.models import AuthTokenBlacklist, User, Role, Permission, DataType, AlertStatus
+from app.models import AuthTokenBlacklist, User, Role, Permission, DataType, AlertStatus, AgentRole
 
 app = create_app()
 app.app_context().push()
@@ -191,7 +191,15 @@ def setup():
         if k == 'Closed':
             status.closed = True
             status.save()
-        
+    
+    print("Creating default agent types")
+    agent_types = {
+        'poller': 'Runs input jobs to push data to Reflex',
+        'runner': 'Runs playbook actions'
+    }
+    for k in agent_types:
+        agent_type = AgentRole(name=k, description=agent_types[k])
+        agent_type.create()
     
 
     return 0

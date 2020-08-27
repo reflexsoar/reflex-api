@@ -308,6 +308,7 @@ mod_input_list = Model('InputList', {
     'credential': fields.Nested(mod_credential_list),
     'tags': fields.List(fields.Nested(mod_tag_list)),
     'config': JSONField(),
+    'field_mapping': JSONField(),
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime
 })
@@ -318,7 +319,30 @@ mod_input_create = Model('CreateInput', {
     'enabled': fields.Boolean,
     'credential': fields.String(required=True),
     'tags': fields.List(fields.String),
-    'config': JSONField()
+    'config': JSONField(),
+    'field_mapping': JSONField()
+})
+
+mod_agent_role_list = Model('AgentRoleList', {
+    'name': fields.String,
+    'description': fields.String
+})
+
+mod_agent_create = Model('AgentCreate', {
+    'name': fields.String,
+    'roles': fields.List(fields.String),
+    'ip_address': fields.String,
+    'inputs': fields.List(fields.String)
+})
+
+mod_agent_list = Model('AgentList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'inputs': fields.List(fields.Nested(mod_input_list)),
+    'roles': fields.List(fields.Nested(mod_agent_role_list)),
+    'active': fields.Boolean,
+    'ip_adress': fields.String,
+    'last_heartbeat': fields.DateTime
 })
 
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create,
@@ -329,4 +353,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_playbook_full,  mod_playbook_create, mod_playbook_list, mod_bulk_tag,
                  mod_observable, mod_observable_create, mod_observable_list, mod_observable_type, mod_observable_type_name,
                  mod_alert_create, mod_alert_details, mod_alert_list, mod_credential_list,
-                 mod_input_create, mod_input_list, mod_alert_create_bulk, mod_alert_status]
+                 mod_input_create, mod_input_list, mod_alert_create_bulk, mod_alert_status,
+                 mod_agent_create, mod_agent_list, mod_agent_role_list]

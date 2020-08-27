@@ -6,10 +6,10 @@ import cryptography
 from flask import request, current_app, abort, make_response
 from flask_restx import Api, Resource, Namespace, fields, Model
 from flask_socketio import emit
-from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus
+from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc
-from .utils import token_required, user_has, _get_current_user
+from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
 api = Api()
@@ -24,6 +24,7 @@ ns_input = api.namespace('Input', description='Input operations', path='/input')
 ns_tag = api.namespace('Tag', description='Tag operations', path='/tag')
 ns_alert = api.namespace('Alert', description='Alert operations', path='/alert')
 ns_credential = api.namespace('Credential', description='Credential operations', path='/credential')
+ns_agent = api.namespace('Agent', description='Agent operations', path='/agent')
 ns_test = api.namespace('Test', description='Test', path='/test')
 
 # Expect an API token
@@ -494,6 +495,12 @@ class InputList(Resource):
             except Exception:
                 ns_input.abort(400, 'Invalid JSON configuration, check your syntax')
 
+        if 'field_mapping' in api.payload:
+            try:
+                api.payload['field_mapping'] = json.loads(base64.b64decode(api.payload['field_mapping']).decode('ascii').strip())
+            except Exception:
+                ns_input.abort(400, 'Invalid JSON in field_mapping, check your syntax')
+
         if not inp:
             if 'tags' in api.payload:
                 tags = api.payload.pop('tags')
@@ -562,6 +569,8 @@ class CreateBulkAlerts(Resource):
             'results': [],
             'success': True
         }
+        alert_status = AlertStatus.query.filter_by(name="New").first()
+        
         alerts = api.payload['alerts']
         for item in alerts:
             _tags = []
@@ -573,6 +582,9 @@ class CreateBulkAlerts(Resource):
 
                 alert = Alert(**item)
                 alert.create()
+
+                alert.status = alert_status
+                alert.save()        
 
                 if len(_tags) > 0:
                     alert.tags += _tags
@@ -739,6 +751,117 @@ class BulkTagAlert(Resource):
         return {'message': 'Successfully added tag to alert.'}
 
 
+@ns_agent.route("/pair_token")
+class AgentPairToken(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('pair_agents')
+    def get(self, current_user):
+        ''' 
+        Generates a short lived pairing token used by the agent
+        to get a long running JWT
+        '''
+        return generate_token(10)
+
+
+@ns_agent.route("")
+class AgentList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_agent_list, as_list=True)
+    @token_required
+    @user_has('view_agents')
+    def get(self, current_user):
+        ''' Returns a list of Agents '''
+        return Agent.query.all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_agent_create)
+    @api.response('409', 'Agent already exists.')
+    @api.response('200', "Successfully created the agent.")
+    @token_required
+    @user_has('add_agent')
+    def post(self, current_user):
+        ''' Creates a new Agent '''
+
+        agent = Agent.query.filter_by(name=api.payload['name']).first()
+        if not agent:
+            roles = api.payload.pop('roles')
+            inputs = api.payload.pop('inputs')
+            agent = Agent(**api.payload)
+            for role in roles:
+                agent_role = AgentRole.query.filter_by(name=role).first()
+                if agent_role:
+                    agent.roles.append(agent_role)
+                else:
+                    ns_agent.abort(400, 'Invalid agent role type')
+
+            for inp in inputs:
+                _input = Input.query.filter_by(uuid=inp).first()
+                if _input:
+                    agent.inputs.apend(_input)
+
+            agent.create()
+            
+            return {'message': 'Successfully created the agent.', 'uuid': agent.uuid, 'token': generate_token(agent.uuid, 525600*10) }
+        else:
+            ns_agent.abort(409, "Agent already exists.")
+
+
+@ns_agent.route("/<uuid>")
+class AgentDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_agent_create)
+    @api.marshal_with(mod_agent_list)
+    @token_required
+    @user_has('update_agent')
+    def put(self, uuid, current_user):
+        ''' Updates an Agent '''
+        agent = Agent.query.filter_by(uuid=uuid).first()
+        if agent:
+            if 'name' in api.payload and Agent.query.filter_by(name=api.payload['name']).first():
+                ns_agent.abort(409, 'Agent with that name already exists.')
+            else:
+
+                if 'inputs' in api.payload:
+                    inputs = api.payload.pop('inputs')
+                    for inp in inputs:
+                        _input = Input.query.filter_by(uuid=inp).first()
+                        if _input:
+                            agent.inputs.append(_input)
+                agent.update(api.payload)
+                return agent
+        else:
+            ns_agent.abort(404, 'Agent not found.')
+        
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_agent')
+    def delete(self, uuid, current_user):
+        ''' Removes a Agent '''
+        agent = Agent.query.filter_by(uuid=uuid).first()
+        if agent:
+            agent.delete()
+            return { 'message': 'Agent successfully delete.'}
+        else:
+            ns_agent.abort(404, 'Agent not found.')
+            
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_agent_list)
+    @token_required
+    @user_has('view_agents')
+    def get(self, uuid, current_user):
+        ''' Gets the details of a Agent '''
+        agent = Agent.query.filter_by(uuid=uuid).first()
+        if agent:
+            return agent
+        else:
+            ns_agent.abort(404, 'Agent not found.')
+
+
 @ns_role.route("")
 class RoleList(Resource):
 
@@ -899,7 +1022,8 @@ class CredentialList(Resource):
         if credentials:
             return credentials
         else:
-            ns_credential.abort(404,'No credentials found.')
+            return []
+            #ns_credential.abort(404,'No credentials found.')
 
 
 @ns_credential.route('/decrypt/<uuid>')

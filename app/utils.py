@@ -1,8 +1,18 @@
 import jwt
 import base64
+import datetime
 
 from flask import request, current_app, abort
 from .models import User, AuthTokenBlacklist
+
+def generate_token(uuid, duration=10):
+    _access_token = jwt.encode({
+        'uuid': uuid,
+        'exp': datetime.datetime.now() + datetime.timedelta(minutes=duration),
+        'iat': datetime.datetime.now()
+    }, current_app.config['SECRET_KEY']).decode('utf-8')
+    
+    return _access_token
 
 
 def token_required(f):
