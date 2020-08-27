@@ -3,13 +3,14 @@ import base64
 import datetime
 
 from flask import request, current_app, abort
-from .models import User, AuthTokenBlacklist
+from .models import User, AuthTokenBlacklist, Agent
 
-def generate_token(uuid, duration=10):
+def generate_token(uuid, duration=10, token_type='agent'):
     _access_token = jwt.encode({
         'uuid': uuid,
         'exp': datetime.datetime.now() + datetime.timedelta(minutes=duration),
-        'iat': datetime.datetime.now()
+        'iat': datetime.datetime.now(),
+        'type': token_type
     }, current_app.config['SECRET_KEY']).decode('utf-8')
     
     return _access_token
@@ -35,8 +36,16 @@ def user_has(permission):
             if(current_app.config['PERMISSIONS_DISABLED']):
                 return f(*args, **kwargs)
             current_user = _check_token()
-            if current_user.has_right(permission):
+
+            # If this is a pairing token and its the add_agent permission
+            # bypass the route guard and let the route finish
+            if current_user == 'PAIRING' and permission == 'add_agent':
                 return f(*args, **kwargs)
+            try:
+                if current_user.has_right(permission):
+                    return f(*args, **kwargs)
+            except Exception:
+                abort(401, 'Unauthorized.')
             else:
                 abort(401, 'Unauthorized.')
 
@@ -60,13 +69,27 @@ def _check_token():
     current_user = None
     if auth_header:
         try:
-            access_token = auth_header.split(' ')[1]
+            access_token = auth_header.split(' ')[1]            
             try:
                 token = jwt.decode(access_token, current_app.config['SECRET_KEY'])
-                current_user = User.query.filter_by(uuid=token['uuid']).first()
+                if 'type' in token and token['type'] == 'agent':
+                    current_user = Agent.query.filter_by(uuid=token['uuid']).first()
+                    
+                
+                # The pairing token can only be used on the add_agent endpoint
+                # and because the token is signed we don't have to worry about 
+                # someone adding a the pairing type to their token
+                elif 'type' in token and token['type'] == 'pairing':
+                    current_user = "PAIRING"
+                else:
+                    current_user = User.query.filter_by(uuid=token['uuid']).first()
                 blacklisted = AuthTokenBlacklist.query.filter_by(auth_token=access_token).first()
                 if blacklisted:
                     raise ValueError('Token retired.')
+
+                if current_user == 'PAIRING':
+                    blacklist = AuthTokenBlacklist(auth_token = access_token)
+                    blacklist.create()
             except ValueError:
                 abort(401, 'Token retired.')
             except jwt.ExpiredSignatureError:

@@ -124,7 +124,15 @@ def setup():
         "update_observable": True,
         "delete_observable": True,
         "add_tag_to_observable": True,
-        "remove_tag_from_observable": True
+        "remove_tag_from_observable": True,
+        "view_agents": True,
+        "update_agent": True,
+        "delete_agent": True,
+        "pair_agent": True,
+        "add_input": True,
+        "view_inputs": True,
+        "update_input": True,
+        "delete_input": True
     }
     permissions = Permission(**perms)
     db.session.add(permissions)
@@ -161,6 +169,38 @@ def setup():
 
     user.role = role
     user.save()
+
+    print("Creating the agent role...")
+    # Create the Permissions for an administrator
+    perms = { 
+        "decrypt_credential": True,
+        "view_credentials": True ,
+        "view_playbooks": True,
+        "add_alert": True,
+        "update_alert": True,
+        "add_tag_to_alert": True,
+        "remove_tag_from_alert": True,
+        "add_observable": True,
+        "update_observable": True,
+        "delete_observable": True,
+        "add_tag_to_observable": True,
+        "remove_tag_from_observable": True,
+        "view_agents": True
+    }
+    permissions = Permission(**perms)
+    db.session.add(permissions)
+    db.session.commit()
+
+    # Create the administrator role
+    details =  {
+        'name': 'Agent',
+        'description': 'Reserved for agents'
+    }
+    role = Role(**details)
+    db.session.add(role)
+    db.session.commit()
+    role.permissions = permissions
+    role.save()
 
 
     print("Creating default Observable Types")

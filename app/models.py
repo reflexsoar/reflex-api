@@ -68,9 +68,9 @@ class Base(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     uuid = db.Column(db.String, unique=True, default=generate_uuid)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
-    modified_at = db.Column(db.DateTime, default=db.func.current_timestamp(),
-                            onupdate=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now())
+    modified_at = db.Column(db.DateTime, default=datetime.datetime.now(),
+                            onupdate=datetime.datetime.now())
 
     # TODO : Extend created_by
     # TODO : Extend updated_by
@@ -145,6 +145,18 @@ class Permission(Base):
     add_tag_to_playbook = db.Column(db.Boolean, default=False)
     remove_tag_from_playbook = db.Column(db.Boolean, default=False)
 
+    # Agent Permissions
+    view_agents = db.Column(db.Boolean, default=False)
+    update_agent = db.Column(db.Boolean, default=False)
+    delete_agent = db.Column(db.Boolean, default=False)
+    pair_agent = db.Column(db.Boolean, default=False)
+
+    # Input Permissions
+    add_input = db.Column(db.Boolean, default=False)
+    view_inputs = db.Column(db.Boolean, default=False)
+    update_input = db.Column(db.Boolean, default=False)
+    delete_input = db.Column(db.Boolean, default=False)
+
     # Tag Permissions
     add_tag = db.Column(db.Boolean, default=False)
     update_tag = db.Column(db.Boolean, default=False)
@@ -167,6 +179,7 @@ class Role(Base):
     name = db.Column(db.String(255), unique=True, nullable=False)
     description = db.Column(db.String(255))
     users = db.relationship('User', back_populates='role')
+    agents = db.relationship('Agent', back_populates='role')
     permissions = db.relationship('Permission', back_populates='roles')
     permissions_uuid = db.Column(db.String, db.ForeignKey('permission.uuid'))
 
@@ -195,7 +208,8 @@ class User(Base):
         _access_token = jwt.encode({
             'uuid': self.uuid,
             'exp': datetime.datetime.now() + datetime.timedelta(minutes=360),
-            'iat': datetime.datetime.now()
+            'iat': datetime.datetime.now(),
+            'type': 'user'
         }, current_app.config['SECRET_KEY']).decode('utf-8')
         
         return _access_token
@@ -291,6 +305,23 @@ class Agent(Base):
     active = db.Column(db.Boolean, default=True)
     ip_address = db.Column(db.String)
     last_heartbeat = db.Column(db.DateTime)
+    role = db.relationship('Role', back_populates='agents')
+    role_uuid = db.Column(db.String, db.ForeignKey('role.uuid'))
+
+    def has_right(self, permission):
+
+        perm = {}
+        perm[permission] = True
+
+        role = Role.query.filter_by(uuid=self.role_uuid).first()
+        if role:
+            permission = Permission.query.filter_by(**perm, uuid=role.permissions_uuid).first()
+            if permission:
+                return True
+            else:
+                return False
+        else:
+            return False
 
 
 class AgentRole(Base):

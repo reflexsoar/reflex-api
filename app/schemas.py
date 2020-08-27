@@ -41,7 +41,7 @@ mod_user_create = Model('UserCreate', {
 
 mod_user_self = Model('UserSelf', {
     'username': fields.String,
-    'email': fields.String,
+    'email': fields.String
 })
 
 mod_auth = Model('AuthModel', {
@@ -104,7 +104,15 @@ permission_fields = {
     "update_credential": fields.Boolean,
     "decrypt_credential": fields.Boolean,
     "delete_credential": fields.Boolean,
-    "view_credentials": fields.Boolean
+    "view_credentials": fields.Boolean,
+    "view_agents": fields.Boolean,
+    "update_agent": fields.Boolean,
+    "delete_agent": fields.Boolean,
+    "pair_agent": fields.Boolean,
+    'add_input': fields.Boolean,
+    "view_inputs": fields.Boolean,
+    "update_input": fields.Boolean,
+    "delete_input": fields.Boolean
 }
 
 mod_permission_role_view = Model('PermissionRoleView', {
@@ -343,7 +351,7 @@ mod_agent_list = Model('AgentList', {
     'inputs': fields.List(fields.Nested(mod_input_list)),
     'roles': fields.List(fields.Nested(mod_agent_role_list)),
     'active': fields.Boolean,
-    'ip_adress': fields.String,
+    'ip_address': fields.String,
     'last_heartbeat': fields.DateTime
 })
 

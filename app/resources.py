@@ -467,6 +467,7 @@ class BulkTagPlaybook(Resource):
 @ns_input.route("")
 class InputList(Resource):
 
+    @api.doc(security="Bearer")
     @api.marshal_with(mod_input_list, as_list=True)
     @token_required
     @user_has('view_inputs')
@@ -474,11 +475,12 @@ class InputList(Resource):
         ''' Returns a list of inputs '''
         return Input.query.all()
 
+    @api.doc(security="Bearer")
     @api.expect(mod_input_create)
     @api.response('409', 'Input already exists.')
     @api.response('200', 'Successfully create the input.')
     @token_required
-    @user_has('create_input')
+    @user_has('add_input')
     def post(self, current_user):
         ''' Creates a new input '''
         _tags = []
@@ -535,7 +537,7 @@ class InputDetails(Resource):
     @api.expect(mod_input_create)
     @api.marshal_with(mod_input_list)
     @token_required
-    @user_has('create_input')
+    @user_has('update_input')
     def put(self, uuid, current_user):
         ''' Updates information for an input '''
         inp = Input.query.filter_by(uuid=uuid).first()
@@ -697,7 +699,7 @@ class DeleteAlertTag(Resource):
             alert.save()
         else:
             ns_alert.abort(404, 'Alert not found.')
-        return {'message': 'Successfully rmeoved tag from alert.'}
+        return {'message': 'Successfully removed tag from alert.'}
                 
 
 @ns_alert.route("/<uuid>/tag/<name>")
@@ -757,13 +759,13 @@ class AgentPairToken(Resource):
 
     @api.doc(security="Bearer")
     @token_required
-    @user_has('pair_agents')
+    @user_has('pair_agent')
     def get(self, current_user):
         ''' 
         Generates a short lived pairing token used by the agent
         to get a long running JWT
         '''
-        return generate_token(10)
+        return generate_token(None,300,'pairing')
 
 
 @ns_agent.route("")
@@ -800,12 +802,29 @@ class AgentList(Resource):
                 else:
                     ns_agent.abort(400, 'Invalid agent role type')
 
+            role = Role.query.filter_by(name='Agent').first()
+            agent.role = role
+
             agent.create()
             
-            return {'message': 'Successfully created the agent.', 'uuid': agent.uuid, 'token': generate_token(agent.uuid, 525600*10) }
+            return {'message': 'Successfully created the agent.', 'uuid': agent.uuid, 'token': generate_token(agent.uuid, 86400, token_type='agent') }
         else:
             ns_agent.abort(409, "Agent already exists.")
 
+
+@ns_agent.route("/heartbeat/<uuid>")
+class AgentHeartbeat(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    def get(self, uuid, current_user):
+        agent = Agent.query.filter_by(uuid=uuid).first()
+        if agent:
+            agent.last_heartbeat = datetime.datetime.now()
+            agent.save()
+            return {'message': 'Your heart still beats!'}
+        else:
+            ns_agent.abort(400, 'Your heart stopped.')
 
 @ns_agent.route("/<uuid>")
 class AgentDetails(Resource):
@@ -989,8 +1008,6 @@ class RemoveUserFromRole(Resource):
 class EncryptPassword(Resource):
 
     @api.doc(security="Bearer")
-    
-    
     @api.expect(mod_credential_create)
     @api.response('400', 'Successfully created credential.')
     @api.response('409', 'Credential already exists.')
@@ -1028,7 +1045,6 @@ class CredentialList(Resource):
 class DecryptPassword(Resource):
     
     @api.doc(security="Bearer")
-    
     @api.marshal_with(mod_credential_return)
     @api.response('404', 'Credential not found.')
     @token_required
@@ -1050,7 +1066,6 @@ class DecryptPassword(Resource):
 class DeletePassword(Resource):
     
     @api.doc(security="Bearer")
-    
     @api.marshal_with(mod_credential_full)
     @api.response('404', 'Credential not found.')
     @token_required
@@ -1084,7 +1099,6 @@ class DeletePassword(Resource):
             ns_credential.abort(404, 'Credential not found.')
 
     @api.doc(security="Bearer")
-   
     @api.response('404', 'Credential not found.')
     @api.response('200', "Credential sucessfully deleted.")
     @token_required
@@ -1102,11 +1116,13 @@ class DeletePassword(Resource):
 @ns_tag.route("")
 class TagList(Resource):
 
+    @api.doc(security="Bearer")
     @api.marshal_with(mod_tag_list, as_list=True)
     def get(self):
         ''' Gets a list of tags '''
         return Tag.query.all()
 
+    @api.doc(security="Bearer")
     @api.expect(mod_tag)
     @api.response('409', 'Tag already exists.')
     @api.response('200', "Successfully created the tag.")
@@ -1118,12 +1134,13 @@ class TagList(Resource):
             tag.create()
             return {'message':'Successfully created the tag.'}
         else:
-            ns_project.abort(409, 'Tag already exists.')
+            ns_tag.abort(409, 'Tag already exists.')
         return
 
 @ns_tag.route('/<uuid>')
 class TagDetails(Resource):
 
+    @api.doc(security="Bearer")
     @api.marshal_with(mod_tag_list)
     @api.response('200', 'Success')
     @api.response('404', 'Tag not found')
@@ -1136,6 +1153,7 @@ class TagDetails(Resource):
             ns_tag.abort(404, 'Tag not found.')
         return
     
+    @api.doc(security="Bearer")
     @api.expect(mod_tag)
     @api.marshal_with(mod_tag)
     def put(self, uuid):
@@ -1151,6 +1169,7 @@ class TagDetails(Resource):
             ns_tag.abort(404, 'Tag not found.')
         return
 
+    @api.doc(security="Bearer")
     def delete(self, uuid):
         ''' Deletes a tag '''
         tag = Tag.query.filter_by(uuid=uuid).first()
