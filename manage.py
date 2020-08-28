@@ -116,6 +116,7 @@ def setup():
         "add_tag_to_playbook": True,
         "remove_tag_from_playbook": True,
         "add_alert": True,
+        "view_alerts": True,
         "update_alert": True,
         "delete_alert": True,
         "add_tag_to_alert": True,
@@ -140,7 +141,11 @@ def setup():
         "create_case_comment": True,
         "view_case_comments": True,
         "udpate_case_comment": True,
-        "delete_case_comment": True
+        "delete_case_comment": True,
+        "view_plugins": True,
+        "create_plugin": True,
+        "delete_plugin": True,
+        "update_plugin": True
     }
     permissions = Permission(**perms)
     db.session.add(permissions)

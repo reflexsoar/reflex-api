@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: c1ec6e985168
+Revision ID: 47e9b8db13e5
 Revises: 
-Create Date: 2020-08-27 23:20:10.747787
+Create Date: 2020-08-28 14:34:16.473706
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'c1ec6e985168'
+revision = '47e9b8db13e5'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -101,6 +101,7 @@ def upgrade():
     sa.Column('set_role_permissions', sa.Boolean(), nullable=True),
     sa.Column('view_roles', sa.Boolean(), nullable=True),
     sa.Column('add_alert', sa.Boolean(), nullable=True),
+    sa.Column('view_alerts', sa.Boolean(), nullable=True),
     sa.Column('update_alert', sa.Boolean(), nullable=True),
     sa.Column('delete_alert', sa.Boolean(), nullable=True),
     sa.Column('add_tag_to_alert', sa.Boolean(), nullable=True),
@@ -136,6 +137,10 @@ def upgrade():
     sa.Column('view_case_comments', sa.Boolean(), nullable=True),
     sa.Column('udpate_case_comment', sa.Boolean(), nullable=True),
     sa.Column('delete_case_comment', sa.Boolean(), nullable=True),
+    sa.Column('view_plugins', sa.Boolean(), nullable=True),
+    sa.Column('create_plugin', sa.Boolean(), nullable=True),
+    sa.Column('delete_plugin', sa.Boolean(), nullable=True),
+    sa.Column('update_plugin', sa.Boolean(), nullable=True),
     sa.Column('add_credential', sa.Boolean(), nullable=True),
     sa.Column('update_credential', sa.Boolean(), nullable=True),
     sa.Column('decrypt_credential', sa.Boolean(), nullable=True),
@@ -152,6 +157,20 @@ def upgrade():
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('description', sa.String(length=255), nullable=True),
     sa.Column('enabled', sa.Boolean(), nullable=True),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('name'),
+    sa.UniqueConstraint('uuid')
+    )
+    op.create_table('plugin',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('name', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.String(), nullable=False),
+    sa.Column('enabled', sa.Boolean(), nullable=True),
+    sa.Column('filename', sa.String(), nullable=False),
+    sa.Column('file_hash', sa.String(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name'),
     sa.UniqueConstraint('uuid')
@@ -221,20 +240,6 @@ def upgrade():
     sa.Column('spotted', sa.Boolean(), nullable=True),
     sa.ForeignKeyConstraint(['dataType_id'], ['data_type.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('uuid')
-    )
-    op.create_table('plugin',
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('uuid', sa.String(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), nullable=True),
-    sa.Column('modified_at', sa.DateTime(), nullable=True),
-    sa.Column('name', sa.String(length=255), nullable=False),
-    sa.Column('description', sa.String(), nullable=True),
-    sa.Column('enabled', sa.Boolean(), nullable=True),
-    sa.Column('credential_id', sa.String(), nullable=True),
-    sa.ForeignKeyConstraint(['credential_id'], ['credential.uuid'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('name'),
     sa.UniqueConstraint('uuid')
     )
     op.create_table('role',
@@ -398,12 +403,12 @@ def downgrade():
     op.drop_table('agent')
     op.drop_table('tag_playbook')
     op.drop_table('role')
-    op.drop_table('plugin')
     op.drop_table('observable')
     op.drop_table('input')
     op.drop_table('alert')
     op.drop_table('tag')
     op.drop_table('refresh_token')
+    op.drop_table('plugin')
     op.drop_table('playbook')
     op.drop_table('permission')
     op.drop_table('data_type')

@@ -76,6 +76,7 @@ permission_fields = {
     'unlock_user': fields.Boolean,
     'view_users': fields.Boolean,
     'add_alert': fields.Boolean,
+    'view_alerts': fields.Boolean,
     'update_alert': fields.Boolean,
     'delete_alert': fields.Boolean,
     'add_tag_to_alert': fields.Boolean,
@@ -120,7 +121,11 @@ permission_fields = {
     "create_case_comment": fields.Boolean,
     "view_case_comments": fields.Boolean,
     "udpate_case_comment": fields.Boolean,
-    "delete_case_comment": fields.Boolean
+    "delete_case_comment": fields.Boolean,
+    "view_plugins": fields.Boolean,
+    "create_plugin": fields.Boolean,
+    "delete_plugin": fields.Boolean,
+    "update_plugin": fields.Boolean
 }
 
 mod_permission_role_view = Model('PermissionRoleView', {
@@ -393,6 +398,24 @@ mod_case_full = Model('CaseDetails', {
     'alerts': fields.List(fields.Nested(mod_alert_details))
 })
 
+mod_plugin_create = Model('PluginCreate', {
+    "name": fields.String,
+    "description": fields.String,
+    "filename": fields.String,
+    "file_hash": fields.String
+})
+
+mod_plugin_list = Model('PluginList', {
+    "uuid": fields.String,
+    "name": fields.String,
+    "description": fields.String,
+    "enabled": fields.Boolean,
+    "filename": fields.String,
+    "file_hash": fields.String,
+    'created_at': fields.DateTime,
+    'modified_at': fields.DateTime
+})
+
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
                  mod_tag, mod_tag_list,mod_credential_create, mod_credential_full, mod_credential_return,
@@ -403,4 +426,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_alert_create, mod_alert_details, mod_alert_list, mod_credential_list,
                  mod_input_create, mod_input_list, mod_alert_create_bulk, mod_alert_status,
                  mod_agent_create, mod_agent_list, mod_agent_role_list,
-                 mod_case_create, mod_case_status, mod_case_full]
+                 mod_case_create, mod_case_status, mod_case_full,
+                 mod_plugin_create, mod_plugin_list]

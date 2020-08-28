@@ -12,6 +12,9 @@ class Config(object):
     WTF_CSRF_ENABLED = False
     PERMISSIONS_DISABLED = False
 
+    PLUGIN_DIRECTORY = 'plugins/'
+    PLUGIN_EXTENSIONS = ['py']
+
 class ProductionConfig(Config):
     DEBUG = False
     RESTPLUS_MASK_SWAGGER = False

@@ -144,6 +144,7 @@ class Permission(Base):
 
     # Alert Permissions
     add_alert = db.Column(db.Boolean, default=False)
+    view_alerts = db.Column(db.Boolean, default=False)
     update_alert = db.Column(db.Boolean, default=False)
     delete_alert = db.Column(db.Boolean, default=False)
     add_tag_to_alert = db.Column(db.Boolean, default=False)
@@ -193,6 +194,12 @@ class Permission(Base):
     view_case_comments = db.Column(db.Boolean, default=False)
     udpate_case_comment = db.Column(db.Boolean, default=False)
     delete_case_comment = db.Column(db.Boolean, default=False)
+
+    # Plugin Permissions
+    view_plugins = db.Column(db.Boolean, default=False)
+    create_plugin = db.Column(db.Boolean, default=False)
+    delete_plugin = db.Column(db.Boolean, default=False)
+    update_plugin = db.Column(db.Boolean, default=False)
 
     # Credential Permissions
     add_credential = db.Column(db.Boolean, default=False)
@@ -407,10 +414,12 @@ class Playbook(Base):
 
 class Plugin(Base):
     name = db.Column(db.String(255), unique=True, nullable=False)
-    description = db.Column(db.String)
-    enabled = db.Column(db.Boolean, default=True)
-    credential_id = db.Column(db.String, db.ForeignKey('credential.uuid'))
-    credential = db.relationship('Credential')
+    description = db.Column(db.String, nullable=False)
+    enabled = db.Column(db.Boolean, default=False)
+    filename = db.Column(db.String, nullable=False)
+    file_hash = db.Column(db.String)
+    #credential_id = db.Column(db.String, db.ForeignKey('credential.uuid'))
+    #credential = db.relationship('Credential')
 
 
 class Input(Base):

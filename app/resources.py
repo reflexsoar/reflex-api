@@ -1,14 +1,18 @@
+import os
 import datetime
 import jwt
 import json
 import base64
+import hashlib
 import cryptography
-from flask import request, current_app, abort, make_response
+from flask import request, current_app, abort, make_response, send_from_directory, send_file
 from flask_restx import Api, Resource, Namespace, fields, Model
 from flask_socketio import emit
-from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole, Case, CaseComment, CaseStatus
+from werkzeug.utils import secure_filename
+from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc
+from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole, Case, CaseComment, CaseStatus, Plugin
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -27,6 +31,7 @@ ns_case = api.namespace('Case', description='Case operations', path='/case')
 ns_credential = api.namespace('Credential', description='Credential operations', path='/credential')
 ns_agent = api.namespace('Agent', description='Agent operations', path='/agent')
 ns_test = api.namespace('Test', description='Test', path='/test')
+ns_plugin = api.namespace('Plugin', description='Plugin operations', path='/plugin')
 
 # Expect an API token
 expect_token = api.parser()
@@ -753,6 +758,138 @@ class InputDetails(Resource):
             return {'message': 'Sucessfully deleted input.'}
 
 
+@ns_plugin.route("/download/<path:path>")
+class DownloadPlugin(Resource):
+
+    # TODO: MAKE THIS ONLY ACCESSIBLE FROM AGENT TOKENS
+    def get(self, path):
+        return send_from_directory(current_app.config['PLUGIN_DIRECTORY'], path, as_attachment=True)
+
+
+upload_parser = api.parser()
+upload_parser.add_argument('file', location='files', type=FileStorage, required=True)
+@ns_plugin.route('/upload')
+
+class UploadPlugin(Resource):
+
+    @api.expect(upload_parser)
+    def post(self):
+
+        args = upload_parser.parse_args()
+
+        def allowed_file(filename):
+            return '.' in filename and filename.rsplit('.', 1)[1].lower() in current_app.config['PLUGIN_EXTENSIONS']
+
+        if 'file' not in request.files:
+            ns_plugin.abort(400, 'No file selected.')
+
+        uploaded_file = args['file']
+
+        if uploaded_file.filename == '':
+            ns_plugin.abort(400, 'No file selected.')
+
+        if uploaded_file and allowed_file(uploaded_file.filename):
+
+            # Make sure the file is one that can be uploaded
+            # TODO: Add mime-type checking
+            filename = secure_filename(uploaded_file.filename)
+            
+            # Save the file
+            file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)) + "/" + current_app.config['PLUGIN_DIRECTORY'], filename)
+            uploaded_file.save(file_path)
+            uploaded_file.close()
+
+            # Hash the file and update the checksum for the plugin
+            hasher = hashlib.sha1()
+            with open(file_path, 'rb') as f:
+                hasher.update(f.read())
+                print()
+
+            plugin = Plugin.query.filter_by(filename=filename).first()
+            if plugin:
+                plugin.file_hash = hasher.hexdigest()
+                plugin.save()
+            else:
+                ns_plugin.abort(404, 'Plugin not found.')
+
+            return {'message': 'Successfully uploaded file'}
+
+
+@ns_plugin.route("")
+class PluginList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_plugin_list, as_list=True)
+    @token_required
+    @user_has('view_plugins')
+    def get(self, current_user):
+        ''' Returns a list of plugins '''
+        return Plugin.query.all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_plugin_create)
+    @api.response('409', 'Plugin already exists.')
+    @api.response('200', "Successfully created the alert.")
+    @token_required
+    @user_has('create_plugin')
+    def post(self, current_user):
+
+        print(api.payload)
+        ''' Creates a new plugin '''
+        plugin = Plugin.query.filter_by(name=api.payload['name']).first()
+        if not plugin:
+            plugin = Plugin(**api.payload)
+            print(plugin)
+            plugin.create()
+        else:
+            ns_plugin.abort(409, 'Plugin already exists.')
+        return {'message':'Successfully created the plugin.', 'uuid': plugin.uuid}
+
+
+@ns_plugin.route("/<uuid>")
+class PluginDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_plugin_list)
+    @api.response('200', 'Success')
+    @api.response('404', 'Plugin not found')
+    @token_required
+    @user_has('view_plugins')
+    def get(self, current_user, uuid):
+        ''' Returns information about a plugin '''
+        plugin = Plugin.query.filter_by(uuid=uuid).first()
+        if plugin:
+            return plugin
+        else:
+            ns_plugin.abort(404, 'Plugin not found.')
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_plugin_create)
+    @api.marshal_with(mod_plugin_list)
+    @token_required
+    @user_has('update_plugin')
+    def put(self, current_user, uuid):
+        ''' Updates information for a plugin '''
+        plugin = Plugin.query.filter_by(uuid=uuid).first()
+        if plugin:
+            if 'name' in api.payload and Plugin.query.filter_by(name=api.payload['name']).first():
+                ns_plugin.abort(409, 'Plugin name already exists.')
+            else:
+                plugin.update(api.payload)
+                return plugin
+        else:
+            ns_plugin.abort(404, 'Plugin not found.')
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_plugin')
+    def delete(self, current_user, uuid):
+        ''' Deletes a plugin '''
+        plugin = Plugin.query.filter_by(uuid=uuid).first()
+        if plugin:
+            plugin.delete()
+            return {'message': 'Sucessfully deleted plugin.'}
+
 @ns_alert.route("/_bulk")
 class CreateBulkAlerts(Resource):
 
@@ -796,15 +933,21 @@ class CreateBulkAlerts(Resource):
 @ns_alert.route("")
 class AlertList(Resource):
     
+    @api.doc(security="Bearer")
     @api.marshal_with(mod_alert_list, as_list=True)
-    def get(self):
+    @token_required
+    @user_has('view_alerts')
+    def get(self, current_user):
         ''' Returns a list of alert '''
         return Alert.query.order_by(desc(Alert.created_at)).all()
 
+    @api.doc(security="Bearer")
     @api.expect(mod_alert_create)
     @api.response('409', 'Alert already exists.')
     @api.response('200', "Successfully created the alert.")
-    def post(self):
+    @token_required
+    @user_has('add_alert')
+    def post(self, current_user):
         _observables = []
         _tags = []
         ''' Creates a new alert '''
@@ -842,10 +985,13 @@ class AlertList(Resource):
 @ns_alert.route("/<uuid>")
 class AlertDetails(Resource):
 
+    @api.doc(security="Bearer")
     @api.marshal_with(mod_alert_details)
     @api.response('200', 'Success')
     @api.response('404', 'Alert not found')
-    def get(self, uuid):
+    @token_required
+    @user_has('view_alerts')
+    def get(self, current_user, uuid):
         ''' Returns information about a alert '''
         alert = Alert.query.filter_by(uuid=uuid).first()
         if alert:
@@ -853,9 +999,12 @@ class AlertDetails(Resource):
         else:
             ns_alert.abort(404, 'Alert not found.')
 
+    @api.doc(security="Bearer")
     @api.expect(mod_alert_create)
     @api.marshal_with(mod_alert_details)
-    def put(self, uuid):
+    @token_required
+    @user_has('update_alert')
+    def put(self, current_user, uuid):
         ''' Updates information for a alert '''
         alert = Alert.query.filter_by(uuid=uuid).first()
         if alert:
@@ -867,7 +1016,10 @@ class AlertDetails(Resource):
         else:
             ns_alert.abort(404, 'Alert not found.')
 
-    def delete(self, uuid):
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_alert')
+    def delete(self, current_user, uuid):
         ''' Deletes a alert '''
         alert = Alert.query.filter_by(uuid=uuid).first()
         if alert:
