@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: b22dfc6ba209
+Revision ID: c1ec6e985168
 Revises: 
-Create Date: 2020-08-27 00:13:00.397738
+Create Date: 2020-08-27 23:20:10.747787
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'b22dfc6ba209'
+revision = 'c1ec6e985168'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -45,6 +45,17 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('modified_at', sa.DateTime(), nullable=True),
     sa.Column('auth_token', sa.String(length=200), nullable=True),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('uuid')
+    )
+    op.create_table('case_status',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('name', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.String(), nullable=False),
+    sa.Column('closed', sa.Boolean(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
@@ -117,6 +128,14 @@ def upgrade():
     sa.Column('update_tag', sa.Boolean(), nullable=True),
     sa.Column('delete_tag', sa.Boolean(), nullable=True),
     sa.Column('view_tags', sa.Boolean(), nullable=True),
+    sa.Column('create_case', sa.Boolean(), nullable=True),
+    sa.Column('view_cases', sa.Boolean(), nullable=True),
+    sa.Column('update_case', sa.Boolean(), nullable=True),
+    sa.Column('delete_case', sa.Boolean(), nullable=True),
+    sa.Column('create_case_comment', sa.Boolean(), nullable=True),
+    sa.Column('view_case_comments', sa.Boolean(), nullable=True),
+    sa.Column('udpate_case_comment', sa.Boolean(), nullable=True),
+    sa.Column('delete_case_comment', sa.Boolean(), nullable=True),
     sa.Column('add_credential', sa.Boolean(), nullable=True),
     sa.Column('update_credential', sa.Boolean(), nullable=True),
     sa.Column('decrypt_credential', sa.Boolean(), nullable=True),
@@ -202,6 +221,20 @@ def upgrade():
     sa.Column('spotted', sa.Boolean(), nullable=True),
     sa.ForeignKeyConstraint(['dataType_id'], ['data_type.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('uuid')
+    )
+    op.create_table('plugin',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('name', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.String(), nullable=True),
+    sa.Column('enabled', sa.Boolean(), nullable=True),
+    sa.Column('credential_id', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['credential_id'], ['credential.uuid'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('name'),
     sa.UniqueConstraint('uuid')
     )
     op.create_table('role',
@@ -292,11 +325,69 @@ def upgrade():
     sa.ForeignKeyConstraint(['agent_role_uuid'], ['agent_role.uuid'], ),
     sa.ForeignKeyConstraint(['agent_uuid'], ['agent.uuid'], )
     )
+    op.create_table('case',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.String(), nullable=True),
+    sa.Column('severity', sa.Integer(), nullable=True),
+    sa.Column('owner_uuid', sa.String(), nullable=True),
+    sa.Column('status_id', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['owner_uuid'], ['user.uuid'], ),
+    sa.ForeignKeyConstraint(['status_id'], ['case_status.uuid'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('uuid')
+    )
+    op.create_table('alert_case',
+    sa.Column('alert_uuid', sa.String(), nullable=True),
+    sa.Column('case_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['alert_uuid'], ['alert.uuid'], ),
+    sa.ForeignKeyConstraint(['case_uuid'], ['case.uuid'], )
+    )
+    op.create_table('case_comment',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('message', sa.String(), nullable=True),
+    sa.Column('author_uuid', sa.String(), nullable=True),
+    sa.Column('case_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['author_uuid'], ['user.uuid'], ),
+    sa.ForeignKeyConstraint(['case_uuid'], ['case.uuid'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('uuid')
+    )
+    op.create_table('observable_case',
+    sa.Column('observable_uuid', sa.String(), nullable=True),
+    sa.Column('case_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['case_uuid'], ['case.uuid'], ),
+    sa.ForeignKeyConstraint(['observable_uuid'], ['observable.uuid'], )
+    )
+    op.create_table('tag_case',
+    sa.Column('case_uuid', sa.String(), nullable=True),
+    sa.Column('tag_id', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['case_uuid'], ['case.uuid'], ),
+    sa.ForeignKeyConstraint(['tag_id'], ['tag.uuid'], )
+    )
+    op.create_table('user_case',
+    sa.Column('user_uuid', sa.String(), nullable=True),
+    sa.Column('case_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['case_uuid'], ['case.uuid'], ),
+    sa.ForeignKeyConstraint(['user_uuid'], ['user.uuid'], )
+    )
     # ### end Alembic commands ###
 
 
 def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_table('user_case')
+    op.drop_table('tag_case')
+    op.drop_table('observable_case')
+    op.drop_table('case_comment')
+    op.drop_table('alert_case')
+    op.drop_table('case')
     op.drop_table('agent_role_agent')
     op.drop_table('agent_input')
     op.drop_table('user')
@@ -307,6 +398,7 @@ def downgrade():
     op.drop_table('agent')
     op.drop_table('tag_playbook')
     op.drop_table('role')
+    op.drop_table('plugin')
     op.drop_table('observable')
     op.drop_table('input')
     op.drop_table('alert')
@@ -316,6 +408,7 @@ def downgrade():
     op.drop_table('permission')
     op.drop_table('data_type')
     op.drop_table('credential')
+    op.drop_table('case_status')
     op.drop_table('auth_token_blacklist')
     op.drop_table('alert_status')
     op.drop_table('agent_role')

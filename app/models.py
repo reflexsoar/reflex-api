@@ -59,6 +59,26 @@ agent_input_association = db.Table('agent_input', db.metadata,
     db.Column('input_uuid', db.String, db.ForeignKey('input.uuid'))
 )
 
+observable_case_association = db.Table('observable_case', db.metadata,
+    db.Column('observable_uuid', db.String, db.ForeignKey('observable.uuid')),
+    db.Column('case_uuid', db.String, db.ForeignKey('case.uuid'))
+)
+
+alert_case_association = db.Table('alert_case', db.metadata,
+    db.Column('alert_uuid', db.String, db.ForeignKey('alert.uuid')),
+    db.Column('case_uuid', db.String, db.ForeignKey('case.uuid'))
+)
+
+case_tag_association = db.Table('tag_case', db.metadata,
+    db.Column('case_uuid', db.String, db.ForeignKey('case.uuid')),
+    db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
+)
+
+user_case_association = db.Table('user_case', db.metadata,
+    db.Column('user_uuid', db.String, db.ForeignKey('user.uuid')),
+    db.Column('case_uuid', db.String, db.ForeignKey('case.uuid'))
+)
+
 # End relationships
 
 
@@ -68,10 +88,9 @@ class Base(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     uuid = db.Column(db.String, unique=True, default=generate_uuid)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.now())
-    modified_at = db.Column(db.DateTime, default=datetime.datetime.now(),
-                            onupdate=datetime.datetime.now())
-
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now)
+    modified_at = db.Column(db.DateTime, default=datetime.datetime.now,
+                            onupdate=datetime.datetime.now)
     # TODO : Extend created_by
     # TODO : Extend updated_by
 
@@ -162,6 +181,18 @@ class Permission(Base):
     update_tag = db.Column(db.Boolean, default=False)
     delete_tag = db.Column(db.Boolean, default=False)
     view_tags = db.Column(db.Boolean, default=False)
+
+    # Case Permissions
+    create_case = db.Column(db.Boolean, default=False)
+    view_cases = db.Column(db.Boolean, default=False)
+    update_case = db.Column(db.Boolean, default=False)
+    delete_case = db.Column(db.Boolean, default=False)
+
+    # Case Comment Permissions
+    create_case_comment = db.Column(db.Boolean, default=False)
+    view_case_comments = db.Column(db.Boolean, default=False)
+    udpate_case_comment = db.Column(db.Boolean, default=False)
+    delete_case_comment = db.Column(db.Boolean, default=False)
 
     # Credential Permissions
     add_credential = db.Column(db.Boolean, default=False)
@@ -266,6 +297,29 @@ class AuthTokenBlacklist(Base):
     auth_token = db.Column(db.String(200))
 
 
+class Case(Base):
+
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.String)
+    comments = db.relationship('CaseComment')
+    severity = db.Column(db.Integer, default=2)
+    owner_uuid = db.Column(db.String, db.ForeignKey('user.uuid'))
+    owner = db.relationship('User')
+    observables = db.relationship('Observable', secondary=observable_case_association)
+    alerts = db.relationship('Alert', secondary=alert_case_association)
+    tags = db.relationship('Tag', secondary=case_tag_association)
+    status_id = db.Column(db.String, db.ForeignKey('case_status.uuid'))
+    status = db.relationship("CaseStatus")
+
+
+class CaseComment(Base):
+
+    message = db.Column(db.String)
+    author_uuid = db.Column(db.String, db.ForeignKey('user.uuid'))
+    author = db.relationship('User')
+    case_uuid = db.Column(db.String, db.ForeignKey('case.uuid'))
+
+
 class Alert(Base):
 
     title = db.Column(db.String(255), nullable=False)
@@ -281,6 +335,13 @@ class Alert(Base):
 
 
 class AlertStatus(Base):
+
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.String, nullable=False)
+    closed = db.Column(db.Boolean, default=False)
+
+
+class CaseStatus(Base):
 
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.String, nullable=False)
@@ -342,6 +403,14 @@ class Playbook(Base):
     description = db.Column(db.String(255))
     enabled = db.Column(db.Boolean(), default=True)
     tags = db.relationship('Tag', secondary=playbook_tag_association)
+
+
+class Plugin(Base):
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    description = db.Column(db.String)
+    enabled = db.Column(db.Boolean, default=True)
+    credential_id = db.Column(db.String, db.ForeignKey('credential.uuid'))
+    credential = db.relationship('Credential')
 
 
 class Input(Base):

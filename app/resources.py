@@ -6,7 +6,7 @@ import cryptography
 from flask import request, current_app, abort, make_response
 from flask_restx import Api, Resource, Namespace, fields, Model
 from flask_socketio import emit
-from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole
+from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole, Case, CaseComment, CaseStatus
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc
 from .utils import token_required, user_has, _get_current_user, generate_token
@@ -23,6 +23,7 @@ ns_playbook = api.namespace('Playbook', description='Playbook operations', path=
 ns_input = api.namespace('Input', description='Input operations', path='/input')
 ns_tag = api.namespace('Tag', description='Tag operations', path='/tag')
 ns_alert = api.namespace('Alert', description='Alert operations', path='/alert')
+ns_case = api.namespace('Case', description='Case operations', path='/case')
 ns_credential = api.namespace('Credential', description='Credential operations', path='/credential')
 ns_agent = api.namespace('Agent', description='Agent operations', path='/agent')
 ns_test = api.namespace('Test', description='Test', path='/test')
@@ -310,6 +311,197 @@ class PermissionDetails(Resource):
         return
 
 
+@ns_case.route("")
+class CaseList(Resource):
+    
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_case_full, as_list=True)
+    @token_required
+    @user_has('view_cases')
+    def get(self, current_user):
+        ''' Returns a list of case '''
+        return Case.query.all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_case_create)
+    @api.response('409', 'Case already exists.')
+    @api.response('200', "Successfully created the case.")
+    @token_required
+    #@user_has('create_case')
+    def post(self, current_user):
+        _tags = []
+        ''' Creates a new case '''
+        #case = Case.query.filter_by(title=api.payload['title']).first()
+        if 'tags' in api.payload:
+            tags = api.payload.pop('tags')
+            _tags = parse_tags(tags)
+
+        if 'owner' in api.payload:
+            owner = api.payload.pop('owner')
+            user = User.query.filter_by(uuid=owner).first()
+            if user:
+                api.payload['owner'] = user
+
+        if 'observables' in api.payload:
+            observables = api.payload.pop('observables')
+            api.payload['observables'] = []
+            for uuid in observables:
+                observable = Observable.query.filter_by(uuid=uuid).first()
+                if observable:
+                    api.payload['observables'].append(observable)
+
+        if 'alerts' in api.payload:
+            alerts = api.payload.pop('alerts')
+            api.payload['alerts'] = []
+            for uuid in alerts:
+                alert = Alert.query.filter_by(uuid=uuid).first()
+                if alert:
+                    api.payload['alerts'].append(alert)
+
+        case = Case(**api.payload)
+        case.create()
+
+        if len(_tags) > 0:
+            case.tags += _tags
+            case.save()
+
+
+        # Set the default status to New
+        case_status = CaseStatus.query.filter_by(name="New").first()
+        case.status = case_status
+        case.save()
+
+        return {'message':'Successfully created the case.'}
+
+
+@ns_case.route("/<uuid>")
+class CaseDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_case_full)
+    @api.response('200', 'Success')
+    @api.response('404', 'Case not found')
+    @token_required
+    @user_has('view_cases')
+    def get(self, uuid):
+        ''' Returns information about a case '''
+        case = Case.query.filter_by(uuid=uuid).first()
+        if case:
+            return case
+        else:
+            ns_case.abort(404, 'Case not found.')
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_case_create)
+    @api.marshal_with(mod_case_full)
+    @token_required
+    @user_has('update_case')
+    def put(self, uuid):
+        ''' Updates information for a case '''
+        case = Case.query.filter_by(uuid=uuid).first()
+        if case:
+            if 'name' in api.payload and Case.query.filter_by(name=api.payload['name']).first():
+                ns_case.abort(409, 'Case name already exists.')
+            else:
+                case.update(api.payload)
+                return case
+        else:
+            ns_case.abort(404, 'Case not found.')
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_case')
+    def delete(self, uuid):
+        ''' Deletes a case '''
+        case = Case.query.filter_by(uuid=uuid).first()
+        if case:
+            case.delete()
+            return {'message': 'Sucessfully deleted case.'}
+
+"""
+@ns_case_comment.route("")
+class CaseCommentList(Resource):
+    
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_case_comment_list, as_list=True)
+    @token_required
+    @user_has('view_case_comments')
+    def get(self, current_user):
+        ''' Returns a list of comments '''
+        return CaseComment.query.all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_case_comment_create)
+    @api.response('409', 'Comment already exists.')
+    @api.response('200', "Successfully created the comment.")
+    @token_required
+    @user_has('create_case_comment')
+    def post(self, current_user):
+        _tags = []
+        ''' Creates a new comment '''
+        case_comment = CaseComment.query.filter_by(name=api.payload['name']).first()
+        if not case_comment:
+            if 'tags' in api.payload:
+                tags = api.payload.pop('tags')
+                _tags = parse_tags(tags)
+
+            case_comment = CaseComment(**api.payload)
+            case_comment.create()
+
+            if len(_tags) > 0:
+                case_comment.tags += _tags
+                case_comment.save()
+
+            return {'message':'Successfully created the comment.'}
+        else:
+            ns_case_comment.abort(409, 'Comment already exists.')
+
+
+@ns_case_comment.route("/<uuid>")
+class CaseCommentDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_case_comment_full)
+    @api.response('200', 'Success')
+    @api.response('404', 'Comment not found')
+    @token_required
+    @user_has('view_case_comments')
+    def get(self, uuid):
+        ''' Returns information about a comment '''
+        case_comment = CaseComment.query.filter_by(uuid=uuid).first()
+        if case_comment:
+            return case_comment
+        else:
+            ns_case_comment.abort(404, 'Comment not found.')
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_case_comment_create)
+    @api.marshal_with(mod_case_comment_full)
+    @token_required
+    @user_has('update_case_comment')
+    def put(self, uuid):
+        ''' Updates information for a comment '''
+        case_comment = CaseComment.query.filter_by(uuid=uuid).first()
+        if case_comment:
+            if 'name' in api.payload and CaseComment.query.filter_by(name=api.payload['name']).first():
+                ns_case_comment.abort(409, 'Comment name already exists.')
+            else:
+                case_comment.update(api.payload)
+                return case_comment
+        else:
+            ns_case_comment.abort(404, 'Comment not found.')
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_case_comment')
+    def delete(self, uuid):
+        ''' Deletes a comment '''
+        case_comment = CaseComment.query.filter_by(uuid=uuid).first()
+        if case_comment:
+            case_comment.delete()
+            return {'message': 'Sucessfully deleted comment.'}
+"""
+
 @ns_playbook.route("")
 class PlaybookList(Resource):
     
@@ -523,6 +715,7 @@ class InputList(Resource):
 @ns_input.route("/<uuid>")
 class InputDetails(Resource):
 
+    @api.doc(security="Bearer")
     @api.marshal_with(mod_input_list)
     @token_required
     @user_has('view_inputs')
@@ -825,6 +1018,7 @@ class AgentHeartbeat(Resource):
             return {'message': 'Your heart still beats!'}
         else:
             ns_agent.abort(400, 'Your heart stopped.')
+
 
 @ns_agent.route("/<uuid>")
 class AgentDetails(Resource):
@@ -1136,6 +1330,7 @@ class TagList(Resource):
         else:
             ns_tag.abort(409, 'Tag already exists.')
         return
+
 
 @ns_tag.route('/<uuid>')
 class TagDetails(Resource):

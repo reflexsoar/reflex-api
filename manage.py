@@ -6,7 +6,7 @@ from flask_migrate import Migrate, MigrateCommand
 from flask_script import Manager
 
 from app import create_app, db
-from app.models import AuthTokenBlacklist, User, Role, Permission, DataType, AlertStatus, AgentRole
+from app.models import AuthTokenBlacklist, User, Role, Permission, DataType, AlertStatus, AgentRole, CaseStatus
 
 app = create_app()
 app.app_context().push()
@@ -132,7 +132,15 @@ def setup():
         "add_input": True,
         "view_inputs": True,
         "update_input": True,
-        "delete_input": True
+        "delete_input": True,
+        "create_case": True,
+        "view_cases": True,
+        "update_case": True,
+        "delete_case": True,
+        "create_case_comment": True,
+        "view_case_comments": True,
+        "udpate_case_comment": True,
+        "delete_case_comment": True
     }
     permissions = Permission(**perms)
     db.session.add(permissions)
@@ -226,6 +234,20 @@ def setup():
     }
     for k in statuses:
         status = AlertStatus(name=k, description=statuses[k])
+        db.session.add(status)
+        db.session.commit()
+        if k == 'Closed':
+            status.closed = True
+            status.save()
+
+    print("Creating default case statuses")
+    statuses = {
+        'New': 'A new case.',
+        'Closed': 'An cased that has been closed.',
+        'In Progress': 'A case that is currently being worked on.'
+    }
+    for k in statuses:
+        status = CaseStatus(name=k, description=statuses[k])
         db.session.add(status)
         db.session.commit()
         if k == 'Closed':

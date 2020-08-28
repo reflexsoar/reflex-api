@@ -112,7 +112,15 @@ permission_fields = {
     'add_input': fields.Boolean,
     "view_inputs": fields.Boolean,
     "update_input": fields.Boolean,
-    "delete_input": fields.Boolean
+    "delete_input": fields.Boolean,
+    "create_case": fields.Boolean,
+    "view_cases": fields.Boolean,
+    "update_case": fields.Boolean,
+    "delete_case": fields.Boolean,
+    "create_case_comment": fields.Boolean,
+    "view_case_comments": fields.Boolean,
+    "udpate_case_comment": fields.Boolean,
+    "delete_case_comment": fields.Boolean
 }
 
 mod_permission_role_view = Model('PermissionRoleView', {
@@ -355,6 +363,36 @@ mod_agent_list = Model('AgentList', {
     'last_heartbeat': fields.DateTime
 })
 
+mod_case_create = Model('CaseCreate', {
+    'title': fields.String(required=True),
+    'owner': fields.String,
+    'description': fields.String(required=True),
+    'tags': fields.List(fields.String),
+    'tlp': fields.Integer,
+    'severity': fields.Integer,
+    'observables': fields.List(fields.String)
+})
+
+mod_case_status = Model('CaseStatusString', {
+    'name': fields.String
+})
+
+mod_case_full = Model('CaseDetails', {
+    'uuid': fields.String,
+    'title': fields.String,
+    'owner': fields.Nested(mod_user_list),
+    'description': fields.String,
+    'tags': fields.List(fields.String),
+    'tlp': fields.Integer,
+    'severity': fields.Integer,
+    'status': fields.Nested(mod_alert_status),
+    'observable_count': ObservableCount(attribute='observables'),
+    'created_at': fields.DateTime,
+    'modified_at': fields.DateTime,
+    'observables': fields.List(fields.Nested(mod_observable_create)),
+    'alerts': fields.List(fields.Nested(mod_alert_details))
+})
+
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
                  mod_tag, mod_tag_list,mod_credential_create, mod_credential_full, mod_credential_return,
@@ -364,4 +402,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_observable, mod_observable_create, mod_observable_list, mod_observable_type, mod_observable_type_name,
                  mod_alert_create, mod_alert_details, mod_alert_list, mod_credential_list,
                  mod_input_create, mod_input_list, mod_alert_create_bulk, mod_alert_status,
-                 mod_agent_create, mod_agent_list, mod_agent_role_list]
+                 mod_agent_create, mod_agent_list, mod_agent_role_list,
+                 mod_case_create, mod_case_status, mod_case_full]
