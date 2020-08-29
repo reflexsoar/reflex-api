@@ -198,7 +198,9 @@ def setup():
         "delete_observable": True,
         "add_tag_to_observable": True,
         "remove_tag_from_observable": True,
-        "view_agents": True
+        "view_agents": True,
+        "view_plugins": True,
+        "add_alert": True
     }
     permissions = Permission(**perms)
     db.session.add(permissions)

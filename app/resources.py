@@ -1133,6 +1133,7 @@ class AgentList(Resource):
     def post(self, current_user):
         ''' Creates a new Agent '''
 
+        print(api.payload)
         agent = Agent.query.filter_by(name=api.payload['name']).first()
         if not agent:
 
@@ -1178,24 +1179,20 @@ class AgentDetails(Resource):
     @api.doc(security="Bearer")
     @api.expect(mod_agent_create)
     @api.marshal_with(mod_agent_list)
-    @token_required
-    @user_has('update_agent')
-    def put(self, uuid, current_user):
+    #@token_required
+    #@user_has('update_agent')
+    def put(self, uuid):
         ''' Updates an Agent '''
         agent = Agent.query.filter_by(uuid=uuid).first()
         if agent:
-            if 'name' in api.payload and Agent.query.filter_by(name=api.payload['name']).first():
-                ns_agent.abort(409, 'Agent with that name already exists.')
-            else:
-
-                if 'inputs' in api.payload:
-                    inputs = api.payload.pop('inputs')
-                    for inp in inputs:
-                        _input = Input.query.filter_by(uuid=inp).first()
-                        if _input:
-                            agent.inputs.append(_input)
-                agent.update(api.payload)
-                return agent
+            if 'inputs' in api.payload:
+                inputs = api.payload.pop('inputs')
+                for inp in inputs:
+                    _input = Input.query.filter_by(uuid=inp).first()
+                    if _input:
+                        agent.inputs.append(_input)
+            agent.update(api.payload)
+            return agent
         else:
             ns_agent.abort(404, 'Agent not found.')
         

@@ -69,13 +69,12 @@ def _check_token():
     current_user = None
     if auth_header:
         try:
-            access_token = auth_header.split(' ')[1]            
+            access_token = auth_header.split(' ')[1]   
             try:
                 token = jwt.decode(access_token, current_app.config['SECRET_KEY'])
                 if 'type' in token and token['type'] == 'agent':
                     current_user = Agent.query.filter_by(uuid=token['uuid']).first()
                     
-                
                 # The pairing token can only be used on the add_agent endpoint
                 # and because the token is signed we don't have to worry about 
                 # someone adding a the pairing type to their token
