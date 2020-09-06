@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc
-from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole, Case, CaseComment, CaseStatus, Plugin
+from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole, AgentGroup, Case, CaseComment, CaseStatus, Plugin
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -30,8 +30,9 @@ ns_alert = api.namespace('Alert', description='Alert operations', path='/alert')
 ns_case = api.namespace('Case', description='Case operations', path='/case')
 ns_credential = api.namespace('Credential', description='Credential operations', path='/credential')
 ns_agent = api.namespace('Agent', description='Agent operations', path='/agent')
-ns_test = api.namespace('Test', description='Test', path='/test')
+ns_agent_group = api.namespace('AgentGroup', description='Agent Group operations', path='/agent_group')
 ns_plugin = api.namespace('Plugin', description='Plugin operations', path='/plugin')
+ns_test = api.namespace('Test', description='Test', path='/test')
 
 # Expect an API token
 expect_token = api.parser()
@@ -1139,6 +1140,9 @@ class AgentList(Resource):
 
             if 'roles' in api.payload:
                 roles = api.payload.pop('roles')
+
+            if 'groups' in api.payload:
+                groups = api.payload.pop('groups')
                 
             agent = Agent(**api.payload)
             for role in roles:
@@ -1147,6 +1151,13 @@ class AgentList(Resource):
                     agent.roles.append(agent_role)
                 else:
                     ns_agent.abort(400, 'Invalid agent role type')
+
+            for group_name in groups:
+                group = AgentGroup.query.filter_by(name=group_name).first()
+                if group:
+                    agent.groups.append(group)
+                else:
+                    ns_agent.abort(400, 'Agent Group not found.')
 
             role = Role.query.filter_by(name='Agent').first()
             agent.role = role
@@ -1179,18 +1190,34 @@ class AgentDetails(Resource):
     @api.doc(security="Bearer")
     @api.expect(mod_agent_create)
     @api.marshal_with(mod_agent_list)
-    #@token_required
-    #@user_has('update_agent')
-    def put(self, uuid):
+    @token_required
+    @user_has('update_agent')
+    def put(self, uuid, current_user):
         ''' Updates an Agent '''
         agent = Agent.query.filter_by(uuid=uuid).first()
         if agent:
             if 'inputs' in api.payload:
+                _inputs = []
                 inputs = api.payload.pop('inputs')
-                for inp in inputs:
-                    _input = Input.query.filter_by(uuid=inp).first()
-                    if _input:
-                        agent.inputs.append(_input)
+                if len(inputs) > 0:
+                    for inp in inputs:
+                        _input = Input.query.filter_by(uuid=inp).first()
+                        if _input:
+                            _inputs.append(_input)
+                agent.inputs = _inputs
+                agent.save() 
+
+            if 'groups' in api.payload:
+                _groups = []
+                groups = api.payload.pop('groups')
+                if len(groups) > 0:
+                    for grp in groups:
+                        group = AgentGroup.query.filter_by(uuid=grp).first()
+                        if group:
+                            _groups.append(group)
+                agent.groups = _groups
+                agent.save()
+
             agent.update(api.payload)
             return agent
         else:
@@ -1220,6 +1247,74 @@ class AgentDetails(Resource):
             return agent
         else:
             ns_agent.abort(404, 'Agent not found.')
+
+
+@ns_agent_group.route("")
+class AgentGroupList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_agent_group_list, as_list=True)
+    def get(self):
+        ''' Gets a list of agent_groups '''
+        return AgentGroup.query.all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_agent_group_create)
+    @api.response('409', 'AgentGroup already exists.')
+    @api.response('200', "Successfully created the Agent Group.")
+    def post(self):
+        ''' Creates a new agent_group '''
+        agent_group = AgentGroup.query.filter_by(name=api.payload['name']).first()
+        if not agent_group:
+            agent_group = AgentGroup(**api.payload)
+            agent_group.create()
+            return {'message':'Successfully created the Agent Group.'}
+        else:
+            ns_agent_group.abort(409, 'Agent Group already exists.')
+        return
+
+
+@ns_agent_group.route('/<uuid>')
+class AgentGroupDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_agent_group_list)
+    @api.response('200', 'Success')
+    @api.response('404', 'AgentGroup not found')
+    def get(self,uuid):
+        ''' Gets details on a specific agent_group '''
+        agent_group = AgentGroup.query.filter_by(uuid=uuid).first()
+        if agent_group:
+            return agent_group
+        else:
+            ns_agent_group.abort(404, 'Agent Group not found.')
+        return
+    
+    @api.doc(security="Bearer")
+    @api.expect(mod_agent_group_create)
+    @api.marshal_with(mod_agent_group_list)
+    def put(self, uuid):
+        ''' Updates a agent_group '''
+        agent_group = AgentGroup.query.filter_by(uuid=uuid).first()
+
+        if agent_group:
+            if 'name' in api.payload and AgentGroup.query.filter_by(name=api.payload['name']).first():
+                ns_agent_group.abort(409, 'Agent Group name already exists.')
+            else:
+                agent_group.update(api.payload)
+                return agent_group
+        else:
+            ns_agent_group.abort(404, 'Agent Group not found.')
+        return
+
+    @api.doc(security="Bearer")
+    def delete(self, uuid):
+        ''' Deletes a agent_group '''
+        agent_group = AgentGroup.query.filter_by(uuid=uuid).first()
+        if agent_group:
+            agent_group.delete()
+            return {'message': 'Sucessfully deleted Agent Group.'}
+
 
 
 @ns_role.route("")

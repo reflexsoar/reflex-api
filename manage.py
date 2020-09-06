@@ -140,12 +140,16 @@ def setup():
         "delete_case": True,
         "create_case_comment": True,
         "view_case_comments": True,
-        "udpate_case_comment": True,
+        "update_case_comment": True,
         "delete_case_comment": True,
         "view_plugins": True,
         "create_plugin": True,
         "delete_plugin": True,
-        "update_plugin": True
+        "update_plugin": True,
+        "create_agent_group": True,
+        "view_agent_groups": True,
+        "update_agent_group": True,
+        "delete_agent_group": True
     }
     permissions = Permission(**perms)
     db.session.add(permissions)

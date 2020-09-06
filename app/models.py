@@ -54,6 +54,11 @@ agent_role_agent_association = db.Table('agent_role_agent', db.metadata,
     db.Column('agent_role_uuid', db.String, db.ForeignKey('agent_role.uuid'))
 )
 
+agent_group_agent_association = db.Table('agent_group_agent', db.metadata,
+    db.Column('agent_uuid', db.String, db.ForeignKey('agent.uuid')),
+    db.Column('agent_group_uuid', db.String, db.ForeignKey('agent_group.uuid'))
+)
+
 agent_input_association = db.Table('agent_input', db.metadata,
     db.Column('agent_uuid', db.String, db.ForeignKey('agent.uuid')),
     db.Column('input_uuid', db.String, db.ForeignKey('input.uuid'))
@@ -171,6 +176,12 @@ class Permission(Base):
     delete_agent = db.Column(db.Boolean, default=False)
     pair_agent = db.Column(db.Boolean, default=False)
 
+    # Agent Group Permissions
+    create_agent_group = db.Column(db.Boolean, default=False)
+    view_agent_groups = db.Column(db.Boolean, default=False)
+    update_agent_group = db.Column(db.Boolean, default=False)
+    delete_agent_group = db.Column(db.Boolean, default=False)
+
     # Input Permissions
     add_input = db.Column(db.Boolean, default=False)
     view_inputs = db.Column(db.Boolean, default=False)
@@ -192,7 +203,7 @@ class Permission(Base):
     # Case Comment Permissions
     create_case_comment = db.Column(db.Boolean, default=False)
     view_case_comments = db.Column(db.Boolean, default=False)
-    udpate_case_comment = db.Column(db.Boolean, default=False)
+    update_case_comment = db.Column(db.Boolean, default=False)
     delete_case_comment = db.Column(db.Boolean, default=False)
 
     # Plugin Permissions
@@ -370,6 +381,7 @@ class Agent(Base):
     name = db.Column(db.String(255))
     inputs = db.relationship('Input', secondary=agent_input_association)
     roles = db.relationship('AgentRole', secondary=agent_role_agent_association)
+    groups = db.relationship('AgentGroup' ,secondary=agent_group_agent_association)
     active = db.Column(db.Boolean, default=True)
     ip_address = db.Column(db.String)
     last_heartbeat = db.Column(db.DateTime)
@@ -393,6 +405,12 @@ class Agent(Base):
 
 
 class AgentRole(Base):
+
+    name = db.Column(db.String(255))
+    description = db.Column(db.String)
+
+
+class AgentGroup(Base):
 
     name = db.Column(db.String(255))
     description = db.Column(db.String)

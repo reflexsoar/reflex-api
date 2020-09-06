@@ -120,12 +120,16 @@ permission_fields = {
     "delete_case": fields.Boolean,
     "create_case_comment": fields.Boolean,
     "view_case_comments": fields.Boolean,
-    "udpate_case_comment": fields.Boolean,
+    "update_case_comment": fields.Boolean,
     "delete_case_comment": fields.Boolean,
     "view_plugins": fields.Boolean,
     "create_plugin": fields.Boolean,
     "delete_plugin": fields.Boolean,
-    "update_plugin": fields.Boolean
+    "update_plugin": fields.Boolean,
+    "create_agent_group": fields.Boolean,
+    "view_agent_groups": fields.Boolean,
+    "update_agent_group": fields.Boolean,
+    "delete_agent_group": fields.Boolean
 }
 
 mod_permission_role_view = Model('PermissionRoleView', {
@@ -351,6 +355,18 @@ mod_agent_role_list = Model('AgentRoleList', {
     'description': fields.String
 })
 
+mod_agent_group_list = Model('AgentGroupList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String
+})
+
+mod_agent_group_create = Model('AgentGroupList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String
+})
+
 mod_agent_create = Model('AgentCreate', {
     'name': fields.String,
     'roles': fields.List(fields.String),
@@ -363,6 +379,7 @@ mod_agent_list = Model('AgentList', {
     'name': fields.String,
     'inputs': fields.List(fields.Nested(mod_input_list)),
     'roles': fields.List(fields.Nested(mod_agent_role_list)),
+    'groups': fields.List(fields.Nested(mod_agent_group_list)),
     'active': fields.Boolean,
     'ip_address': fields.String,
     'last_heartbeat': fields.DateTime
@@ -427,4 +444,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_input_create, mod_input_list, mod_alert_create_bulk, mod_alert_status,
                  mod_agent_create, mod_agent_list, mod_agent_role_list,
                  mod_case_create, mod_case_status, mod_case_full,
-                 mod_plugin_create, mod_plugin_list]
+                 mod_plugin_create, mod_plugin_list,
+                 mod_agent_group_create, mod_agent_group_list]

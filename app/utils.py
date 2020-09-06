@@ -75,6 +75,7 @@ def _check_token():
                 if 'type' in token and token['type'] == 'agent':
                     current_user = Agent.query.filter_by(uuid=token['uuid']).first()
                     
+                    
                 # The pairing token can only be used on the add_agent endpoint
                 # and because the token is signed we don't have to worry about 
                 # someone adding a the pairing type to their token
