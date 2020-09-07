@@ -5,6 +5,7 @@ import json
 import base64
 import hashlib
 import cryptography
+from zipfile import ZipFile
 from flask import request, current_app, abort, make_response, send_from_directory, send_file
 from flask_restx import Api, Resource, Namespace, fields, Model
 from flask_socketio import emit
@@ -768,52 +769,82 @@ class DownloadPlugin(Resource):
 
 
 upload_parser = api.parser()
-upload_parser.add_argument('file', location='files', type=FileStorage, required=True)
+upload_parser.add_argument('files', location='files', type=FileStorage, required=True, action="append")
 @ns_plugin.route('/upload')
 
 class UploadPlugin(Resource):
 
+    @api.doc(security="Bearer")
     @api.expect(upload_parser)
+    @api.marshal_with(mod_plugin_list, as_list=True)
+    #@token_required
+    #@user_has('create_plugin')
     def post(self):
+
+        plugins = []
 
         args = upload_parser.parse_args()
 
         def allowed_file(filename):
             return '.' in filename and filename.rsplit('.', 1)[1].lower() in current_app.config['PLUGIN_EXTENSIONS']
 
-        if 'file' not in request.files:
+        if 'files' not in request.files:
             ns_plugin.abort(400, 'No file selected.')
 
-        uploaded_file = args['file']
+        uploaded_files = args['files']
+        for uploaded_file in uploaded_files:
 
-        if uploaded_file.filename == '':
-            ns_plugin.abort(400, 'No file selected.')
+            if uploaded_file.filename == '':
+                ns_plugin.abort(400, 'No file selected.')
 
-        if uploaded_file and allowed_file(uploaded_file.filename):
+            if uploaded_file and allowed_file(uploaded_file.filename):
 
-            # Make sure the file is one that can be uploaded
-            # TODO: Add mime-type checking
-            filename = secure_filename(uploaded_file.filename)
-            
-            # Save the file
-            file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)) + "/" + current_app.config['PLUGIN_DIRECTORY'], filename)
-            uploaded_file.save(file_path)
-            uploaded_file.close()
+                # Make sure the file is one that can be uploaded
+                # TODO: Add mime-type checking
+                filename = secure_filename(uploaded_file.filename)
+                
+                # Save the file
+                file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)) + "/" + current_app.config['PLUGIN_DIRECTORY'], filename)
+                uploaded_file.save(file_path)
+                uploaded_file.close()
 
-            # Hash the file and update the checksum for the plugin
-            hasher = hashlib.sha1()
-            with open(file_path, 'rb') as f:
-                hasher.update(f.read())
-                print()
+                # Hash the file and update the checksum for the plugin
+                hasher = hashlib.sha1()
+                with open(file_path, 'rb') as f:
+                    hasher.update(f.read())
 
-            plugin = Plugin.query.filter_by(filename=filename).first()
-            if plugin:
-                plugin.file_hash = hasher.hexdigest()
-                plugin.save()
-            else:
-                ns_plugin.abort(404, 'Plugin not found.')
+                # Open the file and grab the manifest and the logo
+                with ZipFile(file_path, 'r') as z:
+                    #if 'logo.png' not in z.namelist():
+                    #    ns_plugin.abort(400, "Archive does not contain logo.png")
+                    #if 'plugin.json' not in z.namelist():
+                    #    ns_plugin.abort(400, "Archive does not contain plugin.json")
 
-            return {'message': 'Successfully uploaded file'}
+                    files = [{'name': name, 'data': z.read(name)} for name in z.namelist()]
+                    for f in files:
+                        if 'logo.png' in f['name']:
+                            logo_b64 = base64.b64encode(f['data']).decode()
+                        if 'plugin.json' in f['name']:
+                            manifest_data = json.loads(f['data'].decode())
+                            description = manifest_data['description']
+                    
+                plugin = Plugin.query.filter_by(filename=filename).first()
+                if plugin:
+                    plugin.manifest = manifest_data
+                    plugin.logo = logo_b64
+                    plugin.description = description
+                    plugin.file_hash = hasher.hexdigest()
+                    plugin.save()
+                else:
+                    plugin = Plugin(name=filename,
+                                    filename=filename,
+                                    description=description,
+                                    manifest=manifest_data,
+                                    logo=logo_b64,
+                                    file_hash=hasher.hexdigest())
+                    plugin.create()
+                plugins.append(plugin)
+        return plugins
 
 
 @ns_plugin.route("")
@@ -840,7 +871,6 @@ class PluginList(Resource):
         plugin = Plugin.query.filter_by(name=api.payload['name']).first()
         if not plugin:
             plugin = Plugin(**api.payload)
-            print(plugin)
             plugin.create()
         else:
             ns_plugin.abort(409, 'Plugin already exists.')

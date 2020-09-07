@@ -433,11 +433,11 @@ class Playbook(Base):
 class Plugin(Base):
     name = db.Column(db.String(255), unique=True, nullable=False)
     description = db.Column(db.String, nullable=False)
+    logo = db.Column(db.String)
+    manifest = db.Column(db.JSON, nullable=False)
     enabled = db.Column(db.Boolean, default=False)
     filename = db.Column(db.String, nullable=False)
     file_hash = db.Column(db.String)
-    #credential_id = db.Column(db.String, db.ForeignKey('credential.uuid'))
-    #credential = db.relationship('Credential')
 
 
 class Input(Base):

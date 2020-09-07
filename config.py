@@ -13,7 +13,7 @@ class Config(object):
     PERMISSIONS_DISABLED = False
 
     PLUGIN_DIRECTORY = 'plugins/'
-    PLUGIN_EXTENSIONS = ['py']
+    PLUGIN_EXTENSIONS = ['zip']
 
 class ProductionConfig(Config):
     DEBUG = False

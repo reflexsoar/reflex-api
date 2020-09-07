@@ -425,8 +425,10 @@ mod_plugin_create = Model('PluginCreate', {
 mod_plugin_list = Model('PluginList', {
     "uuid": fields.String,
     "name": fields.String,
+    "logo": fields.String,
     "description": fields.String,
     "enabled": fields.Boolean,
+    "manifest": JSONField,
     "filename": fields.String,
     "file_hash": fields.String,
     'created_at': fields.DateTime,
