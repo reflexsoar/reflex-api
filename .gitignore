@@ -4,6 +4,7 @@
 
 # Databases
 *.db
+app/plugins/*
 
 ### Flask ###
 instance/*
