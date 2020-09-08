@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 056f2978fac5
+Revision ID: f81bcfa59353
 Revises: 
-Create Date: 2020-09-06 23:13:52.948552
+Create Date: 2020-09-07 20:41:54.838756
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '056f2978fac5'
+revision = 'f81bcfa59353'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -184,6 +184,7 @@ def upgrade():
     sa.Column('description', sa.String(), nullable=False),
     sa.Column('logo', sa.String(), nullable=True),
     sa.Column('manifest', sa.JSON(), nullable=False),
+    sa.Column('config_template', sa.JSON(), nullable=False),
     sa.Column('enabled', sa.Boolean(), nullable=True),
     sa.Column('filename', sa.String(), nullable=False),
     sa.Column('file_hash', sa.String(), nullable=True),
@@ -258,6 +259,20 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
+    op.create_table('plugin_config',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('name', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.String(), nullable=False),
+    sa.Column('config', sa.JSON(), nullable=False),
+    sa.Column('plugin_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['plugin_uuid'], ['plugin.uuid'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('name'),
+    sa.UniqueConstraint('uuid')
+    )
     op.create_table('role',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('uuid', sa.String(), nullable=True),
@@ -296,6 +311,12 @@ def upgrade():
     sa.Column('alert_uuid', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['alert_uuid'], ['alert.uuid'], ),
     sa.ForeignKeyConstraint(['observable_uuid'], ['observable.uuid'], )
+    )
+    op.create_table('plugin_plugin_config',
+    sa.Column('plugin_uuid', sa.String(), nullable=True),
+    sa.Column('plugin_config.uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['plugin_config.uuid'], ['plugin_config.uuid'], ),
+    sa.ForeignKeyConstraint(['plugin_uuid'], ['plugin.uuid'], )
     )
     op.create_table('tag_alert',
     sa.Column('alert_uuid', sa.String(), nullable=True),
@@ -422,10 +443,12 @@ def downgrade():
     op.drop_table('tag_observable')
     op.drop_table('tag_input')
     op.drop_table('tag_alert')
+    op.drop_table('plugin_plugin_config')
     op.drop_table('observable_alert')
     op.drop_table('agent')
     op.drop_table('tag_playbook')
     op.drop_table('role')
+    op.drop_table('plugin_config')
     op.drop_table('observable')
     op.drop_table('input')
     op.drop_table('alert')

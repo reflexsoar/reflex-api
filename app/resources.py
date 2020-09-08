@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc
-from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole, AgentGroup, Case, CaseComment, CaseStatus, Plugin
+from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole, AgentGroup, Case, CaseComment, CaseStatus, Plugin, PluginConfig
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -33,7 +33,9 @@ ns_credential = api.namespace('Credential', description='Credential operations',
 ns_agent = api.namespace('Agent', description='Agent operations', path='/agent')
 ns_agent_group = api.namespace('AgentGroup', description='Agent Group operations', path='/agent_group')
 ns_plugin = api.namespace('Plugin', description='Plugin operations', path='/plugin')
+ns_plugin_config = api.namespace('PluginConfig', description='Plugin Config operations', path='/plugin_config')
 ns_test = api.namespace('Test', description='Test', path='/test')
+
 
 # Expect an API token
 expect_token = api.parser()
@@ -827,24 +829,107 @@ class UploadPlugin(Resource):
                         if 'plugin.json' in f['name']:
                             manifest_data = json.loads(f['data'].decode())
                             description = manifest_data['description']
+                            name = manifest_data['name']
+                            if 'config_template' in manifest_data:
+                                config_template = manifest_data['config_template']
+                            else:
+                                config_template = None  
                     
                 plugin = Plugin.query.filter_by(filename=filename).first()
                 if plugin:
                     plugin.manifest = manifest_data
                     plugin.logo = logo_b64
                     plugin.description = description
+                    plugin.config_template = config_template
+                    plugin.name = name
                     plugin.file_hash = hasher.hexdigest()
                     plugin.save()
                 else:
-                    plugin = Plugin(name=filename,
+                    plugin = Plugin(name=name,
                                     filename=filename,
                                     description=description,
                                     manifest=manifest_data,
                                     logo=logo_b64,
+                                    config_template=config_template,
                                     file_hash=hasher.hexdigest())
                     plugin.create()
                 plugins.append(plugin)
         return plugins
+
+
+@ns_plugin_config.route("")
+class PluginConfigList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_plugin_config_list, as_list=True)
+    @token_required
+    @user_has('view_plugins')
+    def get(self, current_user):
+        ''' Returns a list of plugin_configs '''
+        return PluginConfig.query.all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_plugin_config_create)
+    @api.response('409', 'Plugin Config already exists.')
+    @api.response('200', "Successfully created the alert.")
+    @token_required
+    @user_has('create_plugin')
+    def post(self, current_user):
+
+        print(api.payload)
+        ''' Creates a new plugin_config '''
+        plugin_config = PluginConfig.query.filter_by(name=api.payload['name']).first()
+        if not plugin_config:
+            plugin_config = PluginConfig(**api.payload)
+            plugin_config.create()
+        else:
+            ns_plugin_config.abort(409, 'Plugin Config already exists.')
+        return {'message':'Successfully created the plugin config.', 'uuid': plugin_config.uuid}
+
+
+@ns_plugin_config.route("/<uuid>")
+class PluginConfigDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_plugin_config_list)
+    @api.response('200', 'Success')
+    @api.response('404', 'PluginConfig not found')
+    @token_required
+    @user_has('view_plugins')
+    def get(self, current_user, uuid):
+        ''' Returns information about a plugin_config '''
+        plugin_config = PluginConfig.query.filter_by(uuid=uuid).first()
+        if plugin_config:
+            return plugin_config
+        else:
+            ns_plugin_config.abort(404, 'Plugin Config not found.')
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_plugin_config_create)
+    @api.marshal_with(mod_plugin_config_list)
+    @token_required
+    @user_has('update_plugin')
+    def put(self, current_user, uuid):
+        ''' Updates information for a plugin_config '''
+        plugin_config = PluginConfig.query.filter_by(uuid=uuid).first()
+        if plugin_config:
+            if 'name' in api.payload and PluginConfig.query.filter_by(name=api.payload['name']).first():
+                ns_plugin_config.abort(409, 'Plugin Config name already exists.')
+            else:
+                plugin_config.update(api.payload)
+                return plugin_config
+        else:
+            ns_plugin_config.abort(404, 'Plugin Config not found.')
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_plugin')
+    def delete(self, current_user, uuid):
+        ''' Deletes a plugin_config '''
+        plugin_config = PluginConfig.query.filter_by(uuid=uuid).first()
+        if plugin_config:
+            plugin_config.delete()
+            return {'message': 'Sucessfully deleted plugin config.'}
 
 
 @ns_plugin.route("")

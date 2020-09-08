@@ -84,6 +84,11 @@ user_case_association = db.Table('user_case', db.metadata,
     db.Column('case_uuid', db.String, db.ForeignKey('case.uuid'))
 )
 
+plugin_config_association = db.Table('plugin_plugin_config', db.metadata,
+    db.Column('plugin_uuid', db.String, db.ForeignKey('plugin.uuid')),
+    db.Column('plugin_config.uuid', db.String, db.ForeignKey('plugin_config.uuid'))
+)
+
 # End relationships
 
 
@@ -435,9 +440,19 @@ class Plugin(Base):
     description = db.Column(db.String, nullable=False)
     logo = db.Column(db.String)
     manifest = db.Column(db.JSON, nullable=False)
+    config_template = db.Column(db.JSON)
     enabled = db.Column(db.Boolean, default=False)
     filename = db.Column(db.String, nullable=False)
     file_hash = db.Column(db.String)
+    configs = db.relationship('PluginConfig', back_populates='plugin')
+
+
+class PluginConfig(Base):
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    description = db.Column(db.String, nullable=False)
+    config = db.Column(db.JSON, nullable=False)
+    plugin_uuid = db.Column(db.String, db.ForeignKey('plugin.uuid'))
+    plugin = db.relationship('Plugin', back_populates='configs')
 
 
 class Input(Base):

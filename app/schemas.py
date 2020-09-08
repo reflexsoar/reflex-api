@@ -422,6 +422,18 @@ mod_plugin_create = Model('PluginCreate', {
     "file_hash": fields.String
 })
 
+mod_plugin_name = Model('PluginDetailsLimited', {
+    "name": fields.String
+})
+
+mod_plugin_config_list = Model('PluginConfigList', {
+    "name": fields.String,
+    "description": fields.String,
+    "plugin": fields.Nested(mod_plugin_name),
+    "plugin_uuid": fields.String,
+    "config": fields.String
+})
+
 mod_plugin_list = Model('PluginList', {
     "uuid": fields.String,
     "name": fields.String,
@@ -429,10 +441,19 @@ mod_plugin_list = Model('PluginList', {
     "description": fields.String,
     "enabled": fields.Boolean,
     "manifest": JSONField,
+    "config_template": JSONField,
     "filename": fields.String,
     "file_hash": fields.String,
     'created_at': fields.DateTime,
-    'modified_at': fields.DateTime
+    'modified_at': fields.DateTime,
+    "configs": fields.List(fields.Nested(mod_plugin_config_list))
+})
+
+mod_plugin_config_create = Model('PluginConfigCreate', {
+    "name": fields.String,
+    "description": fields.String,
+    "plugin_uuid": fields.String,
+    "config": fields.String
 })
 
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create,
@@ -447,4 +468,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_agent_create, mod_agent_list, mod_agent_role_list,
                  mod_case_create, mod_case_status, mod_case_full,
                  mod_plugin_create, mod_plugin_list,
-                 mod_agent_group_create, mod_agent_group_list]
+                 mod_agent_group_create, mod_agent_group_list,
+                 mod_plugin_config_list, mod_plugin_config_create]
