@@ -431,7 +431,10 @@ mod_plugin_config_list = Model('PluginConfigList', {
     "description": fields.String,
     "plugin": fields.Nested(mod_plugin_name),
     "plugin_uuid": fields.String,
-    "config": fields.String
+    "config": fields.String,
+    'created_at': fields.DateTime,
+    'modified_at': fields.DateTime
+    
 })
 
 mod_plugin_list = Model('PluginList', {

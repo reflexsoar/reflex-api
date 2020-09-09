@@ -876,7 +876,6 @@ class PluginConfigList(Resource):
     @user_has('create_plugin')
     def post(self, current_user):
 
-        print(api.payload)
         ''' Creates a new plugin_config '''
         plugin_config = PluginConfig.query.filter_by(name=api.payload['name']).first()
         if not plugin_config:
@@ -950,8 +949,6 @@ class PluginList(Resource):
     @token_required
     @user_has('create_plugin')
     def post(self, current_user):
-
-        print(api.payload)
         ''' Creates a new plugin '''
         plugin = Plugin.query.filter_by(name=api.payload['name']).first()
         if not plugin:
@@ -1249,7 +1246,6 @@ class AgentList(Resource):
     def post(self, current_user):
         ''' Creates a new Agent '''
 
-        print(api.payload)
         agent = Agent.query.filter_by(name=api.payload['name']).first()
         if not agent:
 
