@@ -149,7 +149,11 @@ def setup():
         "create_agent_group": True,
         "view_agent_groups": True,
         "update_agent_group": True,
-        "delete_agent_group": True
+        "delete_agent_group": True,
+        "create_user_group": True,
+        "view_user_groups": True,
+        "update_user_groups": True,
+        "delete_user_group": True
     }
     permissions = Permission(**perms)
     db.session.add(permissions)
@@ -229,8 +233,10 @@ def setup():
         'fqdn': 'The fully qualified domain name of a host',
         'host': 'The hosts name',
         'mail': 'An e-mail address',
+        'mail_subject': 'An e-mail subject',
         'hash': 'A hash value',
-        'user': 'A username'
+        'user': 'A username',
+        'command': 'A command that was executed'
     }
     for k in dataTypes:
         dt = DataType(name=k, description=dataTypes[k])

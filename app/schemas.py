@@ -129,7 +129,11 @@ permission_fields = {
     "create_agent_group": fields.Boolean,
     "view_agent_groups": fields.Boolean,
     "update_agent_group": fields.Boolean,
-    "delete_agent_group": fields.Boolean
+    "delete_agent_group": fields.Boolean,
+    "create_user_group": fields.Boolean,
+    "view_user_groups": fields.Boolean,
+    "update_user_groups": fields.Boolean,
+    "delete_user_group": fields.Boolean
 }
 
 mod_permission_role_view = Model('PermissionRoleView', {
@@ -246,6 +250,7 @@ mod_observable_list = Model('ObservableList', {
     'tags': fields.List(fields.Nested(mod_tag_list)),
     'value': fields.String,
     'ioc': fields.Boolean,
+    'tlp': fields.Integer,
     'spotted': fields.Boolean,
     'dataType': fields.Nested(mod_observable_type_name),
     'uuid': fields.String
@@ -296,6 +301,7 @@ mod_observable = Model('ObservableDetails', {
     'tags': fields.List(fields.Nested(mod_tag_list)),
     'value': fields.String,
     'ioc': fields.Boolean,
+    'tlp': fields.Integer,
     'spotted': fields.Boolean,
     'dataType': fields.Nested(mod_observable_type_name)
 })
@@ -459,6 +465,24 @@ mod_plugin_config_create = Model('PluginConfigCreate', {
     "config": fields.String
 })
 
+mod_user_group_create = Model('UserGroupCreate', {
+    'name': fields.String,
+    'description': fields.String
+})
+
+mod_user_group_list = Model('UserGroupList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String,
+    'created_at': fields.DateTime,
+    'modified_at': fields.DateTime,
+    'members': fields.List(fields.Nested(mod_user_list))
+})
+
+mod_add_user_to_group = Model('UsersToGroup', {
+    'members': fields.List(fields.String)
+})
+
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
                  mod_tag, mod_tag_list,mod_credential_create, mod_credential_full, mod_credential_return,
@@ -472,4 +496,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_case_create, mod_case_status, mod_case_full,
                  mod_plugin_create, mod_plugin_list,
                  mod_agent_group_create, mod_agent_group_list,
-                 mod_plugin_config_list, mod_plugin_config_create]
+                 mod_plugin_config_list, mod_plugin_config_create, mod_plugin_name,
+                 mod_user_group_create, mod_user_group_list, mod_add_user_to_group]

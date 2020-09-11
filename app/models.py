@@ -89,6 +89,11 @@ plugin_config_association = db.Table('plugin_plugin_config', db.metadata,
     db.Column('plugin_config.uuid', db.String, db.ForeignKey('plugin_config.uuid'))
 )
 
+user_group_association = db.Table('user_group_assignment', db.metadata,
+    db.Column('user_uuid', db.String, db.ForeignKey('user.uuid')),
+    db.Column('user_group_uuid', db.String, db.ForeignKey('user_group.uuid'))
+)
+
 # End relationships
 
 
@@ -151,6 +156,12 @@ class Permission(Base):
     delete_role = db.Column(db.Boolean, default=False)
     set_role_permissions = db.Column(db.Boolean, default=False)
     view_roles = db.Column(db.Boolean, default=False)
+
+    # User Group Permissions
+    create_user_group = db.Column(db.Boolean, default=False)
+    view_user_groups = db.Column(db.Boolean, default=False)
+    update_user_groups = db.Column(db.Boolean, default=False)
+    delete_user_group = db.Column(db.Boolean, default=False)
 
     # Alert Permissions
     add_alert = db.Column(db.Boolean, default=False)
@@ -249,6 +260,7 @@ class User(Base):
     deleted = db.Column(db.Boolean, default=False)
     role = db.relationship('Role', back_populates='users')
     role_uuid = db.Column(db.String, db.ForeignKey('role.uuid'))
+    groups = db.relationship('UserGroup', secondary=user_group_association, back_populates='members')
 
     @property
     def password(self):
@@ -306,6 +318,13 @@ class User(Base):
                 return False
         else:
             return False
+
+
+class UserGroup(Base):
+
+    name = db.Column(db.String(255))
+    description = db.Column(db.String)
+    members = db.relationship('User', secondary=user_group_association, back_populates='groups')
 
 
 class RefreshToken(Base):
@@ -376,6 +395,7 @@ class Observable(Base):
     value = db.Column(db.String(255))
     dataType_id = db.Column(db.String, db.ForeignKey('data_type.uuid'))
     dataType = db.relationship("DataType")
+    tlp = db.Column(db.Integer)
     tags = db.relationship('Tag', secondary=observable_tag_association)
     ioc = db.Column(db.Boolean, default=False)
     spotted = db.Column(db.Boolean, default=False)

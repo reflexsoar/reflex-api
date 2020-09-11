@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 8a7d180559e7
+Revision ID: 6b17bbd7bcc7
 Revises: 
-Create Date: 2020-09-08 22:58:16.934547
+Create Date: 2020-09-10 20:36:24.513963
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '8a7d180559e7'
+revision = '6b17bbd7bcc7'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -110,6 +110,10 @@ def upgrade():
     sa.Column('delete_role', sa.Boolean(), nullable=True),
     sa.Column('set_role_permissions', sa.Boolean(), nullable=True),
     sa.Column('view_roles', sa.Boolean(), nullable=True),
+    sa.Column('create_user_group', sa.Boolean(), nullable=True),
+    sa.Column('view_user_groups', sa.Boolean(), nullable=True),
+    sa.Column('update_user_groups', sa.Boolean(), nullable=True),
+    sa.Column('delete_user_group', sa.Boolean(), nullable=True),
     sa.Column('add_alert', sa.Boolean(), nullable=True),
     sa.Column('view_alerts', sa.Boolean(), nullable=True),
     sa.Column('update_alert', sa.Boolean(), nullable=True),
@@ -213,6 +217,16 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
+    op.create_table('user_group',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('name', sa.String(length=255), nullable=True),
+    sa.Column('description', sa.String(), nullable=True),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('uuid')
+    )
     op.create_table('alert',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('uuid', sa.String(), nullable=True),
@@ -253,6 +267,7 @@ def upgrade():
     sa.Column('modified_at', sa.DateTime(), nullable=True),
     sa.Column('value', sa.String(length=255), nullable=True),
     sa.Column('dataType_id', sa.String(), nullable=True),
+    sa.Column('tlp', sa.Integer(), nullable=True),
     sa.Column('ioc', sa.Boolean(), nullable=True),
     sa.Column('spotted', sa.Boolean(), nullable=True),
     sa.ForeignKeyConstraint(['dataType_id'], ['data_type.uuid'], ),
@@ -388,6 +403,12 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
+    op.create_table('user_group_assignment',
+    sa.Column('user_uuid', sa.String(), nullable=True),
+    sa.Column('user_group_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['user_group_uuid'], ['user_group.uuid'], ),
+    sa.ForeignKeyConstraint(['user_uuid'], ['user.uuid'], )
+    )
     op.create_table('alert_case',
     sa.Column('alert_uuid', sa.String(), nullable=True),
     sa.Column('case_uuid', sa.String(), nullable=True),
@@ -435,6 +456,7 @@ def downgrade():
     op.drop_table('observable_case')
     op.drop_table('case_comment')
     op.drop_table('alert_case')
+    op.drop_table('user_group_assignment')
     op.drop_table('case')
     op.drop_table('agent_role_agent')
     op.drop_table('agent_input')
@@ -452,6 +474,7 @@ def downgrade():
     op.drop_table('observable')
     op.drop_table('input')
     op.drop_table('alert')
+    op.drop_table('user_group')
     op.drop_table('tag')
     op.drop_table('refresh_token')
     op.drop_table('plugin')

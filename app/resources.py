@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc
-from .models import User, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole, AgentGroup, Case, CaseComment, CaseStatus, Plugin, PluginConfig
+from .models import User, UserGroup, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole, AgentGroup, Case, CaseComment, CaseStatus, Plugin, PluginConfig
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -21,6 +21,7 @@ api = Api()
 
 # Namespaces
 ns_user = api.namespace('User', description='User operations', path='/user')
+ns_user_group = api.namespace('UserGroup', description='User Group operations', path='/user_group')
 ns_auth = api.namespace('Auth', description='Authentication operations', path='/auth')
 ns_role = api.namespace('Role', description='Role operations', path='/role')
 ns_perms = api.namespace('Permission', description='Permission operations', path='/permission')
@@ -71,14 +72,11 @@ def create_observables(observables):
 
         observable_type = DataType.query.filter_by(name=o['dataType']).first()
         if observable_type:
-            observable = Observable.query.filter_by(value=o['value'],dataType_id=observable_type.uuid).first()
-            if not observable:
-                o['dataType'] = observable_type
-                observable = Observable(**o)
-                observable.create()
-                _observables += [observable]
-            else:
-                _observables += [observable]
+            o['dataType'] = observable_type
+            observable = Observable(**o)
+            observable.create()
+            _observables += [observable]
+
             if len(_tags) > 0:
                 observable.tags += _tags
                 observable.save()
@@ -1020,11 +1018,16 @@ class CreateBulkAlerts(Resource):
         alerts = api.payload['alerts']
         for item in alerts:
             _tags = []
+            _observables = []
             alert = Alert.query.filter_by(reference=item['reference']).first()
             if not alert:
                 if 'tags' in item:
                     tags = item.pop('tags')
                     _tags = parse_tags(tags)
+
+                if 'observables' in item:
+                    observables = item.pop('observables')
+                    _observables = create_observables(observables)
 
                 alert = Alert(**item)
                 alert.create()
@@ -1034,6 +1037,10 @@ class CreateBulkAlerts(Resource):
 
                 if len(_tags) > 0:
                     alert.tags += _tags
+                    alert.save()
+
+                if len(_observables) > 0:
+                    alert.observables += _observables
                     alert.save()
 
                 response['results'].append({'reference': item['reference'], 'status': 200, 'message':'Alert successfully created.'})
@@ -1246,6 +1253,8 @@ class AgentList(Resource):
     def post(self, current_user):
         ''' Creates a new Agent '''
 
+        groups = None
+
         agent = Agent.query.filter_by(name=api.payload['name']).first()
         if not agent:
 
@@ -1263,12 +1272,13 @@ class AgentList(Resource):
                 else:
                     ns_agent.abort(400, 'Invalid agent role type')
 
-            for group_name in groups:
-                group = AgentGroup.query.filter_by(name=group_name).first()
-                if group:
-                    agent.groups.append(group)
-                else:
-                    ns_agent.abort(400, 'Agent Group not found.')
+            if groups:
+                for group_name in groups:
+                    group = AgentGroup.query.filter_by(name=group_name).first()
+                    if group:
+                        agent.groups.append(group)
+                    else:
+                        ns_agent.abort(400, 'Agent Group not found.')
 
             role = Role.query.filter_by(name='Agent').first()
             agent.role = role
@@ -1360,6 +1370,122 @@ class AgentDetails(Resource):
             ns_agent.abort(404, 'Agent not found.')
 
 
+@ns_user_group.route("")
+class UserGroupList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_user_group_list, as_list=True)
+    @token_required
+    @user_has('view_user_groups')
+    def get(self, current_user):
+        ''' Gets a list of user_groups '''
+        return UserGroup.query.all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_user_group_create)
+    @api.response('409', 'User Group already exists.')
+    @api.response('200', "Successfully created the User Group.")
+    @token_required
+    @user_has('create_user_group')
+    def post(self, current_user):
+        ''' Creates a new user_group '''
+        user_group = UserGroup.query.filter_by(name=api.payload['name']).first()
+        if not user_group:
+            user_group = UserGroup(**api.payload)
+            user_group.create()
+            return {'message':'Successfully created the User Group.'}
+        else:
+            ns_user_group.abort(409, 'User Group already exists.')
+        return
+
+
+@ns_user_group.route('/<uuid>')
+class UserGroupDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_user_group_list)
+    @api.response('200', 'Success')
+    @api.response('404', 'UserGroup not found')
+    @token_required
+    @user_has('view_user_groups')
+    def get(self, uuid, current_user):
+        ''' Gets details on a specific user_group '''
+        user_group = UserGroup.query.filter_by(uuid=uuid).first()
+        if user_group:
+            return user_group
+        else:
+            ns_user_group.abort(404, 'User Group not found.')
+        return
+    
+    @api.doc(security="Bearer")
+    @api.expect(mod_user_group_create)
+    @api.marshal_with(mod_user_group_list)
+    @token_required
+    @user_has('update_user_groups')
+    def put(self, uuid, current_user):
+        ''' Updates a user_group '''
+        user_group = UserGroup.query.filter_by(uuid=uuid).first()
+
+        if user_group:
+            if 'name' in api.payload and UserGroup.query.filter_by(name=api.payload['name']).first():
+                ns_user_group.abort(409, 'User Group name already exists.')
+            else:
+                user_group.update(api.payload)
+                return user_group
+        else:
+            ns_user_group.abort(404, 'User Group not found.')
+        return
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_user_group')
+    def delete(self, uuid, current_user):
+        ''' Deletes a user_group '''
+        user_group = UserGroup.query.filter_by(uuid=uuid).first()
+        if user_group:
+            user_group.delete()
+            return {'message': 'Sucessfully deleted User Group.'}
+
+
+@ns_user_group.route("/<uuid>/add-users")
+class AddUserToGroup(Resource):
+
+    @api.doc(security="Bearer")
+    @api.response('409', 'User already a member of this Group.')
+    @api.response('404', 'Group not found.')
+    @api.response('404', 'User not found.')
+    @api.response('207', 'Users added to Group.')
+    @api.expect(mod_add_user_to_group)
+    @token_required
+    @user_has('update_user_groups')
+    def put(self, uuid, current_user):
+        ''' Adds a user to a specified Role '''
+
+        _users = []
+        response = {
+            'results': [],
+            'success': True
+        }
+        if 'members' in api.payload:
+            users = api.payload.pop('members')
+            for user_uuid in users:
+                user = User.query.filter_by(uuid=user_uuid).first()
+                if user:
+                    _users.append(user)
+                    response['results'].append({'reference': user_uuid, 'message': 'User successfully added.'})
+                else:
+                    response['results'].append({'reference': user_uuid, 'message': 'User not found.'})
+                    response['success'] = False
+        
+        group = UserGroup.query.filter_by(uuid=uuid).first()
+        if group:
+            group.members = _users
+            group.save()
+            return response,207
+        else:
+            ns_user_group.abort(404, 'Group not found.')
+
+
 @ns_agent_group.route("")
 class AgentGroupList(Resource):
 
@@ -1425,7 +1551,6 @@ class AgentGroupDetails(Resource):
         if agent_group:
             agent_group.delete()
             return {'message': 'Sucessfully deleted Agent Group.'}
-
 
 
 @ns_role.route("")
