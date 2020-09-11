@@ -153,7 +153,11 @@ def setup():
         "create_user_group": True,
         "view_user_groups": True,
         "update_user_groups": True,
-        "delete_user_group": True
+        "delete_user_group": True,
+        "create_case_template": True,
+        "view_case_templates": True,
+        "update_case_template": True,
+        "delete_case_template": True
     }
     permissions = Permission(**perms)
     db.session.add(permissions)

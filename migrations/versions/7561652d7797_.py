@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 6b17bbd7bcc7
+Revision ID: 7561652d7797
 Revises: 
-Create Date: 2020-09-10 20:36:24.513963
+Create Date: 2020-09-10 21:31:48.618079
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '6b17bbd7bcc7'
+revision = '7561652d7797'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -151,6 +151,10 @@ def upgrade():
     sa.Column('view_cases', sa.Boolean(), nullable=True),
     sa.Column('update_case', sa.Boolean(), nullable=True),
     sa.Column('delete_case', sa.Boolean(), nullable=True),
+    sa.Column('create_case_template', sa.Boolean(), nullable=True),
+    sa.Column('view_case_templates', sa.Boolean(), nullable=True),
+    sa.Column('update_case_template', sa.Boolean(), nullable=True),
+    sa.Column('delete_case_template', sa.Boolean(), nullable=True),
     sa.Column('create_case_comment', sa.Boolean(), nullable=True),
     sa.Column('view_case_comments', sa.Boolean(), nullable=True),
     sa.Column('update_case_comment', sa.Boolean(), nullable=True),
@@ -393,13 +397,31 @@ def upgrade():
     sa.Column('uuid', sa.String(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('number', sa.Integer(), autoincrement=True, nullable=True),
     sa.Column('title', sa.String(length=255), nullable=False),
     sa.Column('description', sa.String(), nullable=True),
     sa.Column('severity', sa.Integer(), nullable=True),
     sa.Column('owner_uuid', sa.String(), nullable=True),
+    sa.Column('tlp', sa.Integer(), nullable=True),
     sa.Column('status_id', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['owner_uuid'], ['user.uuid'], ),
     sa.ForeignKeyConstraint(['status_id'], ['case_status.uuid'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('uuid')
+    )
+    op.create_table('case_template',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('title', sa.String(), nullable=True),
+    sa.Column('description', sa.String(), nullable=True),
+    sa.Column('severity', sa.Integer(), nullable=True),
+    sa.Column('owner_uuid', sa.String(), nullable=True),
+    sa.Column('tlp', sa.Integer(), nullable=True),
+    sa.Column('status_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['owner_uuid'], ['user.uuid'], ),
+    sa.ForeignKeyConstraint(['status_uuid'], ['case_status.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
@@ -428,6 +450,42 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
+    op.create_table('case_task',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('title', sa.String(), nullable=True),
+    sa.Column('order', sa.Integer(), nullable=True),
+    sa.Column('description', sa.String(), nullable=True),
+    sa.Column('group_uuid', sa.String(), nullable=True),
+    sa.Column('owner_uuid', sa.String(), nullable=True),
+    sa.Column('case_uuid', sa.String(), nullable=True),
+    sa.Column('status', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['case_uuid'], ['case.uuid'], ),
+    sa.ForeignKeyConstraint(['group_uuid'], ['user_group.uuid'], ),
+    sa.ForeignKeyConstraint(['owner_uuid'], ['user.uuid'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('uuid')
+    )
+    op.create_table('case_template_task',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('title', sa.String(), nullable=True),
+    sa.Column('order', sa.Integer(), nullable=True),
+    sa.Column('description', sa.String(), nullable=True),
+    sa.Column('group_uuid', sa.String(), nullable=True),
+    sa.Column('owner_uuid', sa.String(), nullable=True),
+    sa.Column('case_template_uuid', sa.String(), nullable=True),
+    sa.Column('status', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['case_template_uuid'], ['case_template.uuid'], ),
+    sa.ForeignKeyConstraint(['group_uuid'], ['user_group.uuid'], ),
+    sa.ForeignKeyConstraint(['owner_uuid'], ['user.uuid'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('uuid')
+    )
     op.create_table('observable_case',
     sa.Column('observable_uuid', sa.String(), nullable=True),
     sa.Column('case_uuid', sa.String(), nullable=True),
@@ -438,6 +496,12 @@ def upgrade():
     sa.Column('case_uuid', sa.String(), nullable=True),
     sa.Column('tag_id', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['case_uuid'], ['case.uuid'], ),
+    sa.ForeignKeyConstraint(['tag_id'], ['tag.uuid'], )
+    )
+    op.create_table('tag_case_template',
+    sa.Column('case_template_uuid', sa.String(), nullable=True),
+    sa.Column('tag_id', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['case_template_uuid'], ['case_template.uuid'], ),
     sa.ForeignKeyConstraint(['tag_id'], ['tag.uuid'], )
     )
     op.create_table('user_case',
@@ -452,11 +516,15 @@ def upgrade():
 def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('user_case')
+    op.drop_table('tag_case_template')
     op.drop_table('tag_case')
     op.drop_table('observable_case')
+    op.drop_table('case_template_task')
+    op.drop_table('case_task')
     op.drop_table('case_comment')
     op.drop_table('alert_case')
     op.drop_table('user_group_assignment')
+    op.drop_table('case_template')
     op.drop_table('case')
     op.drop_table('agent_role_agent')
     op.drop_table('agent_input')

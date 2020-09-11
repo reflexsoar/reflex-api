@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc
-from .models import User, UserGroup, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole, AgentGroup, Case, CaseComment, CaseStatus, Plugin, PluginConfig
+from .models import User, UserGroup, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole, AgentGroup, Case, CaseTemplate, CaseComment, CaseStatus, Plugin, PluginConfig
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -30,6 +30,7 @@ ns_input = api.namespace('Input', description='Input operations', path='/input')
 ns_tag = api.namespace('Tag', description='Tag operations', path='/tag')
 ns_alert = api.namespace('Alert', description='Alert operations', path='/alert')
 ns_case = api.namespace('Case', description='Case operations', path='/case')
+ns_case_template = api.namespace('CaseTemplate', description='Case Template operations', path='/case_template')
 ns_credential = api.namespace('Credential', description='Credential operations', path='/credential')
 ns_agent = api.namespace('Agent', description='Agent operations', path='/agent')
 ns_agent_group = api.namespace('AgentGroup', description='Agent Group operations', path='/agent_group')
@@ -424,6 +425,98 @@ class CaseDetails(Resource):
         if case:
             case.delete()
             return {'message': 'Sucessfully deleted case.'}
+
+
+@ns_case_template.route("")
+class CaseTemplateList(Resource):
+    
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_case_template_full, as_list=True)
+    @token_required
+    @user_has('view_case_templates')
+    def get(self, current_user):
+        ''' Returns a list of case_template '''
+        return CaseTemplate.query.all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_case_template_create)
+    @api.response('409', 'Case Template already exists.')
+    @api.response('200', "Successfully created the case_template.")
+    @token_required
+    #@user_has('create_case_template')
+    def post(self, current_user):
+        _tags = []
+        ''' Creates a new case_template template '''
+        if 'tags' in api.payload:
+            tags = api.payload.pop('tags')
+            _tags = parse_tags(tags)
+
+        if 'owner' in api.payload:
+            owner = api.payload.pop('owner')
+            user = User.query.filter_by(uuid=owner).first()
+            if user:
+                api.payload['owner'] = user
+
+        case_template = CaseTemplate(**api.payload)
+        case_template.create()
+
+        if len(_tags) > 0:
+            case_template.tags += _tags
+            case_template.save()
+
+
+        # Set the default status to New
+        case_template_status = CaseStatus.query.filter_by(name="New").first()
+        case_template.status = case_template_status
+        case_template.save()
+
+        return {'message':'Successfully created the case_template.'}
+
+
+@ns_case_template.route("/<uuid>")
+class CaseTemplateDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_case_template_full)
+    @api.response('200', 'Success')
+    @api.response('404', 'Case Template not found')
+    @token_required
+    @user_has('view_case_templates')
+    def get(self, uuid):
+        ''' Returns information about a case_template '''
+        case_template = CaseTemplate.query.filter_by(uuid=uuid).first()
+        if case_template:
+            return case_template
+        else:
+            ns_case_template.abort(404, 'Case Template not found.')
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_case_template_create)
+    @api.marshal_with(mod_case_template_full)
+    @token_required
+    @user_has('update_case_template')
+    def put(self, uuid):
+        ''' Updates information for a case_template '''
+        case_template = CaseTemplate.query.filter_by(uuid=uuid).first()
+        if case_template:
+            if 'name' in api.payload and CaseTemplate.query.filter_by(name=api.payload['name']).first():
+                ns_case_template.abort(409, 'Case Template name already exists.')
+            else:
+                case_template.update(api.payload)
+                return case_template
+        else:
+            ns_case_template.abort(404, 'Case Template not found.')
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_case_template')
+    def delete(self, uuid):
+        ''' Deletes a case_template '''
+        case_template = CaseTemplate.query.filter_by(uuid=uuid).first()
+        if case_template:
+            case_template.delete()
+            return {'message': 'Sucessfully deleted case_template.'}
+
 
 """
 @ns_case_comment.route("")

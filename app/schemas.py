@@ -1,15 +1,20 @@
 from flask_restx import Model, fields
 
+
 class ObservableCount(fields.Raw):
     ''' Returns the number of observables '''
+
     def format(self, value):
         return len(value)
 
+
 class IOCCount(fields.Raw):
     ''' Returns the number of observables that are IOC '''
+
     def format(self, value):
         iocs = [o for o in value if o.ioc == True]
         return len(iocs)
+
 
 class JSONField(fields.Raw):
     def format(self, value):
@@ -133,15 +138,19 @@ permission_fields = {
     "create_user_group": fields.Boolean,
     "view_user_groups": fields.Boolean,
     "update_user_groups": fields.Boolean,
-    "delete_user_group": fields.Boolean
+    "delete_user_group": fields.Boolean,
+    "create_case_template": fields.Boolean,
+    "view_case_templates": fields.Boolean,
+    "update_case_template": fields.Boolean,
+    "delete_case_template": fields.Boolean
 }
 
 mod_permission_role_view = Model('PermissionRoleView', {
-    **permission_fields, 
+    **permission_fields,
     **{'uuid': fields.String}})
 
 mod_permission_list = Model('Permission', {
-    **permission_fields, 
+    **permission_fields,
     **{
         'uuid': fields.String,
         'roles': fields.List(fields.Nested(mod_role_uuid))
@@ -206,7 +215,7 @@ mod_bulk_tag = Model('BulkTag', {
 
 mod_credential_decrypt = Model('CredentialDecrypt', {
     'uuid': fields.String,
-    'master_password': fields.String    
+    'master_password': fields.String
 })
 
 mod_credential_decrypted = Model('CredentialDecrypted', {
@@ -401,6 +410,29 @@ mod_case_create = Model('CaseCreate', {
     'observables': fields.List(fields.String)
 })
 
+mod_case_template_create = Model('CaseTemplateCreate', {
+    'title': fields.String(required=True),
+    'owner_uuid': fields.String,
+    'description': fields.String(required=True),
+    'tags': fields.List(fields.String),
+    'tlp': fields.Integer,
+    'severity': fields.Integer
+})
+
+mod_case_template_full = Model('CaseTemplateList', {
+    'uuid': fields.String,
+    'title': fields.String,
+    'owner': fields.Nested(mod_user_list),
+    'description': fields.String,
+    'tags': fields.List(fields.String),
+    'tlp': fields.Integer,
+    'severity': fields.Integer,
+    'status': fields.Nested(mod_alert_status),
+    'created_at': fields.DateTime,
+    'modified_at': fields.DateTime,
+    'tasks': fields.List(fields.String)
+})
+
 mod_case_status = Model('CaseStatusString', {
     'name': fields.String
 })
@@ -440,7 +472,7 @@ mod_plugin_config_list = Model('PluginConfigList', {
     "config": fields.String,
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime
-    
+
 })
 
 mod_plugin_list = Model('PluginList', {
@@ -485,7 +517,7 @@ mod_add_user_to_group = Model('UsersToGroup', {
 
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
-                 mod_tag, mod_tag_list,mod_credential_create, mod_credential_full, mod_credential_return,
+                 mod_tag, mod_tag_list, mod_credential_create, mod_credential_full, mod_credential_return,
                  mod_credential_decrypted, mod_credential_decrypt, mod_credential_update,
                  mod_permission_full, mod_permission_list, mod_role_uuid, mod_permission_role_view, mod_bulk_tag,
                  mod_playbook_full,  mod_playbook_create, mod_playbook_list, mod_bulk_tag,
@@ -497,4 +529,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_plugin_create, mod_plugin_list,
                  mod_agent_group_create, mod_agent_group_list,
                  mod_plugin_config_list, mod_plugin_config_create, mod_plugin_name,
-                 mod_user_group_create, mod_user_group_list, mod_add_user_to_group]
+                 mod_user_group_create, mod_user_group_list, mod_add_user_to_group,
+                 mod_case_template_create, mod_case_template_full]

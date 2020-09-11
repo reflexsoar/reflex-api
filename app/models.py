@@ -79,6 +79,11 @@ case_tag_association = db.Table('tag_case', db.metadata,
     db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
 )
 
+case_template_tag_association = db.Table('tag_case_template', db.metadata,
+    db.Column('case_template_uuid', db.String, db.ForeignKey('case_template.uuid')),
+    db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
+)
+
 user_case_association = db.Table('user_case', db.metadata,
     db.Column('user_uuid', db.String, db.ForeignKey('user.uuid')),
     db.Column('case_uuid', db.String, db.ForeignKey('case.uuid'))
@@ -216,6 +221,12 @@ class Permission(Base):
     update_case = db.Column(db.Boolean, default=False)
     delete_case = db.Column(db.Boolean, default=False)
 
+    # Case Template Permissions
+    create_case_template = db.Column(db.Boolean, default=False)
+    view_case_templates = db.Column(db.Boolean, default=False)
+    update_case_template = db.Column(db.Boolean, default=False)
+    delete_case_template = db.Column(db.Boolean, default=False)
+
     # Case Comment Permissions
     create_case_comment = db.Column(db.Boolean, default=False)
     view_case_comments = db.Column(db.Boolean, default=False)
@@ -341,17 +352,34 @@ class AuthTokenBlacklist(Base):
 
 class Case(Base):
 
+    number = db.Column(db.Integer, autoincrement=True)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.String)
     comments = db.relationship('CaseComment')
     severity = db.Column(db.Integer, default=2)
     owner_uuid = db.Column(db.String, db.ForeignKey('user.uuid'))
     owner = db.relationship('User')
+    tlp = db.Column(db.Integer, default=2)
     observables = db.relationship('Observable', secondary=observable_case_association)
     alerts = db.relationship('Alert', secondary=alert_case_association)
     tags = db.relationship('Tag', secondary=case_tag_association)
     status_id = db.Column(db.String, db.ForeignKey('case_status.uuid'))
     status = db.relationship("CaseStatus")
+    tasks = db.relationship("CaseTask", back_populates='case')
+
+
+class CaseTask(Base):
+
+    title = db.Column(db.String)
+    order = db.Column(db.Integer, default=0)
+    description = db.Column(db.String)
+    group_uuid = db.Column(db.String, db.ForeignKey('user_group.uuid'))
+    group = db.relationship('UserGroup')
+    owner_uuid = db.Column(db.String, db.ForeignKey('user.uuid'))
+    owner = db.relationship('User')
+    case_uuid = db.Column(db.String, db.ForeignKey('case.uuid'))
+    case = db.relationship('Case', back_populates='tasks')
+    status = db.Column(db.Integer)
 
 
 class CaseComment(Base):
@@ -360,6 +388,34 @@ class CaseComment(Base):
     author_uuid = db.Column(db.String, db.ForeignKey('user.uuid'))
     author = db.relationship('User')
     case_uuid = db.Column(db.String, db.ForeignKey('case.uuid'))
+
+
+class CaseTemplate(Base):
+
+    title = db.Column(db.String)
+    description = db.Column(db.String)
+    severity = db.Column(db.Integer, default=2)
+    owner_uuid = db.Column(db.String, db.ForeignKey('user.uuid'))
+    owner = db.relationship('User')
+    tlp = db.Column(db.Integer, default=2)
+    tags = db.relationship('Tag', secondary=case_template_tag_association)
+    status_uuid = db.Column(db.String, db.ForeignKey('case_status.uuid'))
+    status = db.relationship('CaseStatus')
+    tasks = db.relationship('CaseTemplateTask', back_populates='case_template')
+
+
+class CaseTemplateTask(Base):
+
+    title = db.Column(db.String)
+    order = db.Column(db.Integer, default=0)
+    description = db.Column(db.String)
+    group_uuid = db.Column(db.String, db.ForeignKey('user_group.uuid'))
+    group = db.relationship('UserGroup')
+    owner_uuid = db.Column(db.String, db.ForeignKey('user.uuid'))
+    owner = db.relationship('User')
+    case_template_uuid = db.Column(db.String, db.ForeignKey('case_template.uuid'))
+    case_template = db.relationship('CaseTemplate', back_populates='tasks')
+    status = db.Column(db.Integer)
 
 
 class Alert(Base):
