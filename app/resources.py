@@ -6,7 +6,7 @@ import base64
 import hashlib
 import cryptography
 from zipfile import ZipFile
-from flask import request, current_app, abort, make_response, send_from_directory, send_file
+from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint
 from flask_restx import Api, Resource, Namespace, fields, Model
 from flask_socketio import emit
 from werkzeug.utils import secure_filename
@@ -17,7 +17,9 @@ from .models import User, UserGroup, db, RefreshToken, AuthTokenBlacklist, Role,
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
-api = Api()
+api_v1 = Blueprint("api", __name__, url_prefix="/api/v1.0")
+
+api = Api(api_v1)
 
 # Namespaces
 ns_user = api.namespace('User', description='User operations', path='/user')
@@ -497,6 +499,47 @@ class CaseTemplateList(Resource):
             case_template.save()
 
             return {'message': 'Successfully created the case_template.'}
+
+
+@ns_case_template.route("/<uuid>/update-tasks")
+class AddTasksToCaseTemplate(Resource):
+
+    @api.doc(security="Bearer")
+    @api.response('409', 'Task already assigned to this Case Template')
+    @api.response('404', 'Case Template not found.')
+    @api.response('404', 'Task not found.')
+    @api.response('207', 'Tasks added to Case Template.')
+    @api.expect(mod_add_tasks_to_case)
+    @token_required
+    @user_has('update_case_templates')
+    def put(self, uuid, current_user):
+        ''' Adds a user to a specified Role '''
+
+        _tasks = []
+        response = {
+            'results': [],
+            'success': True
+        }
+        if 'tasks' in api.payload:
+            tasks = api.payload.pop('tasks')
+            for task_uuid in tasks:
+                task = CaseTemplateTask.query.filter_by(uuid=task_uuid).first()
+                if task:
+                    _tasks.append(task)
+                    response['results'].append(
+                        {'reference': task_uuid, 'message': 'Task successfully added.'})
+                else:
+                    response['results'].append(
+                        {'reference': task_uuid, 'message': 'Task not found.'})
+                    response['success'] = False
+
+        template = CaseTemplate.query.filter_by(uuid=uuid).first()
+        if template:
+            template.tasks = _tasks
+            template.save()
+            return response, 207
+        else:
+            ns_case_template.abort(404, 'Case Template not found.')
 
 
 @ns_case_template.route("/<uuid>")
@@ -1668,8 +1711,8 @@ class UserGroupDetails(Resource):
             return {'message': 'Sucessfully deleted User Group.'}
 
 
-@ns_user_group.route("/<uuid>/add-users")
-class AddUserToGroup(Resource):
+@ns_user_group.route("/<uuid>/update-users")
+class UpdateUserToGroup(Resource):
 
     @api.doc(security="Bearer")
     @api.response('409', 'User already a member of this Group.')

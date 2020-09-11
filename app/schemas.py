@@ -68,8 +68,8 @@ mod_add_user_to_group = Model('UsersToGroup', {
 })
 
 mod_auth = Model('AuthModel', {
-    'username': fields.String,
-    'password': fields.String
+    'username': fields.String(default='reflex'),
+    'password': fields.String(default='reflex')
 })
 
 mod_auth_success_token = Model('AuthSuccessToken', {
@@ -306,7 +306,6 @@ mod_alert_status = Model('AlertStatusString', {
     'name': fields.String
 })
 
-
 mod_alert_details = Model('AlertDetails', {
     'uuid': fields.String,
     'title': fields.String(required=True),
@@ -443,6 +442,10 @@ mod_case_template_task_full = Model('CaseTemplateTaskList', {
     'status': fields.Integer
 })
 
+mod_add_tasks_to_case = Model('TasksToCase', {
+    'tasks': fields.List(fields.String)
+})
+
 mod_case_create = Model('CaseCreate', {
     'title': fields.String(required=True),
     'owner': fields.String,
@@ -560,4 +563,4 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_plugin_config_list, mod_plugin_config_create, mod_plugin_name,
                  mod_user_group_create, mod_user_group_list, mod_add_user_to_group,
                  mod_case_template_create, mod_case_template_full,
-                 mod_case_template_task_create, mod_case_template_task_full]
+                 mod_case_template_task_create, mod_case_template_task_full, mod_add_tasks_to_case]

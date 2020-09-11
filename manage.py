@@ -22,7 +22,7 @@ COV = coverage.coverage(
 
 @manager.command
 def run():
-    app.run()
+    app.run(port=80)
 
 @manager.command
 def test():
