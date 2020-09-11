@@ -49,6 +49,24 @@ mod_user_self = Model('UserSelf', {
     'email': fields.String
 })
 
+mod_user_group_create = Model('UserGroupCreate', {
+    'name': fields.String,
+    'description': fields.String
+})
+
+mod_user_group_list = Model('UserGroupList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String,
+    'created_at': fields.DateTime,
+    'modified_at': fields.DateTime,
+    'members': fields.List(fields.Nested(mod_user_list))
+})
+
+mod_add_user_to_group = Model('UsersToGroup', {
+    'members': fields.List(fields.String)
+})
+
 mod_auth = Model('AuthModel', {
     'username': fields.String,
     'password': fields.String
@@ -142,7 +160,11 @@ permission_fields = {
     "create_case_template": fields.Boolean,
     "view_case_templates": fields.Boolean,
     "update_case_template": fields.Boolean,
-    "delete_case_template": fields.Boolean
+    "delete_case_template": fields.Boolean,
+    "create_case_template_task": fields.Boolean,
+    "view_case_template_tasks": fields.Boolean,
+    "update_case_template_task": fields.Boolean,
+    "delete_case_template_task": fields.Boolean
 }
 
 mod_permission_role_view = Model('PermissionRoleView', {
@@ -400,6 +422,27 @@ mod_agent_list = Model('AgentList', {
     'last_heartbeat': fields.DateTime
 })
 
+mod_case_template_task_create = Model('CaseTemplateTaskCreate', {
+    'title': fields.String,
+    'order': fields.Integer,
+    'description': fields.String,
+    'group_uuid': fields.String,
+    'owner_uuid': fields.String,
+    'case_template_uuid': fields.String
+})
+
+mod_case_template_task_full = Model('CaseTemplateTaskList', {
+    'uuid': fields.String,
+    'title': fields.String,
+    'order': fields.Integer,
+    'created_at': fields.DateTime,
+    'modified_at': fields.DateTime,
+    'group': fields.Nested(mod_user_group_list),
+    'owner': fields.Nested(mod_user_list),
+    'case_template_uuid': fields.String,
+    'status': fields.Integer
+})
+
 mod_case_create = Model('CaseCreate', {
     'title': fields.String(required=True),
     'owner': fields.String,
@@ -424,14 +467,16 @@ mod_case_template_full = Model('CaseTemplateList', {
     'title': fields.String,
     'owner': fields.Nested(mod_user_list),
     'description': fields.String,
-    'tags': fields.List(fields.String),
+    'tags': fields.List(fields.Nested(mod_tag_list)),
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'status': fields.Nested(mod_alert_status),
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
-    'tasks': fields.List(fields.String)
+    'tasks': fields.List(fields.Nested(mod_case_template_task_full))
 })
+
+
 
 mod_case_status = Model('CaseStatusString', {
     'name': fields.String
@@ -497,23 +542,7 @@ mod_plugin_config_create = Model('PluginConfigCreate', {
     "config": fields.String
 })
 
-mod_user_group_create = Model('UserGroupCreate', {
-    'name': fields.String,
-    'description': fields.String
-})
 
-mod_user_group_list = Model('UserGroupList', {
-    'uuid': fields.String,
-    'name': fields.String,
-    'description': fields.String,
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime,
-    'members': fields.List(fields.Nested(mod_user_list))
-})
-
-mod_add_user_to_group = Model('UsersToGroup', {
-    'members': fields.List(fields.String)
-})
 
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
@@ -530,4 +559,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_agent_group_create, mod_agent_group_list,
                  mod_plugin_config_list, mod_plugin_config_create, mod_plugin_name,
                  mod_user_group_create, mod_user_group_list, mod_add_user_to_group,
-                 mod_case_template_create, mod_case_template_full]
+                 mod_case_template_create, mod_case_template_full,
+                 mod_case_template_task_create, mod_case_template_task_full]

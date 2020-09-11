@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc
-from .models import User, UserGroup, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole, AgentGroup, Case, CaseTemplate, CaseComment, CaseStatus, Plugin, PluginConfig
+from .models import User, UserGroup, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole, AgentGroup, Case, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -21,21 +21,35 @@ api = Api()
 
 # Namespaces
 ns_user = api.namespace('User', description='User operations', path='/user')
-ns_user_group = api.namespace('UserGroup', description='User Group operations', path='/user_group')
-ns_auth = api.namespace('Auth', description='Authentication operations', path='/auth')
+ns_user_group = api.namespace(
+    'UserGroup', description='User Group operations', path='/user_group')
+ns_auth = api.namespace(
+    'Auth', description='Authentication operations', path='/auth')
 ns_role = api.namespace('Role', description='Role operations', path='/role')
-ns_perms = api.namespace('Permission', description='Permission operations', path='/permission')
-ns_playbook = api.namespace('Playbook', description='Playbook operations', path='/playbook')
-ns_input = api.namespace('Input', description='Input operations', path='/input')
+ns_perms = api.namespace(
+    'Permission', description='Permission operations', path='/permission')
+ns_playbook = api.namespace(
+    'Playbook', description='Playbook operations', path='/playbook')
+ns_input = api.namespace(
+    'Input', description='Input operations', path='/input')
 ns_tag = api.namespace('Tag', description='Tag operations', path='/tag')
-ns_alert = api.namespace('Alert', description='Alert operations', path='/alert')
+ns_alert = api.namespace(
+    'Alert', description='Alert operations', path='/alert')
 ns_case = api.namespace('Case', description='Case operations', path='/case')
-ns_case_template = api.namespace('CaseTemplate', description='Case Template operations', path='/case_template')
-ns_credential = api.namespace('Credential', description='Credential operations', path='/credential')
-ns_agent = api.namespace('Agent', description='Agent operations', path='/agent')
-ns_agent_group = api.namespace('AgentGroup', description='Agent Group operations', path='/agent_group')
-ns_plugin = api.namespace('Plugin', description='Plugin operations', path='/plugin')
-ns_plugin_config = api.namespace('PluginConfig', description='Plugin Config operations', path='/plugin_config')
+ns_case_template = api.namespace(
+    'CaseTemplate', description='Case Template operations', path='/case_template')
+ns_case_template_task = api.namespace(
+    'CaseTemplateTask', description='Case Template Task operations', path='/case_template_task')
+ns_credential = api.namespace(
+    'Credential', description='Credential operations', path='/credential')
+ns_agent = api.namespace(
+    'Agent', description='Agent operations', path='/agent')
+ns_agent_group = api.namespace(
+    'AgentGroup', description='Agent Group operations', path='/agent_group')
+ns_plugin = api.namespace(
+    'Plugin', description='Plugin operations', path='/plugin')
+ns_plugin_config = api.namespace(
+    'PluginConfig', description='Plugin Config operations', path='/plugin_config')
 ns_test = api.namespace('Test', description='Test', path='/test')
 
 
@@ -55,7 +69,7 @@ def parse_tags(tags):
     for t in tags:
         tag = Tag.query.filter_by(name=t).first()
         if not tag:
-            tag = Tag(**{'name': t, 'color':'#fffff'})
+            tag = Tag(**{'name': t, 'color': '#fffff'})
             tag.create()
             _tags += [tag]
         else:
@@ -97,15 +111,16 @@ class auth(Resource):
         user = User.query.filter_by(username=api.payload['username']).first()
         if not user:
             ns_auth.abort(401, 'Incorrect username or password')
-        
+
         # Check if the user has entered a good password
         if user.check_password(api.payload['password']):
-        
+
             # Generate an access token
             _access_token = user.create_access_token()
 
             # Generate a refresh token
-            _refresh_token = user.create_refresh_token(request.user_agent.string.encode('utf-8'))   
+            _refresh_token = user.create_refresh_token(
+                request.user_agent.string.encode('utf-8'))
 
             return {'access_token': _access_token, 'refresh_token': _refresh_token}, 200
 
@@ -121,12 +136,14 @@ class refresh(Resource):
         ''' Refreshes a users access token if their refresh token is still valid '''
         if 'refresh_token' not in api.payload:
             ns_auth.abort(400, 'Invalid request. A refresh token is required.')
-        
+
         _refresh_token = api.payload['refresh_token']
         try:
-            payload = jwt.decode(_refresh_token, current_app.config['SECRET_KEY'])
+            payload = jwt.decode(
+                _refresh_token, current_app.config['SECRET_KEY'])
 
-            refresh_token = RefreshToken.query.filter_by(user_uuid=payload['uuid'], refresh_token=_refresh_token).first()
+            refresh_token = RefreshToken.query.filter_by(
+                user_uuid=payload['uuid'], refresh_token=_refresh_token).first()
 
             if not refresh_token:
                 ns_auth.abort(401, 'Invalid token issuer.')
@@ -135,7 +152,8 @@ class refresh(Resource):
             user = User.query.filter_by(uuid=payload['uuid']).first()
             if user:
                 access_token = user.create_access_token()
-                refresh_token = user.create_refresh_token(request.user_agent.string.encode('utf-8'))
+                refresh_token = user.create_refresh_token(
+                    request.user_agent.string.encode('utf-8'))
                 return {'access_token': access_token, 'refresh_token': refresh_token}, 200
             else:
                 return {'message': 'Unauthorized.'}, 401
@@ -162,9 +180,9 @@ class logout(Resource):
             access_token = auth_header.split(' ')[1]
             b_token = AuthTokenBlacklist(auth_token=access_token)
             b_token.create()
-            return {'message':'Successfully logged out.'}, 200
+            return {'message': 'Successfully logged out.'}, 200
         except:
-            return {'message':'Not logged in.'}, 401
+            return {'message': 'Not logged in.'}, 401
 
         ns_auth.abort(401, 'Not logged in.')
 
@@ -183,7 +201,7 @@ class Whoami(Resource):
 
 @ns_user.route("")
 class UserList(Resource):
-    
+
     @api.doc(security="Bearer")
     @api.marshal_with(mod_user_list, as_list=True)
     @token_required
@@ -205,7 +223,7 @@ class UserList(Resource):
         if not user:
             user = User(**api.payload)
             user.create()
-            return {'message':'Successfully created the user.', 'uuid': user.uuid}
+            return {'message': 'Successfully created the user.', 'uuid': user.uuid}
         else:
             ns_user.abort(409, "User already exists.")
 
@@ -265,7 +283,7 @@ class PermissionList(Resource):
     def get(self):
         ''' Gets a list of all the permission sets '''
         return Permission.query.all()
-    
+
     @api.expect(mod_permission_full)
     @api.response('200', 'Successfully created permission set.')
     def post(self):
@@ -309,10 +327,11 @@ class PermissionDetails(Resource):
         perm = Permission.query.filter_by(uuid=uuid).first()
         if perm:
             if(len(perm.roles) > 0):
-                ns_perms.abort(400, 'Cannot delete a permission set attached to an active Role.')
+                ns_perms.abort(
+                    400, 'Cannot delete a permission set attached to an active Role.')
             else:
                 perm.delete()
-                return { 'message': 'Successfully deleted the Permission set.'}
+                return {'message': 'Successfully deleted the Permission set.'}
             return perm
         else:
             ns_perms.abort(404, 'Permission set not found.')
@@ -321,7 +340,7 @@ class PermissionDetails(Resource):
 
 @ns_case.route("")
 class CaseList(Resource):
-    
+
     @api.doc(security="Bearer")
     @api.marshal_with(mod_case_full, as_list=True)
     @token_required
@@ -335,7 +354,7 @@ class CaseList(Resource):
     @api.response('409', 'Case already exists.')
     @api.response('200', "Successfully created the case.")
     @token_required
-    #@user_has('create_case')
+    # @user_has('create_case')
     def post(self, current_user):
         _tags = []
         ''' Creates a new case '''
@@ -373,13 +392,12 @@ class CaseList(Resource):
             case.tags += _tags
             case.save()
 
-
         # Set the default status to New
         case_status = CaseStatus.query.filter_by(name="New").first()
         case.status = case_status
         case.save()
 
-        return {'message':'Successfully created the case.'}
+        return {'message': 'Successfully created the case.'}
 
 
 @ns_case.route("/<uuid>")
@@ -429,7 +447,7 @@ class CaseDetails(Resource):
 
 @ns_case_template.route("")
 class CaseTemplateList(Resource):
-    
+
     @api.doc(security="Bearer")
     @api.marshal_with(mod_case_template_full, as_list=True)
     @token_required
@@ -443,12 +461,13 @@ class CaseTemplateList(Resource):
     @api.response('409', 'Case Template already exists.')
     @api.response('200', "Successfully created the case_template.")
     @token_required
-    #@user_has('create_case_template')
+    # @user_has('create_case_template')
     def post(self, current_user):
 
-        # Check to see if the case template already exists and 
+        # Check to see if the case template already exists and
         # return an error indicating as such
-        case_template = CaseTemplate.query.filter_by(title=api.payload['title']).first()
+        case_template = CaseTemplate.query.filter_by(
+            title=api.payload['title']).first()
         if case_template:
             ns_case_template.abort(409, 'Case Template already exists.')
         else:
@@ -471,13 +490,13 @@ class CaseTemplateList(Resource):
                 case_template.tags += _tags
                 case_template.save()
 
-
             # Set the default status to New
-            case_template_status = CaseStatus.query.filter_by(name="New").first()
+            case_template_status = CaseStatus.query.filter_by(
+                name="New").first()
             case_template.status = case_template_status
             case_template.save()
 
-            return {'message':'Successfully created the case_template.'}
+            return {'message': 'Successfully created the case_template.'}
 
 
 @ns_case_template.route("/<uuid>")
@@ -507,7 +526,8 @@ class CaseTemplateDetails(Resource):
         case_template = CaseTemplate.query.filter_by(uuid=uuid).first()
         if case_template:
             if 'name' in api.payload and CaseTemplate.query.filter_by(name=api.payload['name']).first():
-                ns_case_template.abort(409, 'Case Template name already exists.')
+                ns_case_template.abort(
+                    409, 'Case Template name already exists.')
             else:
                 case_template.update(api.payload)
                 return case_template
@@ -523,6 +543,92 @@ class CaseTemplateDetails(Resource):
         if case_template:
             case_template.delete()
             return {'message': 'Sucessfully deleted case_template.'}
+
+
+@ns_case_template_task.route("")
+class CaseTemplateTaskList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_case_template_task_full, as_list=True)
+    @token_required
+    @user_has('view_case_template_tasks')
+    def get(self, current_user):
+        ''' Returns a list of case_template_task '''
+        return CaseTemplateTask.query.all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_case_template_task_create)
+    @api.response('409', 'CaseTemplateTask already exists.')
+    @api.response('200', "Successfully created the case_template_task.")
+    # @token_required
+    # @user_has('create_case_template_task')
+    def post(self):
+        _tags = []
+        ''' Creates a new case_template_task '''
+        case_template_task = CaseTemplateTask.query.filter_by(
+            title=api.payload['title'], case_template_uuid=api.payload['case_template_uuid']).first()
+        if not case_template_task:
+
+            case_template_task = CaseTemplateTask(**api.payload)
+            case_template_task.create()
+
+            if len(_tags) > 0:
+                case_template_task.tags += _tags
+                case_template_task.save()
+
+            return {'message': 'Successfully created the case_template_task.'}
+        else:
+            ns_case_template_task.abort(
+                409, 'CaseTemplateTask already exists.')
+
+
+@ns_case_template_task.route("/<uuid>")
+class CaseTemplateTaskDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_case_template_task_full)
+    @api.response('200', 'Success')
+    @api.response('404', 'CaseTemplateTask not found')
+    @token_required
+    @user_has('view_case_template_tasks')
+    def get(self, uuid):
+        ''' Returns information about a case_template_task '''
+        case_template_task = CaseTemplateTask.query.filter_by(
+            uuid=uuid).first()
+        if case_template_task:
+            return case_template_task
+        else:
+            ns_case_template_task.abort(404, 'Case Template Task not found.')
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_case_template_task_create)
+    @api.marshal_with(mod_case_template_task_full)
+    @token_required
+    @user_has('update_case_template_task')
+    def put(self, uuid):
+        ''' Updates information for a case_template_task '''
+        case_template_task = CaseTemplateTask.query.filter_by(
+            uuid=uuid).first()
+        if case_template_task:
+            if 'name' in api.payload and CaseTemplateTask.query.filter_by(title=api.payload['title']).first():
+                ns_case_template_task.abort(
+                    409, 'Case Template Task name already exists.')
+            else:
+                case_template_task.update(api.payload)
+                return case_template_task
+        else:
+            ns_case_template_task.abort(404, 'Case Template Task not found.')
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_case_template_task')
+    def delete(self, uuid):
+        ''' Deletes a case_template_task '''
+        case_template_task = CaseTemplateTask.query.filter_by(
+            uuid=uuid).first()
+        if case_template_task:
+            case_template_task.delete()
+            return {'message': 'Sucessfully deleted case_template_task.'}
 
 
 """
@@ -609,9 +715,10 @@ class CaseCommentDetails(Resource):
             return {'message': 'Sucessfully deleted comment.'}
 """
 
+
 @ns_playbook.route("")
 class PlaybookList(Resource):
-    
+
     @api.doc(security="Bearer")
     @api.marshal_with(mod_playbook_list, as_list=True)
     @token_required
@@ -642,7 +749,7 @@ class PlaybookList(Resource):
                 playbook.tags += _tags
                 playbook.save()
 
-            return {'message':'Successfully created the playbook.'}
+            return {'message': 'Successfully created the playbook.'}
         else:
             ns_playbook.abort(409, 'Playbook already exists.')
 
@@ -710,7 +817,7 @@ class DeletePlaybookTag(Resource):
         else:
             ns_playbook.abort(404, 'Playbook not found.')
         return {'message': 'Successfully rmeoved tag from playbook.'}
-                
+
 
 @ns_playbook.route("/<uuid>/tag/<name>")
 class TagPlaybook(Resource):
@@ -722,9 +829,9 @@ class TagPlaybook(Resource):
         ''' Adds a tag to an playbook '''
         tag = Tag.query.filter_by(name=name).first()
         if not tag:
-            tag = Tag(**{'name': name, 'color':'#fffff'})
+            tag = Tag(**{'name': name, 'color': '#fffff'})
             tag.create()
-        
+
         playbook = Playbook.query.filter_by(uuid=uuid).first()
         if playbook:
             playbook.tags += [tag]
@@ -740,7 +847,7 @@ class BulkTagPlaybook(Resource):
     @api.doc(security="Bearer")
     @api.expect(mod_bulk_tag)
     @token_required
-    @user_has('add_tag_to_playbook')    
+    @user_has('add_tag_to_playbook')
     def post(self, uuid, current_user):
         ''' Adds a tag to an playbook '''
         _tags = []
@@ -749,7 +856,7 @@ class BulkTagPlaybook(Resource):
             for t in tags:
                 tag = Tag.query.filter_by(name=t).first()
                 if not tag:
-                    tag = Tag(**{'name': t, 'color':'#fffff'})
+                    tag = Tag(**{'name': t, 'color': '#fffff'})
                     tag.create()
                     _tags += [tag]
                 else:
@@ -762,6 +869,7 @@ class BulkTagPlaybook(Resource):
         else:
             ns_playbook.abort(404, 'Playbook not found.')
         return {'message': 'Successfully added tag to playbook.'}
+
 
 @ns_input.route("")
 class InputList(Resource):
@@ -794,15 +902,19 @@ class InputList(Resource):
 
             if 'config' in api.payload:
                 try:
-                    api.payload['config'] = json.loads(base64.b64decode(api.payload['config']).decode('ascii').strip())
+                    api.payload['config'] = json.loads(base64.b64decode(
+                        api.payload['config']).decode('ascii').strip())
                 except Exception:
-                    ns_input.abort(400, 'Invalid JSON configuration, check your syntax')
+                    ns_input.abort(
+                        400, 'Invalid JSON configuration, check your syntax')
 
             if 'field_mapping' in api.payload:
                 try:
-                    api.payload['field_mapping'] = json.loads(base64.b64decode(api.payload['field_mapping']).decode('ascii').strip())
+                    api.payload['field_mapping'] = json.loads(base64.b64decode(
+                        api.payload['field_mapping']).decode('ascii').strip())
                 except Exception:
-                    ns_input.abort(400, 'Invalid JSON in field_mapping, check your syntax')
+                    ns_input.abort(
+                        400, 'Invalid JSON in field_mapping, check your syntax')
 
             if 'tags' in api.payload:
                 tags = api.payload.pop('tags')
@@ -815,7 +927,7 @@ class InputList(Resource):
                 inp.tags += _tags
                 inp.save()
         else:
-            ns_input.abort(409,'Input already exists.')
+            ns_input.abort(409, 'Input already exists.')
         return {'message': 'Successfully created the input.'}
 
 
@@ -869,16 +981,18 @@ class DownloadPlugin(Resource):
 
 
 upload_parser = api.parser()
-upload_parser.add_argument('files', location='files', type=FileStorage, required=True, action="append")
-@ns_plugin.route('/upload')
+upload_parser.add_argument('files', location='files',
+                           type=FileStorage, required=True, action="append")
 
+
+@ns_plugin.route('/upload')
 class UploadPlugin(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(upload_parser)
     @api.marshal_with(mod_plugin_list, as_list=True)
-    #@token_required
-    #@user_has('create_plugin')
+    # @token_required
+    # @user_has('create_plugin')
     def post(self):
 
         plugins = []
@@ -902,9 +1016,10 @@ class UploadPlugin(Resource):
                 # Make sure the file is one that can be uploaded
                 # TODO: Add mime-type checking
                 filename = secure_filename(uploaded_file.filename)
-                
+
                 # Save the file
-                file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)) + "/" + current_app.config['PLUGIN_DIRECTORY'], filename)
+                file_path = os.path.join(os.path.dirname(os.path.realpath(
+                    __file__)) + "/" + current_app.config['PLUGIN_DIRECTORY'], filename)
                 uploaded_file.save(file_path)
                 uploaded_file.close()
 
@@ -915,12 +1030,13 @@ class UploadPlugin(Resource):
 
                 # Open the file and grab the manifest and the logo
                 with ZipFile(file_path, 'r') as z:
-                    #if 'logo.png' not in z.namelist():
+                    # if 'logo.png' not in z.namelist():
                     #    ns_plugin.abort(400, "Archive does not contain logo.png")
-                    #if 'plugin.json' not in z.namelist():
+                    # if 'plugin.json' not in z.namelist():
                     #    ns_plugin.abort(400, "Archive does not contain plugin.json")
 
-                    files = [{'name': name, 'data': z.read(name)} for name in z.namelist()]
+                    files = [{'name': name, 'data': z.read(
+                        name)} for name in z.namelist()]
                     for f in files:
                         if 'logo.png' in f['name']:
                             logo_b64 = base64.b64encode(f['data']).decode()
@@ -931,8 +1047,8 @@ class UploadPlugin(Resource):
                             if 'config_template' in manifest_data:
                                 config_template = manifest_data['config_template']
                             else:
-                                config_template = None  
-                    
+                                config_template = None
+
                 plugin = Plugin.query.filter_by(filename=filename).first()
                 if plugin:
                     plugin.manifest = manifest_data
@@ -973,15 +1089,15 @@ class PluginConfigList(Resource):
     @token_required
     @user_has('create_plugin')
     def post(self, current_user):
-
         ''' Creates a new plugin_config '''
-        plugin_config = PluginConfig.query.filter_by(name=api.payload['name']).first()
+        plugin_config = PluginConfig.query.filter_by(
+            name=api.payload['name']).first()
         if not plugin_config:
             plugin_config = PluginConfig(**api.payload)
             plugin_config.create()
         else:
             ns_plugin_config.abort(409, 'Plugin Config already exists.')
-        return {'message':'Successfully created the plugin config.', 'uuid': plugin_config.uuid}
+        return {'message': 'Successfully created the plugin config.', 'uuid': plugin_config.uuid}
 
 
 @ns_plugin_config.route("/<uuid>")
@@ -1011,7 +1127,8 @@ class PluginConfigDetails(Resource):
         plugin_config = PluginConfig.query.filter_by(uuid=uuid).first()
         if plugin_config:
             if 'name' in api.payload and PluginConfig.query.filter_by(name=api.payload['name']).first():
-                ns_plugin_config.abort(409, 'Plugin Config name already exists.')
+                ns_plugin_config.abort(
+                    409, 'Plugin Config name already exists.')
             else:
                 plugin_config.update(api.payload)
                 return plugin_config
@@ -1054,7 +1171,7 @@ class PluginList(Resource):
             plugin.create()
         else:
             ns_plugin.abort(409, 'Plugin already exists.')
-        return {'message':'Successfully created the plugin.', 'uuid': plugin.uuid}
+        return {'message': 'Successfully created the plugin.', 'uuid': plugin.uuid}
 
 
 @ns_plugin.route("/<uuid>")
@@ -1101,6 +1218,7 @@ class PluginDetails(Resource):
             plugin.delete()
             return {'message': 'Sucessfully deleted plugin.'}
 
+
 @ns_alert.route("/_bulk")
 class CreateBulkAlerts(Resource):
 
@@ -1114,7 +1232,7 @@ class CreateBulkAlerts(Resource):
             'success': True
         }
         alert_status = AlertStatus.query.filter_by(name="New").first()
-        
+
         alerts = api.payload['alerts']
         for item in alerts:
             _tags = []
@@ -1133,7 +1251,7 @@ class CreateBulkAlerts(Resource):
                 alert.create()
 
                 alert.status = alert_status
-                alert.save()        
+                alert.save()
 
                 if len(_tags) > 0:
                     alert.tags += _tags
@@ -1143,16 +1261,18 @@ class CreateBulkAlerts(Resource):
                     alert.observables += _observables
                     alert.save()
 
-                response['results'].append({'reference': item['reference'], 'status': 200, 'message':'Alert successfully created.'})
+                response['results'].append(
+                    {'reference': item['reference'], 'status': 200, 'message': 'Alert successfully created.'})
             else:
-                response['results'].append({'reference':item['reference'], 'status': 409, 'message':'Alert already exists.'})
+                response['results'].append(
+                    {'reference': item['reference'], 'status': 409, 'message': 'Alert already exists.'})
                 response['success'] = False
-        return response,207
+        return response, 207
 
 
 @ns_alert.route("")
 class AlertList(Resource):
-    
+
     @api.doc(security="Bearer")
     @api.marshal_with(mod_alert_list, as_list=True)
     @token_required
@@ -1171,7 +1291,8 @@ class AlertList(Resource):
         _observables = []
         _tags = []
         ''' Creates a new alert '''
-        alert = Alert.query.filter_by(reference=api.payload['reference']).first()
+        alert = Alert.query.filter_by(
+            reference=api.payload['reference']).first()
         if not alert:
             if 'tags' in api.payload:
                 tags = api.payload.pop('tags')
@@ -1180,7 +1301,7 @@ class AlertList(Resource):
             if 'observables' in api.payload:
                 observables = api.payload.pop('observables')
                 _observables = create_observables(observables)
-                
+
             alert = Alert(**api.payload)
             alert.create()
 
@@ -1197,7 +1318,7 @@ class AlertList(Resource):
                 alert.observables += _observables
                 alert.save()
 
-            return {'message':'Successfully created the alert.'}
+            return {'message': 'Successfully created the alert.'}
         else:
             ns_alert.abort(409, 'Alert already exists.')
 
@@ -1252,7 +1373,7 @@ class DeleteAlertTag(Resource):
 
     @api.doc(security="Bearer")
     @token_required
-    #@user_has('remove_tag_from_alert')
+    # @user_has('remove_tag_from_alert')
     def delete(self, uuid, name, current_user):
         ''' Removes a tag from an alert '''
         tag = Tag.query.filter_by(name=name).first()
@@ -1265,7 +1386,7 @@ class DeleteAlertTag(Resource):
         else:
             ns_alert.abort(404, 'Alert not found.')
         return {'message': 'Successfully removed tag from alert.'}
-                
+
 
 @ns_alert.route("/<uuid>/tag/<name>")
 class TagAlert(Resource):
@@ -1277,9 +1398,9 @@ class TagAlert(Resource):
         ''' Adds a tag to an alert '''
         tag = Tag.query.filter_by(name=name).first()
         if not tag:
-            tag = Tag(**{'name': name, 'color':'#fffff'})
+            tag = Tag(**{'name': name, 'color': '#fffff'})
             tag.create()
-        
+
         alert = Alert.query.filter_by(uuid=uuid).first()
         if alert:
             alert.tags += [tag]
@@ -1295,7 +1416,7 @@ class BulkTagAlert(Resource):
     @api.doc(security="Bearer")
     @api.expect(mod_bulk_tag)
     @token_required
-    @user_has('add_tag_to_alert')    
+    @user_has('add_tag_to_alert')
     def post(self, uuid, current_user):
         ''' Adds a tag to an alert '''
         _tags = []
@@ -1304,7 +1425,7 @@ class BulkTagAlert(Resource):
             for t in tags:
                 tag = Tag.query.filter_by(name=t).first()
                 if not tag:
-                    tag = Tag(**{'name': t, 'color':'#fffff'})
+                    tag = Tag(**{'name': t, 'color': '#fffff'})
                     tag.create()
                     _tags += [tag]
                 else:
@@ -1330,7 +1451,7 @@ class AgentPairToken(Resource):
         Generates a short lived pairing token used by the agent
         to get a long running JWT
         '''
-        return generate_token(None,300,'pairing')
+        return generate_token(None, 300, 'pairing')
 
 
 @ns_agent.route("")
@@ -1363,7 +1484,7 @@ class AgentList(Resource):
 
             if 'groups' in api.payload:
                 groups = api.payload.pop('groups')
-                
+
             agent = Agent(**api.payload)
             for role in roles:
                 agent_role = AgentRole.query.filter_by(name=role).first()
@@ -1384,8 +1505,8 @@ class AgentList(Resource):
             agent.role = role
 
             agent.create()
-            
-            return {'message': 'Successfully created the agent.', 'uuid': agent.uuid, 'token': generate_token(agent.uuid, 86400, token_type='agent') }
+
+            return {'message': 'Successfully created the agent.', 'uuid': agent.uuid, 'token': generate_token(agent.uuid, 86400, token_type='agent')}
         else:
             ns_agent.abort(409, "Agent already exists.")
 
@@ -1426,7 +1547,7 @@ class AgentDetails(Resource):
                         if _input:
                             _inputs.append(_input)
                 agent.inputs = _inputs
-                agent.save() 
+                agent.save()
 
             if 'groups' in api.payload:
                 _groups = []
@@ -1443,7 +1564,7 @@ class AgentDetails(Resource):
             return agent
         else:
             ns_agent.abort(404, 'Agent not found.')
-        
+
     @api.doc(security="Bearer")
     @token_required
     @user_has('delete_agent')
@@ -1452,10 +1573,9 @@ class AgentDetails(Resource):
         agent = Agent.query.filter_by(uuid=uuid).first()
         if agent:
             agent.delete()
-            return { 'message': 'Agent successfully delete.'}
+            return {'message': 'Agent successfully delete.'}
         else:
             ns_agent.abort(404, 'Agent not found.')
-            
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_agent_list)
@@ -1489,11 +1609,12 @@ class UserGroupList(Resource):
     @user_has('create_user_group')
     def post(self, current_user):
         ''' Creates a new user_group '''
-        user_group = UserGroup.query.filter_by(name=api.payload['name']).first()
+        user_group = UserGroup.query.filter_by(
+            name=api.payload['name']).first()
         if not user_group:
             user_group = UserGroup(**api.payload)
             user_group.create()
-            return {'message':'Successfully created the User Group.'}
+            return {'message': 'Successfully created the User Group.'}
         else:
             ns_user_group.abort(409, 'User Group already exists.')
         return
@@ -1516,7 +1637,7 @@ class UserGroupDetails(Resource):
         else:
             ns_user_group.abort(404, 'User Group not found.')
         return
-    
+
     @api.doc(security="Bearer")
     @api.expect(mod_user_group_create)
     @api.marshal_with(mod_user_group_list)
@@ -1572,16 +1693,18 @@ class AddUserToGroup(Resource):
                 user = User.query.filter_by(uuid=user_uuid).first()
                 if user:
                     _users.append(user)
-                    response['results'].append({'reference': user_uuid, 'message': 'User successfully added.'})
+                    response['results'].append(
+                        {'reference': user_uuid, 'message': 'User successfully added.'})
                 else:
-                    response['results'].append({'reference': user_uuid, 'message': 'User not found.'})
+                    response['results'].append(
+                        {'reference': user_uuid, 'message': 'User not found.'})
                     response['success'] = False
-        
+
         group = UserGroup.query.filter_by(uuid=uuid).first()
         if group:
             group.members = _users
             group.save()
-            return response,207
+            return response, 207
         else:
             ns_user_group.abort(404, 'Group not found.')
 
@@ -1601,11 +1724,12 @@ class AgentGroupList(Resource):
     @api.response('200', "Successfully created the Agent Group.")
     def post(self):
         ''' Creates a new agent_group '''
-        agent_group = AgentGroup.query.filter_by(name=api.payload['name']).first()
+        agent_group = AgentGroup.query.filter_by(
+            name=api.payload['name']).first()
         if not agent_group:
             agent_group = AgentGroup(**api.payload)
             agent_group.create()
-            return {'message':'Successfully created the Agent Group.'}
+            return {'message': 'Successfully created the Agent Group.'}
         else:
             ns_agent_group.abort(409, 'Agent Group already exists.')
         return
@@ -1618,7 +1742,7 @@ class AgentGroupDetails(Resource):
     @api.marshal_with(mod_agent_group_list)
     @api.response('200', 'Success')
     @api.response('404', 'AgentGroup not found')
-    def get(self,uuid):
+    def get(self, uuid):
         ''' Gets details on a specific agent_group '''
         agent_group = AgentGroup.query.filter_by(uuid=uuid).first()
         if agent_group:
@@ -1626,7 +1750,7 @@ class AgentGroupDetails(Resource):
         else:
             ns_agent_group.abort(404, 'Agent Group not found.')
         return
-    
+
     @api.doc(security="Bearer")
     @api.expect(mod_agent_group_create)
     @api.marshal_with(mod_agent_group_list)
@@ -1676,7 +1800,7 @@ class RoleList(Resource):
         if not role:
             role = Role(**api.payload)
             role.create()
-            return {'message': 'Successfully created the role.', 'uuid': role.uuid }
+            return {'message': 'Successfully created the role.', 'uuid': role.uuid}
         else:
             ns_user.abort(409, "Role already exists.")
 
@@ -1699,7 +1823,7 @@ class RoleDetails(Resource):
                 return role
         else:
             ns_role.abort(404, 'Role not found.')
-        
+
     @api.doc(security="Bearer")
     @token_required
     @user_has('delete_role')
@@ -1708,13 +1832,13 @@ class RoleDetails(Resource):
         role = Role.query.filter_by(uuid=uuid).first()
         if role:
             if len(role.users) > 0:
-                ns_role.abort(400, 'Can not delete a role with assigned users.  Assign the users to a new role first.')
+                ns_role.abort(
+                    400, 'Can not delete a role with assigned users.  Assign the users to a new role first.')
             else:
                 role.delete()
-                return { 'message': 'Role successfully delete.'}
+                return {'message': 'Role successfully delete.'}
         else:
             ns_role.abort(404, 'Role not found.')
-            
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_role_list)
@@ -1768,7 +1892,7 @@ class RemoveUserFromRole(Resource):
         user = User.query.filter_by(uuid=user_uuid).first()
         if not user:
             ns_role.abort(404, 'User not found.')
-        
+
         role = Role.query.filter_by(uuid=uuid).first()
         if role:
             role.users = [u for u in role.users if u.uuid != user.uuid]
@@ -1789,10 +1913,12 @@ class EncryptPassword(Resource):
     @user_has('add_credential')
     def post(self, current_user):
         ''' Encrypts the password '''
-        credential = Credential.query.filter_by(name=api.payload['name']).first()
+        credential = Credential.query.filter_by(
+            name=api.payload['name']).first()
         if not credential:
             credential = Credential(**api.payload)
-            credential.encrypt(api.payload['secret'].encode(), current_app.config['MASTER_PASSWORD'])
+            credential.encrypt(api.payload['secret'].encode(
+            ), current_app.config['MASTER_PASSWORD'])
             credential.create()
             return {'message': 'Successfully created credential.', 'uuid': credential.uuid}, 200
         else:
@@ -1817,7 +1943,7 @@ class CredentialList(Resource):
 
 @ns_credential.route('/decrypt/<uuid>')
 class DecryptPassword(Resource):
-    
+
     @api.doc(security="Bearer")
     @api.marshal_with(mod_credential_return)
     @api.response('404', 'Credential not found.')
@@ -1834,11 +1960,11 @@ class DecryptPassword(Resource):
                 ns_credential.abort(401, 'Invalid master password.')
         else:
             ns_credential.abort(404, 'Credential not found.')
-        
-        
+
+
 @ns_credential.route('/<uuid>')
 class DeletePassword(Resource):
-    
+
     @api.doc(security="Bearer")
     @api.marshal_with(mod_credential_full)
     @api.response('404', 'Credential not found.')
@@ -1866,7 +1992,8 @@ class DeletePassword(Resource):
             if 'name' in api.payload and Credential.query.filter_by(name=api.payload['name']).first():
                 ns_credential.abort(409, 'Credential name already exists.')
             else:
-                credential.encrypt(api.payload['secret'].encode(), current_app.config['MASTER_PASSWORD'])
+                credential.encrypt(api.payload['secret'].encode(
+                ), current_app.config['MASTER_PASSWORD'])
                 credential.save()
                 return credential
         else:
@@ -1906,7 +2033,7 @@ class TagList(Resource):
         if not tag:
             tag = Tag(**api.payload)
             tag.create()
-            return {'message':'Successfully created the tag.'}
+            return {'message': 'Successfully created the tag.'}
         else:
             ns_tag.abort(409, 'Tag already exists.')
         return
@@ -1919,7 +2046,7 @@ class TagDetails(Resource):
     @api.marshal_with(mod_tag_list)
     @api.response('200', 'Success')
     @api.response('404', 'Tag not found')
-    def get(self,uuid):
+    def get(self, uuid):
         ''' Gets details on a specific tag '''
         tag = Tag.query.filter_by(uuid=uuid).first()
         if tag:
@@ -1927,7 +2054,7 @@ class TagDetails(Resource):
         else:
             ns_tag.abort(404, 'Tag not found.')
         return
-    
+
     @api.doc(security="Bearer")
     @api.expect(mod_tag)
     @api.marshal_with(mod_tag)
@@ -1951,4 +2078,3 @@ class TagDetails(Resource):
         if tag:
             tag.delete()
             return {'message': 'Sucessfully deleted tag.'}
-

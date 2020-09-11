@@ -227,6 +227,12 @@ class Permission(Base):
     update_case_template = db.Column(db.Boolean, default=False)
     delete_case_template = db.Column(db.Boolean, default=False)
 
+    # Case Template Task Permissions
+    create_case_template_task = db.Column(db.Boolean, default=False)
+    view_case_template_tasks = db.Column(db.Boolean, default=False)
+    update_case_template_task = db.Column(db.Boolean, default=False)
+    delete_case_template_task = db.Column(db.Boolean, default=False)
+
     # Case Comment Permissions
     create_case_comment = db.Column(db.Boolean, default=False)
     view_case_comments = db.Column(db.Boolean, default=False)

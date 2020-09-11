@@ -157,7 +157,11 @@ def setup():
         "create_case_template": True,
         "view_case_templates": True,
         "update_case_template": True,
-        "delete_case_template": True
+        "delete_case_template": True,
+        "create_case_template_task": True,
+        "view_case_template_tasks": True,
+        "update_case_template_task": True,
+        "delete_case_template_task": True
     }
     permissions = Permission(**perms)
     db.session.add(permissions)

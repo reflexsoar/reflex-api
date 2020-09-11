@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 7561652d7797
+Revision ID: 3ff8b2283ebe
 Revises: 
-Create Date: 2020-09-10 21:31:48.618079
+Create Date: 2020-09-10 21:55:37.223822
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '7561652d7797'
+revision = '3ff8b2283ebe'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -155,6 +155,10 @@ def upgrade():
     sa.Column('view_case_templates', sa.Boolean(), nullable=True),
     sa.Column('update_case_template', sa.Boolean(), nullable=True),
     sa.Column('delete_case_template', sa.Boolean(), nullable=True),
+    sa.Column('create_case_template_task', sa.Boolean(), nullable=True),
+    sa.Column('view_case_template_tasks', sa.Boolean(), nullable=True),
+    sa.Column('update_case_template_task', sa.Boolean(), nullable=True),
+    sa.Column('delete_case_template_task', sa.Boolean(), nullable=True),
     sa.Column('create_case_comment', sa.Boolean(), nullable=True),
     sa.Column('view_case_comments', sa.Boolean(), nullable=True),
     sa.Column('update_case_comment', sa.Boolean(), nullable=True),
@@ -423,6 +427,7 @@ def upgrade():
     sa.ForeignKeyConstraint(['owner_uuid'], ['user.uuid'], ),
     sa.ForeignKeyConstraint(['status_uuid'], ['case_status.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('title'),
     sa.UniqueConstraint('uuid')
     )
     op.create_table('user_group_assignment',
