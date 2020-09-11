@@ -445,32 +445,39 @@ class CaseTemplateList(Resource):
     @token_required
     #@user_has('create_case_template')
     def post(self, current_user):
-        _tags = []
-        ''' Creates a new case_template template '''
-        if 'tags' in api.payload:
-            tags = api.payload.pop('tags')
-            _tags = parse_tags(tags)
 
-        if 'owner' in api.payload:
-            owner = api.payload.pop('owner')
-            user = User.query.filter_by(uuid=owner).first()
-            if user:
-                api.payload['owner'] = user
+        # Check to see if the case template already exists and 
+        # return an error indicating as such
+        case_template = CaseTemplate.query.filter_by(title=api.payload['title']).first()
+        if case_template:
+            ns_case_template.abort(409, 'Case Template already exists.')
+        else:
+            _tags = []
+            ''' Creates a new case_template template '''
+            if 'tags' in api.payload:
+                tags = api.payload.pop('tags')
+                _tags = parse_tags(tags)
 
-        case_template = CaseTemplate(**api.payload)
-        case_template.create()
+            if 'owner' in api.payload:
+                owner = api.payload.pop('owner')
+                user = User.query.filter_by(uuid=owner).first()
+                if user:
+                    api.payload['owner'] = user
 
-        if len(_tags) > 0:
-            case_template.tags += _tags
+            case_template = CaseTemplate(**api.payload)
+            case_template.create()
+
+            if len(_tags) > 0:
+                case_template.tags += _tags
+                case_template.save()
+
+
+            # Set the default status to New
+            case_template_status = CaseStatus.query.filter_by(name="New").first()
+            case_template.status = case_template_status
             case_template.save()
 
-
-        # Set the default status to New
-        case_template_status = CaseStatus.query.filter_by(name="New").first()
-        case_template.status = case_template_status
-        case_template.save()
-
-        return {'message':'Successfully created the case_template.'}
+            return {'message':'Successfully created the case_template.'}
 
 
 @ns_case_template.route("/<uuid>")

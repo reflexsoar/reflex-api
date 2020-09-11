@@ -392,7 +392,7 @@ class CaseComment(Base):
 
 class CaseTemplate(Base):
 
-    title = db.Column(db.String)
+    title = db.Column(db.String, unique=True)
     description = db.Column(db.String)
     severity = db.Column(db.Integer, default=2)
     owner_uuid = db.Column(db.String, db.ForeignKey('user.uuid'))
