@@ -6,7 +6,7 @@ from flask_migrate import Migrate, MigrateCommand
 from flask_script import Manager
 
 from app import create_app, db
-from app.models import AuthTokenBlacklist, User, Role, Permission, DataType, AlertStatus, AgentRole, CaseStatus
+from app.models import AuthTokenBlacklist, User, Role, Permission, DataType, EventStatus, AgentRole, CaseStatus
 
 app = create_app()
 app.app_context().push()
@@ -115,12 +115,12 @@ def setup():
         "view_playbooks": True,
         "add_tag_to_playbook": True,
         "remove_tag_from_playbook": True,
-        "add_alert": True,
-        "view_alerts": True,
-        "update_alert": True,
-        "delete_alert": True,
-        "add_tag_to_alert": True,
-        "remove_tag_from_alert": True,
+        "add_event": True,
+        "view_events": True,
+        "update_event": True,
+        "delete_event": True,
+        "add_tag_to_event": True,
+        "remove_tag_from_event": True,
         "add_observable": True,
         "update_observable": True,
         "delete_observable": True,
@@ -205,10 +205,10 @@ def setup():
         "decrypt_credential": True,
         "view_credentials": True ,
         "view_playbooks": True,
-        "add_alert": True,
-        "update_alert": True,
-        "add_tag_to_alert": True,
-        "remove_tag_from_alert": True,
+        "add_event": True,
+        "update_event": True,
+        "add_tag_to_event": True,
+        "remove_tag_from_event": True,
         "add_observable": True,
         "update_observable": True,
         "delete_observable": True,
@@ -216,7 +216,7 @@ def setup():
         "remove_tag_from_observable": True,
         "view_agents": True,
         "view_plugins": True,
-        "add_alert": True
+        "add_event": True
     }
     permissions = Permission(**perms)
     db.session.add(permissions)
@@ -251,14 +251,15 @@ def setup():
         db.session.add(dt)
         db.session.commit()
 
-    print("Creating default alert statuses")
+    print("Creating default event statuses")
     statuses = {
-        'New': 'A new alert.',
-        'Closed': 'An alert that has been closed.',
-        'Dismissed': 'An alert that has been ignored from some reason.'
+        'New': 'A new event.',
+        'Closed': 'An event that has been closed.',
+        'Open': 'An event is open and being worked in a case.',
+        'Dismissed': 'An event that has been ignored from some reason.'
     }
     for k in statuses:
-        status = AlertStatus(name=k, description=statuses[k])
+        status = EventStatus(name=k, description=statuses[k])
         db.session.add(status)
         db.session.commit()
         if k == 'Closed':

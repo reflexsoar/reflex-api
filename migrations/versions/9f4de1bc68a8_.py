@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 3ff8b2283ebe
+Revision ID: 9f4de1bc68a8
 Revises: 
-Create Date: 2020-09-10 21:55:37.223822
+Create Date: 2020-09-11 21:56:11.722833
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '3ff8b2283ebe'
+revision = '9f4de1bc68a8'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -35,17 +35,6 @@ def upgrade():
     sa.Column('modified_at', sa.DateTime(), nullable=True),
     sa.Column('name', sa.String(length=255), nullable=True),
     sa.Column('description', sa.String(), nullable=True),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('uuid')
-    )
-    op.create_table('alert_status',
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('uuid', sa.String(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), nullable=True),
-    sa.Column('modified_at', sa.DateTime(), nullable=True),
-    sa.Column('name', sa.String(length=255), nullable=False),
-    sa.Column('description', sa.String(), nullable=False),
-    sa.Column('closed', sa.Boolean(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
@@ -92,6 +81,17 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
+    op.create_table('event_status',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('name', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.String(), nullable=False),
+    sa.Column('closed', sa.Boolean(), nullable=True),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('uuid')
+    )
     op.create_table('permission',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('uuid', sa.String(), nullable=True),
@@ -114,12 +114,12 @@ def upgrade():
     sa.Column('view_user_groups', sa.Boolean(), nullable=True),
     sa.Column('update_user_groups', sa.Boolean(), nullable=True),
     sa.Column('delete_user_group', sa.Boolean(), nullable=True),
-    sa.Column('add_alert', sa.Boolean(), nullable=True),
-    sa.Column('view_alerts', sa.Boolean(), nullable=True),
-    sa.Column('update_alert', sa.Boolean(), nullable=True),
-    sa.Column('delete_alert', sa.Boolean(), nullable=True),
-    sa.Column('add_tag_to_alert', sa.Boolean(), nullable=True),
-    sa.Column('remove_tag_from_alert', sa.Boolean(), nullable=True),
+    sa.Column('add_event', sa.Boolean(), nullable=True),
+    sa.Column('view_events', sa.Boolean(), nullable=True),
+    sa.Column('update_event', sa.Boolean(), nullable=True),
+    sa.Column('delete_event', sa.Boolean(), nullable=True),
+    sa.Column('add_tag_to_event', sa.Boolean(), nullable=True),
+    sa.Column('remove_tag_from_event', sa.Boolean(), nullable=True),
     sa.Column('add_observable', sa.Boolean(), nullable=True),
     sa.Column('update_observable', sa.Boolean(), nullable=True),
     sa.Column('delete_observable', sa.Boolean(), nullable=True),
@@ -235,7 +235,7 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
-    op.create_table('alert',
+    op.create_table('event',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('uuid', sa.String(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
@@ -247,7 +247,7 @@ def upgrade():
     sa.Column('severity', sa.Integer(), nullable=True),
     sa.Column('status_id', sa.String(), nullable=True),
     sa.Column('raw_log', sa.JSON(), nullable=True),
-    sa.ForeignKeyConstraint(['status_id'], ['alert_status.uuid'], ),
+    sa.ForeignKeyConstraint(['status_id'], ['event_status.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
@@ -329,10 +329,10 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
-    op.create_table('observable_alert',
+    op.create_table('observable_event',
     sa.Column('observable_uuid', sa.String(), nullable=True),
-    sa.Column('alert_uuid', sa.String(), nullable=True),
-    sa.ForeignKeyConstraint(['alert_uuid'], ['alert.uuid'], ),
+    sa.Column('event_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['event_uuid'], ['event.uuid'], ),
     sa.ForeignKeyConstraint(['observable_uuid'], ['observable.uuid'], )
     )
     op.create_table('plugin_plugin_config',
@@ -341,10 +341,10 @@ def upgrade():
     sa.ForeignKeyConstraint(['plugin_config.uuid'], ['plugin_config.uuid'], ),
     sa.ForeignKeyConstraint(['plugin_uuid'], ['plugin.uuid'], )
     )
-    op.create_table('tag_alert',
-    sa.Column('alert_uuid', sa.String(), nullable=True),
+    op.create_table('tag_event',
+    sa.Column('event_uuid', sa.String(), nullable=True),
     sa.Column('tag_id', sa.String(), nullable=True),
-    sa.ForeignKeyConstraint(['alert_uuid'], ['alert.uuid'], ),
+    sa.ForeignKeyConstraint(['event_uuid'], ['event.uuid'], ),
     sa.ForeignKeyConstraint(['tag_id'], ['tag.uuid'], )
     )
     op.create_table('tag_input',
@@ -436,12 +436,6 @@ def upgrade():
     sa.ForeignKeyConstraint(['user_group_uuid'], ['user_group.uuid'], ),
     sa.ForeignKeyConstraint(['user_uuid'], ['user.uuid'], )
     )
-    op.create_table('alert_case',
-    sa.Column('alert_uuid', sa.String(), nullable=True),
-    sa.Column('case_uuid', sa.String(), nullable=True),
-    sa.ForeignKeyConstraint(['alert_uuid'], ['alert.uuid'], ),
-    sa.ForeignKeyConstraint(['case_uuid'], ['case.uuid'], )
-    )
     op.create_table('case_comment',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('uuid', sa.String(), nullable=True),
@@ -491,6 +485,12 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
+    op.create_table('event_case',
+    sa.Column('event_uuid', sa.String(), nullable=True),
+    sa.Column('case_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['case_uuid'], ['case.uuid'], ),
+    sa.ForeignKeyConstraint(['event_uuid'], ['event.uuid'], )
+    )
     op.create_table('observable_case',
     sa.Column('observable_uuid', sa.String(), nullable=True),
     sa.Column('case_uuid', sa.String(), nullable=True),
@@ -524,10 +524,10 @@ def downgrade():
     op.drop_table('tag_case_template')
     op.drop_table('tag_case')
     op.drop_table('observable_case')
+    op.drop_table('event_case')
     op.drop_table('case_template_task')
     op.drop_table('case_task')
     op.drop_table('case_comment')
-    op.drop_table('alert_case')
     op.drop_table('user_group_assignment')
     op.drop_table('case_template')
     op.drop_table('case')
@@ -537,27 +537,27 @@ def downgrade():
     op.drop_table('user')
     op.drop_table('tag_observable')
     op.drop_table('tag_input')
-    op.drop_table('tag_alert')
+    op.drop_table('tag_event')
     op.drop_table('plugin_plugin_config')
-    op.drop_table('observable_alert')
+    op.drop_table('observable_event')
     op.drop_table('agent')
     op.drop_table('tag_playbook')
     op.drop_table('role')
     op.drop_table('plugin_config')
     op.drop_table('observable')
     op.drop_table('input')
-    op.drop_table('alert')
+    op.drop_table('event')
     op.drop_table('user_group')
     op.drop_table('tag')
     op.drop_table('refresh_token')
     op.drop_table('plugin')
     op.drop_table('playbook')
     op.drop_table('permission')
+    op.drop_table('event_status')
     op.drop_table('data_type')
     op.drop_table('credential')
     op.drop_table('case_status')
     op.drop_table('auth_token_blacklist')
-    op.drop_table('alert_status')
     op.drop_table('agent_role')
     op.drop_table('agent_group')
     # ### end Alembic commands ###

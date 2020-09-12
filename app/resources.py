@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc
-from .models import User, UserGroup, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Alert, Observable, DataType, Input, AlertStatus, Agent, AgentRole, AgentGroup, Case, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
+from .models import User, UserGroup, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -35,8 +35,8 @@ ns_playbook = api.namespace(
 ns_input = api.namespace(
     'Input', description='Input operations', path='/input')
 ns_tag = api.namespace('Tag', description='Tag operations', path='/tag')
-ns_alert = api.namespace(
-    'Alert', description='Alert operations', path='/alert')
+ns_event = api.namespace(
+    'Event', description='Event operations', path='/event')
 ns_case = api.namespace('Case', description='Case operations', path='/case')
 ns_case_template = api.namespace(
     'CaseTemplate', description='Case Template operations', path='/case_template')
@@ -379,13 +379,13 @@ class CaseList(Resource):
                 if observable:
                     api.payload['observables'].append(observable)
 
-        if 'alerts' in api.payload:
-            alerts = api.payload.pop('alerts')
-            api.payload['alerts'] = []
-            for uuid in alerts:
-                alert = Alert.query.filter_by(uuid=uuid).first()
-                if alert:
-                    api.payload['alerts'].append(alert)
+        if 'events' in api.payload:
+            events = api.payload.pop('events')
+            api.payload['events'] = []
+            for uuid in events:
+                event = Event.query.filter_by(uuid=uuid).first()
+                if event:
+                    api.payload['events'].append(event)
 
         case = Case(**api.payload)
         case.create()
@@ -398,6 +398,10 @@ class CaseList(Resource):
         case_status = CaseStatus.query.filter_by(name="New").first()
         case.status = case_status
         case.save()
+
+        for event in case.events:
+            event.status = EventStatus.query.filter_by(name='Open').first()
+            event.save()
 
         return {'message': 'Successfully created the case.'}
 
@@ -880,7 +884,7 @@ class TagPlaybook(Resource):
             playbook.tags += [tag]
             playbook.save()
         else:
-            ns_alert.abort(404, 'Playbook not found.')
+            ns_event.abort(404, 'Playbook not found.')
         return {'message': 'Successfully added tag to playbook.'}
 
 
@@ -1128,7 +1132,7 @@ class PluginConfigList(Resource):
     @api.doc(security="Bearer")
     @api.expect(mod_plugin_config_create)
     @api.response('409', 'Plugin Config already exists.')
-    @api.response('200', "Successfully created the alert.")
+    @api.response('200', "Successfully created the event.")
     @token_required
     @user_has('create_plugin')
     def post(self, current_user):
@@ -1203,7 +1207,7 @@ class PluginList(Resource):
     @api.doc(security="Bearer")
     @api.expect(mod_plugin_create)
     @api.response('409', 'Plugin already exists.')
-    @api.response('200', "Successfully created the alert.")
+    @api.response('200', "Successfully created the event.")
     @token_required
     @user_has('create_plugin')
     def post(self, current_user):
@@ -1262,26 +1266,26 @@ class PluginDetails(Resource):
             return {'message': 'Sucessfully deleted plugin.'}
 
 
-@ns_alert.route("/_bulk")
-class CreateBulkAlerts(Resource):
+@ns_event.route("/_bulk")
+class CreateBulkEvents(Resource):
 
-    @api.expect(mod_alert_create_bulk)
-    @api.response('200', 'Sucessfully created alerts.')
+    @api.expect(mod_event_create_bulk)
+    @api.response('200', 'Sucessfully created events.')
     @api.response('207', 'Multi-Status')
     def post(self):
-        ''' Creates Alerts in bulk '''
+        ''' Creates Events in bulk '''
         response = {
             'results': [],
             'success': True
         }
-        alert_status = AlertStatus.query.filter_by(name="New").first()
+        event_status = EventStatus.query.filter_by(name="New").first()
 
-        alerts = api.payload['alerts']
-        for item in alerts:
+        events = api.payload['events']
+        for item in events:
             _tags = []
             _observables = []
-            alert = Alert.query.filter_by(reference=item['reference']).first()
-            if not alert:
+            event = Event.query.filter_by(reference=item['reference']).first()
+            if not event:
                 if 'tags' in item:
                     tags = item.pop('tags')
                     _tags = parse_tags(tags)
@@ -1290,53 +1294,53 @@ class CreateBulkAlerts(Resource):
                     observables = item.pop('observables')
                     _observables = create_observables(observables)
 
-                alert = Alert(**item)
-                alert.create()
+                event = Event(**item)
+                event.create()
 
-                alert.status = alert_status
-                alert.save()
+                event.status = event_status
+                event.save()
 
                 if len(_tags) > 0:
-                    alert.tags += _tags
-                    alert.save()
+                    event.tags += _tags
+                    event.save()
 
                 if len(_observables) > 0:
-                    alert.observables += _observables
-                    alert.save()
+                    event.observables += _observables
+                    event.save()
 
                 response['results'].append(
-                    {'reference': item['reference'], 'status': 200, 'message': 'Alert successfully created.'})
+                    {'reference': item['reference'], 'status': 200, 'message': 'Event successfully created.'})
             else:
                 response['results'].append(
-                    {'reference': item['reference'], 'status': 409, 'message': 'Alert already exists.'})
+                    {'reference': item['reference'], 'status': 409, 'message': 'Event already exists.'})
                 response['success'] = False
         return response, 207
 
 
-@ns_alert.route("")
-class AlertList(Resource):
+@ns_event.route("")
+class EventList(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_alert_list, as_list=True)
+    @api.marshal_with(mod_event_list, as_list=True)
     @token_required
-    @user_has('view_alerts')
+    @user_has('view_events')
     def get(self, current_user):
-        ''' Returns a list of alert '''
-        return Alert.query.order_by(desc(Alert.created_at)).all()
+        ''' Returns a list of event '''
+        return Event.query.order_by(desc(Event.created_at)).all()
 
     @api.doc(security="Bearer")
-    @api.expect(mod_alert_create)
-    @api.response('409', 'Alert already exists.')
-    @api.response('200', "Successfully created the alert.")
+    @api.expect(mod_event_create)
+    @api.response('409', 'Event already exists.')
+    @api.response('200', "Successfully created the event.")
     @token_required
-    @user_has('add_alert')
+    @user_has('add_event')
     def post(self, current_user):
         _observables = []
         _tags = []
-        ''' Creates a new alert '''
-        alert = Alert.query.filter_by(
+        ''' Creates a new event '''
+        event = Event.query.filter_by(
             reference=api.payload['reference']).first()
-        if not alert:
+        if not event:
             if 'tags' in api.payload:
                 tags = api.payload.pop('tags')
                 _tags = parse_tags(tags)
@@ -1345,123 +1349,123 @@ class AlertList(Resource):
                 observables = api.payload.pop('observables')
                 _observables = create_observables(observables)
 
-            alert = Alert(**api.payload)
-            alert.create()
+            event = Event(**api.payload)
+            event.create()
 
             # Set the default status to New
-            alert_status = AlertStatus.query.filter_by(name="New").first()
-            alert.status = alert_status
-            alert.save()
+            event_status = EventStatus.query.filter_by(name="New").first()
+            event.status = event_status
+            event.save()
 
             if len(_tags) > 0:
-                alert.tags += _tags
-                alert.save()
+                event.tags += _tags
+                event.save()
 
             if len(_observables) > 0:
-                alert.observables += _observables
-                alert.save()
+                event.observables += _observables
+                event.save()
 
-            return {'message': 'Successfully created the alert.'}
+            return {'message': 'Successfully created the event.'}
         else:
-            ns_alert.abort(409, 'Alert already exists.')
+            ns_event.abort(409, 'Event already exists.')
 
 
-@ns_alert.route("/<uuid>")
-class AlertDetails(Resource):
+@ns_event.route("/<uuid>")
+class EventDetails(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_alert_details)
+    @api.marshal_with(mod_event_details)
     @api.response('200', 'Success')
-    @api.response('404', 'Alert not found')
+    @api.response('404', 'Event not found')
     @token_required
-    @user_has('view_alerts')
+    @user_has('view_events')
     def get(self, current_user, uuid):
-        ''' Returns information about a alert '''
-        alert = Alert.query.filter_by(uuid=uuid).first()
-        if alert:
-            return alert
+        ''' Returns information about a event '''
+        event = Event.query.filter_by(uuid=uuid).first()
+        if event:
+            return event
         else:
-            ns_alert.abort(404, 'Alert not found.')
+            ns_event.abort(404, 'Event not found.')
 
     @api.doc(security="Bearer")
-    @api.expect(mod_alert_create)
-    @api.marshal_with(mod_alert_details)
+    @api.expect(mod_event_create)
+    @api.marshal_with(mod_event_details)
     @token_required
-    @user_has('update_alert')
+    @user_has('update_event')
     def put(self, current_user, uuid):
-        ''' Updates information for a alert '''
-        alert = Alert.query.filter_by(uuid=uuid).first()
-        if alert:
-            if 'name' in api.payload and Alert.query.filter_by(name=api.payload['name']).first():
-                ns_alert.abort(409, 'Alert name already exists.')
+        ''' Updates information for a event '''
+        event = Event.query.filter_by(uuid=uuid).first()
+        if event:
+            if 'name' in api.payload and Event.query.filter_by(name=api.payload['name']).first():
+                ns_event.abort(409, 'Event name already exists.')
             else:
-                alert.update(api.payload)
-                return alert
+                event.update(api.payload)
+                return event
         else:
-            ns_alert.abort(404, 'Alert not found.')
+            ns_event.abort(404, 'Event not found.')
 
     @api.doc(security="Bearer")
     @token_required
-    @user_has('delete_alert')
+    @user_has('delete_event')
     def delete(self, current_user, uuid):
-        ''' Deletes a alert '''
-        alert = Alert.query.filter_by(uuid=uuid).first()
-        if alert:
-            alert.delete()
-            return {'message': 'Sucessfully deleted alert.'}
+        ''' Deletes a event '''
+        event = Event.query.filter_by(uuid=uuid).first()
+        if event:
+            event.delete()
+            return {'message': 'Sucessfully deleted event.'}
 
 
-@ns_alert.route('/<uuid>/remove_tag/<name>')
-class DeleteAlertTag(Resource):
+@ns_event.route('/<uuid>/remove_tag/<name>')
+class DeleteEventTag(Resource):
 
     @api.doc(security="Bearer")
     @token_required
-    # @user_has('remove_tag_from_alert')
+    # @user_has('remove_tag_from_event')
     def delete(self, uuid, name, current_user):
-        ''' Removes a tag from an alert '''
+        ''' Removes a tag from an event '''
         tag = Tag.query.filter_by(name=name).first()
         if not tag:
-            ns_alert.abort(404, 'Tag not found.')
-        alert = Alert.query.filter_by(uuid=uuid).first()
-        if alert:
-            alert.tags.remove(tag)
-            alert.save()
+            ns_event.abort(404, 'Tag not found.')
+        event = Event.query.filter_by(uuid=uuid).first()
+        if event:
+            event.tags.remove(tag)
+            event.save()
         else:
-            ns_alert.abort(404, 'Alert not found.')
-        return {'message': 'Successfully removed tag from alert.'}
+            ns_event.abort(404, 'Event not found.')
+        return {'message': 'Successfully removed tag from event.'}
 
 
-@ns_alert.route("/<uuid>/tag/<name>")
-class TagAlert(Resource):
+@ns_event.route("/<uuid>/tag/<name>")
+class TagEvent(Resource):
 
     @api.doc(security="Bearer")
     @token_required
-    @user_has('add_tag_to_alert')
+    @user_has('add_tag_to_event')
     def post(self, uuid, name, current_user):
-        ''' Adds a tag to an alert '''
+        ''' Adds a tag to an event '''
         tag = Tag.query.filter_by(name=name).first()
         if not tag:
             tag = Tag(**{'name': name, 'color': '#fffff'})
             tag.create()
 
-        alert = Alert.query.filter_by(uuid=uuid).first()
-        if alert:
-            alert.tags += [tag]
-            alert.save()
+        event = Event.query.filter_by(uuid=uuid).first()
+        if event:
+            event.tags += [tag]
+            event.save()
         else:
-            ns_alert.abort(404, 'Alert not found.')
-        return {'message': 'Successfully added tag to alert.'}
+            ns_event.abort(404, 'Event not found.')
+        return {'message': 'Successfully added tag to event.'}
 
 
-@ns_alert.route("/<uuid>/bulktag")
-class BulkTagAlert(Resource):
+@ns_event.route("/<uuid>/bulktag")
+class BulkTagEvent(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(mod_bulk_tag)
     @token_required
-    @user_has('add_tag_to_alert')
+    @user_has('add_tag_to_event')
     def post(self, uuid, current_user):
-        ''' Adds a tag to an alert '''
+        ''' Adds a tag to an event '''
         _tags = []
         if 'tags' in api.payload:
             tags = api.payload['tags']
@@ -1474,13 +1478,13 @@ class BulkTagAlert(Resource):
                 else:
                     _tags += [tag]
 
-        alert = Alert.query.filter_by(uuid=uuid).first()
-        if alert:
-            alert.tags += _tags
-            alert.save()
+        event = Event.query.filter_by(uuid=uuid).first()
+        if event:
+            event.tags += _tags
+            event.save()
         else:
-            ns_alert.abort(404, 'Alert not found.')
-        return {'message': 'Successfully added tag to alert.'}
+            ns_event.abort(404, 'Event not found.')
+        return {'message': 'Successfully added tag to event.'}
 
 
 @ns_agent.route("/pair_token")

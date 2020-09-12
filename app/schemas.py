@@ -98,12 +98,12 @@ permission_fields = {
     'reset_user_password': fields.Boolean,
     'unlock_user': fields.Boolean,
     'view_users': fields.Boolean,
-    'add_alert': fields.Boolean,
-    'view_alerts': fields.Boolean,
-    'update_alert': fields.Boolean,
-    'delete_alert': fields.Boolean,
-    'add_tag_to_alert': fields.Boolean,
-    'remove_tag_from_alert': fields.Boolean,
+    'add_event': fields.Boolean,
+    'view_events': fields.Boolean,
+    'update_event': fields.Boolean,
+    'delete_event': fields.Boolean,
+    'add_tag_to_event': fields.Boolean,
+    'remove_tag_from_event': fields.Boolean,
     'add_observable': fields.Boolean,
     'update_observable': fields.Boolean,
     'delete_observable': fields.Boolean,
@@ -291,7 +291,7 @@ mod_bulk_tag = Model('BulkTag', {
     'tags': fields.List(fields.String)
 })
 
-mod_alert_create = Model('AlertCreate', {
+mod_event_create = Model('EventCreate', {
     'title': fields.String(required=True),
     'reference': fields.String(required=True),
     'description': fields.String(required=True),
@@ -302,18 +302,18 @@ mod_alert_create = Model('AlertCreate', {
     'raw_log': fields.String
 })
 
-mod_alert_status = Model('AlertStatusString', {
+mod_event_status = Model('EventStatusString', {
     'name': fields.String
 })
 
-mod_alert_details = Model('AlertDetails', {
+mod_event_details = Model('EventDetails', {
     'uuid': fields.String,
     'title': fields.String(required=True),
     'reference': fields.String(required=True),
     'description': fields.String(required=True),
     'tlp': fields.Integer,
     'severity': fields.Integer,
-    'status': fields.Nested(mod_alert_status),
+    'status': fields.Nested(mod_event_status),
     'tags': fields.List(fields.Nested(mod_tag_list)),
     'observables': fields.List(fields.Nested(mod_observable_list)),
     'observable_count': ObservableCount(attribute='observables'),
@@ -323,8 +323,8 @@ mod_alert_details = Model('AlertDetails', {
     'raw_log': JSONField()
 })
 
-mod_alert_create_bulk = Model('AlertCreateBulk', {
-    'alerts': fields.List(fields.Nested(mod_alert_create))
+mod_event_create_bulk = Model('EventCreateBulk', {
+    'events': fields.List(fields.Nested(mod_event_create))
 })
 
 mod_observable = Model('ObservableDetails', {
@@ -336,14 +336,14 @@ mod_observable = Model('ObservableDetails', {
     'dataType': fields.Nested(mod_observable_type_name)
 })
 
-mod_alert_list = Model('AlertList', {
+mod_event_list = Model('EventList', {
     'uuid': fields.String,
     'title': fields.String(required=True),
     'reference': fields.String(required=True),
     'description': fields.String(required=True),
     'tlp': fields.Integer,
     'severity': fields.Integer,
-    'status': fields.Nested(mod_alert_status),
+    'status': fields.Nested(mod_event_status),
     'tags': fields.List(fields.Nested(mod_tag_list)),
     'observables': fields.List(fields.Nested(mod_observable_list)),
     'observable_count': ObservableCount(attribute='observables'),
@@ -453,7 +453,8 @@ mod_case_create = Model('CaseCreate', {
     'tags': fields.List(fields.String),
     'tlp': fields.Integer,
     'severity': fields.Integer,
-    'observables': fields.List(fields.String)
+    'observables': fields.List(fields.String),
+    'events': fields.List(fields.String)
 })
 
 mod_case_template_create = Model('CaseTemplateCreate', {
@@ -473,7 +474,7 @@ mod_case_template_full = Model('CaseTemplateList', {
     'tags': fields.List(fields.Nested(mod_tag_list)),
     'tlp': fields.Integer,
     'severity': fields.Integer,
-    'status': fields.Nested(mod_alert_status),
+    'status': fields.Nested(mod_event_status),
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
     'tasks': fields.List(fields.Nested(mod_case_template_task_full))
@@ -493,12 +494,12 @@ mod_case_full = Model('CaseDetails', {
     'tags': fields.List(fields.String),
     'tlp': fields.Integer,
     'severity': fields.Integer,
-    'status': fields.Nested(mod_alert_status),
+    'status': fields.Nested(mod_event_status),
     'observable_count': ObservableCount(attribute='observables'),
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
     'observables': fields.List(fields.Nested(mod_observable_create)),
-    'alerts': fields.List(fields.Nested(mod_alert_details))
+    'events': fields.List(fields.Nested(mod_event_details))
 })
 
 mod_plugin_create = Model('PluginCreate', {
@@ -554,8 +555,8 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_permission_full, mod_permission_list, mod_role_uuid, mod_permission_role_view, mod_bulk_tag,
                  mod_playbook_full,  mod_playbook_create, mod_playbook_list, mod_bulk_tag,
                  mod_observable, mod_observable_create, mod_observable_list, mod_observable_type, mod_observable_type_name,
-                 mod_alert_create, mod_alert_details, mod_alert_list, mod_credential_list,
-                 mod_input_create, mod_input_list, mod_alert_create_bulk, mod_alert_status,
+                 mod_event_create, mod_event_details, mod_event_list, mod_credential_list,
+                 mod_input_create, mod_input_list, mod_event_create_bulk, mod_event_status,
                  mod_agent_create, mod_agent_list, mod_agent_role_list,
                  mod_case_create, mod_case_status, mod_case_full,
                  mod_plugin_create, mod_plugin_list,

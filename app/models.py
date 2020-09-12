@@ -29,8 +29,8 @@ playbook_tag_association = db.Table('tag_playbook', db.metadata,
     db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
 )
 
-alert_tag_association = db.Table('tag_alert', db.metadata,
-    db.Column('alert_uuid', db.String, db.ForeignKey('alert.uuid')),
+event_tag_association = db.Table('tag_event', db.metadata,
+    db.Column('event_uuid', db.String, db.ForeignKey('event.uuid')),
     db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
 )
 
@@ -39,9 +39,9 @@ observable_tag_association = db.Table('tag_observable', db.metadata,
     db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
 )
 
-observable_alert_association = db.Table('observable_alert', db.metadata,
+observable_event_association = db.Table('observable_event', db.metadata,
     db.Column('observable_uuid', db.String, db.ForeignKey('observable.uuid')),
-    db.Column('alert_uuid', db.String, db.ForeignKey('alert.uuid'))
+    db.Column('event_uuid', db.String, db.ForeignKey('event.uuid'))
 )
 
 input_tag_association = db.Table('tag_input', db.metadata,
@@ -69,8 +69,8 @@ observable_case_association = db.Table('observable_case', db.metadata,
     db.Column('case_uuid', db.String, db.ForeignKey('case.uuid'))
 )
 
-alert_case_association = db.Table('alert_case', db.metadata,
-    db.Column('alert_uuid', db.String, db.ForeignKey('alert.uuid')),
+event_case_association = db.Table('event_case', db.metadata,
+    db.Column('event_uuid', db.String, db.ForeignKey('event.uuid')),
     db.Column('case_uuid', db.String, db.ForeignKey('case.uuid'))
 )
 
@@ -168,13 +168,13 @@ class Permission(Base):
     update_user_groups = db.Column(db.Boolean, default=False)
     delete_user_group = db.Column(db.Boolean, default=False)
 
-    # Alert Permissions
-    add_alert = db.Column(db.Boolean, default=False)
-    view_alerts = db.Column(db.Boolean, default=False)
-    update_alert = db.Column(db.Boolean, default=False)
-    delete_alert = db.Column(db.Boolean, default=False)
-    add_tag_to_alert = db.Column(db.Boolean, default=False)
-    remove_tag_from_alert = db.Column(db.Boolean, default=False)
+    # Event Permissions
+    add_event = db.Column(db.Boolean, default=False)
+    view_events = db.Column(db.Boolean, default=False)
+    update_event = db.Column(db.Boolean, default=False)
+    delete_event = db.Column(db.Boolean, default=False)
+    add_tag_to_event = db.Column(db.Boolean, default=False)
+    remove_tag_from_event = db.Column(db.Boolean, default=False)
 
     # Observable Permissions
     add_observable = db.Column(db.Boolean, default=False)
@@ -367,7 +367,7 @@ class Case(Base):
     owner = db.relationship('User')
     tlp = db.Column(db.Integer, default=2)
     observables = db.relationship('Observable', secondary=observable_case_association)
-    alerts = db.relationship('Alert', secondary=alert_case_association)
+    events = db.relationship('Event', secondary=event_case_association)
     tags = db.relationship('Tag', secondary=case_tag_association)
     status_id = db.Column(db.String, db.ForeignKey('case_status.uuid'))
     status = db.relationship("CaseStatus")
@@ -424,21 +424,21 @@ class CaseTemplateTask(Base):
     status = db.Column(db.Integer)
 
 
-class Alert(Base):
+class Event(Base):
 
     title = db.Column(db.String(255), nullable=False)
     reference = db.Column(db.String(255), nullable=False)
     description = db.Column(db.String, nullable=False)
     tlp = db.Column(db.Integer, default=2)
     severity = db.Column(db.Integer, default=2)
-    status_id = db.Column(db.String, db.ForeignKey('alert_status.uuid'))
-    status = db.relationship("AlertStatus")
-    observables = db.relationship('Observable', secondary=observable_alert_association)
-    tags = db.relationship('Tag', secondary=alert_tag_association)
+    status_id = db.Column(db.String, db.ForeignKey('event_status.uuid'))
+    status = db.relationship("EventStatus")
+    observables = db.relationship('Observable', secondary=observable_event_association)
+    tags = db.relationship('Tag', secondary=event_tag_association)
     raw_log = db.Column(db.JSON)
 
 
-class AlertStatus(Base):
+class EventStatus(Base):
 
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.String, nullable=False)
