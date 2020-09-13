@@ -367,7 +367,7 @@ class Case(Base):
     owner = db.relationship('User')
     tlp = db.Column(db.Integer, default=2)
     observables = db.relationship('Observable', secondary=observable_case_association)
-    events = db.relationship('Event', secondary=event_case_association)
+    events = db.relationship('Event', back_populates='case')
     tags = db.relationship('Tag', secondary=case_tag_association)
     status_id = db.Column(db.String, db.ForeignKey('case_status.uuid'))
     status = db.relationship("CaseStatus")
@@ -435,6 +435,8 @@ class Event(Base):
     status = db.relationship("EventStatus")
     observables = db.relationship('Observable', secondary=observable_event_association)
     tags = db.relationship('Tag', secondary=event_tag_association)
+    case_uuid = db.Column(db.String, db.ForeignKey('case.uuid'))
+    case = db.relationship('Case', back_populates='events')
     raw_log = db.Column(db.JSON)
 
 

@@ -358,9 +358,11 @@ class CaseList(Resource):
     @token_required
     # @user_has('create_case')
     def post(self, current_user):
+
+        print(api.payload)
         _tags = []
+        event_observables = []
         ''' Creates a new case '''
-        #case = Case.query.filter_by(title=api.payload['title']).first()
         if 'tags' in api.payload:
             tags = api.payload.pop('tags')
             _tags = parse_tags(tags)
@@ -380,12 +382,22 @@ class CaseList(Resource):
                     api.payload['observables'].append(observable)
 
         if 'events' in api.payload:
+            api.payload['observables'] = []
             events = api.payload.pop('events')
             api.payload['events'] = []
+            #observable_collection = {}
             for uuid in events:
                 event = Event.query.filter_by(uuid=uuid).first()
                 if event:
                     api.payload['events'].append(event)
+                if event.observables:
+                    for observable in event.observables:
+                        api.payload['observables'].append(observable)
+                        #data = {'created_at': observable.created_at, 'uuid': observable.uuid}
+                        #if observable.value in observable_collection:
+                        #    observable_collection[observable.value].append(data)
+                        #else:
+                        #    observable_collection[observable.value] = [data]
 
         case = Case(**api.payload)
         case.create()
@@ -403,7 +415,7 @@ class CaseList(Resource):
             event.status = EventStatus.query.filter_by(name='Open').first()
             event.save()
 
-        return {'message': 'Successfully created the case.'}
+        return {'message': 'Successfully created the case.', 'uuid': case.uuid}
 
 
 @ns_case.route("/<uuid>")
@@ -415,7 +427,7 @@ class CaseDetails(Resource):
     @api.response('404', 'Case not found')
     @token_required
     @user_has('view_cases')
-    def get(self, uuid):
+    def get(self, uuid, current_user):
         ''' Returns information about a case '''
         case = Case.query.filter_by(uuid=uuid).first()
         if case:
@@ -428,7 +440,7 @@ class CaseDetails(Resource):
     @api.marshal_with(mod_case_full)
     @token_required
     @user_has('update_case')
-    def put(self, uuid):
+    def put(self, uuid, current_user):
         ''' Updates information for a case '''
         case = Case.query.filter_by(uuid=uuid).first()
         if case:
@@ -443,7 +455,7 @@ class CaseDetails(Resource):
     @api.doc(security="Bearer")
     @token_required
     @user_has('delete_case')
-    def delete(self, uuid):
+    def delete(self, uuid, current_user):
         ''' Deletes a case '''
         case = Case.query.filter_by(uuid=uuid).first()
         if case:

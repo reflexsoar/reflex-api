@@ -306,6 +306,10 @@ mod_event_status = Model('EventStatusString', {
     'name': fields.String
 })
 
+mod_case_uuid = Model('CaseUUID', {
+    'uuid': fields.String
+})
+
 mod_event_details = Model('EventDetails', {
     'uuid': fields.String,
     'title': fields.String(required=True),
@@ -318,6 +322,7 @@ mod_event_details = Model('EventDetails', {
     'observables': fields.List(fields.Nested(mod_observable_list)),
     'observable_count': ObservableCount(attribute='observables'),
     'ioc_count': IOCCount(attribute='observables'),
+    'case_uuid': fields.String,
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
     'raw_log': JSONField()
@@ -349,7 +354,8 @@ mod_event_list = Model('EventList', {
     'observable_count': ObservableCount(attribute='observables'),
     'ioc_count': IOCCount(attribute='observables'),
     'created_at': fields.DateTime,
-    'modified_at': fields.DateTime
+    'modified_at': fields.DateTime,
+    'case_uuid': fields.String
 })
 
 mod_observable_type = Model('ObservableType', {
@@ -491,14 +497,14 @@ mod_case_full = Model('CaseDetails', {
     'title': fields.String,
     'owner': fields.Nested(mod_user_list),
     'description': fields.String,
-    'tags': fields.List(fields.String),
+    'tags': fields.List(fields.Nested(mod_tag)),
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'status': fields.Nested(mod_event_status),
     'observable_count': ObservableCount(attribute='observables'),
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
-    'observables': fields.List(fields.Nested(mod_observable_create)),
+    'observables': fields.List(fields.Nested(mod_observable_list)),
     'events': fields.List(fields.Nested(mod_event_details))
 })
 
