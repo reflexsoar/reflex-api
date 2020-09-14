@@ -385,19 +385,27 @@ class CaseList(Resource):
             api.payload['observables'] = []
             events = api.payload.pop('events')
             api.payload['events'] = []
-            #observable_collection = {}
+            observable_collection = {}
+
+            # Pull all the observables out of the events
+            # so they can be added to the case
             for uuid in events:
                 event = Event.query.filter_by(uuid=uuid).first()
                 if event:
                     api.payload['events'].append(event)
                 if event.observables:
                     for observable in event.observables:
-                        api.payload['observables'].append(observable)
-                        #data = {'created_at': observable.created_at, 'uuid': observable.uuid}
-                        #if observable.value in observable_collection:
-                        #    observable_collection[observable.value].append(data)
-                        #else:
-                        #    observable_collection[observable.value] = [data]
+                        if observable.value in observable_collection:
+                            observable_collection[observable.value].append(observable)
+                        else:
+                            observable_collection[observable.value] = [observable]
+            
+            # Sort and pull out the most recent observable in the group
+            # of observables
+            for observable in observable_collection:
+                observable_collection[observable] = sorted(observable_collection[observable], key=lambda x: x.created_at, reverse=True)
+                api.payload['observables'].append(observable_collection[observable][0])
+
 
         case = Case(**api.payload)
         case.create()
