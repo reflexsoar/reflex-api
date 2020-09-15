@@ -358,7 +358,6 @@ class AuthTokenBlacklist(Base):
 
 class Case(Base):
 
-    number = db.Column(db.Integer, autoincrement=True)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.String)
     comments = db.relationship('CaseComment')

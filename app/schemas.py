@@ -493,6 +493,7 @@ mod_case_status = Model('CaseStatusString', {
 })
 
 mod_case_full = Model('CaseDetails', {
+    'id': fields.Integer,
     'uuid': fields.String,
     'title': fields.String,
     'owner': fields.Nested(mod_user_list),
