@@ -146,6 +146,21 @@ class Base(db.Model):
         except Exception:
             return 2
 
+    @classmethod
+    def get(self, uuid):
+        return self.query.filter_by(uuid=uuid).first()
+
+    @classmethod
+    def get_by(self, **kwargs):
+        return self.query.filter_by(**kwargs).first()
+
+    @classmethod
+    def get_or_404(self, uuid):
+        return_value = self.get(uuid)
+        if return_value is None:
+            abort(404)
+        return return_value
+
     def save(self):
         db.session.commit()
 

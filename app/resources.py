@@ -341,6 +341,42 @@ class PermissionDetails(Resource):
         return
 
 
+@ns_case.route("/<uuid>/add_observables/_bulk")
+class CaseBulkAddObservables(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_bulk_add_observables)
+    @api.marshal_with(mod_case_observables)
+    @api.response(200, 'Success')
+    #@token_required
+    #@user_has('update_case')
+    def post(self, uuid):
+        ''' 
+        Adds a collection of observables to a Case 
+
+        Expects a list of observables using the Observable model.  Note: Duplicate observables are ignored
+        
+        '''
+        # Fetch the case via its UUID
+        case = Case.get_or_404(uuid)
+
+        # Remove observables that are already in the case
+        observable_values = [observable.value for observable in case.observables]
+        observables_list = [observable for observable in api.payload['observables'] if observable['value'] not in observable_values]
+
+        # Process all the observables in the API call
+        observables = create_observables(observables_list)
+        
+        # Add the observables to the case
+        if(len(case.observables) == 0):
+            case.observables = observables
+        else:
+            case.observables += observables
+        
+        case.save()
+        return case
+
+
 @ns_case.route("")
 class CaseList(Resource):
 
@@ -373,14 +409,6 @@ class CaseList(Resource):
             if user:
                 api.payload['owner'] = user
 
-        if 'observables' in api.payload:
-            observables = api.payload.pop('observables')
-            api.payload['observables'] = []
-            for uuid in observables:
-                observable = Observable.query.filter_by(uuid=uuid).first()
-                if observable:
-                    api.payload['observables'].append(observable)
-
         if 'events' in api.payload:
             api.payload['observables'] = []
             events = api.payload.pop('events')
@@ -405,6 +433,14 @@ class CaseList(Resource):
             for observable in observable_collection:
                 observable_collection[observable] = sorted(observable_collection[observable], key=lambda x: x.created_at, reverse=True)
                 api.payload['observables'].append(observable_collection[observable][0])
+
+        if 'observables' in api.payload:
+            observables = api.payload.pop('observables')
+            api.payload['observables'] = []
+            for uuid in observables:
+                observable = Observable.query.filter_by(uuid=uuid).first()
+                if observable:
+                    api.payload['observables'].append(observable)
 
 
         case = Case(**api.payload)
@@ -706,7 +742,6 @@ class CaseTemplateTaskDetails(Resource):
             return {'message': 'Sucessfully deleted case_template_task.'}
 
 
-
 @ns_case_comment.route("")
 class CaseCommentList(Resource):
     
@@ -720,11 +755,11 @@ class CaseCommentList(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(mod_comment_create)
-    @api.response('200', mod_comment)
+    @api.response(200, 'AMAZING', mod_comment)
     @api.marshal_with(mod_comment)
-    #@token_required
-    #@user_has('create_case_comment')
-    def post(self):
+    @token_required
+    @user_has('create_case_comment')
+    def post(self, current_user):
         _tags = []
         ''' Creates a new comment '''
         case_comment = CaseComment(**api.payload)

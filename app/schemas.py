@@ -268,6 +268,7 @@ mod_playbook_list = Model('ProjectList', {
 mod_observable_create = Model('Observable', {
     'value': fields.String(required=True),
     'ioc': fields.Boolean,
+    'tlp': fields.Integer,
     'spotted': fields.Boolean,
     'dataType': fields.String(required=True),
     'tags': fields.List(fields.String)
@@ -508,6 +509,15 @@ mod_comment_create = Model('CommentCreate', {
     'message': fields.String
 })
 
+
+mod_bulk_add_observables = Model('BulkObservables', {
+    'observables': fields.List(fields.Nested(mod_observable_create))
+})
+
+mod_case_observables = Model('CaseObservables', {
+    'observables': fields.List(fields.Nested(mod_observable_list))
+})
+
 mod_case_full = Model('CaseDetails', {
     'id': fields.Integer,
     'uuid': fields.String,
@@ -592,4 +602,4 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_user_group_create, mod_user_group_list, mod_add_user_to_group,
                  mod_case_template_create, mod_case_template_full,
                  mod_case_template_task_create, mod_case_template_task_full, mod_add_tasks_to_case, mod_comment, mod_comment_create,
-                 mod_case_history]
+                 mod_case_history, mod_bulk_add_observables, mod_case_observables]
