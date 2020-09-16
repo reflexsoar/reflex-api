@@ -129,9 +129,7 @@ class Base(db.Model):
     # TODO : Extend created_by
     # TODO : Extend updated_by
 
-    def update(self, data):
-        self.get_current_user()
-        
+    def update(self, data):       
         for k in data:
             if hasattr(self, k):
                 setattr(self, k, data[k])
@@ -404,6 +402,12 @@ class Case(Base):
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
 
+    def add_history(self, message):
+        history_item = CaseHistory(message=message)
+        history_item.create()
+        self.history.append(history_item)
+        self.save()
+
 class CaseHistory(Base):
     ''' 
     A case history entry that shows what changed on the case
@@ -445,8 +449,6 @@ class CaseTask(Base):
 class CaseComment(Base):
 
     message = db.Column(db.String)
-    author_uuid = db.Column(db.String, db.ForeignKey('user.uuid'))
-    author = db.relationship('User', foreign_keys=[author_uuid])
     case_uuid = db.Column(db.String, db.ForeignKey('case.uuid'))
 
     # AUDIT COLUMNS

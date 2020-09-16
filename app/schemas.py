@@ -474,7 +474,8 @@ mod_case_template_create = Model('CaseTemplateCreate', {
 
 mod_case_history = Model('CaseHistoryEntry', {
     'message': fields.String,
-    'created_at': fields.DateTime
+    'created_at': fields.DateTime,
+    'created_by': fields.Nested(mod_user_list)
 })
 
 mod_case_template_full = Model('CaseTemplateList', {
@@ -496,6 +497,17 @@ mod_case_status = Model('CaseStatusString', {
     'name': fields.String
 })
 
+mod_comment = Model('CommentDetails', {
+    'message': fields.String,
+    'created_by': fields.Nested(mod_user_list),
+    'created_at': fields.DateTime
+})
+
+mod_comment_create = Model('CommentCreate', {
+    'case_uuid': fields.String,
+    'message': fields.String
+})
+
 mod_case_full = Model('CaseDetails', {
     'id': fields.Integer,
     'uuid': fields.String,
@@ -505,11 +517,13 @@ mod_case_full = Model('CaseDetails', {
     'tags': fields.List(fields.Nested(mod_tag)),
     'tlp': fields.Integer,
     'severity': fields.Integer,
+    'comments': fields.List(fields.Nested(mod_comment)),
     'status': fields.Nested(mod_event_status),
     'observable_count': ObservableCount(attribute='observables'),
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
     'created_by': fields.Nested(mod_user_list),
+    'updated_by': fields.Nested(mod_user_list),
     'observables': fields.List(fields.Nested(mod_observable_list)),
     'events': fields.List(fields.Nested(mod_event_details)),
     'history': fields.List(fields.Nested(mod_case_history))
@@ -577,4 +591,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_plugin_config_list, mod_plugin_config_create, mod_plugin_name,
                  mod_user_group_create, mod_user_group_list, mod_add_user_to_group,
                  mod_case_template_create, mod_case_template_full,
-                 mod_case_template_task_create, mod_case_template_task_full, mod_add_tasks_to_case]
+                 mod_case_template_task_create, mod_case_template_task_full, mod_add_tasks_to_case, mod_comment, mod_comment_create,
+                 mod_case_history]

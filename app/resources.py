@@ -53,6 +53,7 @@ ns_plugin = api.namespace(
 ns_plugin_config = api.namespace(
     'PluginConfig', description='Plugin Config operations', path='/plugin_config')
 ns_test = api.namespace('Test', description='Test', path='/test')
+ns_case_comment = api.namespace('CaseComment', description='Case Comments', path='/case_comment')
 
 
 # Expect an API token
@@ -124,7 +125,7 @@ class auth(Resource):
             _refresh_token = user.create_refresh_token(
                 request.user_agent.string.encode('utf-8'))
 
-            return {'access_token': _access_token, 'refresh_token': _refresh_token}, 200
+            return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
 
         ns_auth.abort(401, 'Incorrect username or password')
 
@@ -356,10 +357,9 @@ class CaseList(Resource):
     @api.response('409', 'Case already exists.')
     @api.response('200', "Successfully created the case.")
     @token_required
-    # @user_has('create_case')
+    @user_has('create_case')
     def post(self, current_user):
 
-        print(api.payload)
         _tags = []
         event_observables = []
         ''' Creates a new case '''
@@ -706,12 +706,12 @@ class CaseTemplateTaskDetails(Resource):
             return {'message': 'Sucessfully deleted case_template_task.'}
 
 
-"""
+
 @ns_case_comment.route("")
 class CaseCommentList(Resource):
     
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_case_comment_list, as_list=True)
+    @api.marshal_with(mod_comment, as_list=True)
     @token_required
     @user_has('view_case_comments')
     def get(self, current_user):
@@ -719,42 +719,32 @@ class CaseCommentList(Resource):
         return CaseComment.query.all()
 
     @api.doc(security="Bearer")
-    @api.expect(mod_case_comment_create)
-    @api.response('409', 'Comment already exists.')
-    @api.response('200', "Successfully created the comment.")
-    @token_required
-    @user_has('create_case_comment')
-    def post(self, current_user):
+    @api.expect(mod_comment_create)
+    @api.response('200', mod_comment)
+    @api.marshal_with(mod_comment)
+    #@token_required
+    #@user_has('create_case_comment')
+    def post(self):
         _tags = []
         ''' Creates a new comment '''
-        case_comment = CaseComment.query.filter_by(name=api.payload['name']).first()
-        if not case_comment:
-            if 'tags' in api.payload:
-                tags = api.payload.pop('tags')
-                _tags = parse_tags(tags)
+        case_comment = CaseComment(**api.payload)
+        case_comment.create()
 
-            case_comment = CaseComment(**api.payload)
-            case_comment.create()
-
-            if len(_tags) > 0:
-                case_comment.tags += _tags
-                case_comment.save()
-
-            return {'message':'Successfully created the comment.'}
-        else:
-            ns_case_comment.abort(409, 'Comment already exists.')
+        case = Case.query.filter_by(uuid=api.payload['case_uuid']).first()
+        case.add_history(message="Commented added to case")
+        return case_comment
 
 
 @ns_case_comment.route("/<uuid>")
 class CaseCommentDetails(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_case_comment_full)
+    @api.marshal_with(mod_comment)
     @api.response('200', 'Success')
     @api.response('404', 'Comment not found')
     @token_required
     @user_has('view_case_comments')
-    def get(self, uuid):
+    def get(self, uuid, current_user):
         ''' Returns information about a comment '''
         case_comment = CaseComment.query.filter_by(uuid=uuid).first()
         if case_comment:
@@ -763,32 +753,28 @@ class CaseCommentDetails(Resource):
             ns_case_comment.abort(404, 'Comment not found.')
 
     @api.doc(security="Bearer")
-    @api.expect(mod_case_comment_create)
-    @api.marshal_with(mod_case_comment_full)
+    @api.expect(mod_comment_create)
+    @api.marshal_with(mod_comment)
     @token_required
     @user_has('update_case_comment')
-    def put(self, uuid):
+    def put(self, uuid, current_user):
         ''' Updates information for a comment '''
         case_comment = CaseComment.query.filter_by(uuid=uuid).first()
         if case_comment:
-            if 'name' in api.payload and CaseComment.query.filter_by(name=api.payload['name']).first():
-                ns_case_comment.abort(409, 'Comment name already exists.')
-            else:
-                case_comment.update(api.payload)
-                return case_comment
+            case_comment.update(api.payload)
+            return case_comment
         else:
             ns_case_comment.abort(404, 'Comment not found.')
 
     @api.doc(security="Bearer")
     @token_required
     @user_has('delete_case_comment')
-    def delete(self, uuid):
+    def delete(self, uuid, current_user):
         ''' Deletes a comment '''
         case_comment = CaseComment.query.filter_by(uuid=uuid).first()
         if case_comment:
             case_comment.delete()
             return {'message': 'Sucessfully deleted comment.'}
-"""
 
 
 @ns_playbook.route("")
