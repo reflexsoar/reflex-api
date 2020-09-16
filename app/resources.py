@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc
-from .models import User, UserGroup, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
+from .models import User, UserGroup, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -452,11 +452,19 @@ class CaseDetails(Resource):
         ''' Updates information for a case '''
         case = Case.query.filter_by(uuid=uuid).first()
         if case:
-            if 'name' in api.payload and Case.query.filter_by(name=api.payload['name']).first():
-                ns_case.abort(409, 'Case name already exists.')
-            else:
-                case.update(api.payload)
-                return case
+            for f in ['severity','tlp','status','owner','description']:
+                value = ""
+                if f in api.payload:
+                    if f == 'status':
+                        status = CaseStatus.query.filter_by(uuid=uuid).first()
+                        value = status.Name
+                    if f == 'severity':
+                        value = {1:'Low',2:'Medium',3:'High',4:'Critical'}[api.payload[f]]
+                    history_entry = CaseHistory(message="**{}** changed to **{}**".format(f.title(), value))
+                    history_entry.create()
+                    case.history.append(history_entry)
+            case.update(api.payload)
+            return case
         else:
             ns_case.abort(404, 'Case not found.')
 

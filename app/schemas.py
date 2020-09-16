@@ -472,6 +472,11 @@ mod_case_template_create = Model('CaseTemplateCreate', {
     'severity': fields.Integer
 })
 
+mod_case_history = Model('CaseHistoryEntry', {
+    'message': fields.String,
+    'created_at': fields.DateTime
+})
+
 mod_case_template_full = Model('CaseTemplateList', {
     'uuid': fields.String,
     'title': fields.String,
@@ -485,7 +490,6 @@ mod_case_template_full = Model('CaseTemplateList', {
     'modified_at': fields.DateTime,
     'tasks': fields.List(fields.Nested(mod_case_template_task_full))
 })
-
 
 
 mod_case_status = Model('CaseStatusString', {
@@ -505,8 +509,10 @@ mod_case_full = Model('CaseDetails', {
     'observable_count': ObservableCount(attribute='observables'),
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
+    'created_by': fields.Nested(mod_user_list),
     'observables': fields.List(fields.Nested(mod_observable_list)),
-    'events': fields.List(fields.Nested(mod_event_details))
+    'events': fields.List(fields.Nested(mod_event_details)),
+    'history': fields.List(fields.Nested(mod_case_history))
 })
 
 mod_plugin_create = Model('PluginCreate', {

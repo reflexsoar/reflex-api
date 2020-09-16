@@ -164,8 +164,7 @@ def setup():
         "delete_case_template_task": True
     }
     permissions = Permission(**perms)
-    db.session.add(permissions)
-    db.session.commit()
+    permissions.create()
 
     print("Creating the default administrator role...")
 
@@ -269,7 +268,8 @@ def setup():
     print("Creating default case statuses")
     statuses = {
         'New': 'A new case.',
-        'Closed': 'An cased that has been closed.',
+        'Closed': 'A cased that has been closed.',
+        'Hold': 'A case that has been worked on but is currently not being worked.',
         'In Progress': 'A case that is currently being worked on.'
     }
     for k in statuses:
