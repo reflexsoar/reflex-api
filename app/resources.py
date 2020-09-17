@@ -425,7 +425,7 @@ class CaseList(Resource):
     @api.response('200', "Successfully created the case.")
     @token_required
     @user_has('create_case')
-    def post(self, current_user):
+    def post(self):
 
         _tags = []
         event_observables = []
@@ -439,6 +439,14 @@ class CaseList(Resource):
             user = User.query.filter_by(uuid=owner).first()
             if user:
                 api.payload['owner'] = user
+
+        if 'observables' in api.payload:
+            observables = api.payload.pop('observables')
+            api.payload['observables'] = []
+            for uuid in observables:
+                observable = Observable.query.filter_by(uuid=uuid).first()
+                if observable:
+                    api.payload['observables'].append(observable)
 
         if 'events' in api.payload:
             api.payload['observables'] = []
@@ -465,13 +473,7 @@ class CaseList(Resource):
                 observable_collection[observable] = sorted(observable_collection[observable], key=lambda x: x.created_at, reverse=True)
                 api.payload['observables'].append(observable_collection[observable][0])
 
-        if 'observables' in api.payload:
-            observables = api.payload.pop('observables')
-            api.payload['observables'] = []
-            for uuid in observables:
-                observable = Observable.query.filter_by(uuid=uuid).first()
-                if observable:
-                    api.payload['observables'].append(observable)
+        
 
 
         case = Case(**api.payload)
