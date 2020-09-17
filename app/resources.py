@@ -440,6 +440,7 @@ class CaseList(Resource):
             if user:
                 api.payload['owner'] = user
 
+        """
         if 'observables' in api.payload:
             observables = api.payload.pop('observables')
             api.payload['observables'] = []
@@ -447,6 +448,7 @@ class CaseList(Resource):
                 observable = Observable.query.filter_by(uuid=uuid).first()
                 if observable:
                     api.payload['observables'].append(observable)
+        """
 
         if 'events' in api.payload:
             api.payload['observables'] = []
