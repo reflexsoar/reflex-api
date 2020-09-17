@@ -161,7 +161,10 @@ def setup():
         "create_case_template_task": True,
         "view_case_template_tasks": True,
         "update_case_template_task": True,
-        "delete_case_template_task": True
+        "delete_case_template_task": True,
+        "create_case_status": True,
+        "update_case_status": True,
+        "delete_case_status": True
     }
     permissions = Permission(**perms)
     permissions.create()
@@ -243,7 +246,8 @@ def setup():
         'mail_subject': 'An e-mail subject',
         'hash': 'A hash value',
         'user': 'A username',
-        'command': 'A command that was executed'
+        'command': 'A command that was executed',
+        'url': 'An address to a universal resource'
     }
     for k in dataTypes:
         dt = DataType(name=k, description=dataTypes[k])

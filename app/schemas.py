@@ -164,7 +164,10 @@ permission_fields = {
     "create_case_template_task": fields.Boolean,
     "view_case_template_tasks": fields.Boolean,
     "update_case_template_task": fields.Boolean,
-    "delete_case_template_task": fields.Boolean
+    "delete_case_template_task": fields.Boolean,
+    "create_case_status": fields.Boolean,
+    "update_case_status": fields.Boolean,
+    "delete_case_status": fields.Boolean
 }
 
 mod_permission_role_view = Model('PermissionRoleView', {
@@ -270,6 +273,7 @@ mod_observable_create = Model('Observable', {
     'ioc': fields.Boolean,
     'tlp': fields.Integer,
     'spotted': fields.Boolean,
+    'safe': fields.Boolean,
     'dataType': fields.String(required=True),
     'tags': fields.List(fields.String)
 })
@@ -284,6 +288,7 @@ mod_observable_list = Model('ObservableList', {
     'ioc': fields.Boolean,
     'tlp': fields.Integer,
     'spotted': fields.Boolean,
+    'safe': fields.Boolean,
     'dataType': fields.Nested(mod_observable_type_name),
     'uuid': fields.String
 })
@@ -305,6 +310,10 @@ mod_event_create = Model('EventCreate', {
 
 mod_event_status = Model('EventStatusString', {
     'name': fields.String
+})
+
+mod_case_status_uuid = Model('CaseStatusUUID', {
+    'uuid': fields.String
 })
 
 mod_case_uuid = Model('CaseUUID', {
@@ -455,7 +464,7 @@ mod_add_tasks_to_case = Model('TasksToCase', {
 
 mod_case_create = Model('CaseCreate', {
     'title': fields.String(required=True),
-    'owner': fields.String,
+    'owner_uuid': fields.String,
     'description': fields.String(required=True),
     'tags': fields.List(fields.String),
     'tlp': fields.Integer,
@@ -495,7 +504,19 @@ mod_case_template_full = Model('CaseTemplateList', {
 
 
 mod_case_status = Model('CaseStatusString', {
-    'name': fields.String
+    'name': fields.String,
+    'closed': fields.Boolean
+})
+
+mod_case_status_create = Model('CaseStatusCreate', {
+    'name': fields.String,
+    'description': fields.String
+})
+
+mod_case_status_list = Model('CaseStatusList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String
 })
 
 mod_comment = Model('CommentDetails', {
@@ -528,7 +549,8 @@ mod_case_full = Model('CaseDetails', {
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'comments': fields.List(fields.Nested(mod_comment)),
-    'status': fields.Nested(mod_event_status),
+    'status_uuid': fields.String,
+    'status': fields.Nested(mod_case_status),
     'observable_count': ObservableCount(attribute='observables'),
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
@@ -602,4 +624,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_user_group_create, mod_user_group_list, mod_add_user_to_group,
                  mod_case_template_create, mod_case_template_full,
                  mod_case_template_task_create, mod_case_template_task_full, mod_add_tasks_to_case, mod_comment, mod_comment_create,
-                 mod_case_history, mod_bulk_add_observables, mod_case_observables]
+                 mod_case_history, mod_bulk_add_observables, mod_case_observables,
+                 mod_case_status_create, mod_case_status_list]

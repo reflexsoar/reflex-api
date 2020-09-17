@@ -269,6 +269,11 @@ class Permission(Base):
     update_case_comment = db.Column(db.Boolean, default=False)
     delete_case_comment = db.Column(db.Boolean, default=False)
 
+    # Case Status Permissions
+    create_case_status = db.Column(db.Boolean, default=False)
+    update_case_status = db.Column(db.Boolean, default=False)
+    delete_case_status = db.Column(db.Boolean, default=False)
+
     # Plugin Permissions
     view_plugins = db.Column(db.Boolean, default=False)
     create_plugin = db.Column(db.Boolean, default=False)
@@ -405,7 +410,7 @@ class Case(Base):
     observables = db.relationship('Observable', secondary=observable_case_association)
     events = db.relationship('Event', back_populates='case')
     tags = db.relationship('Tag', secondary=case_tag_association)
-    status_id = db.Column(db.String, db.ForeignKey('case_status.uuid'))
+    status_uuid = db.Column(db.String, db.ForeignKey('case_status.uuid'))
     status = db.relationship("CaseStatus")
     tasks = db.relationship("CaseTask", back_populates='case')
     history = db.relationship("CaseHistory", back_populates='case')
@@ -569,6 +574,7 @@ class Observable(Base):
     tags = db.relationship('Tag', secondary=observable_tag_association)
     ioc = db.Column(db.Boolean, default=False)
     spotted = db.Column(db.Boolean, default=False)
+    safe = db.Column(db.Boolean, default=False)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work

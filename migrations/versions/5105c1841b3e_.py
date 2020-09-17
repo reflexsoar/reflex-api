@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: e4a6143d26e9
+Revision ID: 5105c1841b3e
 Revises: 
-Create Date: 2020-09-15 22:53:37.072260
+Create Date: 2020-09-16 21:34:04.717430
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'e4a6143d26e9'
+revision = '5105c1841b3e'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -108,6 +108,9 @@ def upgrade():
     sa.Column('view_case_comments', sa.Boolean(), nullable=True),
     sa.Column('update_case_comment', sa.Boolean(), nullable=True),
     sa.Column('delete_case_comment', sa.Boolean(), nullable=True),
+    sa.Column('create_case_status', sa.Boolean(), nullable=True),
+    sa.Column('update_case_status', sa.Boolean(), nullable=True),
+    sa.Column('delete_case_status', sa.Boolean(), nullable=True),
     sa.Column('view_plugins', sa.Boolean(), nullable=True),
     sa.Column('create_plugin', sa.Boolean(), nullable=True),
     sa.Column('delete_plugin', sa.Boolean(), nullable=True),
@@ -345,12 +348,12 @@ def upgrade():
     sa.Column('severity', sa.Integer(), nullable=True),
     sa.Column('owner_uuid', sa.String(), nullable=True),
     sa.Column('tlp', sa.Integer(), nullable=True),
-    sa.Column('status_id', sa.String(), nullable=True),
+    sa.Column('status_uuid', sa.String(), nullable=True),
     sa.Column('created_by_uuid', sa.String(), nullable=True),
     sa.Column('updated_by_uuid', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['created_by_uuid'], ['user.uuid'], ),
     sa.ForeignKeyConstraint(['owner_uuid'], ['user.uuid'], ),
-    sa.ForeignKeyConstraint(['status_id'], ['case_status.uuid'], ),
+    sa.ForeignKeyConstraint(['status_uuid'], ['case_status.uuid'], ),
     sa.ForeignKeyConstraint(['updated_by_uuid'], ['user.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
@@ -407,6 +410,7 @@ def upgrade():
     sa.Column('tlp', sa.Integer(), nullable=True),
     sa.Column('ioc', sa.Boolean(), nullable=True),
     sa.Column('spotted', sa.Boolean(), nullable=True),
+    sa.Column('safe', sa.Boolean(), nullable=True),
     sa.Column('created_by_uuid', sa.String(), nullable=True),
     sa.Column('updated_by_uuid', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['created_by_uuid'], ['user.uuid'], ),
@@ -451,11 +455,9 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('modified_at', sa.DateTime(), nullable=True),
     sa.Column('message', sa.String(), nullable=True),
-    sa.Column('author_uuid', sa.String(), nullable=True),
     sa.Column('case_uuid', sa.String(), nullable=True),
     sa.Column('created_by_uuid', sa.String(), nullable=True),
     sa.Column('updated_by_uuid', sa.String(), nullable=True),
-    sa.ForeignKeyConstraint(['author_uuid'], ['user.uuid'], ),
     sa.ForeignKeyConstraint(['case_uuid'], ['case.uuid'], ),
     sa.ForeignKeyConstraint(['created_by_uuid'], ['user.uuid'], ),
     sa.ForeignKeyConstraint(['updated_by_uuid'], ['user.uuid'], ),

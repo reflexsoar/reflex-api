@@ -12,7 +12,7 @@ from flask_socketio import emit
 from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy import desc, asc
+from sqlalchemy import desc, asc, func
 from .models import User, UserGroup, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
@@ -54,6 +54,7 @@ ns_plugin_config = api.namespace(
     'PluginConfig', description='Plugin Config operations', path='/plugin_config')
 ns_test = api.namespace('Test', description='Test', path='/test')
 ns_case_comment = api.namespace('CaseComment', description='Case Comments', path='/case_comment')
+ns_case_status = api.namespace('CaseStatus', description='Case Status operations', path='/case_status')
 
 
 # Expect an API token
@@ -64,6 +65,14 @@ expect_token.add_argument('Authorization', location='headers')
 # TODO: Fix this so this hack isn't required, app factory is jacking this up
 for model in schema_models:
     api.models[model.name] = model
+
+upload_parser = api.parser()
+upload_parser.add_argument('files', location='files',
+                           type=FileStorage, required=True, action="append")
+
+pager_parser = api.parser()
+pager_parser.add_argument('page_size', location='args', required=False, type=int)
+pager_parser.add_argument('page', location='args', required=False, type=int)
 
 
 def parse_tags(tags):
@@ -202,16 +211,28 @@ class Whoami(Resource):
         return current_user
 
 
+user_parser = api.parser()
+user_parser.add_argument('username', location='args', required=False)
+
 @ns_user.route("")
 class UserList(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_user_list, as_list=True)
+    @api.expect(user_parser)
     @token_required
     @user_has('view_users')
     def get(self, current_user):
         ''' Returns a list of users '''
-        return User.query.all()
+
+        args = user_parser.parse_args()
+
+        if args:
+            if 'username' in args:
+                users = User.query.filter(User.username.like(args['username']+"%")).all()
+        else:
+            users = User.query.all()
+        return users
 
     # TODO: Add a lock to this so only the Admin users and those with 'add_user' permission can do this
     @api.doc(security="Bearer")
@@ -372,8 +393,10 @@ class CaseBulkAddObservables(Resource):
             case.observables = observables
         else:
             case.observables += observables
-        
         case.save()
+
+        case.add_history('%s new observable(s) added' % (len(observables)))
+
         return case
 
 
@@ -382,11 +405,19 @@ class CaseList(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_case_full, as_list=True)
+    @api.expect(pager_parser)
     @token_required
     @user_has('view_cases')
     def get(self, current_user):
         ''' Returns a list of case '''
-        return Case.query.all()
+
+        args = pager_parser.parse_args()
+        if(args):
+            cases = Case.query.paginate(args['page'],args['page_size'], False).items
+        else:
+            cases = Case.query.all()
+
+        return cases
 
     @api.doc(security="Bearer")
     @api.expect(mod_case_create)
@@ -482,23 +513,38 @@ class CaseDetails(Resource):
     @api.doc(security="Bearer")
     @api.expect(mod_case_create)
     @api.marshal_with(mod_case_full)
-    @token_required
-    @user_has('update_case')
-    def put(self, uuid, current_user):
+    #@token_required
+    #@user_has('update_case')
+    def put(self, uuid,):
         ''' Updates information for a case '''
         case = Case.query.filter_by(uuid=uuid).first()
         if case:
-            for f in ['severity','tlp','status','owner','description']:
+            for f in ['severity','tlp','status_uuid','owner','description','owner_uuid']:
                 value = ""
+                message = None
+
+                # TODO: handle notifications here, asynchronous of course to not block this processing
                 if f in api.payload:
-                    if f == 'status':
-                        status = CaseStatus.query.filter_by(uuid=uuid).first()
-                        value = status.Name
-                    if f == 'severity':
+                    if f == 'status_uuid':
+                        status = CaseStatus.query.filter_by(uuid=api.payload['status_uuid']).first()
+                        value = status.name
+                        f = 'status'
+
+                    elif f == 'severity':
                         value = {1:'Low',2:'Medium',3:'High',4:'Critical'}[api.payload[f]]
-                    history_entry = CaseHistory(message="**{}** changed to **{}**".format(f.title(), value))
-                    history_entry.create()
-                    case.history.append(history_entry)
+
+                    elif f == 'description':
+                        message = '**Description** updated'
+
+                    elif f == 'owner_uuid':
+                        owner = User.query.filter_by(uuid=api.payload['owner_uuid']).first()
+                        value = owner.username
+                        message = 'Case assigned to **{}**'.format(owner.username)
+
+                    if message:
+                        case.add_history(message=message)
+                    else:
+                        case.add_history(message="**{}** changed to **{}**".format(f.title(), value))
             case.update(api.payload)
             return case
         else:
@@ -812,6 +858,76 @@ class CaseCommentDetails(Resource):
             return {'message': 'Sucessfully deleted comment.'}
 
 
+@ns_case_status.route("")
+class CaseStatusList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_case_status_list, as_list=True)
+    @token_required
+    def get(self, current_user):
+        ''' Returns a list of case_statuss '''
+        return CaseStatus.query.all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_case_status_create)
+    @api.response('409', 'Case Status already exists.')
+    @api.response('200', 'Successfully create the CaseStatus.')
+    @token_required
+    @user_has('add_case_status')
+    def post(self, current_user):
+        ''' Creates a new Case Status '''
+        case_status = CaseStatus.query.filter_by(name=api.payload['name']).first()
+
+        if not case_status:
+            case_status = CaseStatus(**api.payload)
+            case_status.create()
+        else:
+            ns_case_status.abort(409, 'Case Status already exists.')
+        return {'message': 'Successfully created the Case Status.'}
+
+
+@ns_case_status.route("/<uuid>")
+class CaseStatusDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_case_status_list)
+    @token_required
+    def get(self, uuid, current_user):
+        ''' Returns information about an CaseStatus '''
+        case_status = CaseStatus.query.filter_by(uuid=uuid).first()
+        if case_status:
+            return case_status
+        else:
+            ns_case_status.abort(404, 'Case Status not found.')
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_case_status_create)
+    @api.marshal_with(mod_case_status_list)
+    @token_required
+    @user_has('update_case_status')
+    def put(self, uuid, current_user):
+        ''' Updates information for an Case Status '''
+        case_status = CaseStatus.query.filter_by(uuid=uuid).first()
+        if case_status:
+            if 'name' in api.payload and CaseStatus.query.filter_by(name=api.payload['name']).first():
+                ns_case_status.abort(409, 'Case Status name already exists.')
+            else:
+                case_status.update(api.payload)
+                return case_status
+        else:
+            ns_case_status.abort(404, 'Case Status not found.')
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_case_status')
+    def delete(self, uuid, current_user):
+        ''' Deletes an CaseStatus '''
+        case_status = CaseStatus.query.filter_by(uuid=uuid).first()
+        if case_status:
+            case_status.delete()
+            return {'message': 'Sucessfully deleted Case Status.'}
+
+
 @ns_playbook.route("")
 class PlaybookList(Resource):
 
@@ -1074,11 +1190,6 @@ class DownloadPlugin(Resource):
     # TODO: MAKE THIS ONLY ACCESSIBLE FROM AGENT TOKENS
     def get(self, path):
         return send_from_directory(current_app.config['PLUGIN_DIRECTORY'], path, as_attachment=True)
-
-
-upload_parser = api.parser()
-upload_parser.add_argument('files', location='files',
-                           type=FileStorage, required=True, action="append")
 
 
 @ns_plugin.route('/upload')
