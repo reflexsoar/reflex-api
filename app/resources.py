@@ -226,10 +226,10 @@ class UserList(Resource):
         ''' Returns a list of users '''
 
         args = user_parser.parse_args()
+        print(args)
 
-        if args:
-            if 'username' in args:
-                users = User.query.filter(User.username.like(args['username']+"%")).all()
+        if args['username']:
+            users = User.query.filter(User.username.like(args['username']+"%")).all()
         else:
             users = User.query.all()
         return users
@@ -412,7 +412,7 @@ class CaseList(Resource):
         ''' Returns a list of case '''
 
         args = pager_parser.parse_args()
-        if(args):
+        if args:
             cases = Case.query.paginate(args['page'],args['page_size'], False).items
         else:
             cases = Case.query.all()
