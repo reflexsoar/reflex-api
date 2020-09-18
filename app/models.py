@@ -251,6 +251,12 @@ class Permission(Base):
     update_case = db.Column(db.Boolean, default=False)
     delete_case = db.Column(db.Boolean, default=False)
 
+    # Case Template Task Permissions
+    create_case_task = db.Column(db.Boolean, default=False)
+    view_case_tasks = db.Column(db.Boolean, default=False)
+    update_case_task = db.Column(db.Boolean, default=False)
+    delete_case_task = db.Column(db.Boolean, default=False)
+
     # Case Template Permissions
     create_case_template = db.Column(db.Boolean, default=False)
     view_case_templates = db.Column(db.Boolean, default=False)
@@ -447,7 +453,7 @@ class CaseHistory(Base):
 
 class CaseTask(Base):
 
-    title = db.Column(db.String)
+    title = db.Column(db.String,nullable=False)
     order = db.Column(db.Integer, default=0)
     description = db.Column(db.String)
     group_uuid = db.Column(db.String, db.ForeignKey('user_group.uuid'))
@@ -456,7 +462,8 @@ class CaseTask(Base):
     owner = db.relationship('User', foreign_keys=[owner_uuid])
     case_uuid = db.Column(db.String, db.ForeignKey('case.uuid'))
     case = db.relationship('Case', back_populates='tasks')
-    status = db.Column(db.Integer)
+    from_template = db.Column(db.Boolean, default=False)
+    status = db.Column(db.Integer, default=0)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
@@ -488,8 +495,6 @@ class CaseTemplate(Base):
     owner = db.relationship('User', foreign_keys=[owner_uuid])
     tlp = db.Column(db.Integer, default=2)
     tags = db.relationship('Tag', secondary=case_template_tag_association)
-    status_uuid = db.Column(db.String, db.ForeignKey('case_status.uuid'))
-    status = db.relationship('CaseStatus')
     tasks = db.relationship('CaseTemplateTask', back_populates='case_template')
 
     # AUDIT COLUMNS

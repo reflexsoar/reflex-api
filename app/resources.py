@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc, func
-from .models import User, UserGroup, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
+from .models import User, UserGroup, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -53,8 +53,13 @@ ns_plugin = api.namespace(
 ns_plugin_config = api.namespace(
     'PluginConfig', description='Plugin Config operations', path='/plugin_config')
 ns_test = api.namespace('Test', description='Test', path='/test')
-ns_case_comment = api.namespace('CaseComment', description='Case Comments', path='/case_comment')
-ns_case_status = api.namespace('CaseStatus', description='Case Status operations', path='/case_status')
+ns_case_comment = api.namespace(
+    'CaseComment', description='Case Comments', path='/case_comment')
+ns_case_status = api.namespace(
+    'CaseStatus', description='Case Status operations', path='/case_status')
+ns_case_task = api.namespace(
+    'CaseTask', description='Case Task operations', path='/case_task'
+)
 
 
 # Expect an API token
@@ -71,7 +76,8 @@ upload_parser.add_argument('files', location='files',
                            type=FileStorage, required=True, action="append")
 
 pager_parser = api.parser()
-pager_parser.add_argument('page_size', location='args', required=False, type=int)
+pager_parser.add_argument('page_size', location='args',
+                          required=False, type=int)
 pager_parser.add_argument('page', location='args', required=False, type=int)
 
 
@@ -214,6 +220,7 @@ class Whoami(Resource):
 user_parser = api.parser()
 user_parser.add_argument('username', location='args', required=False)
 
+
 @ns_user.route("")
 class UserList(Resource):
 
@@ -226,10 +233,10 @@ class UserList(Resource):
         ''' Returns a list of users '''
 
         args = user_parser.parse_args()
-        print(args)
 
         if args['username']:
-            users = User.query.filter(User.username.like(args['username']+"%")).all()
+            users = User.query.filter(
+                User.username.like(args['username']+"%")).all()
         else:
             users = User.query.all()
         return users
@@ -369,25 +376,27 @@ class CaseBulkAddObservables(Resource):
     @api.expect(mod_bulk_add_observables)
     @api.marshal_with(mod_case_observables)
     @api.response(200, 'Success')
-    #@token_required
-    #@user_has('update_case')
+    # @token_required
+    # @user_has('update_case')
     def post(self, uuid):
         ''' 
         Adds a collection of observables to a Case 
 
         Expects a list of observables using the Observable model.  Note: Duplicate observables are ignored
-        
+
         '''
         # Fetch the case via its UUID
         case = Case.get_or_404(uuid)
 
         # Remove observables that are already in the case
-        observable_values = [observable.value for observable in case.observables]
-        observables_list = [observable for observable in api.payload['observables'] if observable['value'] not in observable_values]
+        observable_values = [
+            observable.value for observable in case.observables]
+        observables_list = [observable for observable in api.payload['observables']
+                            if observable['value'] not in observable_values]
 
         # Process all the observables in the API call
         observables = create_observables(observables_list)
-        
+
         # Add the observables to the case
         if(len(case.observables) == 0):
             case.observables = observables
@@ -413,7 +422,8 @@ class CaseList(Resource):
 
         args = pager_parser.parse_args()
         if args:
-            cases = Case.query.paginate(args['page'],args['page_size'], False).items
+            cases = Case.query.paginate(
+                args['page'], args['page_size'], False).items
         else:
             cases = Case.query.all()
 
@@ -423,13 +433,20 @@ class CaseList(Resource):
     @api.expect(mod_case_create)
     @api.response('409', 'Case already exists.')
     @api.response('200', "Successfully created the case.")
-    @token_required
-    @user_has('create_case')
-    def post(self, current_user):
+    #@token_required
+    #@user_has('create_case')
+    def post(self):
+        ''' Creates a new case '''
+
+        print(api.payload)
 
         _tags = []
         event_observables = []
-        ''' Creates a new case '''
+        case_template_uuid = None
+
+        if 'case_template_uuid' in api.payload:
+            case_template_uuid = api.payload.pop('case_template_uuid')
+
         if 'tags' in api.payload:
             tags = api.payload.pop('tags')
             _tags = parse_tags(tags)
@@ -440,7 +457,6 @@ class CaseList(Resource):
             if user:
                 api.payload['owner'] = user
 
-        
         if 'observables' in api.payload:
             observables = api.payload.pop('observables')
             api.payload['observables'] = []
@@ -448,7 +464,6 @@ class CaseList(Resource):
                 observable = Observable.query.filter_by(uuid=uuid).first()
                 if observable:
                     api.payload['observables'].append(observable)
-        
 
         if 'events' in api.payload:
             api.payload['observables'] = []
@@ -465,18 +480,19 @@ class CaseList(Resource):
                 if event.observables:
                     for observable in event.observables:
                         if observable.value in observable_collection:
-                            observable_collection[observable.value].append(observable)
+                            observable_collection[observable.value].append(
+                                observable)
                         else:
-                            observable_collection[observable.value] = [observable]
-            
+                            observable_collection[observable.value] = [
+                                observable]
+
             # Sort and pull out the most recent observable in the group
             # of observables
             for observable in observable_collection:
-                observable_collection[observable] = sorted(observable_collection[observable], key=lambda x: x.created_at, reverse=True)
-                api.payload['observables'].append(observable_collection[observable][0])
-
-        
-
+                observable_collection[observable] = sorted(
+                    observable_collection[observable], key=lambda x: x.created_at, reverse=True)
+                api.payload['observables'].append(
+                    observable_collection[observable][0])
 
         case = Case(**api.payload)
         case.create()
@@ -490,8 +506,35 @@ class CaseList(Resource):
         case.status = case_status
         case.save()
 
+        
+        # If the user selected a case template, take the template items
+        # and copy them over to the case
+        if case_template_uuid:
+            case_template = CaseTemplate.query.filter_by(
+                uuid=case_template_uuid).first()
+
+            # Append the default tags
+            for tag in case_template.tags:
+
+                # If the tag does not already exist
+                if tag not in case.tags:
+                    case.tags.append(tag)
+
+            # Append the default tasks
+            for task in case_template.tasks:
+                case_task = CaseTask(title=task.title, description=task.description,
+                                     order=task.order, owner=task.owner, group=task.group,
+                                     from_template=True)
+                case.tasks.append(case_task)
+
+            # Set the default severity
+            case.severity = case_template.severity
+            case.tlp = case_template.tlp
+            case.save()
+
+
         for event in case.events:
-            event.status = EventStatus.query.filter_by(name='Open').first()
+            event.status = EventStatus.query.filter_by(name='Imported').first()
             event.save()
 
         return {'message': 'Successfully created the case.', 'uuid': case.uuid}
@@ -517,38 +560,43 @@ class CaseDetails(Resource):
     @api.doc(security="Bearer")
     @api.expect(mod_case_create)
     @api.marshal_with(mod_case_full)
-    #@token_required
-    #@user_has('update_case')
+    # @token_required
+    # @user_has('update_case')
     def put(self, uuid,):
         ''' Updates information for a case '''
         case = Case.query.filter_by(uuid=uuid).first()
         if case:
-            for f in ['severity','tlp','status_uuid','owner','description','owner_uuid']:
+            for f in ['severity', 'tlp', 'status_uuid', 'owner', 'description', 'owner_uuid']:
                 value = ""
                 message = None
 
                 # TODO: handle notifications here, asynchronous of course to not block this processing
                 if f in api.payload:
                     if f == 'status_uuid':
-                        status = CaseStatus.query.filter_by(uuid=api.payload['status_uuid']).first()
+                        status = CaseStatus.query.filter_by(
+                            uuid=api.payload['status_uuid']).first()
                         value = status.name
                         f = 'status'
 
                     elif f == 'severity':
-                        value = {1:'Low',2:'Medium',3:'High',4:'Critical'}[api.payload[f]]
+                        value = {1: 'Low', 2: 'Medium', 3: 'High',
+                                 4: 'Critical'}[api.payload[f]]
 
                     elif f == 'description':
                         message = '**Description** updated'
 
                     elif f == 'owner_uuid':
-                        owner = User.query.filter_by(uuid=api.payload['owner_uuid']).first()
+                        owner = User.query.filter_by(
+                            uuid=api.payload['owner_uuid']).first()
                         value = owner.username
-                        message = 'Case assigned to **{}**'.format(owner.username)
+                        message = 'Case assigned to **{}**'.format(
+                            owner.username)
 
                     if message:
                         case.add_history(message=message)
                     else:
-                        case.add_history(message="**{}** changed to **{}**".format(f.title(), value))
+                        case.add_history(
+                            message="**{}** changed to **{}**".format(f.title(), value))
             case.update(api.payload)
             return case
         else:
@@ -565,23 +613,123 @@ class CaseDetails(Resource):
             return {'message': 'Sucessfully deleted case.'}
 
 
+@ns_case_task.route("")
+class CaseTaskList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_case_task_full, as_list=True)
+    @token_required
+    @user_has('view_case_tasks')
+    def get(self, current_user):
+        ''' Returns a list of case_task '''
+        return CaseTask.query.all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_case_task_create)
+    @api.response('409', 'Case Task already exists.')
+    @api.response('200', "Successfully created the case task.")
+    #@token_required
+    #@user_has('create_case_task')
+    def post(self):
+        
+        ''' Creates a new case_task '''
+
+        print(api.payload)
+
+        case_task = CaseTask.query.filter_by(
+            title=api.payload['title'], case_uuid=api.payload['case_uuid']).first()
+        if not case_task:
+
+            case_task = CaseTask(**api.payload)
+            case_task.create()
+
+            return {'message': 'Successfully created the case task.'}
+        else:
+            ns_case_task.abort(
+                409, 'Case Task already exists.')
+
+
+@ns_case_task.route("/<uuid>")
+class CaseTaskDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_case_task_full)
+    @api.response('200', 'Success')
+    @api.response('404', 'Case Task not found')
+    @token_required
+    @user_has('view_case_tasks')
+    def get(self, uuid, current_user):
+        ''' Returns information about a case task '''
+        case_task = CaseTask.query.filter_by(
+            uuid=uuid).first()
+        if case_task:
+            return case_task
+        else:
+            ns_case_task.abort(404, 'Case Task not found.')
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_case_task_create)
+    @api.marshal_with(mod_case_task_full)
+    @token_required
+    @user_has('update_case_task')
+    def put(self, uuid, current_user):
+        ''' Updates information for a case_task '''
+        case_task = CaseTask.query.filter_by(
+            uuid=uuid).first()
+        if case_task:
+            if 'name' in api.payload and CaseTask.query.filter_by(title=api.payload['title'], case_uuid=api.payload['case_uuid']).first():
+                ns_case_task.abort(
+                    409, 'Case Task name already exists.')
+            else:
+                case_task.update(api.payload)
+                return case_task
+        else:
+            ns_case_task.abort(404, 'Case Task not found.')
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_case_task')
+    def delete(self, uuid, current_user):
+        ''' Deletes a case_task '''
+        case_task = CaseTask.query.filter_by(
+            uuid=uuid).first()
+        if case_task:
+            case_task.delete()
+            return {'message': 'Sucessfully deleted case task.'}
+
+
+case_template_parser = api.parser()
+case_template_parser.add_argument('title', location='args', required=False)
+
+
 @ns_case_template.route("")
 class CaseTemplateList(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_case_template_full, as_list=True)
+    @api.expect(case_template_parser)
     @token_required
     @user_has('view_case_templates')
     def get(self, current_user):
         ''' Returns a list of case_template '''
-        return CaseTemplate.query.all()
+
+        args = case_template_parser.parse_args()
+
+        if args['title']:
+            case_template = CaseTemplate.query.filter(
+                CaseTemplate.title.like(args['title']+"%")).all()
+        else:
+            case_template = CaseTemplate.query.all()
+
+        return case_template
 
     @api.doc(security="Bearer")
     @api.expect(mod_case_template_create)
     @api.response('409', 'Case Template already exists.')
     @api.response('200', "Successfully created the case_template.")
+    @api.marshal_with(mod_case_template_full)
     @token_required
-    # @user_has('create_case_template')
+    @user_has('create_case_template')
     def post(self, current_user):
 
         # Check to see if the case template already exists and
@@ -597,11 +745,19 @@ class CaseTemplateList(Resource):
                 tags = api.payload.pop('tags')
                 _tags = parse_tags(tags)
 
-            if 'owner' in api.payload:
+            '''if 'owner' in api.payload:
                 owner = api.payload.pop('owner')
                 user = User.query.filter_by(uuid=owner).first()
                 if user:
-                    api.payload['owner'] = user
+                    api.payload['owner'] = user'''
+
+            if 'tasks' in api.payload:
+                _tasks = []
+                tasks = api.payload.pop('tasks')
+                for _task in tasks:
+                    task = CaseTemplateTask(**_task)
+                    _tasks.append(task)
+            api.payload['tasks'] = _tasks
 
             case_template = CaseTemplate(**api.payload)
             case_template.create()
@@ -616,7 +772,7 @@ class CaseTemplateList(Resource):
             case_template.status = case_template_status
             case_template.save()
 
-            return {'message': 'Successfully created the case_template.'}
+            return case_template
 
 
 @ns_case_template.route("/<uuid>/update-tasks")
@@ -721,9 +877,9 @@ class CaseTemplateTaskList(Resource):
     @api.expect(mod_case_template_task_create)
     @api.response('409', 'CaseTemplateTask already exists.')
     @api.response('200', "Successfully created the case_template_task.")
-    # @token_required
-    # @user_has('create_case_template_task')
-    def post(self):
+    @token_required
+    @user_has('create_case_template_task')
+    def post(self, current_user):
         _tags = []
         ''' Creates a new case_template_task '''
         case_template_task = CaseTemplateTask.query.filter_by(
@@ -752,7 +908,7 @@ class CaseTemplateTaskDetails(Resource):
     @api.response('404', 'CaseTemplateTask not found')
     @token_required
     @user_has('view_case_template_tasks')
-    def get(self, uuid):
+    def get(self, uuid, current_user):
         ''' Returns information about a case_template_task '''
         case_template_task = CaseTemplateTask.query.filter_by(
             uuid=uuid).first()
@@ -766,7 +922,7 @@ class CaseTemplateTaskDetails(Resource):
     @api.marshal_with(mod_case_template_task_full)
     @token_required
     @user_has('update_case_template_task')
-    def put(self, uuid):
+    def put(self, uuid, current_user):
         ''' Updates information for a case_template_task '''
         case_template_task = CaseTemplateTask.query.filter_by(
             uuid=uuid).first()
@@ -783,7 +939,7 @@ class CaseTemplateTaskDetails(Resource):
     @api.doc(security="Bearer")
     @token_required
     @user_has('delete_case_template_task')
-    def delete(self, uuid):
+    def delete(self, uuid, current_user):
         ''' Deletes a case_template_task '''
         case_template_task = CaseTemplateTask.query.filter_by(
             uuid=uuid).first()
@@ -794,7 +950,7 @@ class CaseTemplateTaskDetails(Resource):
 
 @ns_case_comment.route("")
 class CaseCommentList(Resource):
-    
+
     @api.doc(security="Bearer")
     @api.marshal_with(mod_comment, as_list=True)
     @token_required
@@ -880,7 +1036,8 @@ class CaseStatusList(Resource):
     @user_has('add_case_status')
     def post(self, current_user):
         ''' Creates a new Case Status '''
-        case_status = CaseStatus.query.filter_by(name=api.payload['name']).first()
+        case_status = CaseStatus.query.filter_by(
+            name=api.payload['name']).first()
 
         if not case_status:
             case_status = CaseStatus(**api.payload)
@@ -1800,6 +1957,8 @@ class AgentDetails(Resource):
         else:
             ns_agent.abort(404, 'Agent not found.')
 
+user_group_parser = api.parser()
+user_group_parser.add_argument('name', location='args', required=False)
 
 @ns_user_group.route("")
 class UserGroupList(Resource):
@@ -1810,7 +1969,15 @@ class UserGroupList(Resource):
     @user_has('view_user_groups')
     def get(self, current_user):
         ''' Gets a list of user_groups '''
-        return UserGroup.query.all()
+
+        args = user_group_parser.parse_args()
+
+        if args['name']:
+            groups = UserGroup.query.filter_by(UserGroup.name.like(args['name']+"%")).all()
+        else:
+            groups = UserGroup.query.all()
+
+        return groups
 
     @api.doc(security="Bearer")
     @api.expect(mod_user_group_create)

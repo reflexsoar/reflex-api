@@ -1,6 +1,10 @@
 from flask_restx import Model, fields
 
 
+class ValueCount(fields.Raw):
+    def format(self, value):
+        return len(value)
+
 class ObservableCount(fields.Raw):
     ''' Returns the number of observables '''
 
@@ -161,6 +165,10 @@ permission_fields = {
     "view_case_templates": fields.Boolean,
     "update_case_template": fields.Boolean,
     "delete_case_template": fields.Boolean,
+    "create_case_task": fields.Boolean,
+    "view_case_tasks": fields.Boolean,
+    "update_case_task": fields.Boolean,
+    "delete_case_task": fields.Boolean,
     "create_case_template_task": fields.Boolean,
     "view_case_template_tasks": fields.Boolean,
     "update_case_template_task": fields.Boolean,
@@ -449,12 +457,35 @@ mod_case_template_task_create = Model('CaseTemplateTaskCreate', {
 mod_case_template_task_full = Model('CaseTemplateTaskList', {
     'uuid': fields.String,
     'title': fields.String,
+    'description': fields.String,
     'order': fields.Integer,
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
     'group': fields.Nested(mod_user_group_list),
     'owner': fields.Nested(mod_user_list),
     'case_template_uuid': fields.String,
+    'status': fields.Integer
+})
+
+mod_case_task_create = Model('CaseTaskCreate', {
+    'title': fields.String,
+    'order': fields.Integer,
+    'description': fields.String,
+    'group_uuid': fields.String,
+    'owner_uuid': fields.String,
+    'case_uuid': fields.String
+})
+
+mod_case_task_full = Model('CaseTaskList', {
+    'uuid': fields.String,
+    'title': fields.String,
+    'description': fields.String,
+    'order': fields.Integer,
+    'created_at': fields.DateTime,
+    'modified_at': fields.DateTime,
+    'group': fields.Nested(mod_user_group_list),
+    'owner': fields.Nested(mod_user_list),
+    'case_uuid': fields.String,
     'status': fields.Integer
 })
 
@@ -499,7 +530,8 @@ mod_case_template_full = Model('CaseTemplateList', {
     'status': fields.Nested(mod_event_status),
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
-    'tasks': fields.List(fields.Nested(mod_case_template_task_full))
+    'tasks': fields.List(fields.Nested(mod_case_template_task_full)),
+    'task_count': ValueCount(attribute='tasks')
 })
 
 
@@ -558,7 +590,8 @@ mod_case_full = Model('CaseDetails', {
     'updated_by': fields.Nested(mod_user_list),
     'observables': fields.List(fields.Nested(mod_observable_list)),
     'events': fields.List(fields.Nested(mod_event_details)),
-    'history': fields.List(fields.Nested(mod_case_history))
+    'history': fields.List(fields.Nested(mod_case_history)),
+    'tasks': fields.List(fields.Nested(mod_case_template_task_full))
 })
 
 mod_plugin_create = Model('PluginCreate', {
@@ -625,4 +658,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_case_template_create, mod_case_template_full,
                  mod_case_template_task_create, mod_case_template_task_full, mod_add_tasks_to_case, mod_comment, mod_comment_create,
                  mod_case_history, mod_bulk_add_observables, mod_case_observables,
-                 mod_case_status_create, mod_case_status_list]
+                 mod_case_status_create, mod_case_status_list,
+                 mod_case_task_create, mod_case_task_full]
