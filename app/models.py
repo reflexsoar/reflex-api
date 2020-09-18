@@ -516,7 +516,7 @@ class CaseTemplateTask(Base):
     owner = db.relationship('User', foreign_keys=[owner_uuid])
     case_template_uuid = db.Column(db.String, db.ForeignKey('case_template.uuid'))
     case_template = db.relationship('CaseTemplate', back_populates='tasks')
-    status = db.Column(db.Integer)
+    status = db.Column(db.Integer, default=0)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work

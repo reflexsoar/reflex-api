@@ -626,6 +626,7 @@ class CaseTaskList(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(mod_case_task_create)
+    @api.marshal_with(mod_case_task_full)
     @api.response('409', 'Case Task already exists.')
     @api.response('200', "Successfully created the case task.")
     #@token_required
@@ -643,7 +644,10 @@ class CaseTaskList(Resource):
             case_task = CaseTask(**api.payload)
             case_task.create()
 
-            return {'message': 'Successfully created the case task.'}
+            case = Case.query.filter_by(uuid=api.payload['case_uuid']).first()
+            case.add_history("New task added")
+
+            return case_task
         else:
             ns_case_task.abort(
                 409, 'Case Task already exists.')
@@ -1651,8 +1655,8 @@ class EventList(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(mod_event_create)
-    @api.response('409', 'Event already exists.')
-    @api.response('200', "Successfully created the event.")
+    @api.response(409, 'Event already exists.')
+    @api.response(200, "Successfully created the event.")
     @token_required
     @user_has('add_event')
     def post(self, current_user):

@@ -486,7 +486,8 @@ mod_case_task_full = Model('CaseTaskList', {
     'group': fields.Nested(mod_user_group_list),
     'owner': fields.Nested(mod_user_list),
     'case_uuid': fields.String,
-    'status': fields.Integer
+    'status': fields.Integer,
+    'from_template': fields.Boolean
 })
 
 mod_add_tasks_to_case = Model('TasksToCase', {
@@ -591,7 +592,7 @@ mod_case_full = Model('CaseDetails', {
     'observables': fields.List(fields.Nested(mod_observable_list)),
     'events': fields.List(fields.Nested(mod_event_details)),
     'history': fields.List(fields.Nested(mod_case_history)),
-    'tasks': fields.List(fields.Nested(mod_case_template_task_full))
+    'tasks': fields.List(fields.Nested(mod_case_task_full))
 })
 
 mod_plugin_create = Model('PluginCreate', {
