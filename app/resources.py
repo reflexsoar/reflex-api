@@ -2469,14 +2469,17 @@ class TagDetails(Resource):
 class Settings(Resource):
 
     @api.doc(security="Bearer")
+    @api.marshal_with(mod_settings)
     @token_required
-    @user_has('update_settings')
+    @user_has('update_settings')    
     def get(self):
+        ''' Retrieves the global settings for the system '''
 
         return settings
 
     @api.doc(security="Bearer")
-    @token_required
+    @api.expect(mod_settings)
+    @token_required    
     @user_has('update_settings')
     def put(self):
 

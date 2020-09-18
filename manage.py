@@ -308,6 +308,73 @@ def setup():
     user.role = role
     user.save()
 
+    print("Creating the default user permissions")
+
+    perms = { 
+        'view_users': True,
+        'view_roles': True,
+        "add_tag": True,
+        "update_tag": True,
+        "delete_tag": True,
+        "view_tags": True,
+        "add_credential": True,
+        "update_credential": True,
+        "decrypt_credential": True,
+        "delete_credential": True,
+        "view_credentials": True ,
+        "add_playbook": True,
+        "view_playbooks": True,
+        "add_tag_to_playbook": True,
+        "remove_tag_from_playbook": True,
+        "add_event": True,
+        "view_events": True,
+        "update_event": True,
+        "add_tag_to_event": True,
+        "remove_tag_from_event": True,
+        "add_observable": True,
+        "update_observable": True,
+        "delete_observable": True,
+        "add_tag_to_observable": True,
+        "remove_tag_from_observable": True,
+        "view_agents": True,
+        "view_inputs": True,
+        "create_case": True,
+        "view_cases": True,
+        "update_case": True,
+        "create_case_comment": True,
+        "view_case_comments": True,
+        "update_case_comment": True,
+        "view_plugins": True,
+        "view_agent_groups": True,
+        "view_user_groups": True,
+        "create_case_template": True,
+        "view_case_templates": True,
+        "update_case_template": True,
+        "delete_case_template": True,
+        "create_case_task": True,
+        "view_case_tasks": True,
+        "update_case_task": True,
+        "delete_case_task": True
+    }
+
+    permissions = Permission(**perms)
+    permissions.create()
+
+    print("Creating default user role...")
+
+    # Create the administrator role
+    details =  {
+        'name': 'Analyst',
+        'description': 'The default Analyst role'
+    }
+    role = Role(**details)
+    db.session.add(role)
+    db.session.commit()
+
+    role.permissions = permissions
+
+    role.save()
+
     print("Creating the agent role...")
     # Create the Permissions for an administrator
     perms = { 
