@@ -143,6 +143,9 @@ class auth(Resource):
             _refresh_token = user.create_refresh_token(
                 request.user_agent.string.encode('utf-8'))
 
+            user.last_logon = datetime.datetime.now()
+            user.save()
+
             return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
 
         ns_auth.abort(401, 'Incorrect username or password')
