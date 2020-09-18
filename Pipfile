@@ -20,6 +20,7 @@ flask-restx = "*"
 pyjwt = "*"
 flask-socketio = "*"
 cryptography = "*"
+gunicorn = "*"
 
 [requires]
 python_version = "3.8"
