@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc, func
-from .models import User, UserGroup, db, RefreshToken, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
+from .models import User, UserGroup, db, RefreshToken, Settings, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -59,6 +59,9 @@ ns_case_status = api.namespace(
     'CaseStatus', description='Case Status operations', path='/case_status')
 ns_case_task = api.namespace(
     'CaseTask', description='Case Task operations', path='/case_task'
+)
+ns_settings = api.namespace(
+    'Settings', description='Global settings for the Reflex system', path='/settings'
 )
 
 
@@ -225,7 +228,7 @@ user_parser.add_argument('username', location='args', required=False)
 class UserList(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_user_list, as_list=True)
+    @api.marshal_with(mod_user_full, as_list=True)
     @api.expect(user_parser)
     @token_required
     @user_has('view_users')
@@ -2460,3 +2463,24 @@ class TagDetails(Resource):
         if tag:
             tag.delete()
             return {'message': 'Sucessfully deleted tag.'}
+
+
+@ns_settings.route("")
+class Settings(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('update_settings')
+    def get(self):
+
+        return settings
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('update_settings')
+    def put(self):
+
+        settings = Settings.query.first()
+        settings.update(**api.payload)
+
+        return {'message': 'Succesfully updated settings'}

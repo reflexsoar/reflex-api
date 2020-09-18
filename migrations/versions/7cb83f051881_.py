@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 9e93095ca571
+Revision ID: 7cb83f051881
 Revises: 
-Create Date: 2020-09-18 12:29:13.074721
+Create Date: 2020-09-18 14:54:47.453259
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '9e93095ca571'
+revision = '7cb83f051881'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -124,6 +124,7 @@ def upgrade():
     sa.Column('decrypt_credential', sa.Boolean(), nullable=True),
     sa.Column('delete_credential', sa.Boolean(), nullable=True),
     sa.Column('view_credentials', sa.Boolean(), nullable=True),
+    sa.Column('update_settings', sa.Boolean(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
@@ -184,6 +185,7 @@ def upgrade():
     sa.Column('username', sa.String(length=255), nullable=False),
     sa.Column('first_name', sa.String(length=255), nullable=True),
     sa.Column('last_name', sa.String(length=255), nullable=True),
+    sa.Column('last_logon', sa.DateTime(), nullable=True),
     sa.Column('password_hash', sa.String(length=100), nullable=True),
     sa.Column('locked', sa.Boolean(), nullable=True),
     sa.Column('deleted', sa.Boolean(), nullable=True),
@@ -461,6 +463,23 @@ def upgrade():
     sa.UniqueConstraint('name'),
     sa.UniqueConstraint('uuid')
     )
+    op.create_table('settings',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('base_url', sa.String(), nullable=True),
+    sa.Column('require_case_templates', sa.Boolean(), nullable=True),
+    sa.Column('email_from', sa.String(), nullable=True),
+    sa.Column('email_server', sa.String(), nullable=True),
+    sa.Column('email_secret_uuid', sa.String(), nullable=True),
+    sa.Column('allow_comment_deletion', sa.Boolean(), nullable=True),
+    sa.Column('playbook_action_timeout', sa.Integer(), nullable=True),
+    sa.Column('playbook_timeout', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['email_secret_uuid'], ['credential.uuid'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('uuid')
+    )
     op.create_table('tag_case_template',
     sa.Column('case_template_uuid', sa.String(), nullable=True),
     sa.Column('tag_id', sa.String(), nullable=True),
@@ -623,6 +642,7 @@ def downgrade():
     op.drop_table('agent_input')
     op.drop_table('tag_playbook')
     op.drop_table('tag_case_template')
+    op.drop_table('settings')
     op.drop_table('plugin_config')
     op.drop_table('observable')
     op.drop_table('input')

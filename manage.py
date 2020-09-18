@@ -6,7 +6,7 @@ from flask_migrate import Migrate, MigrateCommand
 from flask_script import Manager
 
 from app import create_app, db
-from app.models import AuthTokenBlacklist, User, Role, Permission, DataType, EventStatus, AgentRole, CaseStatus
+from app.models import AuthTokenBlacklist, Settings, User, Role, Permission, DataType, EventStatus, AgentRole, CaseStatus
 
 app = create_app()
 app.app_context().push()
@@ -174,6 +174,15 @@ def demo():
 @manager.command
 def setup():
 
+    print("Creating default settings") 
+
+    base_settings = {
+        'base_url': 'http://localhost'
+    }
+
+    settings = Settings(**base_settings)
+    settings.create()
+
     print("Creating default adminstrator permissions...")
 
     # Create the Permissions for an administrator
@@ -259,7 +268,8 @@ def setup():
         "delete_case_template_task": True,
         "create_case_status": True,
         "update_case_status": True,
-        "delete_case_status": True
+        "delete_case_status": True,
+        'update_settings': True
     }
     permissions = Permission(**perms)
     permissions.create()
@@ -285,7 +295,9 @@ def setup():
     default_admin = {
         'email': 'admin@reflexsoar.com',
         'username': 'reflex',
-        'password': 'reflex'
+        'password': 'reflex',
+        'first_name': 'Super',
+        'last_name': 'Admin'
     }
     user = User(**default_admin)
     db.session.add(user)

@@ -293,6 +293,9 @@ class Permission(Base):
     delete_credential = db.Column(db.Boolean, default=False)
     view_credentials = db.Column(db.Boolean, default=False)
 
+    # Update Settings
+    update_settings = db.Column(db.Boolean, default=False)
+
     # Role relationship
     roles = db.relationship('Role', back_populates='permissions')
 
@@ -313,6 +316,7 @@ class User(Base):
     username = db.Column(db.String(255), unique=True, nullable=False)
     first_name = db.Column(db.String(255), unique=False, nullable=True)
     last_name = db.Column(db.String(255), unique=False, nullable=True)
+    last_logon = db.Column(db.DateTime)
     password_hash = db.Column(db.String(100))
     locked = db.Column(db.Boolean, default=False)
     deleted = db.Column(db.Boolean, default=False)
@@ -776,3 +780,16 @@ class Tag(Base):
     @validates('name')
     def convert_lower(self, key, value):
         return value.lower()
+
+
+class Settings(Base):
+
+    base_url = db.Column(db.String)
+    require_case_templates = db.Column(db.Boolean, default=True)
+    email_from = db.Column(db.String)
+    email_server = db.Column(db.String)
+    email_secret_uuid = db.Column(db.String, db.ForeignKey("credential.uuid"))
+    email_secret = db.relationship('Credential')
+    allow_comment_deletion = db.Column(db.Boolean, default=False)
+    playbook_action_timeout = db.Column(db.Integer, default=300)
+    playbook_timeout = db.Column(db.Integer, default=3600)

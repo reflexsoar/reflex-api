@@ -31,13 +31,21 @@ mod_user_list = Model('UserList', {
     'uuid': fields.String
 })
 
+mod_user_role = Model('UserRole', {
+    'uuid': fields.String,
+    'name': fields.String
+})
+
 mod_user_full = Model('UserFull', {
     'uuid': fields.String,
     'username': fields.String,
     'email': fields.String,
     'password': fields.String,
     'first_name': fields.String,
-    'last_name': fields.String
+    'last_name': fields.String,
+    'last_logon': fields.DateTime,
+    'locked': fields.Boolean,
+    'role': fields.Nested(mod_user_role)
 })
 
 mod_user_create = Model('UserCreate', {
@@ -175,7 +183,8 @@ permission_fields = {
     "delete_case_template_task": fields.Boolean,
     "create_case_status": fields.Boolean,
     "update_case_status": fields.Boolean,
-    "delete_case_status": fields.Boolean
+    "delete_case_status": fields.Boolean,
+    "update_settings": fields.Boolean
 }
 
 mod_permission_role_view = Model('PermissionRoleView', {
@@ -639,7 +648,16 @@ mod_plugin_config_create = Model('PluginConfigCreate', {
     "config": fields.String
 })
 
-
+mod_settings = Model('SettingsList', {
+    'base_url': fields.String,
+    'require_case_templates': fields.Boolean,
+    'allow_comment_deletion': fields.Boolean,
+    'email_from': fields.String,
+    'email_server': fields.String,
+    'email_secret': fields.Nested(mod_credential_list),
+    'playbook_action_timeout': fields.Integer,
+    'playbook_timeout': fields.Integer
+})
 
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
@@ -660,4 +678,4 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_case_template_task_create, mod_case_template_task_full, mod_add_tasks_to_case, mod_comment, mod_comment_create,
                  mod_case_history, mod_bulk_add_observables, mod_case_observables,
                  mod_case_status_create, mod_case_status_list,
-                 mod_case_task_create, mod_case_task_full]
+                 mod_case_task_create, mod_case_task_full, mod_user_role, mod_settings]
