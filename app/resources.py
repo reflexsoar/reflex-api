@@ -142,7 +142,7 @@ class auth(Resource):
             _refresh_token = user.create_refresh_token(
                 request.user_agent.string.encode('utf-8'))
 
-            user.last_logon = datetime.datetime.now()
+            user.last_logon = datetime.datetime.utcnow()
             user.save()
 
             return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
@@ -274,6 +274,15 @@ class UserList(Resource):
         ''' Creates a new users '''
 
         user = User.query.filter_by(email=api.payload['email']).first()
+
+        if user:
+            ns_user.abort(409, "User with this email already exists.")
+        
+        user = User.query.filter_by(username=api.payload['username']).first()
+    
+        if user:
+            ns_user.abort(409, "User with this username already exists.")
+
         if not user:
             user = User(**api.payload)
             user.create()
@@ -325,12 +334,27 @@ class UserDetails(Resource):
     def put(self, uuid, current_user):
         ''' Updates information for a user '''
 
+        print(api.payload)
+
         user = User.query.filter_by(uuid=uuid).first()
         if user:
-            if 'username' in api.payload and User.query.filter_by(username=api.payload['username']).first():
-                ns_user.abort(409, 'Username already taken.')
-            else:
-                return user
+            if 'username' in api.payload:
+                target_user = User.query.filter_by(username=api.payload['username']).first()
+                print(target_user)
+                if target_user.uuid == uuid:
+                    del api.payload['username']
+                else:
+                    ns_user.abort(409, 'Username already taken.')
+
+            if 'email' in api.payload:
+                target_user = User.query.filter_by(email=api.payload['email']).first()
+                if target_user.uuid == uuid:
+                    del api.payload['email']
+                else:
+                    ns_user.abort(409, 'Email already taken.')
+
+            user.update(api.payload)
+            return user
         else:
             ns_user.abort(404, 'User not found.')
 
@@ -601,9 +625,9 @@ class CaseDetails(Resource):
     @api.doc(security="Bearer")
     @api.expect(mod_case_create)
     @api.marshal_with(mod_case_full)
-    # @token_required
-    # @user_has('update_case')
-    def put(self, uuid,):
+    @token_required
+    @user_has('update_case')
+    def put(self, uuid, current_user):
         ''' Updates information for a case '''
         case = Case.query.filter_by(uuid=uuid).first()
         if case:
@@ -1930,7 +1954,7 @@ class AgentHeartbeat(Resource):
     def get(self, uuid, current_user):
         agent = Agent.query.filter_by(uuid=uuid).first()
         if agent:
-            agent.last_heartbeat = datetime.datetime.now()
+            agent.last_heartbeat = datetime.datetime.utcnow()
             agent.save()
             return {'message': 'Your heart still beats!'}
         else:

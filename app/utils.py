@@ -9,8 +9,8 @@ from .models import User, AuthTokenBlacklist, Agent
 def generate_token(uuid, duration=10, token_type='agent'):
     _access_token = jwt.encode({
         'uuid': uuid,
-        'exp': datetime.datetime.now() + datetime.timedelta(minutes=duration),
-        'iat': datetime.datetime.now(),
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=duration),
+        'iat': datetime.datetime.utcnow(),
         'type': token_type
     }, current_app.config['SECRET_KEY']).decode('utf-8')
     
@@ -42,12 +42,8 @@ def user_has(permission):
             # bypass the route guard and let the route finish
             if current_user == 'PAIRING' and permission == 'add_agent':
                 return f(*args, **kwargs)
-            try:
-                if current_user.has_right(permission):
-                    return f(*args, **kwargs)
-            except Exception as e:
-                logging.error('An unknown error occured. {}'.format(e))
-                abort(401, 'Unauthorized.')
+            if current_user.has_right(permission):
+                return f(*args, **kwargs)
             else:
                 abort(401, 'You do not have permission to perform this action.')
 

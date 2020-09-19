@@ -123,9 +123,9 @@ class Base(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     uuid = db.Column(db.String, unique=True, default=generate_uuid)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.now)
-    modified_at = db.Column(db.DateTime, default=datetime.datetime.now,
-                            onupdate=datetime.datetime.now)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    modified_at = db.Column(db.DateTime, default=datetime.datetime.utcnow,
+                            onupdate=datetime.datetime.utcnow)
     # TODO : Extend created_by
     # TODO : Extend updated_by
 
@@ -343,8 +343,8 @@ class User(Base):
     def create_access_token(self):
         _access_token = jwt.encode({
             'uuid': self.uuid,
-            'exp': datetime.datetime.now() + datetime.timedelta(minutes=360),
-            'iat': datetime.datetime.now(),
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=360),
+            'iat': datetime.datetime.utcnow(),
             'type': 'user'
         }, current_app.config['SECRET_KEY']).decode('utf-8')
         
@@ -353,8 +353,8 @@ class User(Base):
     def create_refresh_token(self, user_agent_string):
         _refresh_token = jwt.encode({
             'uuid': self.uuid,
-            'exp': datetime.datetime.now() + datetime.timedelta(days=30),
-            'iat': datetime.datetime.now()
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=30),
+            'iat': datetime.datetime.utcnow()
         }, current_app.config['SECRET_KEY']).decode('utf-8')
 
         user_agent_hash = hashlib.md5(user_agent_string).hexdigest()
