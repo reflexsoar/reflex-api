@@ -319,6 +319,7 @@ class User(Base):
     last_logon = db.Column(db.DateTime)
     password_hash = db.Column(db.String(100))
     locked = db.Column(db.Boolean, default=False)
+    failed_logons = db.Column(db.Integer, default=0)
     deleted = db.Column(db.Boolean, default=False)
     role = db.relationship('Role', back_populates='users')
     role_uuid = db.Column(db.String, db.ForeignKey('role.uuid'))
@@ -782,7 +783,7 @@ class Tag(Base):
         return value.lower()
 
 
-class Settings(Base):
+class GlobalSettings(Base):
 
     base_url = db.Column(db.String)
     require_case_templates = db.Column(db.Boolean, default=True)
@@ -793,3 +794,4 @@ class Settings(Base):
     allow_comment_deletion = db.Column(db.Boolean, default=False)
     playbook_action_timeout = db.Column(db.Integer, default=300)
     playbook_timeout = db.Column(db.Integer, default=3600)
+    logon_password_attempts = db.Column(db.Integer, default=5)

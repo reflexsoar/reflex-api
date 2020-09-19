@@ -40,12 +40,16 @@ mod_user_full = Model('UserFull', {
     'uuid': fields.String,
     'username': fields.String,
     'email': fields.String,
-    'password': fields.String,
     'first_name': fields.String,
     'last_name': fields.String,
     'last_logon': fields.DateTime,
     'locked': fields.Boolean,
     'role': fields.Nested(mod_user_role)
+})
+
+mod_user_create_success = Model('UserCreateSuccess', {
+    'message': fields.String,
+    'user': fields.Nested(mod_user_full)
 })
 
 mod_user_create = Model('UserCreate', {
@@ -656,10 +660,11 @@ mod_settings = Model('SettingsList', {
     'email_server': fields.String,
     'email_secret': fields.Nested(mod_credential_list),
     'playbook_action_timeout': fields.Integer,
-    'playbook_timeout': fields.Integer
+    'playbook_timeout': fields.Integer,
+    'logon_password_attempts': fields.Integer
 })
 
-schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create,
+schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create_success, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
                  mod_tag, mod_tag_list, mod_credential_create, mod_credential_full, mod_credential_return,
                  mod_credential_decrypted, mod_credential_decrypt, mod_credential_update,

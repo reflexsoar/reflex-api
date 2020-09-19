@@ -6,7 +6,7 @@ from flask_migrate import Migrate, MigrateCommand
 from flask_script import Manager
 
 from app import create_app, db
-from app.models import AuthTokenBlacklist, Settings, User, Role, Permission, DataType, EventStatus, AgentRole, CaseStatus
+from app.models import AuthTokenBlacklist, GlobalSettings, User, Role, Permission, DataType, EventStatus, AgentRole, CaseStatus
 
 app = create_app()
 app.app_context().push()
@@ -180,7 +180,7 @@ def setup():
         'base_url': 'http://localhost'
     }
 
-    settings = Settings(**base_settings)
+    settings = GlobalSettings(**base_settings)
     settings.create()
 
     print("Creating default adminstrator permissions...")

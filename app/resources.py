@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc, func
-from .models import User, UserGroup, db, RefreshToken, Settings, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
+from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -61,7 +61,7 @@ ns_case_task = api.namespace(
     'CaseTask', description='Case Task operations', path='/case_task'
 )
 ns_settings = api.namespace(
-    'Settings', description='Global settings for the Reflex system', path='/settings'
+    'GlobalSettings', description='Global settings for the Reflex system', path='/settings'
 )
 
 
@@ -82,7 +82,6 @@ pager_parser = api.parser()
 pager_parser.add_argument('page_size', location='args',
                           required=False, type=int)
 pager_parser.add_argument('page', location='args', required=False, type=int)
-
 
 def parse_tags(tags):
     ''' Tags a list of supplied tags and creates Tag objects for each one '''
@@ -147,6 +146,22 @@ class auth(Resource):
             user.save()
 
             return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
+        
+        # If the user fails to logon more than 5 times
+        # lock out their account, the counter will reset
+        # when an admin unlocks them
+
+        settings = GlobalSettings.query.first()
+
+        if user.failed_logons == None:
+            user.failed_logons = 0
+
+        if user.failed_logons > settings.logon_password_attempts:
+            user.locked = True
+            user.save()
+        else:
+            user.failed_logons += 1
+            user.save()
 
         ns_auth.abort(401, 'Incorrect username or password')
 
@@ -250,19 +265,41 @@ class UserList(Resource):
     # TODO: Add a lock to this so only the Admin users and those with 'add_user' permission can do this
     @api.doc(security="Bearer")
     @api.expect(mod_user_create)
+    @api.marshal_with(mod_user_create_success)
     @api.response('409', 'User already exists.')
     @api.response('200', "Successfully created the user.")
     @token_required
     @user_has('add_user')
     def post(self, current_user):
         ''' Creates a new users '''
+
         user = User.query.filter_by(email=api.payload['email']).first()
         if not user:
             user = User(**api.payload)
             user.create()
-            return {'message': 'Successfully created the user.', 'uuid': user.uuid}
+            return {'message': 'Successfully created the user.', 'user': user}
         else:
             ns_user.abort(409, "User already exists.")
+
+
+@ns_user.route("/<uuid>/unlock")
+class UnlockUser(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_user_full)
+    @token_required
+    @user_has('unlock_user')
+    def put(self, uuid, current_user):
+        ''' Unlocks a user and resets their failed logons back to 0 '''
+
+        user = User.query.filter_by(uuid=uuid).first()
+        if user:
+            user.locked = False
+            user.failed_logons = 0
+            user.save()
+            return user
+        else:
+            ns_user.abort(404, 'User not found.')
 
 
 @ns_user.route("/<uuid>")
@@ -287,12 +324,12 @@ class UserDetails(Resource):
     @user_has('update_user')
     def put(self, uuid, current_user):
         ''' Updates information for a user '''
+
         user = User.query.filter_by(uuid=uuid).first()
         if user:
             if 'username' in api.payload and User.query.filter_by(username=api.payload['username']).first():
                 ns_user.abort(409, 'Username already taken.')
             else:
-                user.update(api.payload)
                 return user
         else:
             ns_user.abort(404, 'User not found.')
@@ -443,8 +480,6 @@ class CaseList(Resource):
     #@user_has('create_case')
     def post(self):
         ''' Creates a new case '''
-
-        print(api.payload)
 
         _tags = []
         event_observables = []
@@ -640,8 +675,6 @@ class CaseTaskList(Resource):
     def post(self):
         
         ''' Creates a new case_task '''
-
-        print(api.payload)
 
         case_task = CaseTask.query.filter_by(
             title=api.payload['title'], case_uuid=api.payload['case_uuid']).first()
@@ -2475,18 +2508,18 @@ class Settings(Resource):
     @api.marshal_with(mod_settings)
     @token_required
     @user_has('update_settings')    
-    def get(self):
+    def get(self, current_user):
         ''' Retrieves the global settings for the system '''
-
+        settings = GlobalSettings.query.first()
         return settings
 
     @api.doc(security="Bearer")
     @api.expect(mod_settings)
     @token_required    
     @user_has('update_settings')
-    def put(self):
+    def put(self, current_user):
 
-        settings = Settings.query.first()
+        settings = GlobalSettings.query.first()
         settings.update(**api.payload)
 
         return {'message': 'Succesfully updated settings'}

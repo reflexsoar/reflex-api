@@ -1,6 +1,7 @@
 import jwt
 import base64
 import datetime
+import logging
 
 from flask import request, current_app, abort
 from .models import User, AuthTokenBlacklist, Agent
@@ -44,10 +45,11 @@ def user_has(permission):
             try:
                 if current_user.has_right(permission):
                     return f(*args, **kwargs)
-            except Exception:
+            except Exception as e:
+                logging.error('An unknown error occured. {}'.format(e))
                 abort(401, 'Unauthorized.')
             else:
-                abort(401, 'Unauthorized.')
+                abort(401, 'You do not have permission to perform this action.')
 
         wrapper.__doc__ = f.__doc__
         wrapper.__name__ = f.__name__
