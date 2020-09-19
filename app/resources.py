@@ -334,24 +334,23 @@ class UserDetails(Resource):
     def put(self, uuid, current_user):
         ''' Updates information for a user '''
 
-        print(api.payload)
-
         user = User.query.filter_by(uuid=uuid).first()
         if user:
             if 'username' in api.payload:
                 target_user = User.query.filter_by(username=api.payload['username']).first()
-                print(target_user)
-                if target_user.uuid == uuid:
-                    del api.payload['username']
-                else:
-                    ns_user.abort(409, 'Username already taken.')
+                if target_user:
+                    if target_user.uuid == uuid:
+                        del api.payload['username']
+                    else:
+                        ns_user.abort(409, 'Username already taken.')
 
             if 'email' in api.payload:
                 target_user = User.query.filter_by(email=api.payload['email']).first()
-                if target_user.uuid == uuid:
-                    del api.payload['email']
-                else:
-                    ns_user.abort(409, 'Email already taken.')
+                if target_user:
+                    if target_user.uuid == uuid:
+                        del api.payload['email']
+                    else:
+                        ns_user.abort(409, 'Email already taken.')
 
             user.update(api.payload)
             return user

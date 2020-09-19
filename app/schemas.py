@@ -57,7 +57,8 @@ mod_user_create = Model('UserCreate', {
     'email': fields.String,
     'password': fields.String,
     'first_name': fields.String,
-    'last_name': fields.String
+    'last_name': fields.String,
+    'locked': fields.Boolean
 })
 
 mod_user_self = Model('UserSelf', {
