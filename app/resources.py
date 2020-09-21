@@ -128,7 +128,7 @@ class auth(Resource):
         ''' Authenticate the user and return their api token '''
 
         # Check if the user exists
-        user = User.query.filter_by(username=api.payload['username']).first()
+        user = User.query.filter_by(username=api.payload['username'], locked=False).first()
         if not user:
             ns_auth.abort(401, 'Incorrect username or password')
 
@@ -150,7 +150,6 @@ class auth(Resource):
         # If the user fails to logon more than 5 times
         # lock out their account, the counter will reset
         # when an admin unlocks them
-
         settings = GlobalSettings.query.first()
 
         if user.failed_logons == None:

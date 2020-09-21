@@ -37,7 +37,7 @@ def user_has(permission):
             if(current_app.config['PERMISSIONS_DISABLED']):
                 return f(*args, **kwargs)
             current_user = _check_token()
-
+            
             # If this is a pairing token and its the add_agent permission
             # bypass the route guard and let the route finish
             if current_user == 'PAIRING' and permission == 'add_agent':
@@ -80,6 +80,12 @@ def _check_token():
                     current_user = "PAIRING"
                 else:
                     current_user = User.query.filter_by(uuid=token['uuid']).first()
+
+                    if current_user.locked:
+                        blacklist = AuthTokenBlacklist(auth_token = access_token)
+                        blacklist.create()
+                        abort(401, 'Unauthorized')
+                   
                 blacklisted = AuthTokenBlacklist.query.filter_by(auth_token=access_token).first()
                 if blacklisted:
                     raise ValueError('Token retired.')
