@@ -426,6 +426,7 @@ class User(Base):
     def create_access_token(self):
         _access_token = jwt.encode({
             'uuid': self.uuid,
+            'organization': self.organization_uuid,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=360),
             'iat': datetime.datetime.utcnow(),
             'type': 'user'

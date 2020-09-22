@@ -1892,7 +1892,7 @@ class AgentPairToken(Resource):
         Generates a short lived pairing token used by the agent
         to get a long running JWT
         '''
-        return generate_token(None, 300, 'pairing')
+        return generate_token(None, current_user().organization_uuid, 300, 'pairing')
 
 
 @ns_agent.route("")
@@ -1947,7 +1947,7 @@ class AgentList(Resource):
 
             agent.create()
 
-            return {'message': 'Successfully created the agent.', 'uuid': agent.uuid, 'token': generate_token(agent.uuid, 86400, token_type='agent')}
+            return {'message': 'Successfully created the agent.', 'uuid': agent.uuid, 'token': generate_token(agent.uuid, current_user().organization_uuid, 86400, token_type='agent')}
         else:
             ns_agent.abort(409, "Agent already exists.")
 

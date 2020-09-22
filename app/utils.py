@@ -6,9 +6,10 @@ import logging
 from flask import request, current_app, abort
 from .models import User, AuthTokenBlacklist, Agent
 
-def generate_token(uuid, duration=10, token_type='agent'):
+def generate_token(uuid, organization_uuid, duration=10, token_type='agent'):
     _access_token = jwt.encode({
         'uuid': uuid,
+        'organization': organization_uuid,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=duration),
         'iat': datetime.datetime.utcnow(),
         'type': token_type
