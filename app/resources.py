@@ -1682,19 +1682,21 @@ class CreateBulkEvents(Resource):
     @api.expect(mod_event_create_bulk)
     @api.response('200', 'Sucessfully created events.')
     @api.response('207', 'Multi-Status')
-    def post(self):
+    @token_required
+    @user_has('add_event')
+    def post(self, current_user):
         ''' Creates Events in bulk '''
         response = {
             'results': [],
             'success': True
         }
-        event_status = EventStatus.query.filter_by(name="New").first()
+        event_status = EventStatus.query.filter_by(name="New", organization_uuid=current_user().organization_uuid).first()
 
         events = api.payload['events']
         for item in events:
             _tags = []
             _observables = []
-            event = Event.query.filter_by(reference=item['reference']).first()
+            event = Event.query.filter_by(reference=item['reference'], organization_uuid=current_user().organization_uuid).first()
             if not event:
                 if 'tags' in item:
                     tags = item.pop('tags')
@@ -1704,7 +1706,7 @@ class CreateBulkEvents(Resource):
                     observables = item.pop('observables')
                     _observables = create_observables(observables, current_user().organization_uuid)
 
-                event = Event(**item)
+                event = Event(organization_uuid=current_user().organization_uuid, **item)
                 event.create()
 
                 event.status = event_status
