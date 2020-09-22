@@ -43,7 +43,7 @@ def user_has(permission):
             # bypass the route guard and let the route finish
             if isinstance(current_user, dict) and current_user['type'] == 'pairing' and permission == 'add_agent':
                 return f(*args, **kwargs)
-            if current_user.has_right(permission):
+            if not isinstance(current_user, list) and current_user.has_right(permission):
                 return f(*args, **kwargs)
             else:
                 abort(401, 'You do not have permission to perform this action.')

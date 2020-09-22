@@ -528,7 +528,7 @@ class CaseList(Resource):
 
         if 'owner' in api.payload:
             owner = api.payload.pop('owner')
-            user = User.query.filter_by(uuid=owner).first()
+            user = User.query.filter_by(uuid=owner, organization_uuid=current_user().organization_uuid).first()
             if user:
                 api.payload['owner'] = user
 
@@ -580,11 +580,11 @@ class CaseList(Resource):
         case_status = CaseStatus.query.filter_by(name="New", organization_uuid=current_user().organization_uuid).first()
         case.status = case_status
         case.save()
-
         
         # If the user selected a case template, take the template items
         # and copy them over to the case
         if case_template_uuid:
+            print("CREATING FROM TEMPLATE")
             case_template = CaseTemplate.query.filter_by(
                 uuid=case_template_uuid,
                 organization_uuid=current_user().organization_uuid).first()
@@ -611,7 +611,7 @@ class CaseList(Resource):
 
 
         for event in case.events:
-            event.status = EventStatus.query.filter_by(name='Imported').first()
+            event.status = EventStatus.query.filter_by(name='Imported', organization_uuid=current_user().organization_uuid).first()
             event.save()
 
         return {'message': 'Successfully created the case.', 'uuid': case.uuid}
@@ -834,7 +834,7 @@ class CaseTemplateList(Resource):
                 _tasks = []
                 tasks = api.payload.pop('tasks')
                 for _task in tasks:
-                    task = CaseTemplateTask(**_task)
+                    task = CaseTemplateTask(organization_uuid=current_user().organization_uuid, **_task)
                     _tasks.append(task)
             api.payload['tasks'] = _tasks
 
@@ -1281,7 +1281,7 @@ class TagPlaybook(Resource):
         ''' Adds a tag to an playbook '''
         tag = Tag.query.filter_by(name=name).first()
         if not tag:
-            tag = Tag(**{'name': name, 'color': '#fffff'})
+            tag = Tag(organization_uuid=current_user().organization_uuid, **{'name': name, 'color': '#fffff'})
             tag.create()
 
         playbook = Playbook.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
@@ -1308,7 +1308,7 @@ class BulkTagPlaybook(Resource):
             for t in tags:
                 tag = Tag.query.filter_by(name=t).first()
                 if not tag:
-                    tag = Tag(**{'name': t, 'color': '#fffff'})
+                    tag = Tag(organization_uuid=current_user().organization_uuid, **{'name': t, 'color': '#fffff'})
                     tag.create()
                     _tags += [tag]
                 else:
@@ -1857,7 +1857,7 @@ class TagEvent(Resource):
         ''' Adds a tag to an event '''
         tag = Tag.query.filter_by(name=name).first()
         if not tag:
-            tag = Tag(**{'name': name, 'color': '#fffff'})
+            tag = Tag(organization_uuid=current_user().organization_uuid, **{'name': name, 'color': '#fffff'})
             tag.create()
 
         event = Event.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
@@ -1884,7 +1884,7 @@ class BulkTagEvent(Resource):
             for t in tags:
                 tag = Tag.query.filter_by(name=t).first()
                 if not tag:
-                    tag = Tag(**{'name': t, 'color': '#fffff'})
+                    tag = Tag(organization_uuid=current_user().organization_uuid, **{'name': t, 'color': '#fffff'})
                     tag.create()
                     _tags += [tag]
                 else:
