@@ -62,8 +62,12 @@ mod_user_create = Model('UserCreate', {
 })
 
 mod_user_self = Model('UserSelf', {
+    'uuid': fields.String,
     'username': fields.String,
-    'email': fields.String
+    'first_name': fields.String,
+    'last_name': fields.String,
+    'email': fields.String,
+    'permissions': fields.List(fields.String)
 })
 
 mod_user_group_create = Model('UserGroupCreate', {

@@ -383,15 +383,18 @@ class User(Base):
             'uuid': self.uuid,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=360),
             'iat': datetime.datetime.utcnow(),
-            'perms': [
-                k for k in self.role.permissions.__dict__ 
-                if k not in ['_sa_instance_state', 'created_at', 'modified_at', 'created_by', 'modified_by', 'uuid', 'id'] 
-                and self.role.permissions.__dict__[k] == True
-            ],
             'type': 'user'
         }, current_app.config['SECRET_KEY']).decode('utf-8')
 
         return _access_token
+
+    @property
+    def permissions(self):
+        return [
+            k for k in self.role.permissions.__dict__ 
+            if k not in ['_sa_instance_state', 'created_at', 'modified_at', 'created_by', 'modified_by', 'uuid', 'id'] 
+            and self.role.permissions.__dict__[k] == True
+        ]
 
     def create_refresh_token(self, user_agent_string):
         _refresh_token = jwt.encode({

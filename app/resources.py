@@ -256,9 +256,9 @@ class UserList(Resource):
 
         if args['username']:
             users = User.query.filter(
-                User.username.like(args['username']+"%")).all()
+                User.username.like(args['username']+"%"),User.deleted.like(False)).all()
         else:
-            users = User.query.all()
+            users = User.query.filter_by(deleted=False).all()
         return users
 
     # TODO: Add a lock to this so only the Admin users and those with 'add_user' permission can do this
@@ -360,13 +360,21 @@ class UserDetails(Resource):
     @token_required
     @user_has('delete_user')
     def delete(self, uuid, current_user):
-        ''' Deletes a user '''
+        ''' 
+        Deletes a user 
+        
+        Users are soft deleted, meaning they never get removed from the database.  Instead,
+        their deleted attribute is set and they do not show up in the UI.  This is 
+        used to preserve database relationships like ownership, comment history.
+        Deleted users can not be restored at this time.        
+        '''
         user = User.query.filter_by(uuid=uuid).first()
         if user:
             if _get_current_user().uuid == user.uuid:
                 ns_user.abort(403, 'User can not delete themself.')
             else:
-                user.delete()
+                user.deleted = True
+                user.save()
                 return {'message': 'User successfully deleted.'}
         else:
             ns_user.abort(404, 'User not found.')
