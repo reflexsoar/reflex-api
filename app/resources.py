@@ -272,18 +272,18 @@ class UserList(Resource):
     def post(self, current_user):
         ''' Creates a new users '''
 
-        user = User.query.filter_by(email=api.payload['email']).first()
+        user = User.query.filter_by(email=api.payload['email'], organization_uuid=current_user().organization_uuid).first()
 
         if user:
             ns_user.abort(409, "User with this email already exists.")
         
-        user = User.query.filter_by(username=api.payload['username']).first()
+        user = User.query.filter_by(username=api.payload['username'], organization_uuid=current_user().organization_uuid).first()
     
         if user:
             ns_user.abort(409, "User with this username already exists.")
 
         if not user:
-            user = User(**api.payload)
+            user = User(organization_uuid=current_user().organization_uuid, **api.payload)
             user.create()
             return {'message': 'Successfully created the user.', 'user': user}
         else:
@@ -300,7 +300,7 @@ class UnlockUser(Resource):
     def put(self, uuid, current_user):
         ''' Unlocks a user and resets their failed logons back to 0 '''
 
-        user = User.query.filter_by(uuid=uuid).first()
+        user = User.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if user:
             user.locked = False
             user.failed_logons = 0
@@ -319,7 +319,7 @@ class UserDetails(Resource):
     @user_has('view_users')
     def get(self, uuid, current_user):
         ''' Returns information about a user '''
-        user = User.query.filter_by(uuid=uuid).first()
+        user = User.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if user:
             return user
         else:
@@ -336,7 +336,7 @@ class UserDetails(Resource):
         user = User.query.filter_by(uuid=uuid).first()
         if user:
             if 'username' in api.payload:
-                target_user = User.query.filter_by(username=api.payload['username']).first()
+                target_user = User.query.filter_by(username=api.payload['username'], organization_uuid=current_user().organization_uuid).first()
                 if target_user:
                     if target_user.uuid == uuid:
                         del api.payload['username']
@@ -344,7 +344,7 @@ class UserDetails(Resource):
                         ns_user.abort(409, 'Username already taken.')
 
             if 'email' in api.payload:
-                target_user = User.query.filter_by(email=api.payload['email']).first()
+                target_user = User.query.filter_by(email=api.payload['email'], organization_uuid=current_user().organization_uuid).first()
                 if target_user:
                     if target_user.uuid == uuid:
                         del api.payload['email']
@@ -368,9 +368,9 @@ class UserDetails(Resource):
         used to preserve database relationships like ownership, comment history.
         Deleted users can not be restored at this time.        
         '''
-        user = User.query.filter_by(uuid=uuid).first()
+        user = User.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if user:
-            if _get_current_user().uuid == user.uuid:
+            if current_user().uuid == user.uuid:
                 ns_user.abort(403, 'User can not delete themself.')
             else:
                 user.deleted = True
@@ -2063,7 +2063,7 @@ class UserGroupList(Resource):
         user_group = UserGroup.query.filter_by(
             name=api.payload['name']).first()
         if not user_group:
-            user_group = UserGroup(**api.payload)
+            user_group = UserGroup(organization_uuid=current_user().organization_uuid, **api.payload)
             user_group.create()
             return {'message': 'Successfully created the User Group.'}
         else:
@@ -2082,7 +2082,7 @@ class UserGroupDetails(Resource):
     @user_has('view_user_groups')
     def get(self, uuid, current_user):
         ''' Gets details on a specific user_group '''
-        user_group = UserGroup.query.filter_by(uuid=uuid).first()
+        user_group = UserGroup.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if user_group:
             return user_group
         else:
@@ -2096,10 +2096,12 @@ class UserGroupDetails(Resource):
     @user_has('update_user_groups')
     def put(self, uuid, current_user):
         ''' Updates a user_group '''
-        user_group = UserGroup.query.filter_by(uuid=uuid).first()
+        user_group = UserGroup.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
 
         if user_group:
-            if 'name' in api.payload and UserGroup.query.filter_by(name=api.payload['name']).first():
+            # TODO: Improve the query function so that organization_uuid=current_user().organization_uuid is just natively
+            # called on all database calls
+            if 'name' in api.payload and UserGroup.query.filter_by(name=api.payload['name'], organization_uuid=current_user().organization_uuid).first():
                 ns_user_group.abort(409, 'User Group name already exists.')
             else:
                 user_group.update(api.payload)
@@ -2113,7 +2115,7 @@ class UserGroupDetails(Resource):
     @user_has('delete_user_group')
     def delete(self, uuid, current_user):
         ''' Deletes a user_group '''
-        user_group = UserGroup.query.filter_by(uuid=uuid).first()
+        user_group = UserGroup.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if user_group:
             user_group.delete()
             return {'message': 'Sucessfully deleted User Group.'}
@@ -2237,7 +2239,7 @@ class RoleList(Resource):
     @user_has('view_roles')
     def get(self, current_user):
         ''' Returns a list of Roles '''
-        return Role.query.all()
+        return Role.query.filter_by(organization_uuid=current_user().organization_uuid).all()
 
     @api.doc(security="Bearer")
     @api.expect(mod_role_create)
@@ -2247,9 +2249,9 @@ class RoleList(Resource):
     @user_has('add_role')
     def post(self, current_user):
         ''' Creates a new Role '''
-        role = Role.query.filter_by(name=api.payload['name']).first()
+        role = Role.query.filter_by(name=api.payload['name'], organization_uuid=current_user().organization_uuid).first()
         if not role:
-            role = Role(**api.payload)
+            role = Role(organization_uuid=current_user().organization_uuid, **api.payload)
             role.create()
             return {'message': 'Successfully created the role.', 'uuid': role.uuid}
         else:
@@ -2265,9 +2267,9 @@ class RoleDetails(Resource):
     @user_has('update_role')
     def put(self, uuid, current_user):
         ''' Updates an Role '''
-        role = Role.query.filter_by(uuid=uuid).first()
+        role = Role.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if role:
-            if 'name' in api.payload and Role.query.filter_by(name=api.payload['name']).first():
+            if 'name' in api.payload and Role.query.filter_by(name=api.payload['name'], organization_uuid=current_user().organization_uuid).first():
                 ns_role.abort(409, 'Role with that name already exists.')
             else:
                 role.update(api.payload)
@@ -2280,7 +2282,7 @@ class RoleDetails(Resource):
     @user_has('delete_role')
     def delete(self, uuid, current_user):
         ''' Removes a Role '''
-        role = Role.query.filter_by(uuid=uuid).first()
+        role = Role.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if role:
             if len(role.users) > 0:
                 ns_role.abort(
@@ -2297,7 +2299,7 @@ class RoleDetails(Resource):
     @user_has('view_roles')
     def get(self, uuid, current_user):
         ''' Gets the details of a Role '''
-        role = Role.query.filter_by(uuid=uuid).first()
+        role = Role.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if role:
             return role
         else:
