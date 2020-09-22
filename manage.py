@@ -549,8 +549,8 @@ def create_default_observable_types(org):
         'domain': 'A domain name',
         'fqdn': 'The fully qualified domain name of a host',
         'host': 'The hosts name',
-        'mail': 'An e-mail address',
-        'mail_subject': 'An e-mail subject',
+        'email': 'An e-mail address',
+        'email_subject': 'An e-mail subject',
         'hash': 'A hash value',
         'user': 'A username',
         'command': 'A command that was executed',
@@ -602,7 +602,20 @@ def create_default_agent_types(org):
     for k in agent_types:
         agent_type = AgentRole(name=k, description=agent_types[k])
         agent_type.organization = org
+
         agent_type.create()
+
+@manager.command
+def new_org(name, description):
+    org = create_org(name, description)
+    create_default_settings(org)
+    create_admin(org)  
+    create_analyst(org)
+    create_agent_role(org)
+    create_default_observable_types(org)
+    create_default_event_statuses(org)
+    create_default_case_statuses(org)
+    create_default_agent_types(org)
 
 @manager.command
 def setup():
@@ -617,15 +630,7 @@ def setup():
     create_default_case_statuses(org)
     create_default_agent_types(org)
 
-    org2 = create_org('01Security', 'A completely different organization')
-    create_default_settings(org2)
-    create_admin(org2)  
-    create_analyst(org2)
-    create_agent_role(org2)
-    create_default_observable_types(org2)
-    create_default_event_statuses(org2)
-    create_default_case_statuses(org2)
-    create_default_agent_types(org2)
+    
 
     return 0
 
