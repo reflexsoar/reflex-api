@@ -256,9 +256,9 @@ class UserList(Resource):
 
         if args['username']:
             users = User.query.filter(
-                User.username.like(args['username']+"%"),User.deleted.like(False)).all()
+                User.username.like(args['username']+"%"),User.deleted.like(False), User.organization_uuid.equals(current_user().organization_uuid)).all()
         else:
-            users = User.query.filter_by(deleted=False).all()
+            users = User.query.filter_by(deleted=False, organization_uuid=current_user().organization_uuid).all()
         return users
 
     # TODO: Add a lock to this so only the Admin users and those with 'add_user' permission can do this
@@ -2046,9 +2046,9 @@ class UserGroupList(Resource):
         args = user_group_parser.parse_args()
 
         if args['name']:
-            groups = UserGroup.query.filter_by(UserGroup.name.like(args['name']+"%")).all()
+            groups = UserGroup.query.filter_by(UserGroup.name.like(args['name']+"%"), organization_uuid=current_user().organization_uuid).all()
         else:
-            groups = UserGroup.query.all()
+            groups = UserGroup.query.filter_by(organization_uuid=current_user().organization_uuid).all()
 
         return groups
 

@@ -24,6 +24,12 @@ def generate_uuid():
 
 
 # Relationships
+
+org_tag_association = db.Table('tag_organization', db.metadata,
+    db.Column('organization_uuid', db.String, db.ForeignKey('organization.uuid')),
+    db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
+)
+
 playbook_tag_association = db.Table('tag_playbook', db.metadata,
                                     db.Column('playbook_uuid', db.String,
                                               db.ForeignKey('playbook.uuid')),
@@ -209,6 +215,10 @@ class Base(db.Model):
 class Permission(Base):
     ''' Permissions for a Role '''
 
+    # Organization Mapping
+    organization = db.relationship('Organization', back_populates='permissions')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+
     # User Permissions
     add_user = db.Column(db.Boolean, default=False)
     update_user = db.Column(db.Boolean, default=False)
@@ -327,6 +337,12 @@ class Permission(Base):
     delete_credential = db.Column(db.Boolean, default=False)
     view_credentials = db.Column(db.Boolean, default=False)
 
+    # Organization Administration
+    add_organization = db.Column(db.Boolean, default=False)
+    view_organizatons = db.Column(db.Boolean, default=False)
+    update_organization = db.Column(db.Boolean, default=False)
+    delete_organization = db.Column(db.Boolean, default=False)
+
     # Update Settings
     update_settings = db.Column(db.Boolean, default=False)
 
@@ -334,14 +350,41 @@ class Permission(Base):
     roles = db.relationship('Role', back_populates='permissions')
 
 
+class Organization(Base):
+    ''' 
+    The Organization for which all objects fall under
+
+    New organizations can only be added by a platform super admin
+    
+    '''
+    name = db.Column(db.String(200), nullable=False)
+    url = db.Column(db.String(200))
+    description = db.Column(db.String)
+    enabled = db.Column(db.Integer, default=1)
+    users = db.relationship('User', back_populates='organization')
+    groups = db.relationship('UserGroup', back_populates='organization')
+    permissions = db.relationship('Permission', back_populates='organization')
+    roles = db.relationship('Role', back_populates='organization')
+    #agents = db.relationship('Agent',  back_populates='organization')
+    #events = db.relationship('Event', back_populates='organization')
+    #cases = db.relationship('Case', back_populates='organization')
+    #case_templates = db.relationship('CaseTemplates', back_populates='organization')
+    #inputs = db.relationship('Input', back_populates='organization')
+    #credentials = db.relationship('Credential', back_populates='organization')
+    settings = db.relationship('GlobalSettings', back_populates='organization')
+    tags = db.relationship('Tag', secondary=org_tag_association)
+
+
 class Role(Base):
     ''' A Users role in the system '''
-    name = db.Column(db.String(255), unique=True, nullable=False)
+    name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.String(255))
     users = db.relationship('User', back_populates='role')
     agents = db.relationship('Agent', back_populates='role')
     permissions = db.relationship('Permission', back_populates='roles')
     permissions_uuid = db.Column(db.String, db.ForeignKey('permission.uuid'))
+    organization = db.relationship('Organization', back_populates='roles')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class User(Base):
@@ -357,6 +400,8 @@ class User(Base):
     deleted = db.Column(db.Boolean, default=False)
     role = db.relationship('Role', back_populates='users')
     role_uuid = db.Column(db.String, db.ForeignKey('role.uuid'))
+    organization = db.relationship('Organization', back_populates='users')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
     groups = db.relationship(
         'UserGroup', secondary=user_group_association, back_populates='members')
 
@@ -445,6 +490,8 @@ class UserGroup(Base):
     description = db.Column(db.String)
     members = db.relationship(
         'User', secondary=user_group_association, back_populates='groups')
+    organization = db.relationship('Organization', back_populates='groups')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class RefreshToken(Base):
@@ -887,3 +934,5 @@ class GlobalSettings(Base):
     playbook_action_timeout = db.Column(db.Integer, default=300)
     playbook_timeout = db.Column(db.Integer, default=3600)
     logon_password_attempts = db.Column(db.Integer, default=5)
+    organization = db.relationship('Organization', back_populates='settings')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))

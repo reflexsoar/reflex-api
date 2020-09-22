@@ -36,6 +36,11 @@ mod_user_role = Model('UserRole', {
     'name': fields.String
 })
 
+mod_organization_basic = Model('OrganizationBasic', {
+    'uuid': fields.String,
+    'name': fields.String
+})
+
 mod_user_full = Model('UserFull', {
     'uuid': fields.String,
     'username': fields.String,
@@ -67,7 +72,8 @@ mod_user_self = Model('UserSelf', {
     'first_name': fields.String,
     'last_name': fields.String,
     'email': fields.String,
-    'permissions': fields.List(fields.String)
+    'permissions': fields.List(fields.String),
+    'organization': fields.Nested(mod_organization_basic)
 })
 
 mod_user_group_create = Model('UserGroupCreate', {
@@ -193,7 +199,11 @@ permission_fields = {
     "create_case_status": fields.Boolean,
     "update_case_status": fields.Boolean,
     "delete_case_status": fields.Boolean,
-    "update_settings": fields.Boolean
+    "update_settings": fields.Boolean,
+    "add_organization": fields.Boolean,
+    "view_organizatons": fields.Boolean,
+    "update_organization": fields.Boolean,
+    "delete_organization": fields.Boolean
 }
 
 mod_permission_role_view = Model('PermissionRoleView', {
@@ -687,5 +697,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_case_template_create, mod_case_template_full,
                  mod_case_template_task_create, mod_case_template_task_full, mod_add_tasks_to_case, mod_comment, mod_comment_create,
                  mod_case_history, mod_bulk_add_observables, mod_case_observables,
-                 mod_case_status_create, mod_case_status_list,
+                 mod_case_status_create, mod_case_status_list, mod_organization_basic,
                  mod_case_task_create, mod_case_task_full, mod_user_role, mod_settings]

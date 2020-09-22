@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: dfc15f8b47ce
+Revision ID: c97b4bcd93d8
 Revises: 
-Create Date: 2020-09-18 16:30:23.223989
+Create Date: 2020-09-21 22:27:22.330153
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'dfc15f8b47ce'
+revision = 'c97b4bcd93d8'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -37,11 +37,35 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
+    op.create_table('organization',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('name', sa.String(length=200), nullable=False),
+    sa.Column('url', sa.String(length=200), nullable=True),
+    sa.Column('description', sa.String(), nullable=True),
+    sa.Column('enabled', sa.Integer(), nullable=True),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('uuid')
+    )
+    op.create_table('refresh_token',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('user_uuid', sa.String(length=100), nullable=True),
+    sa.Column('refresh_token', sa.String(length=200), nullable=True),
+    sa.Column('user_agent_hash', sa.String(length=64), nullable=True),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('uuid')
+    )
     op.create_table('permission',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('uuid', sa.String(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('organization_uuid', sa.String(), nullable=True),
     sa.Column('add_user', sa.Boolean(), nullable=True),
     sa.Column('update_user', sa.Boolean(), nullable=True),
     sa.Column('delete_user', sa.Boolean(), nullable=True),
@@ -124,18 +148,12 @@ def upgrade():
     sa.Column('decrypt_credential', sa.Boolean(), nullable=True),
     sa.Column('delete_credential', sa.Boolean(), nullable=True),
     sa.Column('view_credentials', sa.Boolean(), nullable=True),
+    sa.Column('add_organization', sa.Boolean(), nullable=True),
+    sa.Column('view_organizatons', sa.Boolean(), nullable=True),
+    sa.Column('update_organization', sa.Boolean(), nullable=True),
+    sa.Column('delete_organization', sa.Boolean(), nullable=True),
     sa.Column('update_settings', sa.Boolean(), nullable=True),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('uuid')
-    )
-    op.create_table('refresh_token',
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('uuid', sa.String(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), nullable=True),
-    sa.Column('modified_at', sa.DateTime(), nullable=True),
-    sa.Column('user_uuid', sa.String(length=100), nullable=True),
-    sa.Column('refresh_token', sa.String(length=200), nullable=True),
-    sa.Column('user_agent_hash', sa.String(length=64), nullable=True),
+    sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
@@ -146,6 +164,8 @@ def upgrade():
     sa.Column('modified_at', sa.DateTime(), nullable=True),
     sa.Column('name', sa.String(length=255), nullable=True),
     sa.Column('description', sa.String(), nullable=True),
+    sa.Column('organization_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
@@ -157,9 +177,10 @@ def upgrade():
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('description', sa.String(length=255), nullable=True),
     sa.Column('permissions_uuid', sa.String(), nullable=True),
+    sa.Column('organization_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
     sa.ForeignKeyConstraint(['permissions_uuid'], ['permission.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('name'),
     sa.UniqueConstraint('uuid')
     )
     op.create_table('agent',
@@ -188,11 +209,14 @@ def upgrade():
     sa.Column('last_logon', sa.DateTime(), nullable=True),
     sa.Column('password_hash', sa.String(length=100), nullable=True),
     sa.Column('locked', sa.Boolean(), nullable=True),
+    sa.Column('failed_logons', sa.Integer(), nullable=True),
     sa.Column('deleted', sa.Boolean(), nullable=True),
     sa.Column('role_uuid', sa.String(), nullable=True),
+    sa.Column('organization_uuid', sa.String(), nullable=True),
     sa.Column('created_by_uuid', sa.String(), nullable=True),
     sa.Column('updated_by_uuid', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['created_by_uuid'], ['user.uuid'], ),
+    sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
     sa.ForeignKeyConstraint(['role_uuid'], ['role.uuid'], ),
     sa.ForeignKeyConstraint(['updated_by_uuid'], ['user.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
@@ -405,6 +429,26 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
+    op.create_table('global_settings',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('base_url', sa.String(), nullable=True),
+    sa.Column('require_case_templates', sa.Boolean(), nullable=True),
+    sa.Column('email_from', sa.String(), nullable=True),
+    sa.Column('email_server', sa.String(), nullable=True),
+    sa.Column('email_secret_uuid', sa.String(), nullable=True),
+    sa.Column('allow_comment_deletion', sa.Boolean(), nullable=True),
+    sa.Column('playbook_action_timeout', sa.Integer(), nullable=True),
+    sa.Column('playbook_timeout', sa.Integer(), nullable=True),
+    sa.Column('logon_password_attempts', sa.Integer(), nullable=True),
+    sa.Column('organization_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['email_secret_uuid'], ['credential.uuid'], ),
+    sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('uuid')
+    )
     op.create_table('input',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('uuid', sa.String(), nullable=True),
@@ -463,27 +507,16 @@ def upgrade():
     sa.UniqueConstraint('name'),
     sa.UniqueConstraint('uuid')
     )
-    op.create_table('settings',
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('uuid', sa.String(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), nullable=True),
-    sa.Column('modified_at', sa.DateTime(), nullable=True),
-    sa.Column('base_url', sa.String(), nullable=True),
-    sa.Column('require_case_templates', sa.Boolean(), nullable=True),
-    sa.Column('email_from', sa.String(), nullable=True),
-    sa.Column('email_server', sa.String(), nullable=True),
-    sa.Column('email_secret_uuid', sa.String(), nullable=True),
-    sa.Column('allow_comment_deletion', sa.Boolean(), nullable=True),
-    sa.Column('playbook_action_timeout', sa.Integer(), nullable=True),
-    sa.Column('playbook_timeout', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['email_secret_uuid'], ['credential.uuid'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('uuid')
-    )
     op.create_table('tag_case_template',
     sa.Column('case_template_uuid', sa.String(), nullable=True),
     sa.Column('tag_id', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['case_template_uuid'], ['case_template.uuid'], ),
+    sa.ForeignKeyConstraint(['tag_id'], ['tag.uuid'], )
+    )
+    op.create_table('tag_organization',
+    sa.Column('organization_uuid', sa.String(), nullable=True),
+    sa.Column('tag_id', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
     sa.ForeignKeyConstraint(['tag_id'], ['tag.uuid'], )
     )
     op.create_table('tag_playbook',
@@ -641,11 +674,12 @@ def downgrade():
     op.drop_table('case_comment')
     op.drop_table('agent_input')
     op.drop_table('tag_playbook')
+    op.drop_table('tag_organization')
     op.drop_table('tag_case_template')
-    op.drop_table('settings')
     op.drop_table('plugin_config')
     op.drop_table('observable')
     op.drop_table('input')
+    op.drop_table('global_settings')
     op.drop_table('case_template_task')
     op.drop_table('case')
     op.drop_table('agent_group_agent')
@@ -664,8 +698,9 @@ def downgrade():
     op.drop_table('agent')
     op.drop_table('role')
     op.drop_table('user_group')
-    op.drop_table('refresh_token')
     op.drop_table('permission')
+    op.drop_table('refresh_token')
+    op.drop_table('organization')
     op.drop_table('auth_token_blacklist')
     op.drop_table('agent_role')
     # ### end Alembic commands ###

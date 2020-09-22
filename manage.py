@@ -6,7 +6,7 @@ from flask_migrate import Migrate, MigrateCommand
 from flask_script import Manager
 
 from app import create_app, db
-from app.models import AuthTokenBlacklist, GlobalSettings, User, Role, Permission, DataType, EventStatus, AgentRole, CaseStatus
+from app.models import AuthTokenBlacklist, GlobalSettings, User, Role, Permission, DataType, EventStatus, AgentRole, CaseStatus, Organization
 
 app = create_app()
 app.app_context().push()
@@ -180,7 +180,320 @@ def setup():
         'base_url': 'http://localhost'
     }
 
+    print("Creating the administrative organization...")
+
+    organization = Organization(name='Reflex', description='The default Reflex Organization')
+    organization.save()
+
+    print("Creating default permissions...")
+
     settings = GlobalSettings(**base_settings)
+    settings.organization = organization
+    settings.create()
+
+    print("Creating default super adminstrator permissions...")
+
+    # Create the Permissions for an administrator
+    perms = { 
+        'add_user': True,
+        'update_user': True,
+        'delete_user': True,
+        'add_user_to_role': True,
+        'remove_user_from_role': True,
+        'reset_user_password': True,
+        'unlock_user': True,
+        'view_users': True,
+        'add_role': True,
+        'update_role': True,
+        'delete_role': True,
+        'set_role_permissions': True,
+        'view_roles': True,
+        "add_tag": True,
+        "update_tag": True,
+        "delete_tag": True,
+        "view_tags": True,
+        "add_credential": True,
+        "update_credential": True,
+        "decrypt_credential": True,
+        "delete_credential": True,
+        "view_credentials": True ,
+        "add_playbook": True,
+        "update_playbook": True,
+        "delete_playbook": True,
+        "view_playbooks": True,
+        "add_tag_to_playbook": True,
+        "remove_tag_from_playbook": True,
+        "add_event": True,
+        "view_events": True,
+        "update_event": True,
+        "delete_event": True,
+        "add_tag_to_event": True,
+        "remove_tag_from_event": True,
+        "add_observable": True,
+        "update_observable": True,
+        "delete_observable": True,
+        "add_tag_to_observable": True,
+        "remove_tag_from_observable": True,
+        "view_agents": True,
+        "update_agent": True,
+        "delete_agent": True,
+        "pair_agent": True,
+        "add_input": True,
+        "view_inputs": True,
+        "update_input": True,
+        "delete_input": True,
+        "create_case": True,
+        "view_cases": True,
+        "update_case": True,
+        "delete_case": True,
+        "create_case_comment": True,
+        "view_case_comments": True,
+        "update_case_comment": True,
+        "delete_case_comment": True,
+        "view_plugins": True,
+        "create_plugin": True,
+        "delete_plugin": True,
+        "update_plugin": True,
+        "create_agent_group": True,
+        "view_agent_groups": True,
+        "update_agent_group": True,
+        "delete_agent_group": True,
+        "create_user_group": True,
+        "view_user_groups": True,
+        "update_user_groups": True,
+        "delete_user_group": True,
+        "create_case_template": True,
+        "view_case_templates": True,
+        "update_case_template": True,
+        "delete_case_template": True,
+        "create_case_task": True,
+        "view_case_tasks": True,
+        "update_case_task": True,
+        "delete_case_task": True,
+        "create_case_template_task": True,
+        "view_case_template_tasks": True,
+        "update_case_template_task": True,
+        "delete_case_template_task": True,
+        "create_case_status": True,
+        "update_case_status": True,
+        "delete_case_status": True,
+        'update_settings': True,
+        "add_organization": True,
+        "view_organizatons": True,
+        "update_organization": True,
+        "delete_organization": True
+    }
+    permissions = Permission(**perms)
+    permissions.organization = organization
+    permissions.create()
+
+    print("Creating the default administrator role...")
+
+    # Create the administrator role
+    details =  {
+        'name': 'Super Admin',
+        'description': 'Power overwhelming'
+    }
+    role = Role(**details)
+    db.session.add(role)
+    db.session.commit()
+
+    role.permissions = permissions
+    role.organization = organization
+    role.save()
+
+    print("Creating the super administrator account...")
+
+    # Create the default administrator account
+    default_admin = {
+        'email': 'admin@reflexsoar.com',
+        'username': 'reflex',
+        'password': 'reflex',
+        'first_name': 'Super',
+        'last_name': 'Admin'
+    }
+    user = User(**default_admin)
+    db.session.add(user)
+    db.session.commit()
+    print("Username: reflex")
+    print("Password: reflex")
+
+    user.role = role
+    user.organization = organization
+    user.save()
+
+    print("Creating the default user permissions")
+
+    perms = { 
+        'view_users': True,
+        'view_roles': True,
+        "add_tag": True,
+        "update_tag": True,
+        "delete_tag": True,
+        "view_tags": True,
+        "add_credential": True,
+        "update_credential": True,
+        "decrypt_credential": True,
+        "delete_credential": True,
+        "view_credentials": True ,
+        "add_playbook": True,
+        "view_playbooks": True,
+        "add_tag_to_playbook": True,
+        "remove_tag_from_playbook": True,
+        "add_event": True,
+        "view_events": True,
+        "update_event": True,
+        "add_tag_to_event": True,
+        "remove_tag_from_event": True,
+        "add_observable": True,
+        "update_observable": True,
+        "delete_observable": True,
+        "add_tag_to_observable": True,
+        "remove_tag_from_observable": True,
+        "view_agents": True,
+        "view_inputs": True,
+        "create_case": True,
+        "view_cases": True,
+        "update_case": True,
+        "create_case_comment": True,
+        "view_case_comments": True,
+        "update_case_comment": True,
+        "view_plugins": True,
+        "view_agent_groups": True,
+        "view_user_groups": True,
+        "create_case_template": True,
+        "view_case_templates": True,
+        "update_case_template": True,
+        "delete_case_template": True,
+        "create_case_task": True,
+        "view_case_tasks": True,
+        "update_case_task": True,
+        "delete_case_task": True
+    }
+
+    permissions = Permission(**perms)
+    permissions.create()
+    permissions.organization = organization
+    permissions.save()
+
+    print("Creating default user role...")
+
+    # Create the administrator role
+    details =  {
+        'name': 'Analyst',
+        'description': 'The default Analyst role'
+    }
+    role = Role(**details)
+    db.session.add(role)
+    db.session.commit()
+
+    role.permissions = permissions
+    role.organization = organization
+    role.save()
+
+    print("Creating the agent role...")
+    # Create the Permissions for an administrator
+    perms = { 
+        "decrypt_credential": True,
+        "view_credentials": True ,
+        "view_playbooks": True,
+        "add_event": True,
+        "update_event": True,
+        "add_tag_to_event": True,
+        "remove_tag_from_event": True,
+        "add_observable": True,
+        "update_observable": True,
+        "delete_observable": True,
+        "add_tag_to_observable": True,
+        "remove_tag_from_observable": True,
+        "view_agents": True,
+        "view_plugins": True,
+        "add_event": True
+    }
+    permissions = Permission(**perms)
+    permissions.create()
+    permissions.organization = organization
+    permissions.save()
+
+    # Create the administrator role
+    details =  {
+        'name': 'Agent',
+        'description': 'Reserved for agents'
+    }
+    role = Role(**details)
+    db.session.add(role)
+    db.session.commit()
+    role.permissions = permissions
+    role.organization = organization
+    role.save()
+
+    print("Creating default Observable Types")
+    dataTypes = {
+        'ip': 'IP Address',
+        'domain': 'A domain name',
+        'fqdn': 'The fully qualified domain name of a host',
+        'host': 'The hosts name',
+        'mail': 'An e-mail address',
+        'mail_subject': 'An e-mail subject',
+        'hash': 'A hash value',
+        'user': 'A username',
+        'command': 'A command that was executed',
+        'url': 'An address to a universal resource'
+    }
+    for k in dataTypes:
+        dt = DataType(name=k, description=dataTypes[k])
+        db.session.add(dt)
+        db.session.commit()
+
+    print("Creating default event statuses")
+    statuses = {
+        'New': 'A new event.',
+        'Closed': 'An event that has been closed.',
+        'Open': 'An event is open and being worked in a case.',
+        'Dismissed': 'An event that has been ignored from some reason.'
+    }
+    for k in statuses:
+        status = EventStatus(name=k, description=statuses[k])
+        db.session.add(status)
+        db.session.commit()
+        if k == 'Closed':
+            status.closed = True
+            status.save()
+
+    print("Creating default case statuses")
+    statuses = {
+        'New': 'A new case.',
+        'Closed': 'A cased that has been closed.',
+        'Hold': 'A case that has been worked on but is currently not being worked.',
+        'In Progress': 'A case that is currently being worked on.'
+    }
+    for k in statuses:
+        status = CaseStatus(name=k, description=statuses[k])
+        db.session.add(status)
+        db.session.commit()
+        if k == 'Closed':
+            status.closed = True
+            status.save()
+    
+    print("Creating default agent types")
+    agent_types = {
+        'poller': 'Runs input jobs to push data to Reflex',
+        'runner': 'Runs playbook actions'
+    }
+    for k in agent_types:
+        agent_type = AgentRole(name=k, description=agent_types[k])
+        agent_type.create()
+
+
+    print("CREATING A SECOND ORGANIZATION!")
+
+    organization = Organization(name='01Security', description='A completely different organization')
+    organization.save()
+
+    print("Creating default settings...")
+
+    settings = GlobalSettings(**base_settings)
+    settings.organization = organization
     settings.create()
 
     print("Creating default adminstrator permissions...")
@@ -272,6 +585,7 @@ def setup():
         'update_settings': True
     }
     permissions = Permission(**perms)
+    permissions.organization = organization
     permissions.create()
 
     print("Creating the default administrator role...")
@@ -286,16 +600,16 @@ def setup():
     db.session.commit()
 
     role.permissions = permissions
-
+    role.organization = organization
     role.save()
 
     print("Creating the administrator account...")
 
     # Create the default administrator account
     default_admin = {
-        'email': 'admin@reflexsoar.com',
-        'username': 'reflex',
-        'password': 'reflex',
+        'email': 'admin@zeroonesecurity.com',
+        'username': 'admin',
+        'password': 'admin',
         'first_name': 'Super',
         'last_name': 'Admin'
     }
@@ -306,6 +620,7 @@ def setup():
     print("Password: reflex")
 
     user.role = role
+    user.organization = organization
     user.save()
 
     print("Creating the default user permissions")
@@ -359,6 +674,8 @@ def setup():
 
     permissions = Permission(**perms)
     permissions.create()
+    permissions.organization = organization
+    permissions.save()
 
     print("Creating default user role...")
 
@@ -372,7 +689,7 @@ def setup():
     db.session.commit()
 
     role.permissions = permissions
-
+    role.organization = organization
     role.save()
 
     print("Creating the agent role...")
@@ -395,8 +712,9 @@ def setup():
         "add_event": True
     }
     permissions = Permission(**perms)
-    db.session.add(permissions)
-    db.session.commit()
+    permissions.create()
+    permissions.organization = organization
+    permissions.save()
 
     # Create the administrator role
     details =  {
@@ -407,65 +725,8 @@ def setup():
     db.session.add(role)
     db.session.commit()
     role.permissions = permissions
+    role.organization = organization
     role.save()
-
-
-    print("Creating default Observable Types")
-    dataTypes = {
-        'ip': 'IP Address',
-        'domain': 'A domain name',
-        'fqdn': 'The fully qualified domain name of a host',
-        'host': 'The hosts name',
-        'mail': 'An e-mail address',
-        'mail_subject': 'An e-mail subject',
-        'hash': 'A hash value',
-        'user': 'A username',
-        'command': 'A command that was executed',
-        'url': 'An address to a universal resource'
-    }
-    for k in dataTypes:
-        dt = DataType(name=k, description=dataTypes[k])
-        db.session.add(dt)
-        db.session.commit()
-
-    print("Creating default event statuses")
-    statuses = {
-        'New': 'A new event.',
-        'Closed': 'An event that has been closed.',
-        'Open': 'An event is open and being worked in a case.',
-        'Dismissed': 'An event that has been ignored from some reason.'
-    }
-    for k in statuses:
-        status = EventStatus(name=k, description=statuses[k])
-        db.session.add(status)
-        db.session.commit()
-        if k == 'Closed':
-            status.closed = True
-            status.save()
-
-    print("Creating default case statuses")
-    statuses = {
-        'New': 'A new case.',
-        'Closed': 'A cased that has been closed.',
-        'Hold': 'A case that has been worked on but is currently not being worked.',
-        'In Progress': 'A case that is currently being worked on.'
-    }
-    for k in statuses:
-        status = CaseStatus(name=k, description=statuses[k])
-        db.session.add(status)
-        db.session.commit()
-        if k == 'Closed':
-            status.closed = True
-            status.save()
-    
-    print("Creating default agent types")
-    agent_types = {
-        'poller': 'Runs input jobs to push data to Reflex',
-        'runner': 'Runs playbook actions'
-    }
-    for k in agent_types:
-        agent_type = AgentRole(name=k, description=agent_types[k])
-        agent_type.create()
     
 
     return 0
