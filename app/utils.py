@@ -9,7 +9,7 @@ from .models import User, AuthTokenBlacklist, Agent
 def generate_token(uuid, organization_uuid, duration=10, token_type='agent'):
     _access_token = jwt.encode({
         'uuid': uuid,
-        'organization': organization_uuid,
+        'organization_uuid': organization_uuid,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=duration),
         'iat': datetime.datetime.utcnow(),
         'type': token_type
@@ -41,7 +41,7 @@ def user_has(permission):
             
             # If this is a pairing token and its the add_agent permission
             # bypass the route guard and let the route finish
-            if current_user == 'PAIRING' and permission == 'add_agent':
+            if isinstance(current_user, dict) and current_user['type'] == 'pairing' and permission == 'add_agent':
                 return f(*args, **kwargs)
             if current_user.has_right(permission):
                 return f(*args, **kwargs)
@@ -78,7 +78,7 @@ def _check_token():
                 # and because the token is signed we don't have to worry about 
                 # someone adding a the pairing type to their token
                 elif 'type' in token and token['type'] == 'pairing':
-                    current_user = "PAIRING"
+                    current_user = token
                 else:
                     current_user = User.query.filter_by(uuid=token['uuid']).first()
 
@@ -91,17 +91,14 @@ def _check_token():
                 if blacklisted:
                     raise ValueError('Token retired.')
 
-                if current_user == 'PAIRING':
-                    blacklist = AuthTokenBlacklist(auth_token = access_token)
-                    blacklist.create()
             except ValueError:
                 abort(401, 'Token retired.')
             except jwt.ExpiredSignatureError:
                 abort(401, 'Access token expired.')
             except (jwt.DecodeError, jwt.InvalidTokenError):
                 abort(401, 'Invalid access token.')
-            except:
-                abort(401, 'Unknown token error.')
+            #except:
+            #    abort(401, 'Unknown token error.')
 
         except IndexError:
             raise jwt.InvalidTokenError

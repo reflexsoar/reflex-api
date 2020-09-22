@@ -365,14 +365,27 @@ class Organization(Base):
     groups = db.relationship('UserGroup', back_populates='organization')
     permissions = db.relationship('Permission', back_populates='organization')
     roles = db.relationship('Role', back_populates='organization')
-    #agents = db.relationship('Agent',  back_populates='organization')
-    #events = db.relationship('Event', back_populates='organization')
-    #cases = db.relationship('Case', back_populates='organization')
-    #case_templates = db.relationship('CaseTemplates', back_populates='organization')
-    #inputs = db.relationship('Input', back_populates='organization')
-    #credentials = db.relationship('Credential', back_populates='organization')
+    agents = db.relationship('Agent',  back_populates='organization')
+    agent_groups = db.relationship('AgentGroup',  back_populates='organization')
+    agent_roles = db.relationship('AgentRole',  back_populates='organization')
+    playbooks = db.relationship('Playbook',  back_populates='organization')
+    plugins = db.relationship('Plugin',  back_populates='organization')
+    plugin_configs = db.relationship('PluginConfig',  back_populates='organization')
+    events = db.relationship('Event', back_populates='organization')
+    event_statuses = db.relationship('EventStatus',  back_populates='organization')
+    data_types = db.relationship('DataType',  back_populates='organization')
+    case_statuses = db.relationship('CaseStatus',  back_populates='organization')
+    observables = db.relationship('Observable',  back_populates='organization')
+    cases = db.relationship('Case', back_populates='organization')
+    case_tasks = db.relationship('CaseTask',  back_populates='organization')
+    case_templates = db.relationship('CaseTemplate', back_populates='organization')
+    case_template_tasks = db.relationship('CaseTemplateTask',  back_populates='organization')
+    case_comments = db.relationship('CaseComment',  back_populates='organization')
+    case_history = db.relationship('CaseHistory',  back_populates='organization')
+    inputs = db.relationship('Input', back_populates='organization')
+    credentials = db.relationship('Credential', back_populates='organization')
     settings = db.relationship('GlobalSettings', back_populates='organization')
-    tags = db.relationship('Tag', secondary=org_tag_association)
+    tags = db.relationship('Tag', back_populates='organization')
 
 
 class Role(Base):
@@ -498,6 +511,7 @@ class UserGroup(Base):
 class RefreshToken(Base):
 
     user_uuid = db.Column(db.String(100))
+    organization_uuid = db.Column(db.String(100))
     refresh_token = db.Column(db.String(200))
     user_agent_hash = db.Column(db.String(64))
 
@@ -533,6 +547,8 @@ class Case(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='cases')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
     def add_history(self, message):
         history_item = CaseHistory(message=message)
@@ -557,6 +573,8 @@ class CaseHistory(Base):
     created_by_uuid = db.Column(db.String, db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
+    organization = db.relationship('Organization', back_populates='case_history')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class CaseTask(Base):
@@ -581,6 +599,8 @@ class CaseTask(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='case_tasks')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class CaseComment(Base):
@@ -596,6 +616,8 @@ class CaseComment(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='case_comments')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class CaseTemplate(Base):
@@ -617,6 +639,8 @@ class CaseTemplate(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='case_templates')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class CaseTemplateTask(Base):
@@ -641,6 +665,8 @@ class CaseTemplateTask(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='case_template_tasks')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class Event(Base):
@@ -658,6 +684,8 @@ class Event(Base):
     case_uuid = db.Column(db.String, db.ForeignKey('case.uuid'))
     case = db.relationship('Case', back_populates='events')
     raw_log = db.Column(db.JSON)
+    organization = db.relationship('Organization', back_populates='events')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class EventStatus(Base):
@@ -674,6 +702,8 @@ class EventStatus(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='event_statuses')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class CaseStatus(Base):
@@ -690,6 +720,8 @@ class CaseStatus(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='case_statuses')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class Observable(Base):
@@ -711,6 +743,8 @@ class Observable(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='observables')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class Agent(Base):
@@ -726,6 +760,8 @@ class Agent(Base):
     last_heartbeat = db.Column(db.DateTime)
     role = db.relationship('Role', back_populates='agents')
     role_uuid = db.Column(db.String, db.ForeignKey('role.uuid'))
+    organization = db.relationship('Organization', back_populates='agents')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
     def has_right(self, permission):
 
@@ -748,6 +784,8 @@ class AgentRole(Base):
 
     name = db.Column(db.String(255))
     description = db.Column(db.String)
+    organization = db.relationship('Organization', back_populates='agent_roles')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class AgentGroup(Base):
@@ -763,6 +801,8 @@ class AgentGroup(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='agent_groups')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class DataType(Base):
@@ -778,6 +818,8 @@ class DataType(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='data_types')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class Playbook(Base):
@@ -795,6 +837,8 @@ class Playbook(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='playbooks')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class Plugin(Base):
@@ -816,6 +860,8 @@ class Plugin(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='plugins')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class PluginConfig(Base):
@@ -833,6 +879,8 @@ class PluginConfig(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='plugin_configs')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class Input(Base):
@@ -855,6 +903,8 @@ class Input(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='inputs')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class Credential(Base):
@@ -864,6 +914,8 @@ class Credential(Base):
     description = db.Column(db.String(255))
     username = db.Column(db.String(255))
     secret = db.Column(db.String)
+    organization = db.relationship('Organization', back_populates='credentials')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
@@ -917,6 +969,8 @@ class Tag(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='tags')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
     @validates('name')
     def convert_lower(self, key, value):
