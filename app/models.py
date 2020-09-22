@@ -403,7 +403,7 @@ class Role(Base):
 class User(Base):
     ''' User model for storing user related stuff '''
     email = db.Column(db.String(255), unique=True, nullable=False)
-    username = db.Column(db.String(255), unique=True, nullable=False)
+    username = db.Column(db.String(255), nullable=False)
     first_name = db.Column(db.String(255), unique=False, nullable=True)
     last_name = db.Column(db.String(255), unique=False, nullable=True)
     last_logon = db.Column(db.DateTime)

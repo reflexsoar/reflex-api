@@ -311,7 +311,7 @@ def create_super_admin(org):
     user.organization = org
     user.save()
 
-def create_admin(org):
+def create_admin(org, email, username):
     # Create the Permissions for an administrator
     perms = { 
         'add_user': True,
@@ -421,8 +421,8 @@ def create_admin(org):
 
     # Create the default administrator account
     default_admin = {
-        'email': 'admin@zeroonesecurity.com',
-        'username': 'admin',
+        'email': email,
+        'username': username,
         'password': 'admin',
         'first_name': 'Super',
         'last_name': 'Admin'
@@ -606,10 +606,10 @@ def create_default_agent_types(org):
         agent_type.create()
 
 @manager.command
-def new_org(name, description):
+def new_org(name, description, admin_email, admin_username):
     org = create_org(name, description)
     create_default_settings(org)
-    create_admin(org)  
+    create_admin(org, admin_email, admin_username)  
     create_analyst(org)
     create_agent_role(org)
     create_default_observable_types(org)

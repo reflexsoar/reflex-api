@@ -126,9 +126,10 @@ class auth(Resource):
     @api.response(401, 'Incorrect username or password')
     def post(self):
         ''' Authenticate the user and return their api token '''
+        print(api.payload)
 
         # Check if the user exists
-        user = User.query.filter_by(username=api.payload['username'], locked=False).first()
+        user = User.query.filter_by(email=api.payload['username'], locked=False).first()
         if not user:
             ns_auth.abort(401, 'Incorrect username or password')
 
