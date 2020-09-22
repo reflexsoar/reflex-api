@@ -97,8 +97,8 @@ def _check_token():
                 abort(401, 'Access token expired.')
             except (jwt.DecodeError, jwt.InvalidTokenError):
                 abort(401, 'Invalid access token.')
-            #except:
-            #    abort(401, 'Unknown token error.')
+            except:
+                abort(401, 'Unknown token error.')
 
         except IndexError:
             raise jwt.InvalidTokenError

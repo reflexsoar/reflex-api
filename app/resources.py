@@ -83,13 +83,13 @@ pager_parser.add_argument('page_size', location='args',
                           required=False, type=int)
 pager_parser.add_argument('page', location='args', required=False, type=int)
 
-def parse_tags(tags):
+def parse_tags(tags, organization_uuid):
     ''' Tags a list of supplied tags and creates Tag objects for each one '''
     _tags = []
     for t in tags:
-        tag = Tag.query.filter_by(name=t).first()
+        tag = Tag.query.filter_by(name=t, organization_uuid=organization_uuid, ).first()
         if not tag:
-            tag = Tag(**{'name': t, 'color': '#fffff'})
+            tag = Tag(organization_uuid=organization_uuid, **{'name': t, 'color': '#fffff'})
             tag.create()
             _tags += [tag]
         else:
@@ -97,18 +97,18 @@ def parse_tags(tags):
     return _tags
 
 
-def create_observables(observables):
+def create_observables(observables, organization_uuid):
     _observables = []
     _tags = []
     for o in observables:
         if 'tags' in o:
             tags = o.pop('tags')
-            _tags = parse_tags(tags)
+            _tags = parse_tags(tags, organization_uuid)
 
-        observable_type = DataType.query.filter_by(name=o['dataType']).first()
+        observable_type = DataType.query.filter_by(name=o['dataType'], organization_uuid=organization_uuid).first()
         if observable_type:
             o['dataType'] = observable_type
-            observable = Observable(**o)
+            observable = Observable(organization_uuid=organization_uuid, **o)
             observable.create()
             _observables += [observable]
 
@@ -468,7 +468,7 @@ class CaseBulkAddObservables(Resource):
                             if observable['value'] not in observable_values]
 
         # Process all the observables in the API call
-        observables = create_observables(observables_list)
+        observables = create_observables(observables_list, current_user().organization_uuid)
 
         # Add the observables to the case
         if(len(case.observables) == 0):
@@ -520,7 +520,7 @@ class CaseList(Resource):
 
         if 'tags' in api.payload:
             tags = api.payload.pop('tags')
-            _tags = parse_tags(tags)
+            _tags = parse_tags(tags, current_user().organization_uuid)
 
         if 'owner' in api.payload:
             owner = api.payload.pop('owner')
@@ -816,7 +816,7 @@ class CaseTemplateList(Resource):
             ''' Creates a new case_template template '''
             if 'tags' in api.payload:
                 tags = api.payload.pop('tags')
-                _tags = parse_tags(tags)
+                _tags = parse_tags(tags, current_user().organization_uuid)
 
             '''if 'owner' in api.payload:
                 owner = api.payload.pop('owner')
@@ -1186,7 +1186,7 @@ class PlaybookList(Resource):
         if not playbook:
             if 'tags' in api.payload:
                 tags = api.payload.pop('tags')
-                _tags = parse_tags(tags)
+                _tags = parse_tags(tags, current_user().organization_uuid)
 
             playbook = Playbook(organization_uuid=current_user().organization_uuid, **api.payload)
             playbook.create()
@@ -1364,7 +1364,7 @@ class InputList(Resource):
 
             if 'tags' in api.payload:
                 tags = api.payload.pop('tags')
-                _tags = parse_tags(tags)
+                _tags = parse_tags(tags, current_user().organization_uuid)
 
             inp = Input(organization_uuid=current_user().organization_uuid, **api.payload)
             inp.create()
@@ -1682,11 +1682,11 @@ class CreateBulkEvents(Resource):
             if not event:
                 if 'tags' in item:
                     tags = item.pop('tags')
-                    _tags = parse_tags(tags)
+                    _tags = parse_tags(tags, current_user().organization_uuid)
 
                 if 'observables' in item:
                     observables = item.pop('observables')
-                    _observables = create_observables(observables)
+                    _observables = create_observables(observables, current_user().organization_uuid)
 
                 event = Event(**item)
                 event.create()
@@ -1737,11 +1737,11 @@ class EventList(Resource):
         if not event:
             if 'tags' in api.payload:
                 tags = api.payload.pop('tags')
-                _tags = parse_tags(tags)
+                _tags = parse_tags(tags, current_user().organization_uuid)
 
             if 'observables' in api.payload:
                 observables = api.payload.pop('observables')
-                _observables = create_observables(observables)
+                _observables = create_observables(observables, current_user().organization_uuid)
 
             event = Event(organization_uuid=current_user().organization_uuid, **api.payload)
             event.create()
