@@ -171,29 +171,23 @@ def demo():
         }
     ]
 
-@manager.command
-def setup():
+def create_org(name, description):
+    print("Creating new organization %s" % name)
+    organization = Organization(name=name, description=description)
+    organization.create()
+    return organization
 
-    print("Creating default settings") 
-
+def create_default_settings(org):
     base_settings = {
         'base_url': 'http://localhost'
     }
-
-    print("Creating the administrative organization...")
-
-    organization = Organization(name='Reflex', description='The default Reflex Organization')
-    organization.save()
-
-    print("Creating default permissions...")
-
+    print("Creating default settings for %s" % org.name)
     settings = GlobalSettings(**base_settings)
-    settings.organization = organization
+    settings.organization = org
     settings.create()
 
-    print("Creating default super adminstrator permissions...")
-
-    # Create the Permissions for an administrator
+def create_super_admin(org):
+    print("Creating super user for %s" % org.name)
     perms = { 
         'add_user': True,
         'update_user': True,
@@ -284,10 +278,8 @@ def setup():
         "delete_organization": True
     }
     permissions = Permission(**perms)
-    permissions.organization = organization
+    permissions.organization = org
     permissions.create()
-
-    print("Creating the default administrator role...")
 
     # Create the administrator role
     details =  {
@@ -295,16 +287,14 @@ def setup():
         'description': 'Power overwhelming'
     }
     role = Role(**details)
-    db.session.add(role)
-    db.session.commit()
+    role.create()
 
     role.permissions = permissions
-    role.organization = organization
+    role.organization = org
     role.save()
 
-    print("Creating the super administrator account...")
-
     # Create the default administrator account
+    print("Creating default super admin credentials")
     default_admin = {
         'email': 'admin@reflexsoar.com',
         'username': 'reflex',
@@ -313,191 +303,15 @@ def setup():
         'last_name': 'Admin'
     }
     user = User(**default_admin)
-    db.session.add(user)
-    db.session.commit()
+    user.create()
     print("Username: reflex")
     print("Password: reflex")
 
     user.role = role
-    user.organization = organization
+    user.organization = org
     user.save()
 
-    print("Creating the default user permissions")
-
-    perms = { 
-        'view_users': True,
-        'view_roles': True,
-        "add_tag": True,
-        "update_tag": True,
-        "delete_tag": True,
-        "view_tags": True,
-        "add_credential": True,
-        "update_credential": True,
-        "decrypt_credential": True,
-        "delete_credential": True,
-        "view_credentials": True ,
-        "add_playbook": True,
-        "view_playbooks": True,
-        "add_tag_to_playbook": True,
-        "remove_tag_from_playbook": True,
-        "add_event": True,
-        "view_events": True,
-        "update_event": True,
-        "add_tag_to_event": True,
-        "remove_tag_from_event": True,
-        "add_observable": True,
-        "update_observable": True,
-        "delete_observable": True,
-        "add_tag_to_observable": True,
-        "remove_tag_from_observable": True,
-        "view_agents": True,
-        "view_inputs": True,
-        "create_case": True,
-        "view_cases": True,
-        "update_case": True,
-        "create_case_comment": True,
-        "view_case_comments": True,
-        "update_case_comment": True,
-        "view_plugins": True,
-        "view_agent_groups": True,
-        "view_user_groups": True,
-        "create_case_template": True,
-        "view_case_templates": True,
-        "update_case_template": True,
-        "delete_case_template": True,
-        "create_case_task": True,
-        "view_case_tasks": True,
-        "update_case_task": True,
-        "delete_case_task": True
-    }
-
-    permissions = Permission(**perms)
-    permissions.create()
-    permissions.organization = organization
-    permissions.save()
-
-    print("Creating default user role...")
-
-    # Create the administrator role
-    details =  {
-        'name': 'Analyst',
-        'description': 'The default Analyst role'
-    }
-    role = Role(**details)
-    db.session.add(role)
-    db.session.commit()
-
-    role.permissions = permissions
-    role.organization = organization
-    role.save()
-
-    print("Creating the agent role...")
-    # Create the Permissions for an administrator
-    perms = { 
-        "decrypt_credential": True,
-        "view_credentials": True ,
-        "view_playbooks": True,
-        "add_event": True,
-        "update_event": True,
-        "add_tag_to_event": True,
-        "remove_tag_from_event": True,
-        "add_observable": True,
-        "update_observable": True,
-        "delete_observable": True,
-        "add_tag_to_observable": True,
-        "remove_tag_from_observable": True,
-        "view_agents": True,
-        "view_plugins": True,
-        "add_event": True
-    }
-    permissions = Permission(**perms)
-    permissions.create()
-    permissions.organization = organization
-    permissions.save()
-
-    # Create the administrator role
-    details =  {
-        'name': 'Agent',
-        'description': 'Reserved for agents'
-    }
-    role = Role(**details)
-    db.session.add(role)
-    db.session.commit()
-    role.permissions = permissions
-    role.organization = organization
-    role.save()
-
-    print("Creating default Observable Types")
-    dataTypes = {
-        'ip': 'IP Address',
-        'domain': 'A domain name',
-        'fqdn': 'The fully qualified domain name of a host',
-        'host': 'The hosts name',
-        'mail': 'An e-mail address',
-        'mail_subject': 'An e-mail subject',
-        'hash': 'A hash value',
-        'user': 'A username',
-        'command': 'A command that was executed',
-        'url': 'An address to a universal resource'
-    }
-    for k in dataTypes:
-        dt = DataType(name=k, description=dataTypes[k])
-        db.session.add(dt)
-        db.session.commit()
-
-    print("Creating default event statuses")
-    statuses = {
-        'New': 'A new event.',
-        'Closed': 'An event that has been closed.',
-        'Open': 'An event is open and being worked in a case.',
-        'Dismissed': 'An event that has been ignored from some reason.'
-    }
-    for k in statuses:
-        status = EventStatus(name=k, description=statuses[k])
-        db.session.add(status)
-        db.session.commit()
-        if k == 'Closed':
-            status.closed = True
-            status.save()
-
-    print("Creating default case statuses")
-    statuses = {
-        'New': 'A new case.',
-        'Closed': 'A cased that has been closed.',
-        'Hold': 'A case that has been worked on but is currently not being worked.',
-        'In Progress': 'A case that is currently being worked on.'
-    }
-    for k in statuses:
-        status = CaseStatus(name=k, description=statuses[k])
-        db.session.add(status)
-        db.session.commit()
-        if k == 'Closed':
-            status.closed = True
-            status.save()
-    
-    print("Creating default agent types")
-    agent_types = {
-        'poller': 'Runs input jobs to push data to Reflex',
-        'runner': 'Runs playbook actions'
-    }
-    for k in agent_types:
-        agent_type = AgentRole(name=k, description=agent_types[k])
-        agent_type.create()
-
-
-    print("CREATING A SECOND ORGANIZATION!")
-
-    organization = Organization(name='01Security', description='A completely different organization')
-    organization.save()
-
-    print("Creating default settings...")
-
-    settings = GlobalSettings(**base_settings)
-    settings.organization = organization
-    settings.create()
-
-    print("Creating default adminstrator permissions...")
-
+def create_admin(org):
     # Create the Permissions for an administrator
     perms = { 
         'add_user': True,
@@ -585,7 +399,7 @@ def setup():
         'update_settings': True
     }
     permissions = Permission(**perms)
-    permissions.organization = organization
+    permissions.organization = org
     permissions.create()
 
     print("Creating the default administrator role...")
@@ -600,7 +414,7 @@ def setup():
     db.session.commit()
 
     role.permissions = permissions
-    role.organization = organization
+    role.organization = org
     role.save()
 
     print("Creating the administrator account...")
@@ -616,15 +430,15 @@ def setup():
     user = User(**default_admin)
     db.session.add(user)
     db.session.commit()
-    print("Username: reflex")
-    print("Password: reflex")
+    print("Username: admin")
+    print("Password: admin")
 
     user.role = role
-    user.organization = organization
+    user.organization = org
     user.save()
-
-    print("Creating the default user permissions")
-
+    
+def create_analyst(org):
+    print("Creating the default user permissions for %s" % org.name)
     perms = { 
         'view_users': True,
         'view_roles': True,
@@ -674,7 +488,7 @@ def setup():
 
     permissions = Permission(**perms)
     permissions.create()
-    permissions.organization = organization
+    permissions.organization = org
     permissions.save()
 
     print("Creating default user role...")
@@ -689,10 +503,11 @@ def setup():
     db.session.commit()
 
     role.permissions = permissions
-    role.organization = organization
+    role.organization = org
     role.save()
 
-    print("Creating the agent role...")
+def create_agent_role(org):
+    print("Creating the agent role for %s" % org.name)
     # Create the Permissions for an administrator
     perms = { 
         "decrypt_credential": True,
@@ -713,7 +528,7 @@ def setup():
     }
     permissions = Permission(**perms)
     permissions.create()
-    permissions.organization = organization
+    permissions.organization = org
     permissions.save()
 
     # Create the administrator role
@@ -722,12 +537,95 @@ def setup():
         'description': 'Reserved for agents'
     }
     role = Role(**details)
-    db.session.add(role)
-    db.session.commit()
+    role.create()
     role.permissions = permissions
-    role.organization = organization
+    role.organization = org
     role.save()
-    
+
+def create_default_observable_types(org):
+    print("Creating default Observable Types for %s" % org.name)
+    dataTypes = {
+        'ip': 'IP Address',
+        'domain': 'A domain name',
+        'fqdn': 'The fully qualified domain name of a host',
+        'host': 'The hosts name',
+        'mail': 'An e-mail address',
+        'mail_subject': 'An e-mail subject',
+        'hash': 'A hash value',
+        'user': 'A username',
+        'command': 'A command that was executed',
+        'url': 'An address to a universal resource'
+    }
+    for k in dataTypes:
+        dt = DataType(name=k, description=dataTypes[k])
+        dt.organiation = org
+        dt.save()    
+
+def create_default_event_statuses(org):
+    print("Creating default event statuses for %s" % org.name)
+    statuses = {
+        'New': 'A new event.',
+        'Closed': 'An event that has been closed.',
+        'Open': 'An event is open and being worked in a case.',
+        'Dismissed': 'An event that has been ignored from some reason.'
+    }
+    for k in statuses:
+        status = EventStatus(name=k, description=statuses[k])
+        status.organization = org
+        status.create()
+        if k == 'Closed':
+            status.closed = True
+            status.save()
+
+def create_default_case_statuses(org):
+    print("Creating default case statuses for %s" % org.name)
+    statuses = {
+        'New': 'A new case.',
+        'Closed': 'A cased that has been closed.',
+        'Hold': 'A case that has been worked on but is currently not being worked.',
+        'In Progress': 'A case that is currently being worked on.'
+    }
+    for k in statuses:
+        status = CaseStatus(name=k, description=statuses[k])
+        status.organization = org
+        status.create()
+        if k == 'Closed':
+            status.closed = True
+            status.save()
+
+def create_default_agent_types(org):
+    print("Creating default agent types for %s" % org.name)
+    agent_types = {
+        'poller': 'Runs input jobs to push data to Reflex',
+        'runner': 'Runs playbook actions'
+    }
+    for k in agent_types:
+        agent_type = AgentRole(name=k, description=agent_types[k])
+        agent_type.organization = org
+        agent_type.create()
+
+@manager.command
+def setup():
+
+    org = create_org('Reflex', 'The default Reflex organization')
+    create_default_settings(org)
+    create_super_admin(org)  
+    create_analyst(org)
+    create_agent_role(org)
+    create_default_observable_types(org)
+    create_default_event_statuses(org)
+    create_default_case_statuses(org)
+    create_default_agent_types(org)
+
+    org2 = create_org('01Security', 'A completely different organization')
+    create_default_settings(org2)
+    create_admin(org2)  
+    create_analyst(org2)
+    create_agent_role(org2)
+    create_default_observable_types(org2)
+    create_default_event_statuses(org2)
+    create_default_case_statuses(org2)
+    create_default_agent_types(org2)
 
     return 0
 

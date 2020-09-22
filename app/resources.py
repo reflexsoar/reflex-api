@@ -449,9 +449,9 @@ class CaseBulkAddObservables(Resource):
     @api.expect(mod_bulk_add_observables)
     @api.marshal_with(mod_case_observables)
     @api.response(200, 'Success')
-    # @token_required
-    # @user_has('update_case')
-    def post(self, uuid):
+    @token_required
+    @user_has('update_case')
+    def post(self, uuid, current_user):
         ''' 
         Adds a collection of observables to a Case 
 
@@ -459,25 +459,29 @@ class CaseBulkAddObservables(Resource):
 
         '''
         # Fetch the case via its UUID
-        case = Case.get_or_404(uuid)
+        case = Case.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        
+        if case:
 
-        # Remove observables that are already in the case
-        observable_values = [
-            observable.value for observable in case.observables]
-        observables_list = [observable for observable in api.payload['observables']
-                            if observable['value'] not in observable_values]
+            # Remove observables that are already in the case
+            observable_values = [
+                observable.value for observable in case.observables]
+            observables_list = [observable for observable in api.payload['observables']
+                                if observable['value'] not in observable_values]
 
-        # Process all the observables in the API call
-        observables = create_observables(observables_list, current_user().organization_uuid)
+            # Process all the observables in the API call
+            observables = create_observables(observables_list, current_user().organization_uuid)
 
-        # Add the observables to the case
-        if(len(case.observables) == 0):
-            case.observables = observables
+            # Add the observables to the case
+            if(len(case.observables) == 0):
+                case.observables = observables
+            else:
+                case.observables += observables
+            case.save()
+
+            case.add_history('%s new observable(s) added' % (len(observables)))
         else:
-            case.observables += observables
-        case.save()
-
-        case.add_history('%s new observable(s) added' % (len(observables)))
+            ns_case.abort(404, 'Case not found.')
 
         return case
 
@@ -495,7 +499,7 @@ class CaseList(Resource):
 
         args = pager_parser.parse_args()
         if args:
-            cases = Case.query.paginate(
+            cases = Case.query.filter_by(organization_uuid=current_user().organization_uuid).paginate(
                 args['page'], args['page_size'], False).items
         else:
             cases = Case.query.filter_by(organization_uuid=current_user().organization_uuid).all()
@@ -506,9 +510,9 @@ class CaseList(Resource):
     @api.expect(mod_case_create)
     @api.response('409', 'Case already exists.')
     @api.response('200', "Successfully created the case.")
-    #@token_required
-    #@user_has('create_case')
-    def post(self):
+    @token_required
+    @user_has('create_case')
+    def post(self, current_user):
         ''' Creates a new case '''
 
         _tags = []
@@ -573,7 +577,7 @@ class CaseList(Resource):
             case.save()
 
         # Set the default status to New
-        case_status = CaseStatus.query.filter_by(name="New").first()
+        case_status = CaseStatus.query.filter_by(name="New", organization_uuid=current_user().organization_uuid).first()
         case.status = case_status
         case.save()
 
@@ -582,7 +586,8 @@ class CaseList(Resource):
         # and copy them over to the case
         if case_template_uuid:
             case_template = CaseTemplate.query.filter_by(
-                uuid=case_template_uuid).first()
+                uuid=case_template_uuid,
+                organization_uuid=current_user().organization_uuid).first()
 
             # Append the default tags
             for tag in case_template.tags:
@@ -595,7 +600,8 @@ class CaseList(Resource):
             for task in case_template.tasks:
                 case_task = CaseTask(title=task.title, description=task.description,
                                      order=task.order, owner=task.owner, group=task.group,
-                                     from_template=True)
+                                     from_template=True,
+                                     organization_uuid=current_user().organization_uuid)
                 case.tasks.append(case_task)
 
             # Set the default severity
@@ -1730,7 +1736,7 @@ class EventList(Resource):
     @user_has('view_events')
     def get(self, current_user):
         ''' Returns a list of event '''
-        return Event.query.order_by(desc(Event.created_at)).all()
+        return Event.query.filter_by(organization_uuid=current_user().organization_uuid).order_by(desc(Event.created_at)).all()
 
     @api.doc(security="Bearer")
     @api.expect(mod_event_create)
@@ -1757,7 +1763,7 @@ class EventList(Resource):
             event.create()
 
             # Set the default status to New
-            event_status = EventStatus.query.filter_by(name="New").first()
+            event_status = EventStatus.query.filter_by(name="New", organization_uuid=current_user().organization_uuid).first()
             event.status = event_status
             event.save()
 
