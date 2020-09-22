@@ -1422,8 +1422,11 @@ class InputDetails(Resource):
 class DownloadPlugin(Resource):
 
     # TODO: MAKE THIS ONLY ACCESSIBLE FROM AGENT TOKENS
-    def get(self, path):
-        return send_from_directory(current_app.config['PLUGIN_DIRECTORY'], path, as_attachment=True)
+    @api.doc(security="Bearer")
+    @token_required
+    def get(self, path, current_user):
+        plugin_dir = os.path.join(current_app.config['PLUGIN_DIRECTORY'], current_user().organization_uuid)
+        return send_from_directory(plugin_dir, path, as_attachment=True)
 
 
 @ns_plugin.route('/upload')
@@ -1432,9 +1435,9 @@ class UploadPlugin(Resource):
     @api.doc(security="Bearer")
     @api.expect(upload_parser)
     @api.marshal_with(mod_plugin_list, as_list=True)
-    # @token_required
-    # @user_has('create_plugin')
-    def post(self):
+    @token_required
+    @user_has('create_plugin')
+    def post(self, current_user):
 
         plugins = []
 
@@ -1457,10 +1460,15 @@ class UploadPlugin(Resource):
                 # Make sure the file is one that can be uploaded
                 # TODO: Add mime-type checking
                 filename = secure_filename(uploaded_file.filename)
+                
+                # Check to see if the organizations plugin directory exists
+                plugin_dir = os.path.join(current_app.config['PLUGIN_DIRECTORY'], current_user().organization_uuid)
+                plugin_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), plugin_dir)
+                if not os.path.exists(plugin_dir):
+                    os.makedirs(plugin_dir)
 
                 # Save the file
-                file_path = os.path.join(os.path.dirname(os.path.realpath(
-                    __file__)) + "/" + current_app.config['PLUGIN_DIRECTORY'], filename)
+                file_path = os.path.join(plugin_dir, filename)
                 uploaded_file.save(file_path)
                 uploaded_file.close()
 
@@ -1471,6 +1479,7 @@ class UploadPlugin(Resource):
 
                 # Open the file and grab the manifest and the logo
                 with ZipFile(file_path, 'r') as z:
+                    # TODO: Add plugin structure checks
                     # if 'logo.png' not in z.namelist():
                     #    ns_plugin.abort(400, "Archive does not contain logo.png")
                     # if 'plugin.json' not in z.namelist():
@@ -1506,7 +1515,8 @@ class UploadPlugin(Resource):
                                     manifest=manifest_data,
                                     logo=logo_b64,
                                     config_template=config_template,
-                                    file_hash=hasher.hexdigest())
+                                    file_hash=hasher.hexdigest(),
+                                    organization_uuid=current_user().organization_uuid)
                     plugin.create()
                 plugins.append(plugin)
         return plugins
