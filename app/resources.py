@@ -256,7 +256,7 @@ class UserList(Resource):
 
         if args['username']:
             users = User.query.filter(
-                User.username.like(args['username']+"%"),User.deleted.like(False), User.organization_uuid.equals(current_user().organization_uuid)).all()
+                User.username.like(args['username']+"%"), User.deleted == False, User.organization_uuid == current_user().organization_uuid).all()
         else:
             users = User.query.filter_by(deleted=False, organization_uuid=current_user().organization_uuid).all()
         return users
@@ -706,9 +706,9 @@ class CaseTaskList(Resource):
     @api.marshal_with(mod_case_task_full)
     @api.response('409', 'Case Task already exists.')
     @api.response('200', "Successfully created the case task.")
-    #@token_required
-    #@user_has('create_case_task')
-    def post(self):
+    @token_required
+    @user_has('create_case_task')
+    def post(self, current_user):
         
         ''' Creates a new case_task '''
 

@@ -558,8 +558,8 @@ def create_default_observable_types(org):
     }
     for k in dataTypes:
         dt = DataType(name=k, description=dataTypes[k])
-        dt.organiation = org
-        dt.save()    
+        dt.organization = org
+        dt.create()
 
 def create_default_event_statuses(org):
     print("Creating default event statuses for %s" % org.name)
