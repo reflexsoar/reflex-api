@@ -63,6 +63,8 @@ ns_case_task = api.namespace(
 ns_settings = api.namespace(
     'GlobalSettings', description='Global settings for the Reflex system', path='/settings'
 )
+ns_metrics = api.namespace('Metrics', description='Metrics API endpoint for displaying dashboard charts', path='/metrics')
+ns_list = api.namespace('List', description='Lists API endpoints for managing indicator lists, lists may be string values or regular expressions', path='/list')
 
 
 # Expect an API token
@@ -236,6 +238,17 @@ class Whoami(Resource):
         ''' Returns all the details about the current user '''
         current_user = _get_current_user()
         return current_user
+
+@ns_user.route('/generate_api_key')
+class UserGenerateApiKey(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_api_key)
+    @token_required
+    @user_has('use_api')
+    def get(self, current_user):
+        ''' Returns a new API key for the user making the request '''
+        return current_user().generate_api_key()
 
 
 user_parser = api.parser()
@@ -2590,3 +2603,14 @@ class Settings(Resource):
         settings.update(api.payload)
 
         return {'message': 'Succesfully updated settings'}
+
+
+@ns_metrics.route("/case_trend")
+class CaseTrend(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    def get(self, current_user):
+        cases = Case.query.filter_by(organization_uuid=current_user().organization_uuid).group_by(func.strftime('%Y-%m-%d', Case.created_at)).all()
+        print(cases)
+        return {}

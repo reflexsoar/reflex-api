@@ -203,7 +203,8 @@ permission_fields = {
     "add_organization": fields.Boolean,
     "view_organizatons": fields.Boolean,
     "update_organization": fields.Boolean,
-    "delete_organization": fields.Boolean
+    "delete_organization": fields.Boolean,
+    "use_api": fields.Boolean
 }
 
 mod_permission_role_view = Model('PermissionRoleView', {
@@ -679,6 +680,14 @@ mod_settings = Model('SettingsList', {
     'logon_password_attempts': fields.Integer
 })
 
+mod_case_metrics = Model('CaseMetrics', {
+    'counts': fields.List
+})
+
+mod_api_key = Model('UserApiKey', {
+    'api_key': fields.String
+})
+
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create_success, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
                  mod_tag, mod_tag_list, mod_credential_create, mod_credential_full, mod_credential_return,
@@ -690,7 +699,7 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_input_create, mod_input_list, mod_event_create_bulk, mod_event_status,
                  mod_agent_create, mod_agent_list, mod_agent_role_list,
                  mod_case_create, mod_case_status, mod_case_full,
-                 mod_plugin_create, mod_plugin_list,
+                 mod_plugin_create, mod_plugin_list, mod_api_key,
                  mod_agent_group_create, mod_agent_group_list,
                  mod_plugin_config_list, mod_plugin_config_create, mod_plugin_name,
                  mod_user_group_create, mod_user_group_list, mod_add_user_to_group,

@@ -347,6 +347,9 @@ class Permission(Base):
     update_settings = db.Column(db.Boolean, default=False)
     view_settings = db.Column(db.Boolean, default=False)
 
+    # API Permissions
+    use_api = db.Column(db.Boolean, default=False)
+
     # Role relationship
     roles = db.relationship('Role', back_populates='permissions')
 
@@ -383,7 +386,8 @@ class Organization(Base):
     case_template_tasks = db.relationship('CaseTemplateTask',  back_populates='organization')
     case_comments = db.relationship('CaseComment',  back_populates='organization')
     case_history = db.relationship('CaseHistory',  back_populates='organization')
-    inputs = db.relationship('Input', back_populates='organization')
+    lists = db.relationship('List', back_populates='organization')
+    inputs = db.relationship('Input', back_populates='organization')    
     credentials = db.relationship('Credential', back_populates='organization')
     settings = db.relationship('GlobalSettings', back_populates='organization')
     tags = db.relationship('Tag', back_populates='organization')
@@ -418,6 +422,7 @@ class User(Base):
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
     groups = db.relationship(
         'UserGroup', secondary=user_group_association, back_populates='members')
+    api_key = db.Column(db.String)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
@@ -436,6 +441,34 @@ class User(Base):
     def password(self, password):
         self.password_hash = FLASK_BCRYPT.generate_password_hash(
             password).decode('utf-8')
+
+    def generate_api_key(self):
+        '''
+        Generates a long living API key, which the user can use to make
+        API calls without having to authenticate using username/password
+
+        The API Key should only be presented once and will be added to the 
+        expired token table 
+        '''
+
+        _api_key = jwt.encode({
+            'uuid': self.uuid,
+            'organization': self.organization_uuid,
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(
+                    days = GlobalSettings.query.filter_by(
+                        organization_uuid = self.organization_uuid).first().api_key_valid_days),
+            'iat': datetime.datetime.utcnow(),
+            'type': 'api'
+        }, current_app.config['SECRET_KEY']).decode('utf-8')
+
+        if self.api_key != None:
+            blacklist = AuthTokenBlacklist(auth_token = self.api_key)
+            blacklist.create()
+            self.api_key = _api_key
+        else:
+            self.api_key = _api_key
+        self.save()
+        return {'api_key': self.api_key}
 
     def create_access_token(self):
         _access_token = jwt.encode({
@@ -884,6 +917,33 @@ class PluginConfig(Base):
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
+class List(Base):
+    '''
+    A list of values, strings or regular expressions
+
+    List Types: value,pattern
+    '''
+
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    list_type = db.Column(db.String(255))
+    data_type_uuid = db.Column(db.String, db.ForeignKey('data_type.uuid'))
+    data_type = db.relationship('DataType')
+    values = db.relationship('ListValue', back_populates='parent_list')
+    organization = db.relationship('Organization', back_populates='lists')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+
+
+class ListValue(Base):
+    ''' 
+    A value in a List, it can be a String or a Regular Expression
+    '''
+
+    value = db.Column(db.String)
+    parent_list_uuid = db.Column(db.String, db.ForeignKey('list.uuid'))
+    parent_list = db.relationship('List', back_populates='values')
+    organization_uuid = db.Column(db.String)
+
+
 class Input(Base):
 
     name = db.Column(db.String(255), unique=True, nullable=False)
@@ -992,3 +1052,4 @@ class GlobalSettings(Base):
     logon_password_attempts = db.Column(db.Integer, default=5)
     organization = db.relationship('Organization', back_populates='settings')
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    api_key_valid_days = db.Column(db.Integer, default=366)

@@ -276,7 +276,8 @@ def create_super_admin(org):
         "add_organization": True,
         "view_organizatons": True,
         "update_organization": True,
-        "delete_organization": True
+        "delete_organization": True,
+        "use_api": True
     }
     permissions = Permission(**perms)
     permissions.organization = org
@@ -398,7 +399,8 @@ def create_admin(org, email, username):
         "update_case_status": True,
         "delete_case_status": True,
         'update_settings': True,
-        'view_settings': True
+        'view_settings': True,
+        "use_api": True
     }
     permissions = Permission(**perms)
     permissions.organization = org

@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 982b7bcebd45
+Revision ID: 0745699de62e
 Revises: 
-Create Date: 2020-09-22 22:31:15.629954
+Create Date: 2020-09-23 19:50:04.851511
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '982b7bcebd45'
+revision = '0745699de62e'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -157,6 +157,7 @@ def upgrade():
     sa.Column('delete_organization', sa.Boolean(), nullable=True),
     sa.Column('update_settings', sa.Boolean(), nullable=True),
     sa.Column('view_settings', sa.Boolean(), nullable=True),
+    sa.Column('use_api', sa.Boolean(), nullable=True),
     sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
@@ -219,6 +220,7 @@ def upgrade():
     sa.Column('deleted', sa.Boolean(), nullable=True),
     sa.Column('role_uuid', sa.String(), nullable=True),
     sa.Column('organization_uuid', sa.String(), nullable=True),
+    sa.Column('api_key', sa.String(), nullable=True),
     sa.Column('created_by_uuid', sa.String(), nullable=True),
     sa.Column('updated_by_uuid', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['created_by_uuid'], ['user.uuid'], ),
@@ -471,6 +473,7 @@ def upgrade():
     sa.Column('playbook_timeout', sa.Integer(), nullable=True),
     sa.Column('logon_password_attempts', sa.Integer(), nullable=True),
     sa.Column('organization_uuid', sa.String(), nullable=True),
+    sa.Column('api_key_valid_days', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['email_secret_uuid'], ['credential.uuid'], ),
     sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
@@ -495,6 +498,21 @@ def upgrade():
     sa.ForeignKeyConstraint(['credential_id'], ['credential.uuid'], ),
     sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
     sa.ForeignKeyConstraint(['updated_by_uuid'], ['user.uuid'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('name'),
+    sa.UniqueConstraint('uuid')
+    )
+    op.create_table('list',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('name', sa.String(length=255), nullable=False),
+    sa.Column('list_type', sa.String(length=255), nullable=True),
+    sa.Column('data_type_uuid', sa.String(), nullable=True),
+    sa.Column('organization_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['data_type_uuid'], ['data_type.uuid'], ),
+    sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name'),
     sa.UniqueConstraint('uuid')
@@ -641,6 +659,18 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
+    op.create_table('list_value',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('uuid', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('modified_at', sa.DateTime(), nullable=True),
+    sa.Column('value', sa.String(), nullable=True),
+    sa.Column('parent_list_uuid', sa.String(), nullable=True),
+    sa.Column('organization_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['parent_list_uuid'], ['list.uuid'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('uuid')
+    )
     op.create_table('observable_case',
     sa.Column('observable_uuid', sa.String(), nullable=True),
     sa.Column('case_uuid', sa.String(), nullable=True),
@@ -709,6 +739,7 @@ def downgrade():
     op.drop_table('tag_case')
     op.drop_table('plugin_plugin_config')
     op.drop_table('observable_case')
+    op.drop_table('list_value')
     op.drop_table('event')
     op.drop_table('case_task')
     op.drop_table('case_history')
@@ -719,6 +750,7 @@ def downgrade():
     op.drop_table('tag_case_template')
     op.drop_table('plugin_config')
     op.drop_table('observable')
+    op.drop_table('list')
     op.drop_table('input')
     op.drop_table('global_settings')
     op.drop_table('case_template_task')
