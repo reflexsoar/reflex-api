@@ -345,6 +345,7 @@ class Permission(Base):
 
     # Update Settings
     update_settings = db.Column(db.Boolean, default=False)
+    view_settings = db.Column(db.Boolean, default=False)
 
     # Role relationship
     roles = db.relationship('Role', back_populates='permissions')

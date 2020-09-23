@@ -272,6 +272,7 @@ def create_super_admin(org):
         "update_case_status": True,
         "delete_case_status": True,
         'update_settings': True,
+        'view_settings': True,
         "add_organization": True,
         "view_organizatons": True,
         "update_organization": True,
@@ -396,7 +397,8 @@ def create_admin(org, email, username):
         "create_case_status": True,
         "update_case_status": True,
         "delete_case_status": True,
-        'update_settings': True
+        'update_settings': True,
+        'view_settings': True
     }
     permissions = Permission(**perms)
     permissions.organization = org
@@ -483,7 +485,8 @@ def create_analyst(org):
         "create_case_task": True,
         "view_case_tasks": True,
         "update_case_task": True,
-        "delete_case_task": True
+        "delete_case_task": True,
+        'view_settings': True
     }
 
     permissions = Permission(**perms)
@@ -524,7 +527,8 @@ def create_agent_role(org):
         "remove_tag_from_observable": True,
         "view_agents": True,
         "view_plugins": True,
-        "add_event": True
+        "add_event": True,
+        'view_settings': True
     }
     permissions = Permission(**perms)
     permissions.create()
