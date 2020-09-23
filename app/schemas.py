@@ -673,7 +673,7 @@ mod_settings = Model('SettingsList', {
     'allow_comment_deletion': fields.Boolean,
     'email_from': fields.String,
     'email_server': fields.String,
-    'email_secret': fields.Nested(mod_credential_list),
+    'email_secret_uuid': fields.String,
     'playbook_action_timeout': fields.Integer,
     'playbook_timeout': fields.Integer,
     'logon_password_attempts': fields.Integer

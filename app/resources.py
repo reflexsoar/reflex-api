@@ -2577,7 +2577,7 @@ class Settings(Resource):
     @user_has('update_settings')    
     def get(self, current_user):
         ''' Retrieves the global settings for the system '''
-        settings = GlobalSettings.query.first()
+        settings = GlobalSettings.query.filter_by(organization_uuid=current_user().organization_uuid).first()
         return settings
 
     @api.doc(security="Bearer")
@@ -2586,7 +2586,7 @@ class Settings(Resource):
     @user_has('update_settings')
     def put(self, current_user):
 
-        settings = GlobalSettings.query.first()
-        settings.update(organization_uuid=current_user().organization_uuid, **api.payload)
+        settings = GlobalSettings.query.filter_by(organization_uuid=current_user().organization_uuid).first()
+        settings.update(api.payload)
 
         return {'message': 'Succesfully updated settings'}
