@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc, func
-from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, Credential, Tag, List, ListValue, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
+from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, Credential, Tag, List, ListValue, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig, DataType
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -65,6 +65,7 @@ ns_settings = api.namespace(
 )
 ns_metrics = api.namespace('Metrics', description='Metrics API endpoint for displaying dashboard charts', path='/metrics')
 ns_list = api.namespace('List', description='Lists API endpoints for managing indicator lists, lists may be string values or regular expressions', path='/list')
+ns_data_type = api.namespace('DataType', description='DataTypes API endpoints for managing what data types observables can be associated with', path='/data_type')
 
 
 # Expect an API token
@@ -454,6 +455,56 @@ class PermissionDetails(Resource):
         else:
             ns_perms.abort(404, 'Permission set not found.')
         return
+
+
+@ns_data_type.route("")
+class DataTypeList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_data_type_list)
+    @token_required
+    def get(self, current_user):
+        ''' Gets a list of all the data types '''
+        return DataType.query.filter_by(organization_uuid=current_user().organization_uuid).all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_data_type_create)
+    @api.response('200', 'Successfully created data type.')
+    @user_has('create_data_type')
+    def post(self, current_user):
+        ''' Creates a new data_type set '''
+        data_type = DataType(organization_uuid=current_user().organization_uuid, **api.payload)
+        data_type.create()
+        return {'message': 'Successfully created data type.', 'uuid': data_type.uuid}
+
+
+@ns_data_type.route("/<uuid>")
+class DataTypeDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_data_type_list)
+    @token_required
+    def get(self, uuid, current_user):
+        ''' Gets a data type '''
+        data_type = DataType.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if data_type:
+            return data_type
+        else:
+            ns_data_type.abort(404, 'Data type not found.')
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_data_type_create)
+    @api.marshal_with(mod_data_type_list)
+    @token_required
+    @user_has('update_data_type')
+    def put(self, uuid, current_user):
+        ''' Updates the data type '''
+        data_type = DataType.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if data_type:
+            data_type.update(api.payload)
+            return data_type
+        else:
+            ns_data_type.abort(404, 'Data type not found.')
 
 
 @ns_case.route("/<uuid>/add_observables/_bulk")
@@ -2367,7 +2418,12 @@ class ListList(Resource):
     @token_required
     @user_has('add_list')
     def post(self, current_user):
-        ''' Creates a new List '''
+        '''
+        Creates a new List 
+        
+        Supported list types: `values|pattern`
+        
+        '''
 
         if 'values' in api.payload:
             _values = api.payload.pop('values')

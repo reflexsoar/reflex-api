@@ -281,7 +281,9 @@ def create_super_admin(org):
         "add_list": True,
         "update_list": True,
         "view_lists": True,
-        "delete_list": True
+        "delete_list": True,
+        "create_data_type": True,
+        "update_data_type": True
     }
     permissions = Permission(**perms)
     permissions.organization = org
@@ -408,7 +410,9 @@ def create_admin(org, email, username):
         "add_list": True,
         "update_list": True,
         "view_lists": True,
-        "delete_list": True
+        "delete_list": True,
+        "create_data_type": True,
+        "update_data_type": True
     }
     permissions = Permission(**perms)
     permissions.organization = org

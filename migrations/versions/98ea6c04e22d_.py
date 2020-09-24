@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 2c545435c484
+Revision ID: 98ea6c04e22d
 Revises: 
-Create Date: 2020-09-23 20:34:49.670786
+Create Date: 2020-09-23 22:09:14.487921
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '2c545435c484'
+revision = '98ea6c04e22d'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -159,6 +159,8 @@ def upgrade():
     sa.Column('update_list', sa.Boolean(), nullable=True),
     sa.Column('view_lists', sa.Boolean(), nullable=True),
     sa.Column('delete_list', sa.Boolean(), nullable=True),
+    sa.Column('create_data_type', sa.Boolean(), nullable=True),
+    sa.Column('update_data_type', sa.Boolean(), nullable=True),
     sa.Column('update_settings', sa.Boolean(), nullable=True),
     sa.Column('view_settings', sa.Boolean(), nullable=True),
     sa.Column('use_api', sa.Boolean(), nullable=True),
@@ -514,9 +516,14 @@ def upgrade():
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('list_type', sa.String(length=255), nullable=True),
     sa.Column('data_type_uuid', sa.String(), nullable=True),
+    sa.Column('tag_on_match', sa.Boolean(), nullable=True),
     sa.Column('organization_uuid', sa.String(), nullable=True),
+    sa.Column('created_by_uuid', sa.String(), nullable=True),
+    sa.Column('updated_by_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['created_by_uuid'], ['user.uuid'], ),
     sa.ForeignKeyConstraint(['data_type_uuid'], ['data_type.uuid'], ),
     sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
+    sa.ForeignKeyConstraint(['updated_by_uuid'], ['user.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name'),
     sa.UniqueConstraint('uuid')
@@ -671,7 +678,11 @@ def upgrade():
     sa.Column('value', sa.String(), nullable=True),
     sa.Column('parent_list_uuid', sa.String(), nullable=True),
     sa.Column('organization_uuid', sa.String(), nullable=True),
+    sa.Column('created_by_uuid', sa.String(), nullable=True),
+    sa.Column('updated_by_uuid', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['created_by_uuid'], ['user.uuid'], ),
     sa.ForeignKeyConstraint(['parent_list_uuid'], ['list.uuid'], ),
+    sa.ForeignKeyConstraint(['updated_by_uuid'], ['user.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )

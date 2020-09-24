@@ -349,6 +349,10 @@ class Permission(Base):
     view_lists = db.Column(db.Boolean, default=False)
     delete_list = db.Column(db.Boolean, default=False)
 
+    # Data Type Permissions
+    create_data_type = db.Column(db.Boolean, default=False)
+    update_data_type = db.Column(db.Boolean, default=False)
+
     # Update Settings
     update_settings = db.Column(db.Boolean, default=False)
     view_settings = db.Column(db.Boolean, default=False)
@@ -940,6 +944,15 @@ class List(Base):
     organization = db.relationship('Organization', back_populates='lists')
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
+    # AUDIT COLUMNS
+    # TODO: Figure out how to move this to a mixin, it just doesn't want to work
+    created_by_uuid = db.Column(db.String, db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none)
+    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
+    created_by = db.relationship('User', foreign_keys=[created_by_uuid])
+    updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+
 
 class ListValue(Base):
     ''' 
@@ -950,6 +963,15 @@ class ListValue(Base):
     parent_list_uuid = db.Column(db.String, db.ForeignKey('list.uuid'))
     parent_list = db.relationship('List', back_populates='values')
     organization_uuid = db.Column(db.String)
+
+    # AUDIT COLUMNS
+    # TODO: Figure out how to move this to a mixin, it just doesn't want to work
+    created_by_uuid = db.Column(db.String, db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none)
+    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
+    created_by = db.relationship('User', foreign_keys=[created_by_uuid])
+    updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
 
 
 class Input(Base):

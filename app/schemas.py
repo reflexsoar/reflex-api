@@ -208,8 +208,11 @@ permission_fields = {
     "add_list": fields.Boolean,
     "update_list": fields.Boolean,
     "view_lists": fields.Boolean,
-    "delete_list": fields.Boolean
+    "delete_list": fields.Boolean,
+    "create_data_type": fields.Boolean,
+    "update_data_type": fields.Boolean
 }
+
 
 mod_permission_role_view = Model('PermissionRoleView', {
     **permission_fields,
@@ -697,19 +700,37 @@ mod_list_value = Model('ListValue', {
     'value': fields.String
 })
 
-mod_list_list = Model('List', {
+mod_list_list = Model('ListView', {
     'uuid': fields.String,
     'name': fields.String,
     'list_type': fields.String,
+    'tag_on_match': fields.Boolean,
     'data_type': fields.Nested(mod_observable_type),
-    'values': fields.Nested(mod_list_value)
+    'values': fields.Nested(mod_list_value),
+    'value_count': ValueCount(attribute='values'),
+    'created_at': fields.DateTime,
+    'modified_at': fields.DateTime
 })
 
 mod_list_create = Model('ListCreate', {
     'name': fields.String,
     'list_type': fields.String,
+    'tag_on_match': fields.Boolean,
     'data_type_uuid': fields.String,
     'values': fields.String
+})
+
+mod_data_type_list = Model('DataTypeList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String,
+    'created_at': fields.DateTime,
+    'modified_at': fields.DateTime
+})
+
+mod_data_type_create = Model('CreateDataType', {
+    'name': fields.String,
+    'description': fields.String
 })
 
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create_success, mod_user_create,
@@ -732,4 +753,4 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_case_history, mod_bulk_add_observables, mod_case_observables,
                  mod_case_status_create, mod_case_status_list, mod_organization_basic,
                  mod_case_task_create, mod_case_task_full, mod_user_role, mod_settings,
-                 mod_list_list, mod_list_value, mod_list_create]
+                 mod_list_list, mod_list_value, mod_list_create, mod_data_type_list, mod_data_type_create]
