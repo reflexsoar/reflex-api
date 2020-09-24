@@ -598,6 +598,7 @@ mod_case_status_list = Model('CaseStatusList', {
 })
 
 mod_comment = Model('CommentDetails', {
+    'uuid': fields.String,
     'message': fields.String,
     'created_by': fields.Nested(mod_user_list),
     'created_at': fields.DateTime
@@ -694,7 +695,8 @@ mod_settings = Model('SettingsList', {
     'playbook_action_timeout': fields.Integer,
     'playbook_timeout': fields.Integer,
     'logon_password_attempts': fields.Integer,
-    'api_key_valid_days': fields.Integer
+    'api_key_valid_days': fields.Integer,
+    'agent_pairing_token_valid_minutes': fields.Integer
 })
 
 mod_case_metrics = Model('CaseMetrics', {

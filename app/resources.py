@@ -1976,7 +1976,10 @@ class AgentPairToken(Resource):
         Generates a short lived pairing token used by the agent
         to get a long running JWT
         '''
-        return generate_token(None, current_user().organization_uuid, 900, 'pairing')
+
+        settings = GlobalSettings.query.filter_by(organization_uuid=current_user().organization_uuid).first()
+
+        return generate_token(None, current_user().organization_uuid, settings.agent_pairing_token_valid_minutes, 'pairing')
 
 
 @ns_agent.route("")
@@ -2512,7 +2515,7 @@ class ListDetails(Resource):
             # Delete all the values so they aren't orphaned
             for value in value_list.values:
                 value.delete()
-                
+
             value_list.delete()
             return {'message': 'List successfully delete.'}
         else:

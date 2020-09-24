@@ -1084,3 +1084,4 @@ class GlobalSettings(Base):
     organization = db.relationship('Organization', back_populates='settings')
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
     api_key_valid_days = db.Column(db.Integer, default=366)
+    agent_pairing_token_valid_minutes = db.Column(db.Integer, default=15)
