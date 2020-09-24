@@ -283,7 +283,8 @@ def create_super_admin(org):
         "view_lists": True,
         "delete_list": True,
         "create_data_type": True,
-        "update_data_type": True
+        "update_data_type": True,
+        "create_peristent_pairing_token": True
     }
     permissions = Permission(**perms)
     permissions.organization = org
@@ -412,7 +413,8 @@ def create_admin(org, email, username):
         "view_lists": True,
         "delete_list": True,
         "create_data_type": True,
-        "update_data_type": True
+        "update_data_type": True,
+        "create_peristent_pairing_token": True
     }
     permissions = Permission(**perms)
     permissions.organization = org

@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 95b73f216814
+Revision ID: 350df1aa104f
 Revises: 
-Create Date: 2020-09-23 23:41:38.770510
+Create Date: 2020-09-24 15:28:47.814620
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '95b73f216814'
+revision = '350df1aa104f'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -163,6 +163,7 @@ def upgrade():
     sa.Column('update_data_type', sa.Boolean(), nullable=True),
     sa.Column('update_settings', sa.Boolean(), nullable=True),
     sa.Column('view_settings', sa.Boolean(), nullable=True),
+    sa.Column('create_peristent_pairing_token', sa.Boolean(), nullable=True),
     sa.Column('use_api', sa.Boolean(), nullable=True),
     sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
@@ -481,6 +482,8 @@ def upgrade():
     sa.Column('logon_password_attempts', sa.Integer(), nullable=True),
     sa.Column('organization_uuid', sa.String(), nullable=True),
     sa.Column('api_key_valid_days', sa.Integer(), nullable=True),
+    sa.Column('agent_pairing_token_valid_minutes', sa.Integer(), nullable=True),
+    sa.Column('peristent_pairing_token', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['email_secret_uuid'], ['credential.uuid'], ),
     sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
     sa.PrimaryKeyConstraint('id'),

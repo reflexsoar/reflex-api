@@ -219,7 +219,8 @@ permission_fields = {
     "view_lists": fields.Boolean,
     "delete_list": fields.Boolean,
     "create_data_type": fields.Boolean,
-    "update_data_type": fields.Boolean
+    "update_data_type": fields.Boolean,
+    "create_peristent_pairing_token": fields.Boolean
 }
 
 
@@ -696,7 +697,8 @@ mod_settings = Model('SettingsList', {
     'playbook_timeout': fields.Integer,
     'logon_password_attempts': fields.Integer,
     'api_key_valid_days': fields.Integer,
-    'agent_pairing_token_valid_minutes': fields.Integer
+    'agent_pairing_token_valid_minutes': fields.Integer,
+    'persistent_pairing_token': fields.String
 })
 
 mod_case_metrics = Model('CaseMetrics', {
@@ -705,6 +707,10 @@ mod_case_metrics = Model('CaseMetrics', {
 
 mod_api_key = Model('UserApiKey', {
     'api_key': fields.String
+})
+
+mod_persistent_pairing_token = Model('PeristentPairingToken', {
+    'token': fields.String
 })
 
 mod_list_value = Model('ListValue', {
@@ -757,7 +763,7 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_input_create, mod_input_list, mod_event_create_bulk, mod_event_status,
                  mod_agent_create, mod_agent_list, mod_agent_role_list,
                  mod_case_create, mod_case_status, mod_case_full,
-                 mod_plugin_create, mod_plugin_list, mod_api_key,
+                 mod_plugin_create, mod_plugin_list, mod_api_key, mod_persistent_pairing_token,
                  mod_agent_group_create, mod_agent_group_list,
                  mod_plugin_config_list, mod_plugin_config_create, mod_plugin_name,
                  mod_user_group_create, mod_user_group_list, mod_add_user_to_group,

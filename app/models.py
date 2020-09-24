@@ -356,6 +356,7 @@ class Permission(Base):
     # Update Settings
     update_settings = db.Column(db.Boolean, default=False)
     view_settings = db.Column(db.Boolean, default=False)
+    create_peristent_pairing_token = db.Column(db.Boolean, default=False)
 
     # API Permissions
     use_api = db.Column(db.Boolean, default=False)
@@ -1085,3 +1086,25 @@ class GlobalSettings(Base):
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
     api_key_valid_days = db.Column(db.Integer, default=366)
     agent_pairing_token_valid_minutes = db.Column(db.Integer, default=15)
+    peristent_pairing_token = db.Column(db.String)
+
+    def generate_persistent_pairing_token(self):
+        '''
+        Generates a long living pairing token which can be used in
+        automated deployment of agents
+        '''
+
+        _api_key = jwt.encode({
+            'organization': self.organization_uuid,
+            'iat': datetime.datetime.utcnow(),
+            'type': 'pairing'
+        }, current_app.config['SECRET_KEY']).decode('utf-8')
+
+        if self.peristent_pairing_token != None:
+            blacklist = AuthTokenBlacklist(auth_token = self.peristent_pairing_token)
+            blacklist.create()
+            self.peristent_pairing_token = _api_key
+        else:
+            self.peristent_pairing_token = _api_key
+        self.save()
+        return {'token': self.peristent_pairing_token}

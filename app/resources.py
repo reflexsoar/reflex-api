@@ -2006,7 +2006,7 @@ class AgentList(Resource):
 
         print(current_user())
 
-        agent = Agent.query.filter_by(name=api.payload['name'], organization_uuid=current_user()['organization_uuid']).first()
+        agent = Agent.query.filter_by(name=api.payload['name'], organization_uuid=current_user()['organization']).first()
         if not agent:
 
             if 'roles' in api.payload:
@@ -2015,7 +2015,7 @@ class AgentList(Resource):
             if 'groups' in api.payload:
                 groups = api.payload.pop('groups')
 
-            agent = Agent(organization_uuid=current_user()['organization_uuid'], **api.payload)
+            agent = Agent(organization_uuid=current_user()['organization'], **api.payload)
             for role in roles:
                 agent_role = AgentRole.query.filter_by(name=role).first()
                 if agent_role:
@@ -2025,7 +2025,7 @@ class AgentList(Resource):
 
             if groups:
                 for group_name in groups:
-                    group = AgentGroup.query.filter_by(name=group_name, organization_uuid=current_user()['organization_uuid']).first()
+                    group = AgentGroup.query.filter_by(name=group_name, organization_uuid=current_user()['organization']).first()
                     if group:
                         agent.groups.append(group)
                     else:
@@ -2036,7 +2036,7 @@ class AgentList(Resource):
 
             agent.create()
 
-            return {'message': 'Successfully created the agent.', 'uuid': agent.uuid, 'token': generate_token(agent.uuid, current_user()['organization_uuid'], 86400, token_type='agent')}
+            return {'message': 'Successfully created the agent.', 'uuid': agent.uuid, 'token': generate_token(agent.uuid, current_user()['organization'], 86400, token_type='agent')}
         else:
             ns_agent.abort(409, "Agent already exists.")
 
@@ -2789,6 +2789,19 @@ class Settings(Resource):
         settings.update(api.payload)
 
         return {'message': 'Succesfully updated settings'}
+
+
+@ns_settings.route("/generate_persistent_pairing_token")
+class PersistentPairingToken(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_persistent_pairing_token)
+    @token_required
+    @user_has('create_peristent_pairing_token')
+    def get(self, current_user):
+        ''' Returns a new API key for the user making the request '''
+        settings = GlobalSettings.query.filter_by(organization_uuid = current_user().organization_uuid).first()
+        return settings.generate_persistent_pairing_token()
 
 
 @ns_metrics.route("/case_trend")
