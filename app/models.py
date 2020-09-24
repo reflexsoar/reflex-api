@@ -343,6 +343,12 @@ class Permission(Base):
     update_organization = db.Column(db.Boolean, default=False)
     delete_organization = db.Column(db.Boolean, default=False)
 
+    # List Permissions
+    add_list = db.Column(db.Boolean, default=False)
+    update_list = db.Column(db.Boolean, default=False)
+    view_lists = db.Column(db.Boolean, default=False)
+    delete_list = db.Column(db.Boolean, default=False)
+
     # Update Settings
     update_settings = db.Column(db.Boolean, default=False)
     view_settings = db.Column(db.Boolean, default=False)
@@ -493,7 +499,8 @@ class User(Base):
         _refresh_token = jwt.encode({
             'uuid': self.uuid,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=30),
-            'iat': datetime.datetime.utcnow()
+            'iat': datetime.datetime.utcnow(),
+            'type': 'refresh'
         }, current_app.config['SECRET_KEY']).decode('utf-8')
 
         user_agent_hash = hashlib.md5(user_agent_string).hexdigest()
@@ -928,6 +935,7 @@ class List(Base):
     list_type = db.Column(db.String(255))
     data_type_uuid = db.Column(db.String, db.ForeignKey('data_type.uuid'))
     data_type = db.relationship('DataType')
+    tag_on_match = db.Column(db.Boolean, default=False)
     values = db.relationship('ListValue', back_populates='parent_list')
     organization = db.relationship('Organization', back_populates='lists')
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))

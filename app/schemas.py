@@ -204,7 +204,11 @@ permission_fields = {
     "view_organizatons": fields.Boolean,
     "update_organization": fields.Boolean,
     "delete_organization": fields.Boolean,
-    "use_api": fields.Boolean
+    "use_api": fields.Boolean,
+    "add_list": fields.Boolean,
+    "update_list": fields.Boolean,
+    "view_lists": fields.Boolean,
+    "delete_list": fields.Boolean
 }
 
 mod_permission_role_view = Model('PermissionRoleView', {
@@ -677,7 +681,8 @@ mod_settings = Model('SettingsList', {
     'email_secret_uuid': fields.String,
     'playbook_action_timeout': fields.Integer,
     'playbook_timeout': fields.Integer,
-    'logon_password_attempts': fields.Integer
+    'logon_password_attempts': fields.Integer,
+    'api_key_valid_days': fields.Integer
 })
 
 mod_case_metrics = Model('CaseMetrics', {
@@ -686,6 +691,25 @@ mod_case_metrics = Model('CaseMetrics', {
 
 mod_api_key = Model('UserApiKey', {
     'api_key': fields.String
+})
+
+mod_list_value = Model('ListValue', {
+    'value': fields.String
+})
+
+mod_list_list = Model('List', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'list_type': fields.String,
+    'data_type': fields.Nested(mod_observable_type),
+    'values': fields.Nested(mod_list_value)
+})
+
+mod_list_create = Model('ListCreate', {
+    'name': fields.String,
+    'list_type': fields.String,
+    'data_type_uuid': fields.String,
+    'values': fields.String
 })
 
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create_success, mod_user_create,
@@ -707,4 +731,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_case_template_task_create, mod_case_template_task_full, mod_add_tasks_to_case, mod_comment, mod_comment_create,
                  mod_case_history, mod_bulk_add_observables, mod_case_observables,
                  mod_case_status_create, mod_case_status_list, mod_organization_basic,
-                 mod_case_task_create, mod_case_task_full, mod_user_role, mod_settings]
+                 mod_case_task_create, mod_case_task_full, mod_user_role, mod_settings,
+                 mod_list_list, mod_list_value, mod_list_create]

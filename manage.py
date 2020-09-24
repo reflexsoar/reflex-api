@@ -277,7 +277,11 @@ def create_super_admin(org):
         "view_organizatons": True,
         "update_organization": True,
         "delete_organization": True,
-        "use_api": True
+        "use_api": True,
+        "add_list": True,
+        "update_list": True,
+        "view_lists": True,
+        "delete_list": True
     }
     permissions = Permission(**perms)
     permissions.organization = org
@@ -400,7 +404,11 @@ def create_admin(org, email, username):
         "delete_case_status": True,
         'update_settings': True,
         'view_settings': True,
-        "use_api": True
+        "use_api": True,
+        "add_list": True,
+        "update_list": True,
+        "view_lists": True,
+        "delete_list": True
     }
     permissions = Permission(**perms)
     permissions.organization = org

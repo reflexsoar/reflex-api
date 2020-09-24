@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc, func
-from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, Credential, Tag, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
+from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, Credential, Tag, List, ListValue, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -2347,6 +2347,123 @@ class RoleDetails(Resource):
             return role
         else:
             ns_role.abort(404, 'Role not found.')
+
+
+@ns_list.route("")
+class ListList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_list_list, as_list=True)
+    @token_required
+    @user_has('view_lists')
+    def get(self, current_user):
+        ''' Returns a list of Lists '''
+        return List.query.filter_by(organization_uuid=current_user().organization_uuid).all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_list_create)
+    @api.response('409', 'List already exists.')
+    @api.response('200', "Successfully created the list.")
+    @token_required
+    @user_has('add_list')
+    def post(self, current_user):
+        ''' Creates a new List '''
+
+        if 'values' in api.payload:
+            _values = api.payload.pop('values')
+            _values = _values.split('\n')
+            values = []
+            for value in _values:
+                if value == '':
+                    continue
+                v = ListValue(value=value, organization_uuid=current_user().organization_uuid)
+                values.append(v)
+
+            api.payload['values'] = values
+
+        value_list = List.query.filter_by(name=api.payload['name'], organization_uuid=current_user().organization_uuid).first()
+
+        if not value_list:
+            value_list = List(organization_uuid=current_user().organization_uuid, **api.payload)
+            value_list.create()
+            return {'message': 'Successfully created the list.', 'uuid': value_list.uuid}
+        else:
+            ns_user.abort(409, "List already exists.")
+
+
+@ns_list.route("/<uuid>")
+class ListDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_list_create)
+    @api.marshal_with(mod_list_list)
+    @token_required
+    @user_has('update_list')
+    def put(self, uuid, current_user):
+        ''' Updates a List '''
+        value_list = List.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if value_list:
+            if 'name' in api.payload and List.query.filter_by(name=api.payload['name'], organization_uuid=current_user().organization_uuid).first():
+                ns_list.abort(409, 'List with that name already exists.')
+            else:
+
+                if 'values' in api.payload:
+
+                    # Get the current values in the list
+                    current_values = [v.value for v in value_list.values]
+                    print(current_values)
+
+                    # Determine what the new values should be, current, new or removed
+                    _values = api.payload.pop('values').split('\n')
+                    print(_values)
+                    removed_values = [v for v in current_values if v not in _values and v != '']
+                    print(removed_values)
+                    new_values = [v for v in _values if v not in current_values and v != '']
+                    print(new_values)
+
+                    # For all values not in the new list
+                    # delete them from the database and disassociate them 
+                    # from the list
+                    for v in removed_values:
+                        value = ListValue.query.filter_by(value=v, organization_uuid=current_user().organization_uuid, parent_list_uuid=value_list.uuid).first()
+                        value.delete()
+
+                    for v in new_values:
+                        value = ListValue(value=v, organization_uuid=current_user().organization_uuid)
+                        value_list.values.append(value)
+
+                value_list.update(api.payload)
+                return value_list
+        else:
+            ns_list.abort(404, 'List not found.')
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_list')
+    def delete(self, uuid, current_user):
+        ''' Removes a List '''
+        value_list = List.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if value_list:
+            if len(value_list.users) > 0:
+                ns_list.abort(
+                    400, 'Can not delete a list with assigned users.  Assign the users to a new list first.')
+            else:
+                value_list.delete()
+                return {'message': 'List successfully delete.'}
+        else:
+            ns_list.abort(404, 'List not found.')
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_list_list)
+    @token_required
+    @user_has('view_lists')
+    def get(self, uuid, current_user):
+        ''' Gets the details of a List '''
+        value_list = List.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if value_list:
+            return value_list
+        else:
+            ns_list.abort(404, 'List not found.')
 
 
 @ns_role.route("/<uuid>/add-user/<user_uuid>")

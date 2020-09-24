@@ -3,7 +3,6 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
-#from flask_socketio import SocketIO
 from config import app_config
 
 FLASK_BCRYPT = Bcrypt()
@@ -18,7 +17,6 @@ def create_app(environment='development'):
 
     db.init_app(app)
     cors.init_app(app)
-    #socketio.init_app(app)
 
     authorizations = {"Bearer": {"type": "apiKey", "in": "header", "name":"Authorization"}}
 
