@@ -38,7 +38,7 @@ def user_has(permission):
             if(current_app.config['PERMISSIONS_DISABLED']):
                 return f(*args, **kwargs)
             current_user = _check_token()
-            
+
             # If this is a pairing token and its the add_agent permission
             # bypass the route guard and let the route finish
             if isinstance(current_user, dict) and current_user['type'] == 'pairing' and permission == 'add_agent':
@@ -71,8 +71,16 @@ def _check_token():
             access_token = auth_header.split(' ')[1]   
             try:
                 token = jwt.decode(access_token, current_app.config['SECRET_KEY'])
+
+                # If this is an agents token pull the agents information and
+                # set it to current_user
                 if 'type' in token and token['type'] == 'agent':
                     current_user = Agent.query.filter_by(uuid=token['uuid']).first()
+
+                # Refresh tokens should not be used to access the API
+                # only to refresh an access token
+                if 'type' in token and token['type'] == 'refresh':
+                    abort(401, 'Unauthorized')
                     
                 # The pairing token can only be used on the add_agent endpoint
                 # and because the token is signed we don't have to worry about 
@@ -82,6 +90,8 @@ def _check_token():
                 else:
                     current_user = User.query.filter_by(uuid=token['uuid']).first()
 
+                    # If the user is currently locked
+                    # reject the accesss_token and expire it
                     if current_user.locked:
                         blacklist = AuthTokenBlacklist(auth_token = access_token)
                         blacklist.create()
