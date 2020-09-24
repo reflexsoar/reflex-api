@@ -356,7 +356,7 @@ class Permission(Base):
     # Update Settings
     update_settings = db.Column(db.Boolean, default=False)
     view_settings = db.Column(db.Boolean, default=False)
-    create_peristent_pairing_token = db.Column(db.Boolean, default=False)
+    create_persistent_pairing_token = db.Column(db.Boolean, default=False)
 
     # API Permissions
     use_api = db.Column(db.Boolean, default=False)

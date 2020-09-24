@@ -2797,7 +2797,7 @@ class PersistentPairingToken(Resource):
     @api.doc(security="Bearer")
     @api.marshal_with(mod_persistent_pairing_token)
     @token_required
-    @user_has('create_peristent_pairing_token')
+    @user_has('create_persistent_pairing_token')
     def get(self, current_user):
         ''' Returns a new API key for the user making the request '''
         settings = GlobalSettings.query.filter_by(organization_uuid = current_user().organization_uuid).first()

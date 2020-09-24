@@ -220,7 +220,7 @@ permission_fields = {
     "delete_list": fields.Boolean,
     "create_data_type": fields.Boolean,
     "update_data_type": fields.Boolean,
-    "create_peristent_pairing_token": fields.Boolean
+    "create_persistent_pairing_token": fields.Boolean
 }
 
 
