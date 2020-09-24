@@ -854,6 +854,7 @@ class DataType(Base):
 
     name = db.Column(db.String(255))
     description = db.Column(db.String)
+    regex = db.Column(db.String)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work

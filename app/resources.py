@@ -470,6 +470,7 @@ class DataTypeList(Resource):
     @api.doc(security="Bearer")
     @api.expect(mod_data_type_create)
     @api.response('200', 'Successfully created data type.')
+    @token_required
     @user_has('create_data_type')
     def post(self, current_user):
         ''' Creates a new data_type set '''
@@ -2413,6 +2414,7 @@ class ListList(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(mod_list_create)
+    @api.marshal_with(mod_list_list)
     @api.response('409', 'List already exists.')
     @api.response('200', "Successfully created the list.")
     @token_required
@@ -2427,7 +2429,8 @@ class ListList(Resource):
 
         if 'values' in api.payload:
             _values = api.payload.pop('values')
-            _values = _values.split('\n')
+            if not isinstance(_values, list):
+                _values = _values.split('\n')
             values = []
             for value in _values:
                 if value == '':
@@ -2437,14 +2440,18 @@ class ListList(Resource):
 
             api.payload['values'] = values
 
+        data_type = DataType.query.filter_by(uuid=api.payload['data_type_uuid']).first()
+        if not data_type:
+            ns_list.abort(409, "Data type not found.")
+
         value_list = List.query.filter_by(name=api.payload['name'], organization_uuid=current_user().organization_uuid).first()
 
         if not value_list:
             value_list = List(organization_uuid=current_user().organization_uuid, **api.payload)
             value_list.create()
-            return {'message': 'Successfully created the list.', 'uuid': value_list.uuid}
+            return value_list
         else:
-            ns_user.abort(409, "List already exists.")
+            ns_list.abort(409, "List already exists.")
 
 
 @ns_list.route("/<uuid>")
@@ -2459,7 +2466,7 @@ class ListDetails(Resource):
         ''' Updates a List '''
         value_list = List.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if value_list:
-            if 'name' in api.payload and List.query.filter_by(name=api.payload['name'], organization_uuid=current_user().organization_uuid).first():
+            if 'name' in api.payload and List.query.filter_by(name=api.payload['name'], organization_uuid=current_user().organization_uuid).first().uuid != uuid:
                 ns_list.abort(409, 'List with that name already exists.')
             else:
 
@@ -2467,15 +2474,16 @@ class ListDetails(Resource):
 
                     # Get the current values in the list
                     current_values = [v.value for v in value_list.values]
-                    print(current_values)
 
                     # Determine what the new values should be, current, new or removed
-                    _values = api.payload.pop('values').split('\n')
-                    print(_values)
+                    _values = api.payload.pop('values')
+
+                    # Detect if the user sent it as a list or a \n delimited string
+                    if not isinstance(_values, list):
+                        _values = _values.split('\n')
+
                     removed_values = [v for v in current_values if v not in _values and v != '']
-                    print(removed_values)
                     new_values = [v for v in _values if v not in current_values and v != '']
-                    print(new_values)
 
                     # For all values not in the new list
                     # delete them from the database and disassociate them 
@@ -2500,12 +2508,13 @@ class ListDetails(Resource):
         ''' Removes a List '''
         value_list = List.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if value_list:
-            if len(value_list.users) > 0:
-                ns_list.abort(
-                    400, 'Can not delete a list with assigned users.  Assign the users to a new list first.')
-            else:
-                value_list.delete()
-                return {'message': 'List successfully delete.'}
+            
+            # Delete all the values so they aren't orphaned
+            for value in value_list.values:
+                value.delete()
+                
+            value_list.delete()
+            return {'message': 'List successfully delete.'}
         else:
             ns_list.abort(404, 'List not found.')
 
@@ -2515,6 +2524,7 @@ class ListDetails(Resource):
     @user_has('view_lists')
     def get(self, uuid, current_user):
         ''' Gets the details of a List '''
+
         value_list = List.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if value_list:
             return value_list

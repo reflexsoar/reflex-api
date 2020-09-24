@@ -11,13 +11,22 @@ class ObservableCount(fields.Raw):
     def format(self, value):
         return len(value)
 
-
 class IOCCount(fields.Raw):
     ''' Returns the number of observables that are IOC '''
 
     def format(self, value):
         iocs = [o for o in value if o.ioc == True]
         return len(iocs)
+
+class AsNewLineDelimited(fields.Raw):
+    ''' Returns an array as a string delimited by new line characters '''
+    def format(self, value):
+        return '\n'.join([v.value for v in value])
+
+class AsDefaultType(fields.Raw):
+    ''' Returns the value in its default type '''
+    def format(self, value):
+        return value
 
 
 class JSONField(fields.Raw):
@@ -706,7 +715,8 @@ mod_list_list = Model('ListView', {
     'list_type': fields.String,
     'tag_on_match': fields.Boolean,
     'data_type': fields.Nested(mod_observable_type),
-    'values': fields.Nested(mod_list_value),
+    'values': AsNewLineDelimited(attribute='values'),
+    'values_list': fields.List(fields.Nested(mod_list_value), attribute='values'),
     'value_count': ValueCount(attribute='values'),
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime
@@ -724,6 +734,7 @@ mod_data_type_list = Model('DataTypeList', {
     'uuid': fields.String,
     'name': fields.String,
     'description': fields.String,
+    'regex': fields.String,
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime
 })
