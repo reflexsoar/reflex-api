@@ -691,6 +691,7 @@ class AddEventsToCase(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(mod_add_events_to_case)
+    @api.marshal_with(mod_add_events_response)
     @api.response(207, 'Success')
     @api.response(404, 'Case not found.')
     @token_required
@@ -699,10 +700,12 @@ class AddEventsToCase(Resource):
 
         response = {
             'results': [],
-            'success': True
+            'success': True,
+            'case': None
         }
         case = Case.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if case:
+            response['case'] = case
             case_observables = [observable.value.lower() for observable in case.observables]
             
             if 'events' in api.payload:
@@ -730,7 +733,7 @@ class AddEventsToCase(Resource):
                     else:
                         response['results'].append({'reference': evt, 'message': 'Event not found.'})
                         response['success'] = False
-                case.add_history('%s event(s) were merged into this case' % len([r for r in response['results'] if 'success' in r['message']]))
+                case.add_history('%s Event(s) were merged into this case' % len([r for r in response['results'] if 'success' in r['message']]))
             return response, 207
                             
         else:

@@ -756,6 +756,17 @@ mod_add_events_to_case = Model('AddEventsToCase', {
     'events': fields.List(fields.String)
 })
 
+
+mod_response_message = Model('ResponseMessage', {
+    'message': fields.String
+})
+
+mod_add_events_response = Model('AddEventsToCaseResponse', {
+    'results': fields.List(fields.Nested(mod_response_message)),
+    'success': fields.Boolean,
+    'case': fields.Nested(mod_case_full)
+})
+
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create_success, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
                  mod_tag, mod_tag_list, mod_credential_create, mod_credential_full, mod_credential_return,
@@ -776,4 +787,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_case_history, mod_bulk_add_observables, mod_case_observables,
                  mod_case_status_create, mod_case_status_list, mod_organization_basic,
                  mod_case_task_create, mod_case_task_full, mod_user_role, mod_settings,
-                 mod_list_list, mod_list_value, mod_list_create, mod_data_type_list, mod_data_type_create]
+                 mod_list_list, mod_list_value, mod_list_create, mod_data_type_list, mod_data_type_create,
+                 mod_add_events_response, mod_response_message]
