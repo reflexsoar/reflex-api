@@ -709,7 +709,7 @@ class CaseList(Resource):
 
 
         for event in case.events:
-            event.status = EventStatus.query.filter_by(name='Imported', organization_uuid=current_user().organization_uuid).first()
+            event.status = EventStatus.query.filter_by(name='Open', organization_uuid=current_user().organization_uuid).first()
             event.save()
 
         return {'message': 'Successfully created the case.', 'uuid': case.uuid}
@@ -752,7 +752,7 @@ class AddEventsToCase(Resource):
                             _event_observables += [observable for observable in event.observables]
                             new_observables = [observable for observable in _event_observables if observable.value.lower() not in case_observables]
                             case.observables += new_observables
-                            event.status = EventStatus.query.filter_by(name='Imported', organization_uuid=current_user().organization_uuid).first()
+                            event.status = EventStatus.query.filter_by(name='Open', organization_uuid=current_user().organization_uuid).first()
                             case.events.append(event)
                             case.save()
                             response['results'].append({'reference': evt, 'message': 'Event successfully merged into Case.'})

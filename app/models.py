@@ -146,8 +146,7 @@ def _current_user_id_or_none():
             access_token = auth_header.split(' ')[1]
             token = jwt.decode(access_token, current_app.config['SECRET_KEY'])
             if 'type' in token and token['type'] == 'agent':
-                current_user = Agent.query.filter_by(
-                    uuid=token['uuid']).first()
+                current_user = None
             elif 'type' in token and token['type'] == 'pairing':
                 current_user = "PAIRING"
             else:
@@ -768,6 +767,12 @@ class Event(Base):
     raw_log = db.Column(db.JSON)
     organization = db.relationship('Organization', back_populates='events')
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    created_by_uuid = db.Column(db.String, db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none)
+    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
+    created_by = db.relationship('User', foreign_keys=[created_by_uuid])
+    updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
 
 
 class EventStatus(Base):
@@ -819,6 +824,12 @@ class Observable(Base):
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
+    created_by_uuid = db.Column(db.String, db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none)
+    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
+    created_by = db.relationship('User', foreign_keys=[created_by_uuid])
+    updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='observables')
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
@@ -1087,6 +1098,12 @@ class Tag(Base):
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
+    created_by_uuid = db.Column(db.String, db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none)
+    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
+    created_by = db.relationship('User', foreign_keys=[created_by_uuid])
+    updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='tags')
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
