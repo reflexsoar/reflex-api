@@ -7,13 +7,16 @@ from flask import request, current_app, abort
 from .models import User, AuthTokenBlacklist, Agent
 
 def generate_token(uuid, organization_uuid, duration=10, token_type='agent'):
-    _access_token = jwt.encode({
+    token_data = {
         'uuid': uuid,
         'organization_uuid': organization_uuid,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=duration),
         'iat': datetime.datetime.utcnow(),
         'type': token_type
-    }, current_app.config['SECRET_KEY']).decode('utf-8')
+    }
+
+    if duration:
+        token_data['exp'] = datetime.datetime.utcnow() + datetime.timedelta(minutes=duration)
+    _access_token = jwt.encode(token_data, current_app.config['SECRET_KEY']).decode('utf-8')
     
     return _access_token
 
@@ -77,9 +80,10 @@ def _check_token():
                 if 'type' in token and token['type'] == 'agent':
                     current_user = Agent.query.filter_by(uuid=token['uuid']).first()
 
+
                 # Refresh tokens should not be used to access the API
                 # only to refresh an access token
-                if 'type' in token and token['type'] == 'refresh':
+                elif 'type' in token and token['type'] == 'refresh':
                     abort(401, 'Unauthorized')
                     
                 # The pairing token can only be used on the add_agent endpoint
@@ -95,8 +99,9 @@ def _check_token():
                     if current_user.locked:
                         blacklist = AuthTokenBlacklist(auth_token = access_token)
                         blacklist.create()
+                        
                         abort(401, 'Unauthorized')
-                   
+                
                 blacklisted = AuthTokenBlacklist.query.filter_by(auth_token=access_token).first()
                 if blacklisted:
                     raise ValueError('Token retired.')

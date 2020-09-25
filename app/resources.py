@@ -1,4 +1,5 @@
 import os
+import re
 import datetime
 import jwt
 import json
@@ -110,6 +111,8 @@ def create_observables(observables, organization_uuid):
 
         observable_type = DataType.query.filter_by(name=o['dataType'], organization_uuid=organization_uuid).first()
         if observable_type:
+            intel_lists = List.query.filter_by(organization_uuid=organization_uuid, tag_on_match=True, data_type_uuid=observable_type.uuid).all()
+
             o['dataType'] = observable_type
             observable = Observable(organization_uuid=organization_uuid, **o)
             observable.create()
@@ -118,6 +121,32 @@ def create_observables(observables, organization_uuid):
             if len(_tags) > 0:
                 observable.tags += _tags
                 observable.save()
+
+            # Intel list matching, if the value is on a list
+            # put the list name in an array so we can tag the observable
+            list_matches = []
+            for l in intel_lists:
+                hits = 0
+                if l.list_type == 'values':
+                    hits = len([v for v in l.values if v.value.lower() == o['value'].lower()])
+                if l.list_type == 'patterns':
+                    hits = len([v for v in l.values if re.match(v.value, o['value']) != None])
+                if hits > 0:
+                    list_matches.append(l.name.replace(' ','-').lower())
+
+            # Process the tags based on the matched intel lists
+            if len(list_matches) > 0:
+                list_tags = []
+                for m in list_matches:
+                    tag = Tag.query.filter_by(organization_uuid=organization_uuid, name='list:%s' % m).first()
+                    if tag:
+                        list_tags.append(tag)
+                    else:
+                        tag = Tag(organization_uuid=organization_uuid, **{'name':'list:%s' % m, 'color': '#ffffff'})
+                        list_tags.append(tag)
+                observable.tags += list_tags
+                observable.save()
+
     return _observables
 
 
@@ -1689,7 +1718,7 @@ class PluginConfigDetails(Resource):
     @api.response('404', 'PluginConfig not found')
     @token_required
     @user_has('view_plugins')
-    def get(self, current_user, uuid):
+    def get(self, uuid, current_user):
         ''' Returns information about a plugin_config '''
         plugin_config = PluginConfig.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if plugin_config:
@@ -1702,7 +1731,7 @@ class PluginConfigDetails(Resource):
     @api.marshal_with(mod_plugin_config_list)
     @token_required
     @user_has('update_plugin')
-    def put(self, current_user, uuid):
+    def put(self, uuid, current_user):
         ''' Updates information for a plugin_config '''
         plugin_config = PluginConfig.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if plugin_config:
@@ -1819,8 +1848,10 @@ class CreateBulkEvents(Resource):
         for item in events:
             _tags = []
             _observables = []
+
             event = Event.query.filter_by(reference=item['reference'], organization_uuid=current_user().organization_uuid).first()
             if not event:
+
                 if 'tags' in item:
                     tags = item.pop('tags')
                     _tags = parse_tags(tags, current_user().organization_uuid)

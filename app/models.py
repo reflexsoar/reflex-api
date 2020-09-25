@@ -819,12 +819,6 @@ class Observable(Base):
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
-        'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
-        'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
-    created_by = db.relationship('User', foreign_keys=[created_by_uuid])
-    updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='observables')
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
@@ -1071,7 +1065,8 @@ class Credential(Base):
         salt = secrets.token_bytes(16)
         key = self._derive_key(secret.encode(), salt, iterations)
         self.secret = base64.urlsafe_b64encode(b'%b%b%b' % (salt, iterations.to_bytes(4, 'big'),
-                                                            base64.urlsafe_b64encode(Fernet(key).encrypt(message))))
+                                                            base64.urlsafe_b64encode(Fernet(key).encrypt(message)))).decode()
+        print(self.secret)
 
     def decrypt(self, secret: str) -> bytes:
         decoded = base64.urlsafe_b64decode(self.secret)
@@ -1092,12 +1087,6 @@ class Tag(Base):
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
-        'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
-        'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
-    created_by = db.relationship('User', foreign_keys=[created_by_uuid])
-    updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='tags')
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
