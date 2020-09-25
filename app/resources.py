@@ -83,8 +83,8 @@ upload_parser.add_argument('files', location='files',
 
 pager_parser = api.parser()
 pager_parser.add_argument('page_size', location='args',
-                          required=False, type=int)
-pager_parser.add_argument('page', location='args', required=False, type=int)
+                          required=False, type=int, default=25)
+pager_parser.add_argument('page', location='args', required=False, type=int, default=1)
 
 def parse_tags(tags, organization_uuid):
     ''' Tags a list of supplied tags and creates Tag objects for each one '''
@@ -129,7 +129,6 @@ class auth(Resource):
     @api.response(401, 'Incorrect username or password')
     def post(self):
         ''' Authenticate the user and return their api token '''
-        print(api.payload)
 
         # Check if the user exists
         user = User.query.filter_by(email=api.payload['username'], locked=False).first()
@@ -551,24 +550,29 @@ class CaseBulkAddObservables(Resource):
 
         return case
 
+case_parser = pager_parser.copy()
+case_parser.add_argument('title', location='args', required=False, type=str)
 
 @ns_case.route("")
 class CaseList(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_case_full, as_list=True)
-    @api.expect(pager_parser)
+    @api.expect(case_parser)
     @token_required
     @user_has('view_cases')
     def get(self, current_user):
         ''' Returns a list of case '''
 
-        args = pager_parser.parse_args()
-        if args:
+        args = case_parser.parse_args()
+        if args['title']:
+            cases = Case.query.filter(
+                Case.title.ilike(args['title']+"%"),
+                Case.organization_uuid==current_user().organization_uuid
+            ).paginate(args['page'], args['page_size'], False).items
+        else:
             cases = Case.query.filter_by(organization_uuid=current_user().organization_uuid).paginate(
                 args['page'], args['page_size'], False).items
-        else:
-            cases = Case.query.filter_by(organization_uuid=current_user().organization_uuid).all()
 
         return cases
 
@@ -650,7 +654,6 @@ class CaseList(Resource):
         # If the user selected a case template, take the template items
         # and copy them over to the case
         if case_template_uuid:
-            print("CREATING FROM TEMPLATE")
             case_template = CaseTemplate.query.filter_by(
                 uuid=case_template_uuid,
                 organization_uuid=current_user().organization_uuid).first()
@@ -681,6 +684,57 @@ class CaseList(Resource):
             event.save()
 
         return {'message': 'Successfully created the case.', 'uuid': case.uuid}
+
+
+@ns_case.route("/<uuid>/add_events")
+class AddEventsToCase(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_add_events_to_case)
+    @api.response(207, 'Success')
+    @api.response(404, 'Case not found.')
+    @token_required
+    @user_has('update_case')
+    def put(self, uuid, current_user):
+
+        response = {
+            'results': [],
+            'success': True
+        }
+        case = Case.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if case:
+            case_observables = [observable.value.lower() for observable in case.observables]
+            
+            if 'events' in api.payload:
+                for evt in api.payload['events']:
+                    _event_observables = []
+                    event = Event.query.filter_by(uuid=evt, organization_uuid=current_user().organization_uuid).first()
+                    if event:
+
+                        # If the event is already imported into another case
+                        # skip the case
+                        if event.case_uuid:
+                            response['results'].append({'reference': evt, 'message': 'Event already merged in a different Case.'})
+                            continue
+                        try:
+                            _event_observables += [observable for observable in event.observables]
+                            new_observables = [observable for observable in _event_observables if observable.value.lower() not in case_observables]
+                            case.observables += new_observables
+                            event.status = EventStatus.query.filter_by(name='Imported', organization_uuid=current_user().organization_uuid).first()
+                            case.events.append(event)
+                            case.save()
+                            response['results'].append({'reference': evt, 'message': 'Event successfully merged into Case.'})
+                        except Exception as e:
+                            response['results'].append({'reference': evt, 'message': 'An error occurred while processing event observables.'})
+                            response['success'] = False
+
+                    else:
+                        response['results'].append({'reference': evt, 'message': 'Event not found.'})
+                        response['success'] = False
+            return response, 207
+                            
+        else:
+            ns_case.abort(404, 'Case not found.')
 
 
 @ns_case.route("/<uuid>")
@@ -2004,8 +2058,6 @@ class AgentList(Resource):
 
         groups = None
 
-        print(current_user())
-
         agent = Agent.query.filter_by(name=api.payload['name'], organization_uuid=current_user()['organization']).first()
         if not agent:
 
@@ -2784,6 +2836,10 @@ class Settings(Resource):
     @token_required    
     @user_has('update_settings')
     def put(self, current_user):
+
+        if 'agent_pairing_token_valid_minutes' in api.payload:
+            if int(api.payload['agent_pairing_token_valid_minutes']) > 365:
+                ns_settings.abort(400, 'agent_pairing_token_valid_minutes can not be greated than 365 days.')
 
         settings = GlobalSettings.query.filter_by(organization_uuid=current_user().organization_uuid).first()
         settings.update(api.payload)

@@ -6,7 +6,7 @@ from flask_migrate import Migrate, MigrateCommand
 from flask_script import Manager
 
 from app import create_app, db
-from app.models import AuthTokenBlacklist, GlobalSettings, User, Role, Permission, DataType, EventStatus, AgentRole, CaseStatus, Organization
+from app.models import AuthTokenBlacklist, GlobalSettings, User, Role, Permission, DataType, EventStatus, AgentRole, CaseStatus, Organization, CloseReason
 
 app = create_app()
 app.app_context().push()
@@ -71,8 +71,7 @@ def security():
 
     with open('vulnerable.svg', 'w') as f:
         f.write(s)
-        f.close()
-    
+        f.close()  
 
 @manager.command
 def blacklist_token(token):
@@ -583,6 +582,19 @@ def create_default_observable_types(org):
         dt.organization = org
         dt.create()
 
+def create_default_closure_reasons(org):
+    print("Creating default closure reason for %s" % org.name)
+    reasons = [
+        {'description': 'False positive'},
+        {'description': 'No action required'},
+        {'description': 'True positive'},
+        {'description': 'Other'}
+    ]
+    for r in reasons:
+        reason = CloseReason(**r)
+        reason.orgazation = org
+        reason.create()
+
 def create_default_event_statuses(org):
     print("Creating default event statuses for %s" % org.name)
     statuses = {
@@ -634,6 +646,7 @@ def new_org(name, description, admin_email, admin_username):
     create_admin(org, admin_email, admin_username)  
     create_analyst(org)
     create_agent_role(org)
+    create_default_closure_reasons(org)
     create_default_observable_types(org)
     create_default_event_statuses(org)
     create_default_case_statuses(org)
@@ -647,6 +660,7 @@ def setup():
     create_super_admin(org)  
     create_analyst(org)
     create_agent_role(org)
+    create_default_closure_reasons(org)
     create_default_observable_types(org)
     create_default_event_statuses(org)
     create_default_case_statuses(org)

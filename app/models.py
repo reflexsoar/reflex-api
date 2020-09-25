@@ -396,6 +396,7 @@ class Organization(Base):
     case_templates = db.relationship('CaseTemplate', back_populates='organization')
     case_template_tasks = db.relationship('CaseTemplateTask',  back_populates='organization')
     case_comments = db.relationship('CaseComment',  back_populates='organization')
+    closure_reasons = db.relationship('CloseReason',  back_populates='organization')
     case_history = db.relationship('CaseHistory',  back_populates='organization')
     lists = db.relationship('List', back_populates='organization')
     inputs = db.relationship('Input', back_populates='organization')    
@@ -558,8 +559,8 @@ class RefreshToken(Base):
 
     user_uuid = db.Column(db.String(100))
     organization_uuid = db.Column(db.String(100))
-    refresh_token = db.Column(db.String(200))
-    user_agent_hash = db.Column(db.String(64))
+    refresh_token = db.Column(db.String)
+    user_agent_hash = db.Column(db.String)
 
 
 class AuthTokenBlacklist(Base):
@@ -586,6 +587,9 @@ class Case(Base):
     history = db.relationship("CaseHistory", back_populates='case')
     _closed = db.Column(db.Boolean, default=False)
     closed_at = db.Column(db.DateTime)
+    close_comment = db.Column(db.String)
+    close_reason = db.relationship("CloseReason")
+    close_reason_uuid = db.Column(db.String, db.ForeignKey('close_reason.uuid'))
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
@@ -616,6 +620,23 @@ class Case(Base):
             self.save()
         if not self._closed:
             self.closed_at = None
+
+
+class CloseReason(Base):
+    '''
+    A closure reason for a case, is useful for adding additional
+    information to a case when closing it.  Example: this case was close as a false positive
+    '''
+
+    description = db.Column(db.String(255), nullable=False)
+
+    # AUDIT COLUMNS
+    # TODO: Figure out how to move this to a mixin, it just doesn't want to work
+    created_by_uuid = db.Column(db.String, db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none)
+    created_by = db.relationship('User', foreign_keys=[created_by_uuid])
+    organization = db.relationship('Organization', back_populates='closure_reasons')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
 class CaseHistory(Base):

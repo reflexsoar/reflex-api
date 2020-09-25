@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 6558ab8e88fa
+Revision ID: 2cedec1413c9
 Revises: 
-Create Date: 2020-09-24 19:52:33.165997
+Create Date: 2020-09-24 21:11:30.866786
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '6558ab8e88fa'
+revision = '2cedec1413c9'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -46,8 +46,8 @@ def upgrade():
     sa.Column('modified_at', sa.DateTime(), nullable=True),
     sa.Column('user_uuid', sa.String(length=100), nullable=True),
     sa.Column('organization_uuid', sa.String(length=100), nullable=True),
-    sa.Column('refresh_token', sa.String(length=200), nullable=True),
-    sa.Column('user_agent_hash', sa.String(length=64), nullable=True),
+    sa.Column('refresh_token', sa.String(), nullable=True),
+    sa.Column('user_agent_hash', sa.String(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('uuid')
     )
@@ -431,6 +431,8 @@ def upgrade():
     sa.Column('owner_uuid', sa.String(), nullable=True),
     sa.Column('tlp', sa.Integer(), nullable=True),
     sa.Column('status_uuid', sa.String(), nullable=True),
+    sa.Column('_closed', sa.Boolean(), nullable=True),
+    sa.Column('closed_at', sa.DateTime(), nullable=True),
     sa.Column('created_by_uuid', sa.String(), nullable=True),
     sa.Column('updated_by_uuid', sa.String(), nullable=True),
     sa.Column('organization_uuid', sa.String(), nullable=True),

@@ -752,6 +752,10 @@ mod_data_type_create = Model('CreateDataType', {
     'description': fields.String
 })
 
+mod_add_events_to_case = Model('AddEventsToCase', {
+    'events': fields.List(fields.String)
+})
+
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create_success, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
                  mod_tag, mod_tag_list, mod_credential_create, mod_credential_full, mod_credential_return,
@@ -767,7 +771,7 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_agent_group_create, mod_agent_group_list,
                  mod_plugin_config_list, mod_plugin_config_create, mod_plugin_name,
                  mod_user_group_create, mod_user_group_list, mod_add_user_to_group,
-                 mod_case_template_create, mod_case_template_full,
+                 mod_case_template_create, mod_case_template_full, mod_add_events_to_case,
                  mod_case_template_task_create, mod_case_template_task_full, mod_add_tasks_to_case, mod_comment, mod_comment_create,
                  mod_case_history, mod_bulk_add_observables, mod_case_observables,
                  mod_case_status_create, mod_case_status_list, mod_organization_basic,

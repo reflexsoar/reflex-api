@@ -18,19 +18,19 @@ class Config(object):
 class ProductionConfig(Config):
     DEBUG = False
     RESTPLUS_MASK_SWAGGER = False
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, 'reflex-prod.db')
+    SQLALCHEMY_DATABASE_URI = 'postgres://postgres:password@127.0.0.1:5432/reflex-prod'
 
 class DevelopmentConfig(Config):
     DEBUG = True
     ENV = 'development'
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, 'reflex-dev.db')
+    SQLALCHEMY_DATABASE_URI = 'postgres://postgres:password@127.0.0.1:5432/reflex-dev'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 class TestingConfig(Config):
     ENV = "testing"
     TESTING = True
     DEBUG = False
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, 'reflex-test.db')
+    SQLALCHEMY_DATABASE_URI = 'postgres://postgres:password@127.0.0.1:5432/reflex-test'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PRESERVE_CONTEXT_ON_EXCEPTION = False
     WTF_CSRF_ENABLED = False
