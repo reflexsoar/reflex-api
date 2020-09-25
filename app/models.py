@@ -584,6 +584,8 @@ class Case(Base):
     status = db.relationship("CaseStatus")
     tasks = db.relationship("CaseTask", back_populates='case')
     history = db.relationship("CaseHistory", back_populates='case')
+    _closed = db.Column(db.Boolean, default=False)
+    closed_at = db.Column(db.DateTime)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
@@ -601,6 +603,19 @@ class Case(Base):
         history_item.create()
         self.history.append(history_item)
         self.save()
+    
+    @property
+    def closed(self):
+        return self._closed
+
+    @closed.setter
+    def closed(self, value):
+        self._closed = value
+        if self._closed:
+            self.closed_at = datetime.datetime.utcnow()
+            self.save()
+        if not self._closed:
+            self.closed_at = None
 
 
 class CaseHistory(Base):
