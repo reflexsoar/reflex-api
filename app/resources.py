@@ -724,13 +724,13 @@ class AddEventsToCase(Resource):
                             case.events.append(event)
                             case.save()
                             response['results'].append({'reference': evt, 'message': 'Event successfully merged into Case.'})
-                        except Exception as e:
+                        except Exception:
                             response['results'].append({'reference': evt, 'message': 'An error occurred while processing event observables.'})
                             response['success'] = False
-
                     else:
                         response['results'].append({'reference': evt, 'message': 'Event not found.'})
                         response['success'] = False
+                case.add_history('%s event(s) were merged into this case' % len([r for r in response['results'] if 'success' in r['message']]))
             return response, 207
                             
         else:
