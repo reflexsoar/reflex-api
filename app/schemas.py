@@ -28,7 +28,6 @@ class AsDefaultType(fields.Raw):
     def format(self, value):
         return value
 
-
 class JSONField(fields.Raw):
     def format(self, value):
         return value
@@ -419,7 +418,8 @@ mod_event_list = Model('EventList', {
     'ioc_count': IOCCount(attribute='observables'),
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
-    'case_uuid': fields.String
+    'case_uuid': fields.String,
+    'signature': fields.String
 })
 
 mod_observable_type = Model('ObservableType', {
@@ -766,6 +766,7 @@ mod_add_events_response = Model('AddEventsToCaseResponse', {
     'success': fields.Boolean,
     'case': fields.Nested(mod_case_full)
 })
+
 
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create_success, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,

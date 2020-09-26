@@ -9,6 +9,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func, text
 from sqlalchemy.orm import validates
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.hybrid import hybrid_method
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -765,6 +766,7 @@ class Event(Base):
     case_uuid = db.Column(db.String, db.ForeignKey('case.uuid'))
     case = db.relationship('Case', back_populates='events')
     raw_log = db.Column(db.JSON)
+    signature = db.Column(db.String)
     organization = db.relationship('Organization', back_populates='events')
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
     created_by_uuid = db.Column(db.String, db.ForeignKey(
@@ -773,6 +775,16 @@ class Event(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+
+    def hash_event(self, data_types=['host','user']):
+        hasher = hashlib.md5()
+        hasher.update(self.title.encode())
+        for observable in self.observables:
+            if observable.dataType.name in sorted(data_types):
+                hasher.update(observable.value.lower().encode())
+        self.signature = hasher.hexdigest()
+        self.save()
+        return    
 
 
 class EventStatus(Base):

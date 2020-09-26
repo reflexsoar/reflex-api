@@ -5,6 +5,7 @@ import jwt
 import json
 import base64
 import hashlib
+import itertools
 import cryptography
 from zipfile import ZipFile
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint
@@ -91,7 +92,7 @@ def parse_tags(tags, organization_uuid):
     ''' Tags a list of supplied tags and creates Tag objects for each one '''
     _tags = []
     for t in tags:
-        tag = Tag.query.filter_by(name=t, organization_uuid=organization_uuid, ).first()
+        tag = Tag.query.filter_by(name=t, organization_uuid=organization_uuid).first()
         if not tag:
             tag = Tag(organization_uuid=organization_uuid, **{'name': t, 'color': '#fffff'})
             tag.create()
@@ -1861,6 +1862,7 @@ class CreateBulkEvents(Resource):
                     _observables = create_observables(observables, current_user().organization_uuid)
 
                 event = Event(organization_uuid=current_user().organization_uuid, **item)
+                
                 event.create()
 
                 event.status = event_status
@@ -1873,6 +1875,8 @@ class CreateBulkEvents(Resource):
                 if len(_observables) > 0:
                     event.observables += _observables
                     event.save()
+
+                event.hash_event()
 
                 response['results'].append(
                     {'reference': item['reference'], 'status': 200, 'message': 'Event successfully created.'})
@@ -1930,6 +1934,8 @@ class EventList(Resource):
             if len(_observables) > 0:
                 event.observables += _observables
                 event.save()
+
+            event.hash_event()
 
             return {'message': 'Successfully created the event.'}
         else:
@@ -2780,6 +2786,18 @@ class DeletePassword(Resource):
             return {'message': 'Credential successfully deleted.'}
         else:
             ns_credential.abort(404, 'Credential not found.')
+
+@ns_test.route("")
+class Test(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    def get(self, current_user):
+        events = Event.query.filter_by(organization_uuid=current_user().organization_uuid).all()
+        grouped = {k: list(g) for k, g in itertools.groupby(events, lambda t: t.signature)}
+        grouped['no_signature'] = grouped.pop(None)
+        print(grouped)
+        return grouped
 
 
 @ns_tag.route("")
