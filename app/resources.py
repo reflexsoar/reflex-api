@@ -15,7 +15,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc, func
-from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, Credential, Tag, List, ListValue, Permission, Playbook, Event, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig, DataType
+from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, Credential, Tag, List, ListValue, Permission, Playbook, Event, EventRule, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig, DataType
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -39,11 +39,19 @@ ns_input = api.namespace(
 ns_tag = api.namespace('Tag', description='Tag operations', path='/tag')
 ns_event = api.namespace(
     'Event', description='Event operations', path='/event')
+ns_event_rule = api.namespace('EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
 ns_case = api.namespace('Case', description='Case operations', path='/case')
 ns_case_template = api.namespace(
     'CaseTemplate', description='Case Template operations', path='/case_template')
 ns_case_template_task = api.namespace(
     'CaseTemplateTask', description='Case Template Task operations', path='/case_template_task')
+ns_case_comment = api.namespace(
+    'CaseComment', description='Case Comments', path='/case_comment')
+ns_case_status = api.namespace(
+    'CaseStatus', description='Case Status operations', path='/case_status')
+ns_case_task = api.namespace(
+    'CaseTask', description='Case Task operations', path='/case_task'
+)
 ns_credential = api.namespace(
     'Credential', description='Credential operations', path='/credential')
 ns_agent = api.namespace(
@@ -55,13 +63,7 @@ ns_plugin = api.namespace(
 ns_plugin_config = api.namespace(
     'PluginConfig', description='Plugin Config operations', path='/plugin_config')
 ns_test = api.namespace('Test', description='Test', path='/test')
-ns_case_comment = api.namespace(
-    'CaseComment', description='Case Comments', path='/case_comment')
-ns_case_status = api.namespace(
-    'CaseStatus', description='Case Status operations', path='/case_status')
-ns_case_task = api.namespace(
-    'CaseTask', description='Case Task operations', path='/case_task'
-)
+
 ns_settings = api.namespace(
     'GlobalSettings', description='Global settings for the Reflex system', path='/settings'
 )
@@ -549,7 +551,6 @@ class CaseBulkAddObservables(Resource):
     def post(self, uuid, current_user):
         ''' 
         Adds a collection of observables to a Case 
-
         Expects a list of observables using the Observable model.  Note: Duplicate observables are ignored
 
         '''
@@ -1985,6 +1986,96 @@ class EventDetails(Resource):
         if event:
             event.delete()
             return {'message': 'Sucessfully deleted event.'}
+
+
+@ns_event_rule.route("")
+class EventRuleList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_event_rule_list)
+    @token_required
+    def get(self, current_user):
+        ''' Gets a list of all the event rules '''
+        return EventRule.query.filter_by(organization_uuid=current_user().organization_uuid).all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_event_rule_create)
+    @api.response('200', 'Successfully created event rule.')
+    @token_required
+    @user_has('create_event_rule')
+    def post(self, current_user):
+        ''' Creates a new event_rule set '''
+
+        event_created_at = None
+        event = None
+
+        # Pop the event_uuid off so we can get the signature
+        if 'event_uuid' in api.payload:
+            event_uuid = api.payload.pop('event_uuid')
+            event = Event.query.filter_by(uuid=event_uuid).first()
+            if event:
+                event_signature = event.signature
+                event_created_at = event.created_at
+                api.payload['event_signature'] = event.signature
+            else:
+                ns_event.rule.abort(404, 'Event not found.')
+        else:
+            ns_event_rule.abort(400, 'Missing event_uuid field.')
+
+        # Computer when the rule should expire
+        if 'expire' in api.payload and api.payload['expire']:
+            if 'expire_days' in api.payload:
+                expire_days = api.payload.pop('expire_days')
+
+                expire_at = event_created_at + datetime.timedelta(days=expire_days)
+                api.payload['expire_at'] = expire_at
+            else:
+                ns_event_rule.abort(400, 'Missing expire_days field.')
+
+                
+
+        #event_rule = EventRule(organization_uuid=current_user().organization_uuid, **api.payload)
+        #event_rule.create()
+        return {'message': 'Successfully created event rule.', 'uuid': event_rule.uuid}
+
+
+@ns_event_rule.route("/<uuid>")
+class EventRuleDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_event_rule_list)
+    @token_required
+    def get(self, uuid, current_user):
+        ''' Gets a event rule '''
+        event_rule = EventRule.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if event_rule:
+            return event_rule
+        else:
+            ns_event_rule.abort(404, 'Event rule not found.')
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_event_rule_create)
+    @api.marshal_with(mod_event_rule_list)
+    @token_required
+    @user_has('update_event_rule')
+    def put(self, uuid, current_user):
+        ''' Updates the event rule '''
+        event_rule = EventRule.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if event_rule:
+            event_rule.update(api.payload)
+            return event_rule
+        else:
+            ns_event_rule.abort(404, 'Event rule not found.')
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_event_rule')
+    def delete(self, uuid, current_user):
+        ''' Removes an event rule '''
+        event_rule = EventRule.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if event_rule:
+            event_rule.delete()
+            return {'message': 'Sucessfully deleted the event rule.'}
 
 
 @ns_event.route('/<uuid>/remove_tag/<name>')

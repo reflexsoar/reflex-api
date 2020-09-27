@@ -9,7 +9,7 @@ from .models import User, AuthTokenBlacklist, Agent
 def generate_token(uuid, organization_uuid, duration=10, token_type='agent'):
     token_data = {
         'uuid': uuid,
-        'organization_uuid': organization_uuid,
+        'organization': organization_uuid,
         'iat': datetime.datetime.utcnow(),
         'type': token_type
     }

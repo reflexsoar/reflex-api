@@ -219,7 +219,11 @@ permission_fields = {
     "delete_list": fields.Boolean,
     "create_data_type": fields.Boolean,
     "update_data_type": fields.Boolean,
-    "create_persistent_pairing_token": fields.Boolean
+    "create_persistent_pairing_token": fields.Boolean,
+    "create_event_rule": fields.Boolean,
+    "view_event_rules": fields.Boolean,
+    "update_event_rule": fields.Boolean,
+    "delete_event_rule": fields.Boolean
 }
 
 
@@ -767,6 +771,37 @@ mod_add_events_response = Model('AddEventsToCaseResponse', {
     'case': fields.Nested(mod_case_full)
 })
 
+mod_event_rule_create = Model('CreateEventRule', {
+    'name': fields.String,
+    'description': fields.String,
+    'event_uuid': fields.String,
+    'merge_into_case': fields.Boolean,
+    'target_case_uuid': fields.String,
+    'observables': fields.Nested(mod_observable_create),
+    'dismiss': fields.Boolean,
+    'expire': fields.Boolean,
+    'expire_days': fields.Integer,
+    'active': fields.Boolean    
+})
+
+mod_event_rule_list = Model('EventRuleList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String,
+    'event_uuid': fields.String,
+    'rule_signature': fields.String,
+    'merge_into_case': fields.Boolean,
+    'target_case_uuid': fields.String,
+    'dismiss': fields.Boolean,
+    'expire': fields.Boolean,
+    'active': fields.Boolean,
+    'observables': fields.Nested(mod_observable_list),
+    'expire_at': fields.DateTime,
+    'created_at': fields.DateTime,
+    'created_by': fields.Nested(mod_user_list),
+    'modified_at': fields.DateTime
+})
+
 
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create_success, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
@@ -789,4 +824,4 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_case_status_create, mod_case_status_list, mod_organization_basic,
                  mod_case_task_create, mod_case_task_full, mod_user_role, mod_settings,
                  mod_list_list, mod_list_value, mod_list_create, mod_data_type_list, mod_data_type_create,
-                 mod_add_events_response, mod_response_message]
+                 mod_add_events_response, mod_response_message, mod_event_rule_create, mod_event_rule_list]

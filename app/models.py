@@ -59,6 +59,13 @@ observable_event_association = db.Table('observable_event', db.metadata,
                                                   db.ForeignKey('event.uuid'))
                                         )
 
+observable_event_rule_association = db.Table('observable_event_rule', db.metadata,
+                                        db.Column('observable_uuid', db.String, db.ForeignKey(
+                                            'observable.uuid')),
+                                        db.Column('event_rule_uuid', db.String,
+                                                  db.ForeignKey('event_rule.uuid'))
+                                        )
+
 input_tag_association = db.Table('tag_input', db.metadata,
                                  db.Column('input_uuid', db.String,
                                            db.ForeignKey('input.uuid')),
@@ -250,6 +257,12 @@ class Permission(Base):
     add_tag_to_event = db.Column(db.Boolean, default=False)
     remove_tag_from_event = db.Column(db.Boolean, default=False)
 
+    # Event Rule Permissions
+    create_event_rule = db.Column(db.Boolean, default=False)
+    view_event_rules = db.Column(db.Boolean, default=False)
+    update_event_rule = db.Column(db.Boolean, default=False)
+    delete_event_rule = db.Column(db.Boolean, default=False)
+
     # Observable Permissions
     add_observable = db.Column(db.Boolean, default=False)
     update_observable = db.Column(db.Boolean, default=False)
@@ -387,6 +400,7 @@ class Organization(Base):
     plugins = db.relationship('Plugin',  back_populates='organization')
     plugin_configs = db.relationship('PluginConfig',  back_populates='organization')
     events = db.relationship('Event', back_populates='organization')
+    event_rules = db.relationship('EventRule', back_populates='organization')
     event_statuses = db.relationship('EventStatus',  back_populates='organization')
     data_types = db.relationship('DataType',  back_populates='organization')
     case_statuses = db.relationship('CaseStatus',  back_populates='organization')
@@ -751,6 +765,37 @@ class CaseTemplateTask(Base):
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
 
+class EventRule(Base):
+    '''
+    An Event Rule is created so that when new events come in they can
+    be automatically handled based on how the analyst sees fit without the
+    analyst actually having to do anything.
+    '''
+
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.String)
+    event_signature = db.Column(db.String) # The hash of the original event this rule was created against
+    rule_signature = db.Column(db.String) # A hash of the title + user customized observable values
+    target_case_uuid = db.Column(db.String) # The target case to merge this into if merge into case is selected
+    observables = db.relationship('Observable', secondary=observable_event_rule_association)
+    merge_into_case = db.Column(db.Boolean)
+    dismiss = db.Column(db.Boolean)
+    expire = db.Column(db.Boolean, default=True) # If not set the rule will never expire
+    expire_at = db.Column(db.DateTime) # Computed from the created_at date of the event + a timedelta in days
+    active = db.Column(db.Boolean, default=False) # Users can override the alarm and disable it out-right
+
+    # AUDIT COLUMNS
+    # TODO: Figure out how to move this to a mixin, it just doesn't want to work
+    created_by_uuid = db.Column(db.String, db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none)
+    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
+    created_by = db.relationship('User', foreign_keys=[created_by_uuid])
+    updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='event_rules')
+    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+
+
 class Event(Base):
 
     title = db.Column(db.String(255), nullable=False)
@@ -779,9 +824,13 @@ class Event(Base):
     def hash_event(self, data_types=['host','user']):
         hasher = hashlib.md5()
         hasher.update(self.title.encode())
+        obs = []
         for observable in self.observables:
             if observable.dataType.name in sorted(data_types):
-                hasher.update(observable.value.lower().encode())
+                obs.append({'dataType': observable.dataType.name.lower(), 'value': observable.value.lower()})
+        obs = sorted(sorted(obs, key = lambda i: i['dataType']), key = lambda i: i['value'])
+        print(obs)
+        hasher.update(str(obs).encode())
         self.signature = hasher.hexdigest()
         self.save()
         return    
@@ -1089,7 +1138,6 @@ class Credential(Base):
         key = self._derive_key(secret.encode(), salt, iterations)
         self.secret = base64.urlsafe_b64encode(b'%b%b%b' % (salt, iterations.to_bytes(4, 'big'),
                                                             base64.urlsafe_b64encode(Fernet(key).encrypt(message)))).decode()
-        print(self.secret)
 
     def decrypt(self, secret: str) -> bytes:
         decoded = base64.urlsafe_b64decode(self.secret)
