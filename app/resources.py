@@ -1879,8 +1879,13 @@ class CreateBulkEvents(Resource):
         }
         event_status = EventStatus.query.filter_by(name="New", organization_uuid=current_user().organization_uuid).first()
 
+        start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
+
         events = api.payload['events']
         for item in events:
+
+            start_event_process_dt = datetime.datetime.utcnow().timestamp()
+
             _tags = []
             _observables = []
 
@@ -1912,9 +1917,6 @@ class CreateBulkEvents(Resource):
 
                 event.hash_event()
 
-                response['results'].append(
-                    {'reference': item['reference'], 'status': 200, 'message': 'Event successfully created.'})
-
                 # Process event rules against the new event
                 event_rules = EventRule.query.filter_by(organization_uuid=current_user().organization_uuid, event_signature=event.signature, active=True).all()
                 if event_rules:
@@ -1934,10 +1936,22 @@ class CreateBulkEvents(Resource):
                             if rule.merge_into_case:
                                 add_event_to_case(rule.target_case_uuid, event.uuid, current_user().organization_uuid)
 
+                end_event_process_dt = datetime.datetime.utcnow().timestamp()
+
+                event_process_time = end_event_process_dt - start_event_process_dt
+
+                response['results'].append(
+                    {'reference': item['reference'], 'status': 200, 'message': 'Event successfully created.', 'process_time': event_process_time})
+
             else:
                 response['results'].append(
-                    {'reference': item['reference'], 'status': 409, 'message': 'Event already exists.'})
+                    {'reference': item['reference'], 'status': 409, 'message': 'Event already exists.', 'process_time': '0'})
                 response['success'] = False
+
+            end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
+            total_process_time = end_bulk_process_dt - start_bulk_process_dt
+            response['process_time'] = total_process_time
+
         return response, 207
 
 
