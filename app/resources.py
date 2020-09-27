@@ -717,6 +717,9 @@ class CaseList(Resource):
         return {'message': 'Successfully created the case.', 'uuid': case.uuid}
 
 
+
+
+
 @ns_case.route("/<uuid>/add_events")
 class AddEventsToCase(Resource):
 
@@ -1830,9 +1833,39 @@ class PluginDetails(Resource):
             return {'message': 'Sucessfully deleted plugin.'}
 
 
+def add_event_to_case(case_uuid, event_uuid, organization_uuid):
+    '''
+    TODO: Move this to a function that can be used in the AddEventToCase route to dedupe code
+    Merges an event in to a case, copies all the observables over and sets the Event to open
+    '''
+
+    case = Case.query.filter_by(uuid=case_uuid, organization_uuid=organization_uuid).first()
+    if case:
+        case_observables = [observable.value.lower() for observable in case.observables]
+        
+        _event_observables = []
+        event = Event.query.filter_by(uuid=event_uuid, organization_uuid=organization_uuid).first()
+        if event:
+            # If the event is already imported into another case
+            # skip the case
+            if event.case_uuid:
+                return False
+            _event_observables += [observable for observable in event.observables]
+            new_observables = [observable for observable in _event_observables if observable.value.lower() not in case_observables]
+            case.observables += new_observables
+            event.status = EventStatus.query.filter_by(name='Open', organization_uuid=organization_uuid).first()
+            case.events.append(event)
+            case.save()
+        else:
+            return False
+        case.add_history('1 Event was merged into this case via an Event Rule')
+    return True
+
+
 @ns_event.route("/_bulk")
 class CreateBulkEvents(Resource):
 
+    @api.doc(security="Bearer")
     @api.expect(mod_event_create_bulk)
     @api.response('200', 'Sucessfully created events.')
     @api.response('207', 'Multi-Status')
@@ -1881,6 +1914,26 @@ class CreateBulkEvents(Resource):
 
                 response['results'].append(
                     {'reference': item['reference'], 'status': 200, 'message': 'Event successfully created.'})
+
+                # Process event rules against the new event
+                event_rules = EventRule.query.filter_by(organization_uuid=current_user().organization_uuid, event_signature=event.signature, active=True).all()
+                if event_rules:
+                    for rule in event_rules:
+
+                        # TODO: Add the observable checks to make sure the observables selected are correct before processing
+                        # if rule_signature matches the observables on the event
+                        # process
+                        # else
+                        # skip the event
+
+                        # Kill switch for if the rule is about to run but the expiration is set
+                        if rule.expire and rule.expire_at < datetime.datetime.utcnow():
+                            rule.active = False
+                        # If the event isn't expired do the processing that the event calls for    
+                        else:
+                            if rule.merge_into_case:
+                                add_event_to_case(rule.target_case_uuid, event.uuid, current_user().organization_uuid)
+
             else:
                 response['results'].append(
                     {'reference': item['reference'], 'status': 409, 'message': 'Event already exists.'})
@@ -2008,6 +2061,7 @@ class EventRuleList(Resource):
 
         event_created_at = None
         event = None
+        event_signature = None
 
         # Pop the event_uuid off so we can get the signature
         if 'event_uuid' in api.payload:
@@ -2032,10 +2086,14 @@ class EventRuleList(Resource):
             else:
                 ns_event_rule.abort(400, 'Missing expire_days field.')
 
-                
+        # Create the observables
+        if 'observables' in api.payload:
+            observables = api.payload.pop('observables')
+            api.payload['observables'] = create_observables(observables, current_user().organization_uuid)
 
-        #event_rule = EventRule(organization_uuid=current_user().organization_uuid, **api.payload)
-        #event_rule.create()
+        event_rule = EventRule(organization_uuid=current_user().organization_uuid, **api.payload)
+        event_rule.hash_observables()
+        event_rule.create()
         return {'message': 'Successfully created event rule.', 'uuid': event_rule.uuid}
 
 

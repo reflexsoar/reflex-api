@@ -795,6 +795,17 @@ class EventRule(Base):
     organization = db.relationship('Organization', back_populates='event_rules')
     organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
 
+    def hash_observables(self):
+        hasher = hashlib.md5()
+        obs = []
+        for observable in self.observables:
+            obs.append({'dataType': observable.dataType.name.lower(), 'value': observable.value.lower()})
+        obs = sorted(sorted(obs, key = lambda i: i['dataType']), key = lambda i: i['value'])
+        hasher.update(str(obs).encode())
+        self.rule_signature = hasher.hexdigest()
+        self.save()
+        return
+
 
 class Event(Base):
 
@@ -829,11 +840,10 @@ class Event(Base):
             if observable.dataType.name in sorted(data_types):
                 obs.append({'dataType': observable.dataType.name.lower(), 'value': observable.value.lower()})
         obs = sorted(sorted(obs, key = lambda i: i['dataType']), key = lambda i: i['value'])
-        print(obs)
         hasher.update(str(obs).encode())
         self.signature = hasher.hexdigest()
         self.save()
-        return    
+        return
 
 
 class EventStatus(Base):
