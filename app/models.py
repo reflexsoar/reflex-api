@@ -782,7 +782,7 @@ class EventRule(Base):
     dismiss = db.Column(db.Boolean)
     expire = db.Column(db.Boolean, default=True) # If not set the rule will never expire
     expire_at = db.Column(db.DateTime) # Computed from the created_at date of the event + a timedelta in days
-    active = db.Column(db.Boolean, default=False) # Users can override the alarm and disable it out-right
+    active = db.Column(db.Boolean, default=True) # Users can override the alarm and disable it out-right
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
@@ -800,11 +800,22 @@ class EventRule(Base):
         obs = []
         for observable in self.observables:
             obs.append({'dataType': observable.dataType.name.lower(), 'value': observable.value.lower()})
-        obs = sorted(sorted(obs, key = lambda i: i['dataType']), key = lambda i: i['value'])
+        obs = [dict(t) for t in {tuple(d.items()) for d in obs}] # Deduplicate the observables
+        obs = sorted(sorted(obs, key = lambda i: i['dataType']), key = lambda i: i['value'])        
         hasher.update(str(obs).encode())
         self.rule_signature = hasher.hexdigest()
         self.save()
         return
+
+    def hash_target_observables(self, target_observables):
+        hasher = hashlib.md5()
+        obs = []
+        for observable in target_observables:
+            obs.append({'dataType': observable.dataType.name.lower(), 'value': observable.value.lower()})
+        obs = [dict(t) for t in {tuple(d.items()) for d in obs}] # Deduplicate the observables
+        obs = sorted(sorted(obs, key = lambda i: i['dataType']), key = lambda i: i['value'])             
+        hasher.update(str(obs).encode())
+        return hasher.hexdigest()
 
 
 class Event(Base):
@@ -839,6 +850,7 @@ class Event(Base):
         for observable in self.observables:
             if observable.dataType.name in sorted(data_types):
                 obs.append({'dataType': observable.dataType.name.lower(), 'value': observable.value.lower()})
+        obs = [dict(t) for t in {tuple(d.items()) for d in obs}] # Deduplicate the observables
         obs = sorted(sorted(obs, key = lambda i: i['dataType']), key = lambda i: i['value'])
         hasher.update(str(obs).encode())
         self.signature = hasher.hexdigest()

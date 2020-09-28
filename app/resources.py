@@ -598,7 +598,7 @@ class CaseList(Resource):
         args = case_parser.parse_args()
         if args['title']:
             cases = Case.query.filter(
-                Case.title.ilike(args['title']+"%"),
+                Case.title.ilike("%"+args['title']+"%"),
                 Case.organization_uuid==current_user().organization_uuid
             ).paginate(args['page'], args['page_size'], False).items
         else:
@@ -1921,20 +1921,19 @@ class CreateBulkEvents(Resource):
                 event_rules = EventRule.query.filter_by(organization_uuid=current_user().organization_uuid, event_signature=event.signature, active=True).all()
                 if event_rules:
                     for rule in event_rules:
-
-                        # TODO: Add the observable checks to make sure the observables selected are correct before processing
-                        # if rule_signature matches the observables on the event
-                        # process
-                        # else
-                        # skip the event
-
                         # Kill switch for if the rule is about to run but the expiration is set
+                        # if the rule is expired skip this item
                         if rule.expire and rule.expire_at < datetime.datetime.utcnow():
                             rule.active = False
-                        # If the event isn't expired do the processing that the event calls for    
-                        else:
+                            continue
+
+                        # Check to make sure the observables match what the analyst has assigned to the rule
+                        # if not skip this item
+                        if rule.hash_target_observables(event.observables) == rule.rule_signature:
                             if rule.merge_into_case:
                                 add_event_to_case(rule.target_case_uuid, event.uuid, current_user().organization_uuid)
+                        else:
+                            continue                            
 
                 end_event_process_dt = datetime.datetime.utcnow().timestamp()
 
@@ -2073,29 +2072,12 @@ class EventRuleList(Resource):
     def post(self, current_user):
         ''' Creates a new event_rule set '''
 
-        event_created_at = None
-        event = None
-        event_signature = None
-
-        # Pop the event_uuid off so we can get the signature
-        if 'event_uuid' in api.payload:
-            event_uuid = api.payload.pop('event_uuid')
-            event = Event.query.filter_by(uuid=event_uuid).first()
-            if event:
-                event_signature = event.signature
-                event_created_at = event.created_at
-                api.payload['event_signature'] = event.signature
-            else:
-                ns_event.rule.abort(404, 'Event not found.')
-        else:
-            ns_event_rule.abort(400, 'Missing event_uuid field.')
-
         # Computer when the rule should expire
         if 'expire' in api.payload and api.payload['expire']:
             if 'expire_days' in api.payload:
                 expire_days = api.payload.pop('expire_days')
 
-                expire_at = event_created_at + datetime.timedelta(days=expire_days)
+                expire_at = datetime.datetime.utcnow() + datetime.timedelta(days=expire_days)
                 api.payload['expire_at'] = expire_at
             else:
                 ns_event_rule.abort(400, 'Missing expire_days field.')
@@ -2105,9 +2087,11 @@ class EventRuleList(Resource):
             observables = api.payload.pop('observables')
             api.payload['observables'] = create_observables(observables, current_user().organization_uuid)
 
+
         event_rule = EventRule(organization_uuid=current_user().organization_uuid, **api.payload)
         event_rule.hash_observables()
         event_rule.create()
+
         return {'message': 'Successfully created event rule.', 'uuid': event_rule.uuid}
 
 

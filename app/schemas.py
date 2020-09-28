@@ -635,6 +635,7 @@ mod_case_full = Model('CaseDetails', {
     'comments': fields.List(fields.Nested(mod_comment)),
     'status_uuid': fields.String,
     'status': fields.Nested(mod_case_status),
+    'event_count': ValueCount(attribute='events'),
     'observable_count': ObservableCount(attribute='observables'),
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
@@ -774,7 +775,7 @@ mod_add_events_response = Model('AddEventsToCaseResponse', {
 mod_event_rule_create = Model('CreateEventRule', {
     'name': fields.String,
     'description': fields.String,
-    'event_uuid': fields.String,
+    'event_signature': fields.String,
     'merge_into_case': fields.Boolean,
     'target_case_uuid': fields.String,
     'observables': fields.List(fields.Nested(mod_observable_create)),
