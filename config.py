@@ -23,7 +23,7 @@ class ProductionConfig(Config):
 class DevelopmentConfig(Config):
     DEBUG = True
     ENV = 'development'
-    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://postgres:password@127.0.0.1:3306/reflex-dev'
+    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://reflex:reflex@127.0.0.1:3306/reflex'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 class TestingConfig(Config):

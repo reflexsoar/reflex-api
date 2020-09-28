@@ -2060,6 +2060,7 @@ class EventRuleList(Resource):
     @api.doc(security="Bearer")
     @api.marshal_with(mod_event_rule_list)
     @token_required
+    @user_has('view_event_rules')
     def get(self, current_user):
         ''' Gets a list of all the event rules '''
         return EventRule.query.filter_by(organization_uuid=current_user().organization_uuid).all()
@@ -2101,6 +2102,7 @@ class EventRuleDetails(Resource):
     @api.doc(security="Bearer")
     @api.marshal_with(mod_event_rule_list)
     @token_required
+    @user_has('view_event_rules')
     def get(self, uuid, current_user):
         ''' Gets a event rule '''
         event_rule = EventRule.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
