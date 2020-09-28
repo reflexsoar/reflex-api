@@ -22,6 +22,7 @@ flask-socketio = "*"
 cryptography = "*"
 gunicorn = "*"
 psycopg2 = "*"
+pymysql = "*"
 
 [requires]
 python_version = "3.8"

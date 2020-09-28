@@ -27,119 +27,119 @@ def generate_uuid():
 # Relationships
 
 org_tag_association = db.Table('tag_organization', db.metadata,
-    db.Column('organization_uuid', db.String, db.ForeignKey('organization.uuid')),
-    db.Column('tag_id', db.String, db.ForeignKey('tag.uuid'))
+    db.Column('organization_uuid', db.String(255), db.ForeignKey('organization.uuid')),
+    db.Column('tag_id', db.String(255), db.ForeignKey('tag.uuid'))
 )
 
 playbook_tag_association = db.Table('tag_playbook', db.metadata,
-                                    db.Column('playbook_uuid', db.String,
+                                    db.Column('playbook_uuid', db.String(255),
                                               db.ForeignKey('playbook.uuid')),
-                                    db.Column('tag_id', db.String,
+                                    db.Column('tag_id', db.String(255),
                                               db.ForeignKey('tag.uuid'))
                                     )
 
 event_tag_association = db.Table('tag_event', db.metadata,
-                                 db.Column('event_uuid', db.String,
+                                 db.Column('event_uuid', db.String(255),
                                            db.ForeignKey('event.uuid')),
-                                 db.Column('tag_id', db.String,
+                                 db.Column('tag_id', db.String(255),
                                            db.ForeignKey('tag.uuid'))
                                  )
 
 observable_tag_association = db.Table('tag_observable', db.metadata,
-                                      db.Column('observable_uuid', db.String, db.ForeignKey(
+                                      db.Column('observable_uuid', db.String(255), db.ForeignKey(
                                           'observable.uuid')),
-                                      db.Column('tag_id', db.String,
+                                      db.Column('tag_id', db.String(255),
                                                 db.ForeignKey('tag.uuid'))
                                       )
 
 observable_event_association = db.Table('observable_event', db.metadata,
-                                        db.Column('observable_uuid', db.String, db.ForeignKey(
+                                        db.Column('observable_uuid', db.String(255), db.ForeignKey(
                                             'observable.uuid')),
-                                        db.Column('event_uuid', db.String,
+                                        db.Column('event_uuid', db.String(255),
                                                   db.ForeignKey('event.uuid'))
                                         )
 
 observable_event_rule_association = db.Table('observable_event_rule', db.metadata,
-                                        db.Column('observable_uuid', db.String, db.ForeignKey(
+                                        db.Column('observable_uuid', db.String(255), db.ForeignKey(
                                             'observable.uuid')),
-                                        db.Column('event_rule_uuid', db.String,
+                                        db.Column('event_rule_uuid', db.String(255),
                                                   db.ForeignKey('event_rule.uuid'))
                                         )
 
 input_tag_association = db.Table('tag_input', db.metadata,
-                                 db.Column('input_uuid', db.String,
+                                 db.Column('input_uuid', db.String(255),
                                            db.ForeignKey('input.uuid')),
-                                 db.Column('tag_id', db.String,
+                                 db.Column('tag_id', db.String(255),
                                            db.ForeignKey('tag.uuid'))
                                  )
 
 agent_role_agent_association = db.Table('agent_role_agent', db.metadata,
-                                        db.Column('agent_uuid', db.String,
+                                        db.Column('agent_uuid', db.String(255),
                                                   db.ForeignKey('agent.uuid')),
-                                        db.Column('agent_role_uuid', db.String, db.ForeignKey(
+                                        db.Column('agent_role_uuid', db.String(255), db.ForeignKey(
                                             'agent_role.uuid'))
                                         )
 
 agent_group_agent_association = db.Table('agent_group_agent', db.metadata,
                                          db.Column(
-                                             'agent_uuid', db.String, db.ForeignKey('agent.uuid')),
-                                         db.Column('agent_group_uuid', db.String, db.ForeignKey(
+                                             'agent_uuid', db.String(255), db.ForeignKey('agent.uuid')),
+                                         db.Column('agent_group_uuid', db.String(255), db.ForeignKey(
                                              'agent_group.uuid'))
                                          )
 
 agent_input_association = db.Table('agent_input', db.metadata,
-                                   db.Column('agent_uuid', db.String,
+                                   db.Column('agent_uuid', db.String(255),
                                              db.ForeignKey('agent.uuid')),
-                                   db.Column('input_uuid', db.String,
+                                   db.Column('input_uuid', db.String(255),
                                              db.ForeignKey('input.uuid'))
                                    )
 
 observable_case_association = db.Table('observable_case', db.metadata,
-                                       db.Column('observable_uuid', db.String, db.ForeignKey(
+                                       db.Column('observable_uuid', db.String(255), db.ForeignKey(
                                            'observable.uuid')),
-                                       db.Column('case_uuid', db.String,
+                                       db.Column('case_uuid', db.String(255),
                                                  db.ForeignKey('case.uuid'))
                                        )
 
 event_case_association = db.Table('event_case', db.metadata,
-                                  db.Column('event_uuid', db.String,
+                                  db.Column('event_uuid', db.String(255),
                                             db.ForeignKey('event.uuid')),
-                                  db.Column('case_uuid', db.String,
+                                  db.Column('case_uuid', db.String(255),
                                             db.ForeignKey('case.uuid'))
                                   )
 
 case_tag_association = db.Table('tag_case', db.metadata,
-                                db.Column('case_uuid', db.String,
+                                db.Column('case_uuid', db.String(255),
                                           db.ForeignKey('case.uuid')),
-                                db.Column('tag_id', db.String,
+                                db.Column('tag_id', db.String(255),
                                           db.ForeignKey('tag.uuid'))
                                 )
 
 case_template_tag_association = db.Table('tag_case_template', db.metadata,
-                                         db.Column('case_template_uuid', db.String, db.ForeignKey(
+                                         db.Column('case_template_uuid', db.String(255), db.ForeignKey(
                                              'case_template.uuid')),
-                                         db.Column('tag_id', db.String,
+                                         db.Column('tag_id', db.String(255),
                                                    db.ForeignKey('tag.uuid'))
                                          )
 
 user_case_association = db.Table('user_case', db.metadata,
-                                 db.Column('user_uuid', db.String,
+                                 db.Column('user_uuid', db.String(255),
                                            db.ForeignKey('user.uuid')),
-                                 db.Column('case_uuid', db.String,
+                                 db.Column('case_uuid', db.String(255),
                                            db.ForeignKey('case.uuid'))
                                  )
 
 plugin_config_association = db.Table('plugin_plugin_config', db.metadata,
-                                     db.Column('plugin_uuid', db.String,
+                                     db.Column('plugin_uuid', db.String(255),
                                                db.ForeignKey('plugin.uuid')),
-                                     db.Column('plugin_config.uuid', db.String,
+                                     db.Column('plugin_config.uuid', db.String(255),
                                                db.ForeignKey('plugin_config.uuid'))
                                      )
 
 user_group_association = db.Table('user_group_assignment', db.metadata,
-                                  db.Column('user_uuid', db.String,
+                                  db.Column('user_uuid', db.String(255),
                                             db.ForeignKey('user.uuid')),
-                                  db.Column('user_group_uuid', db.String,
+                                  db.Column('user_group_uuid', db.String(255),
                                             db.ForeignKey('user_group.uuid'))
                                   )
 
@@ -169,7 +169,7 @@ class Base(db.Model):
     __abstract__ = True
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    uuid = db.Column(db.String, unique=True, default=generate_uuid)
+    uuid = db.Column(db.String(255), unique=True, default=generate_uuid)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     modified_at = db.Column(db.DateTime, default=datetime.datetime.utcnow,
                             onupdate=datetime.datetime.utcnow)
@@ -224,7 +224,7 @@ class Permission(Base):
 
     # Organization Mapping
     organization = db.relationship('Organization', back_populates='permissions')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
     # User Permissions
     add_user = db.Column(db.Boolean, default=False)
@@ -387,7 +387,7 @@ class Organization(Base):
     '''
     name = db.Column(db.String(200), nullable=False)
     url = db.Column(db.String(200))
-    description = db.Column(db.String)
+    description = db.Column(db.Text)
     enabled = db.Column(db.Integer, default=1)
     users = db.relationship('User', back_populates='organization')
     groups = db.relationship('UserGroup', back_populates='organization')
@@ -426,9 +426,9 @@ class Role(Base):
     users = db.relationship('User', back_populates='role')
     agents = db.relationship('Agent', back_populates='role')
     permissions = db.relationship('Permission', back_populates='roles')
-    permissions_uuid = db.Column(db.String, db.ForeignKey('permission.uuid'))
+    permissions_uuid = db.Column(db.String(255), db.ForeignKey('permission.uuid'))
     organization = db.relationship('Organization', back_populates='roles')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class User(Base):
@@ -443,18 +443,18 @@ class User(Base):
     failed_logons = db.Column(db.Integer, default=0)
     deleted = db.Column(db.Boolean, default=False)
     role = db.relationship('Role', back_populates='users')
-    role_uuid = db.Column(db.String, db.ForeignKey('role.uuid'))
+    role_uuid = db.Column(db.String(255), db.ForeignKey('role.uuid'))
     organization = db.relationship('Organization', back_populates='users')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
     groups = db.relationship(
         'UserGroup', secondary=user_group_association, back_populates='members')
-    api_key = db.Column(db.String)
+    api_key = db.Column(db.String(255))
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
@@ -562,19 +562,19 @@ class User(Base):
 class UserGroup(Base):
 
     name = db.Column(db.String(255))
-    description = db.Column(db.String)
+    description = db.Column(db.Text)
     members = db.relationship(
         'User', secondary=user_group_association, back_populates='groups')
     organization = db.relationship('Organization', back_populates='groups')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class RefreshToken(Base):
 
     user_uuid = db.Column(db.String(100))
     organization_uuid = db.Column(db.String(100))
-    refresh_token = db.Column(db.String)
-    user_agent_hash = db.Column(db.String)
+    refresh_token = db.Column(db.String(255))
+    user_agent_hash = db.Column(db.String(255))
 
 
 class AuthTokenBlacklist(Base):
@@ -585,36 +585,36 @@ class AuthTokenBlacklist(Base):
 class Case(Base):
 
     title = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.String)
+    description = db.Column(db.Text)
     comments = db.relationship('CaseComment')
     severity = db.Column(db.Integer, default=2)
-    owner_uuid = db.Column(db.String, db.ForeignKey('user.uuid'))
+    owner_uuid = db.Column(db.String(255), db.ForeignKey('user.uuid'))
     owner = db.relationship('User', foreign_keys=[owner_uuid])
     tlp = db.Column(db.Integer, default=2)
     observables = db.relationship(
         'Observable', secondary=observable_case_association)
     events = db.relationship('Event', back_populates='case')
     tags = db.relationship('Tag', secondary=case_tag_association)
-    status_uuid = db.Column(db.String, db.ForeignKey('case_status.uuid'))
+    status_uuid = db.Column(db.String(255), db.ForeignKey('case_status.uuid'))
     status = db.relationship("CaseStatus")
     tasks = db.relationship("CaseTask", back_populates='case')
     history = db.relationship("CaseHistory", back_populates='case')
     _closed = db.Column(db.Boolean, default=False)
     closed_at = db.Column(db.DateTime)
-    close_comment = db.Column(db.String)
+    close_comment = db.Column(db.Text)
     close_reason = db.relationship("CloseReason")
-    close_reason_uuid = db.Column(db.String, db.ForeignKey('close_reason.uuid'))
+    close_reason_uuid = db.Column(db.String(255), db.ForeignKey('close_reason.uuid'))
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='cases')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
     def add_history(self, message):
         history_item = CaseHistory(message=message)
@@ -646,11 +646,11 @@ class CloseReason(Base):
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     organization = db.relationship('Organization', back_populates='closure_reasons')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class CaseHistory(Base):
@@ -662,66 +662,66 @@ class CaseHistory(Base):
 
     message = db.Column(db.String(255), nullable=False)
     case = db.relationship('Case', back_populates='history')
-    case_uuid = db.Column(db.String, db.ForeignKey('case.uuid'))
+    case_uuid = db.Column(db.String(255), db.ForeignKey('case.uuid'))
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     organization = db.relationship('Organization', back_populates='case_history')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class CaseTask(Base):
 
-    title = db.Column(db.String, nullable=False)
+    title = db.Column(db.String(255), nullable=False)
     order = db.Column(db.Integer, default=0)
-    description = db.Column(db.String)
-    group_uuid = db.Column(db.String, db.ForeignKey('user_group.uuid'))
+    description = db.Column(db.Text)
+    group_uuid = db.Column(db.String(255), db.ForeignKey('user_group.uuid'))
     group = db.relationship('UserGroup')
-    owner_uuid = db.Column(db.String, db.ForeignKey('user.uuid'))
+    owner_uuid = db.Column(db.String(255), db.ForeignKey('user.uuid'))
     owner = db.relationship('User', foreign_keys=[owner_uuid])
-    case_uuid = db.Column(db.String, db.ForeignKey('case.uuid'))
+    case_uuid = db.Column(db.String(255), db.ForeignKey('case.uuid'))
     case = db.relationship('Case', back_populates='tasks')
     from_template = db.Column(db.Boolean, default=False)
     status = db.Column(db.Integer, default=0)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='case_tasks')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class CaseComment(Base):
 
-    message = db.Column(db.String)
-    case_uuid = db.Column(db.String, db.ForeignKey('case.uuid'))
+    message = db.Column(db.Text)
+    case_uuid = db.Column(db.String(255), db.ForeignKey('case.uuid'))
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='case_comments')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class CaseTemplate(Base):
 
-    title = db.Column(db.String, unique=True)
-    description = db.Column(db.String)
+    title = db.Column(db.String(255), unique=True)
+    description = db.Column(db.Text)
     severity = db.Column(db.Integer, default=2)
-    owner_uuid = db.Column(db.String, db.ForeignKey('user.uuid'))
+    owner_uuid = db.Column(db.String(255), db.ForeignKey('user.uuid'))
     owner = db.relationship('User', foreign_keys=[owner_uuid])
     tlp = db.Column(db.Integer, default=2)
     tags = db.relationship('Tag', secondary=case_template_tag_association)
@@ -729,40 +729,40 @@ class CaseTemplate(Base):
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='case_templates')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class CaseTemplateTask(Base):
 
-    title = db.Column(db.String)
+    title = db.Column(db.String(255))
     order = db.Column(db.Integer, default=0)
-    description = db.Column(db.String)
-    group_uuid = db.Column(db.String, db.ForeignKey('user_group.uuid'))
+    description = db.Column(db.Text)
+    group_uuid = db.Column(db.String(255), db.ForeignKey('user_group.uuid'))
     group = db.relationship('UserGroup')
-    owner_uuid = db.Column(db.String, db.ForeignKey('user.uuid'))
+    owner_uuid = db.Column(db.String(255), db.ForeignKey('user.uuid'))
     owner = db.relationship('User', foreign_keys=[owner_uuid])
     case_template_uuid = db.Column(
-        db.String, db.ForeignKey('case_template.uuid'))
+        db.String(255), db.ForeignKey('case_template.uuid'))
     case_template = db.relationship('CaseTemplate', back_populates='tasks')
     status = db.Column(db.Integer, default=0)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='case_template_tasks')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class EventRule(Base):
@@ -773,10 +773,10 @@ class EventRule(Base):
     '''
 
     name = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.String)
-    event_signature = db.Column(db.String) # The hash of the original event this rule was created against
-    rule_signature = db.Column(db.String) # A hash of the title + user customized observable values
-    target_case_uuid = db.Column(db.String) # The target case to merge this into if merge into case is selected
+    description = db.Column(db.Text)
+    event_signature = db.Column(db.String(255)) # The hash of the original event this rule was created against
+    rule_signature = db.Column(db.String(255)) # A hash of the title + user customized observable values
+    target_case_uuid = db.Column(db.String(255)) # The target case to merge this into if merge into case is selected
     observables = db.relationship('Observable', secondary=observable_event_rule_association)
     merge_into_case = db.Column(db.Boolean)
     dismiss = db.Column(db.Boolean)
@@ -786,14 +786,14 @@ class EventRule(Base):
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='event_rules')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
     def hash_observables(self):
         hasher = hashlib.md5()
@@ -822,23 +822,23 @@ class Event(Base):
 
     title = db.Column(db.String(255), nullable=False)
     reference = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.String, nullable=False)
+    description = db.Column(db.String(255), nullable=False)
     tlp = db.Column(db.Integer, default=2)
     severity = db.Column(db.Integer, default=2)
-    status_id = db.Column(db.String, db.ForeignKey('event_status.uuid'))
+    status_id = db.Column(db.String(255), db.ForeignKey('event_status.uuid'))
     status = db.relationship("EventStatus")
     observables = db.relationship(
         'Observable', secondary=observable_event_association)
     tags = db.relationship('Tag', secondary=event_tag_association)
-    case_uuid = db.Column(db.String, db.ForeignKey('case.uuid'))
+    case_uuid = db.Column(db.String(255), db.ForeignKey('case.uuid'))
     case = db.relationship('Case', back_populates='events')
     raw_log = db.Column(db.JSON)
-    signature = db.Column(db.String)
+    signature = db.Column(db.String(255))
     organization = db.relationship('Organization', back_populates='events')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
@@ -861,43 +861,43 @@ class Event(Base):
 class EventStatus(Base):
 
     name = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.String, nullable=False)
+    description = db.Column(db.String(255), nullable=False)
     closed = db.Column(db.Boolean, default=False)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='event_statuses')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class CaseStatus(Base):
 
     name = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.String, nullable=False)
+    description = db.Column(db.String(255), nullable=False)
     closed = db.Column(db.Boolean, default=False)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='case_statuses')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class Observable(Base):
 
     value = db.Column(db.String(255))
-    dataType_id = db.Column(db.String, db.ForeignKey('data_type.uuid'))
+    dataType_id = db.Column(db.String(255), db.ForeignKey('data_type.uuid'))
     dataType = db.relationship("DataType")
     tlp = db.Column(db.Integer)
     tags = db.relationship('Tag', secondary=observable_tag_association)
@@ -907,14 +907,14 @@ class Observable(Base):
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='observables')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class Agent(Base):
@@ -926,12 +926,12 @@ class Agent(Base):
     groups = db.relationship(
         'AgentGroup', secondary=agent_group_agent_association)
     active = db.Column(db.Boolean, default=True)
-    ip_address = db.Column(db.String)
+    ip_address = db.Column(db.String(255))
     last_heartbeat = db.Column(db.DateTime)
     role = db.relationship('Role', back_populates='agents')
-    role_uuid = db.Column(db.String, db.ForeignKey('role.uuid'))
+    role_uuid = db.Column(db.String(255), db.ForeignKey('role.uuid'))
     organization = db.relationship('Organization', back_populates='agents')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
     def has_right(self, permission):
 
@@ -953,44 +953,44 @@ class Agent(Base):
 class AgentRole(Base):
 
     name = db.Column(db.String(255))
-    description = db.Column(db.String)
+    description = db.Column(db.Text)
     organization = db.relationship('Organization', back_populates='agent_roles')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class AgentGroup(Base):
 
     name = db.Column(db.String(255))
-    description = db.Column(db.String)
+    description = db.Column(db.Text)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='agent_groups')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class DataType(Base):
 
     name = db.Column(db.String(255))
-    description = db.Column(db.String)
-    regex = db.Column(db.String)
+    description = db.Column(db.Text)
+    regex = db.Column(db.Text)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='data_types')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class Playbook(Base):
@@ -1002,56 +1002,56 @@ class Playbook(Base):
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='playbooks')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class Plugin(Base):
     name = db.Column(db.String(255), unique=True, nullable=False)
-    description = db.Column(db.String, nullable=False)
-    logo = db.Column(db.String)
+    description = db.Column(db.String(255), nullable=False)
+    logo = db.Column(db.Text)
     manifest = db.Column(db.JSON, nullable=False)
     config_template = db.Column(db.JSON)
     enabled = db.Column(db.Boolean, default=False)
-    filename = db.Column(db.String, nullable=False)
-    file_hash = db.Column(db.String)
+    filename = db.Column(db.String(255), nullable=False)
+    file_hash = db.Column(db.String(255))
     configs = db.relationship('PluginConfig', back_populates='plugin')
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='plugins')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class PluginConfig(Base):
     name = db.Column(db.String(255), unique=True, nullable=False)
-    description = db.Column(db.String, nullable=False)
+    description = db.Column(db.String(255), nullable=False)
     config = db.Column(db.JSON, nullable=False)
-    plugin_uuid = db.Column(db.String, db.ForeignKey('plugin.uuid'))
+    plugin_uuid = db.Column(db.String(255), db.ForeignKey('plugin.uuid'))
     plugin = db.relationship('Plugin', back_populates='configs')
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='plugin_configs')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class List(Base):
@@ -1063,18 +1063,18 @@ class List(Base):
 
     name = db.Column(db.String(255), unique=True, nullable=False)
     list_type = db.Column(db.String(255))
-    data_type_uuid = db.Column(db.String, db.ForeignKey('data_type.uuid'))
+    data_type_uuid = db.Column(db.String(255), db.ForeignKey('data_type.uuid'))
     data_type = db.relationship('DataType')
     tag_on_match = db.Column(db.Boolean, default=False)
     values = db.relationship('ListValue', back_populates='parent_list')
     organization = db.relationship('Organization', back_populates='lists')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
@@ -1085,16 +1085,16 @@ class ListValue(Base):
     A value in a List, it can be a String or a Regular Expression
     '''
 
-    value = db.Column(db.String)
-    parent_list_uuid = db.Column(db.String, db.ForeignKey('list.uuid'))
+    value = db.Column(db.Text)
+    parent_list_uuid = db.Column(db.String(255), db.ForeignKey('list.uuid'))
     parent_list = db.relationship('List', back_populates='values')
-    organization_uuid = db.Column(db.String)
+    organization_uuid = db.Column(db.String(255))
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
@@ -1103,25 +1103,25 @@ class ListValue(Base):
 class Input(Base):
 
     name = db.Column(db.String(255), unique=True, nullable=False)
-    description = db.Column(db.String, nullable=False)
-    plugin = db.Column(db.String, nullable=False)
+    description = db.Column(db.String(255), nullable=False)
+    plugin = db.Column(db.String(255), nullable=False)
     enabled = db.Column(db.Boolean, default=True)
     config = db.Column(db.JSON, nullable=False)
-    credential_id = db.Column(db.String, db.ForeignKey('credential.uuid'))
+    credential_id = db.Column(db.String(255), db.ForeignKey('credential.uuid'))
     credential = db.relationship('Credential')
     tags = db.relationship('Tag', secondary=input_tag_association)
     field_mapping = db.Column(db.JSON, nullable=False)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='inputs')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 
 class Credential(Base):
@@ -1130,15 +1130,15 @@ class Credential(Base):
     name = db.Column(db.String(255), unique=True, nullable=False)
     description = db.Column(db.String(255))
     username = db.Column(db.String(255))
-    secret = db.Column(db.String)
+    secret = db.Column(db.String(2048))
     organization = db.relationship('Organization', back_populates='credentials')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
@@ -1180,14 +1180,14 @@ class Tag(Base):
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
-    created_by_uuid = db.Column(db.String, db.ForeignKey(
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none)
-    updated_by_uuid = db.Column(db.String, db.ForeignKey(
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='tags')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
     @validates('name')
     def convert_lower(self, key, value):
@@ -1196,21 +1196,21 @@ class Tag(Base):
 
 class GlobalSettings(Base):
 
-    base_url = db.Column(db.String)
+    base_url = db.Column(db.String(2048))
     require_case_templates = db.Column(db.Boolean, default=True)
-    email_from = db.Column(db.String)
-    email_server = db.Column(db.String)
-    email_secret_uuid = db.Column(db.String, db.ForeignKey("credential.uuid"))
+    email_from = db.Column(db.String(255))
+    email_server = db.Column(db.String(255))
+    email_secret_uuid = db.Column(db.String(255), db.ForeignKey("credential.uuid"))
     email_secret = db.relationship('Credential')
     allow_comment_deletion = db.Column(db.Boolean, default=False)
     playbook_action_timeout = db.Column(db.Integer, default=300)
     playbook_timeout = db.Column(db.Integer, default=3600)
     logon_password_attempts = db.Column(db.Integer, default=5)
     organization = db.relationship('Organization', back_populates='settings')
-    organization_uuid = db.Column(db.String, db.ForeignKey('organization.uuid'))
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
     api_key_valid_days = db.Column(db.Integer, default=366)
     agent_pairing_token_valid_minutes = db.Column(db.Integer, default=15)
-    peristent_pairing_token = db.Column(db.String)
+    peristent_pairing_token = db.Column(db.String(255))
 
     def generate_persistent_pairing_token(self):
         '''
