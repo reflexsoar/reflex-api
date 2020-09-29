@@ -23,6 +23,7 @@ cryptography = "*"
 gunicorn = "*"
 psycopg2 = "*"
 pymysql = "*"
+sqlalchemy-filters = "*"
 
 [requires]
 python_version = "3.8"

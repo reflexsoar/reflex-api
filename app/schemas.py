@@ -423,7 +423,9 @@ mod_event_list = Model('EventList', {
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
     'case_uuid': fields.String,
-    'signature': fields.String
+    'signature': fields.String,
+    'related_events_count': fields.Integer,
+    'related_events': fields.List(fields.String)
 })
 
 mod_observable_type = Model('ObservableType', {

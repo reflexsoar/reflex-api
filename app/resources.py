@@ -9,7 +9,9 @@ import itertools
 import cryptography
 from zipfile import ZipFile
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint
-from flask_restx import Api, Resource, Namespace, fields, Model
+from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
+from sqlalchemy import or_
+from sqlalchemy_filters import apply_filters, apply_pagination, apply_sort
 from flask_socketio import emit
 from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
@@ -1954,16 +1956,93 @@ class CreateBulkEvents(Resource):
         return response, 207
 
 
+event_list_parser = api.parser()
+event_list_parser.add_argument('status', location='args', default=[], type=str, action='append', required=False)
+event_list_parser.add_argument('tags', location='args', default=[], type=str, action='append', required=False)
+event_list_parser.add_argument('observables', location='args', default=[], type=str, action='append', required=False)
+event_list_parser.add_argument('signature', location='args', required=False)
+event_list_parser.add_argument('grouped', type=xinputs.boolean, location='args', required=False)
+event_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
+event_list_parser.add_argument('page_size', type=int, location='args', default=25, required=False)
+
 @ns_event.route("")
 class EventList(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_event_list, as_list=True)
+    @api.expect(event_list_parser)
     @token_required
     @user_has('view_events')
     def get(self, current_user):
         ''' Returns a list of event '''
-        return Event.query.filter_by(organization_uuid=current_user().organization_uuid).order_by(desc(Event.created_at)).all()
+
+        args = event_list_parser.parse_args()
+
+        # The default filter specification
+        filter_spec = [{
+            'model':'Event',
+            'field': 'organization_uuid',
+            'op': 'eq',
+            'value': current_user().organization_uuid
+        }]
+
+        # Add the signature if we pass it
+        if 'signature' in args and args['signature']:
+            filter_spec.append({'model':'Event','field':'signature', 'op':'eq','value':args['signature']})
+            args['grouped'] = False
+
+        # Check if any of the statuses picked are in the list
+        if len(args['status']) > 0 and not '' in args['status']:
+            filter_spec.append({'model':'EventStatus', 'field':'name', 'op': 'in', 'value': args['status']})
+        
+        # Check if any of the observables are in the list (case sensitive)
+        if len(args['observables']) > 0 and not '' in args['observables']:
+            observables = args['observables']
+            for o in observables:
+                filter_spec.append({'field':'value', 'op': 'eq', 'model':'Observable','value':o})
+
+        # Check if any of the tags are in the list (case sensitive)
+        if len(args['tags']) > 0 and not '' in args['tags']:
+            filter_spec.append({'model':'Tag', 'field':'name', 'op': 'in', 'value': args['tags']})
+
+        # Import our association tables, many-to-many doesn't have parent/child keys
+        from .models import event_tag_association, observable_event_association        
+        base_query = db.session.query(Event).join(observable_event_association).join(Observable).join(event_tag_association).join(Tag)
+        
+
+        # Return the default view of grouped events
+        if args['grouped']:
+            query = base_query.group_by(Event.signature)
+            filtered_query = apply_filters(query, filter_spec)
+            filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
+            events = filtered_query.all()
+            
+            for event in events:
+                filter_spec.append({'model':'Event','field':'signature','op':'eq','value':event.signature})
+                related_events_count = apply_filters(base_query, filter_spec).count()
+                related_events = apply_filters(base_query, filter_spec).all()
+                uuids = [e.uuid for e in related_events]
+                event.__dict__['related_events_count'] = related_events_count
+                event.__dict__['related_events'] = uuids
+            return events
+
+        # Return an ungrouped list of a signatures events
+        elif not args['grouped'] and args['signature']:
+            query = base_query
+            filtered_query = apply_filters(query, filter_spec)
+            filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
+            events = filtered_query.all()
+            return events
+
+        else:
+            query = base_query.grouped_by(Event.signature)
+            filtered_query = apply_filters(query, filter_spec)
+            filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
+            console.log('boom')
+            events = filtered_query.all()
+            
+            return events
+
 
     @api.doc(security="Bearer")
     @api.expect(mod_event_create)

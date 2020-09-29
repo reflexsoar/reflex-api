@@ -15,6 +15,14 @@ def create_app(environment='development'):
     app.config.from_object(app_config[os.getenv('FLASK_CONFIG', environment)])
     app.config.from_pyfile('application.conf', silent=True)
 
+    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].format(
+        app.config['DB_USERNAME'],
+        app.config['DB_PASSWORD'],
+        app.config['DB_HOST'],
+        app.config['DB_PORT'],
+        app.config['DB_NAME'],
+    )
+
     db.init_app(app)
     cors.init_app(app)
 
