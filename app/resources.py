@@ -2005,7 +2005,7 @@ class EventList(Resource):
             filter_spec.append({'model':'Tag', 'field':'name', 'op': 'in', 'value': args['tags']})
 
         # Check if any of the severities are in the list
-        if len(args['severity']) > 0 and not '' in args['severity']:
+        if args['severity']:
             filter_spec.append({'model':'Event', 'field':'severity', 'op':'in', 'value': args['severity'][0].split(',')})
 
         if args['search']:
