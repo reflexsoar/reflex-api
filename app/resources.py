@@ -1962,6 +1962,7 @@ event_list_parser.add_argument('status', location='args', default=[], type=str, 
 event_list_parser.add_argument('tags', location='args', default=[], type=str, action='append', required=False)
 event_list_parser.add_argument('observables', location='args', default=[], type=str, action='append', required=False)
 event_list_parser.add_argument('signature', location='args', required=False)
+event_list_parser.add_argument('severity', action='append', location='args', required=False)
 event_list_parser.add_argument('grouped', type=xinputs.boolean, location='args', required=False)
 event_list_parser.add_argument('search', type=str, location='args', required=False)
 event_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
@@ -1992,11 +1993,7 @@ class EventList(Resource):
         if 'signature' in args and args['signature']:
             filter_spec.append({'model':'Event','field':'signature', 'op':'eq','value':args['signature']})
             args['grouped'] = False
-
-        # Check if any of the statuses picked are in the list
-        if len(args['status']) > 0 and not '' in args['status']:
-            filter_spec.append({'model':'EventStatus', 'field':'name', 'op': 'in', 'value': args['status']})
-        
+     
         # Check if any of the observables are in the list (case sensitive)
         if len(args['observables']) > 0 and not '' in args['observables']:
             observables = args['observables']
@@ -2006,6 +2003,10 @@ class EventList(Resource):
         # Check if any of the tags are in the list (case sensitive)
         if len(args['tags']) > 0 and not '' in args['tags']:
             filter_spec.append({'model':'Tag', 'field':'name', 'op': 'in', 'value': args['tags']})
+
+        # Check if any of the severities are in the list
+        if len(args['severity']) > 0 and not '' in args['severity']:
+            filter_spec.append({'model':'Event', 'field':'severity', 'op':'in', 'value': args['severity'][0].split(',')})
 
         if args['search']:
             filter_spec.append({
@@ -2020,26 +2021,38 @@ class EventList(Resource):
                 ]
             })
 
+        new_event_count_filter = copy.deepcopy(filter_spec)
+        new_event_count_filter.append({'model':'EventStatus', 'field':'name', 'op': 'eq', 'value': 'New'})
+
+        # Check if any of the statuses picked are in the list
+        if len(args['status']) > 0 and not '' in args['status']:
+            filter_spec.append({'model':'EventStatus', 'field':'name', 'op': 'in', 'value': args['status']})
+
         # Import our association tables, many-to-many doesn't have parent/child keys
         from .models import event_tag_association, observable_event_association        
-        base_query = db.session.query(Event).join(observable_event_association).join(Observable).join(event_tag_association).join(Tag)
+        base_query = db.session.query(Event).join(observable_event_association).join(Observable).join(event_tag_association).join(Tag).order_by(desc(Event.created_at))
         
 
         # Return the default view of grouped events
         if args['grouped']:
+            print('grouiped')
             query = base_query.group_by(Event.signature)
             filtered_query = apply_filters(query, filter_spec)
             filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
             events = filtered_query.all()
             
             for event in events:
+
                 filter_spec_signed = copy.deepcopy(filter_spec)
                 filter_spec_signed.append({'model':'Event','field':'signature','op':'eq','value':event.signature})
                 related_events_count = apply_filters(base_query, filter_spec_signed).count()
-                related_events = apply_filters(base_query, filter_spec_signed).all()
-                uuids = [e.uuid for e in related_events]
                 event.__dict__['related_events_count'] = related_events_count
-                event.__dict__['related_events'] = uuids
+
+                new_event_count_filter_signed = copy.deepcopy(new_event_count_filter)
+                new_event_count_filter_signed.append({'model':'Event','field':'signature','op':'eq','value':event.signature})
+                related_events = apply_filters(base_query, new_event_count_filter_signed).all()
+                uuids = [e.uuid for e in related_events]
+                event.__dict__['new_related_events'] = uuids
             return events
 
         # Return an ungrouped list of a signatures events
