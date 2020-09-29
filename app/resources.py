@@ -2035,7 +2035,6 @@ class EventList(Resource):
 
         # Return the default view of grouped events
         if args['grouped']:
-            print('grouiped')
             query = base_query.group_by(Event.signature)
             filtered_query = apply_filters(query, filter_spec)
             filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
@@ -2064,7 +2063,7 @@ class EventList(Resource):
             return events
 
         else:
-            query = base_query.grouped_by(Event.signature)
+            query = base_query.group_by(Event.signature)
             filtered_query = apply_filters(query, filter_spec)
             filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
             events = filtered_query.all()            
