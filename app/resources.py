@@ -2,6 +2,7 @@ import os
 import re
 import datetime
 import jwt
+import copy
 import json
 import base64
 import hashlib
@@ -1962,6 +1963,7 @@ event_list_parser.add_argument('tags', location='args', default=[], type=str, ac
 event_list_parser.add_argument('observables', location='args', default=[], type=str, action='append', required=False)
 event_list_parser.add_argument('signature', location='args', required=False)
 event_list_parser.add_argument('grouped', type=xinputs.boolean, location='args', required=False)
+event_list_parser.add_argument('search', type=str, location='args', required=False)
 event_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
 event_list_parser.add_argument('page_size', type=int, location='args', default=25, required=False)
 
@@ -2005,6 +2007,19 @@ class EventList(Resource):
         if len(args['tags']) > 0 and not '' in args['tags']:
             filter_spec.append({'model':'Tag', 'field':'name', 'op': 'in', 'value': args['tags']})
 
+        if args['search']:
+            filter_spec.append({
+                'or': [
+                    {'model':'Event', 'field':'title', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
+                    {'model':'Event', 'field':'description', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
+                    {'model':'Event', 'field':'reference', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
+                    {'model':'Event', 'field':'signature', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
+                    {'model':'Observable', 'field':'value', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
+                    {'model':'Tag', 'field':'name', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
+                    {'model':'Tag', 'field':'name', 'op':'ilike', 'value':'%{}%'.format(args['search'])}
+                ]
+            })
+
         # Import our association tables, many-to-many doesn't have parent/child keys
         from .models import event_tag_association, observable_event_association        
         base_query = db.session.query(Event).join(observable_event_association).join(Observable).join(event_tag_association).join(Tag)
@@ -2018,9 +2033,10 @@ class EventList(Resource):
             events = filtered_query.all()
             
             for event in events:
-                filter_spec.append({'model':'Event','field':'signature','op':'eq','value':event.signature})
-                related_events_count = apply_filters(base_query, filter_spec).count()
-                related_events = apply_filters(base_query, filter_spec).all()
+                filter_spec_signed = copy.deepcopy(filter_spec)
+                filter_spec_signed.append({'model':'Event','field':'signature','op':'eq','value':event.signature})
+                related_events_count = apply_filters(base_query, filter_spec_signed).count()
+                related_events = apply_filters(base_query, filter_spec_signed).all()
                 uuids = [e.uuid for e in related_events]
                 event.__dict__['related_events_count'] = related_events_count
                 event.__dict__['related_events'] = uuids
@@ -2038,9 +2054,7 @@ class EventList(Resource):
             query = base_query.grouped_by(Event.signature)
             filtered_query = apply_filters(query, filter_spec)
             filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
-            console.log('boom')
-            events = filtered_query.all()
-            
+            events = filtered_query.all()            
             return events
 
 
