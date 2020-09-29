@@ -34,17 +34,15 @@ def bulk(events):
     else:
         return events
     
-
-
 def reference():
     hasher = hashlib.md5()
     hasher.update(str(random.randint(0,1000)+datetime.datetime.utcnow().timestamp()).encode())
     return base64.b64encode(hasher.digest()).decode()
 
 events = []
-for i in range(1,200):
+for i in range(0,15):
     event = {
-      "title": "From API for Load Testing",
+      "title": "From API for Load Testing 7",
       "reference": reference(),
       "description": "This alert was generated via load testing",
       "tags": [
@@ -53,6 +51,28 @@ for i in range(1,200):
       "tlp": 0,
       "severity": 0,
       "observables": [
+        {
+          "value": "brian-pc",
+          "ioc": False,
+          "tlp": 0,
+          "spotted": False,
+          "safe": False,
+          "dataType": "host",
+          "tags": [
+            "source-ip"
+          ]
+        },
+        {
+          "value": "brian",
+          "ioc": False,
+          "tlp": 0,
+          "spotted": False,
+          "safe": False,
+          "dataType": "user",
+          "tags": [
+            "source-user"
+          ]
+        },
         {
           "value": "127.0.0.1",
           "ioc": False,
@@ -69,5 +89,5 @@ for i in range(1,200):
     }
 
     events.append(event)
-
+print(len(events))
 bulk(events)
