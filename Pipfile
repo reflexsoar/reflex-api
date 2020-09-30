@@ -24,8 +24,6 @@ gunicorn = "*"
 psycopg2 = "*"
 pymysql = "*"
 sqlalchemy-filters = "*"
-celery = "*"
-redis = "*"
 
 [requires]
 python_version = "3.8"
