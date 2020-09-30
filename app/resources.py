@@ -2056,8 +2056,11 @@ class EventList(Resource):
 
                 filter_spec_signed = copy.deepcopy(filter_spec)
                 filter_spec_signed.append({'model':'Event','field':'signature','op':'eq','value':event.signature})
-
-                related_events_count = Event.query.filter_by(organization_uuid=current_user().organization_uuid, signature=event.signature).count()
+                if(args['case_uuid']):
+                    related_events_count = Event.query.filter_by(case_uuid=args['case_uuid'], organization_uuid=current_user().organization_uuid, signature=event.signature).count()
+                else:
+                    related_events_count = Event.query.filter_by(organization_uuid=current_user().organization_uuid, signature=event.signature).count()                   
+                
                 event.__dict__['related_events_count'] = related_events_count
 
                 new_event_count_filter_signed = copy.deepcopy(new_event_count_filter)
