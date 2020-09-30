@@ -630,6 +630,35 @@ mod_case_observables = Model('CaseObservables', {
     'observables': fields.List(fields.Nested(mod_observable_list))
 })
 
+mod_case_list = Model('CaseList', {
+    'uuid': fields.String,
+    'title': fields.String,
+    'owner': fields.Nested(mod_user_list),
+    'description': fields.String,
+    'tags': fields.List(fields.Nested(mod_tag)),
+    'tlp': fields.Integer,
+    'severity': fields.Integer,
+    'status': fields.Nested(mod_case_status),
+    'event_count': ValueCount(attribute='events')
+})
+
+mod_event_short = Model('EventListShort', {
+    'uuid': fields.String,
+    'title': fields.String(required=True),
+    'reference': fields.String(required=True),
+    'description': fields.String(required=True),
+    'tlp': fields.Integer,
+    'severity': fields.Integer,
+    'status': fields.Nested(mod_event_status),
+    'tags': fields.List(fields.Nested(mod_tag_list)),
+    'observable_count': ObservableCount(attribute='observables'),
+    'ioc_count': IOCCount(attribute='observables'),
+    'created_at': fields.DateTime,
+    'modified_at': fields.DateTime,
+    'case_uuid': fields.String,
+    'signature': fields.String,
+})
+
 mod_case_full = Model('CaseDetails', {
     'id': fields.Integer,
     'uuid': fields.String,
@@ -649,7 +678,7 @@ mod_case_full = Model('CaseDetails', {
     'created_by': fields.Nested(mod_user_list),
     'updated_by': fields.Nested(mod_user_list),
     'observables': fields.List(fields.Nested(mod_observable_list)),
-    'events': fields.List(fields.Nested(mod_event_details)),
+    'events': fields.List(fields.Nested(mod_event_short)),
     'history': fields.List(fields.Nested(mod_case_history)),
     'tasks': fields.List(fields.Nested(mod_case_task_full))
 })
@@ -821,9 +850,9 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_event_create, mod_event_details, mod_event_list, mod_credential_list,
                  mod_input_create, mod_input_list, mod_event_create_bulk, mod_event_status,
                  mod_agent_create, mod_agent_list, mod_agent_role_list,
-                 mod_case_create, mod_case_status, mod_case_full,
+                 mod_case_create, mod_case_status, mod_case_full, mod_case_list,
                  mod_plugin_create, mod_plugin_list, mod_api_key, mod_persistent_pairing_token,
-                 mod_agent_group_create, mod_agent_group_list,
+                 mod_agent_group_create, mod_agent_group_list, mod_event_short,
                  mod_plugin_config_list, mod_plugin_config_create, mod_plugin_name,
                  mod_user_group_create, mod_user_group_list, mod_add_user_to_group,
                  mod_case_template_create, mod_case_template_full, mod_add_events_to_case,

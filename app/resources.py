@@ -591,7 +591,7 @@ case_parser.add_argument('title', location='args', required=False, type=str)
 class CaseList(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_case_full, as_list=True)
+    @api.marshal_with(mod_case_list, as_list=True)
     @api.expect(case_parser)
     @token_required
     @user_has('view_cases')
@@ -764,7 +764,6 @@ class AddEventsToCase(Resource):
                             case.save()
                             response['results'].append({'reference': evt, 'message': 'Event successfully merged into Case.'})
                         except Exception as e:
-                            print(e)
                             response['results'].append({'reference': evt, 'message': 'An error occurred while processing event observables.'})
                             response['success'] = False
                     else:
@@ -1966,6 +1965,7 @@ event_list_parser.add_argument('observables', location='args', default=[], type=
 event_list_parser.add_argument('signature', location='args', required=False)
 event_list_parser.add_argument('severity', action='append', location='args', required=False)
 event_list_parser.add_argument('grouped', type=xinputs.boolean, location='args', required=False)
+event_list_parser.add_argument('case_uuid', type=str, location='args', required=False)
 event_list_parser.add_argument('search', type=str, location='args', required=False)
 event_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
 event_list_parser.add_argument('page_size', type=int, location='args', default=5, required=False)
@@ -1982,7 +1982,6 @@ class EventList(Resource):
         ''' Returns a list of event '''
 
         args = event_list_parser.parse_args()
-        print(args)
 
         # The default filter specification
         filter_spec = [{
@@ -2010,6 +2009,9 @@ class EventList(Resource):
         # Check if any of the severities are in the list
         if args['severity']:
             filter_spec.append({'model':'Event', 'field':'severity', 'op':'in', 'value': args['severity'][0].split(',')})
+
+        if args['case_uuid']:
+            filter_spec.append({'model':'Event', 'field':'case_uuid', 'op':'eq', 'value': args['case_uuid']})
 
         if args['search']:
             filter_spec.append({
@@ -2081,7 +2083,6 @@ class EventList(Resource):
             filtered_query = apply_filters(query, filter_spec)
             filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
             events = filtered_query.all()
-            print(len(events))
             response = {
                 'events': events,
                 'pagination': {
@@ -2094,7 +2095,7 @@ class EventList(Resource):
             return response
 
         else:
-            query = base_query.group_by(Event.signature)
+            query = base_query
             filtered_query = apply_filters(query, filter_spec)
             filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
             events = filtered_query.all()
@@ -3081,17 +3082,17 @@ class DeletePassword(Resource):
         else:
             ns_credential.abort(404, 'Credential not found.')
 
+
+def do_math():
+    return 100*10
+
 @ns_test.route("")
 class Test(Resource):
 
     @api.doc(security="Bearer")
-    @token_required
-    def get(self, current_user):
-        events = Event.query.filter_by(organization_uuid=current_user().organization_uuid).all()
-        grouped = {k: list(g) for k, g in itertools.groupby(events, lambda t: t.signature)}
-        grouped['no_signature'] = grouped.pop(None)
-        print(grouped)
-        return grouped
+    def get(self):
+        test_task.delay('amazing!')
+        return "Okay"
 
 
 @ns_tag.route("")
@@ -3215,3 +3216,4 @@ class CaseTrend(Resource):
         cases = Case.query.filter_by(organization_uuid=current_user().organization_uuid).group_by(func.strftime('%Y-%m-%d', Case.created_at)).all()
         print(cases)
         return {}
+

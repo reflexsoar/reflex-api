@@ -15,6 +15,8 @@ class Config(object):
     PLUGIN_DIRECTORY = 'plugins/'
     PLUGIN_EXTENSIONS = ['zip']
 
+    CELERY_BROKER_URL = 'redis://localhost:6379'
+
 class ProductionConfig(Config):
     DEBUG = False
     RESTPLUS_MASK_SWAGGER = False

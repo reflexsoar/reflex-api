@@ -5,8 +5,10 @@ import hashlib
 import base64
 import requests
 
+host = 'https://staging.reflexsoar.com'
+
 def auth():
-    response = requests.post('http://localhost/api/v1.0/auth/login',
+    response = requests.post('{}/api/v1.0/auth/login'.format(host),
                              data=json.dumps({'username':'admin@reflexsoar.com', 'password':'reflex'}),
                              headers={'Content-Type': 'application/json'})
     if response.status_code == 200:
@@ -24,7 +26,7 @@ def bulk(events):
             'Content-Type': 'application/json',
             'Authorization': 'Bearer '+token
         }
-        response = requests.post('http://localhost/api/v1.0/event/_bulk',
+        response = requests.post('{}/api/v1.0/event/_bulk'.format(host),
                                  data=json.dumps({"events": events}),
                                  headers=headers)
         if response.status_code == 200:
