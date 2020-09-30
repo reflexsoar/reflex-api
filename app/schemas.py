@@ -428,6 +428,11 @@ mod_event_list = Model('EventList', {
     'new_related_events': fields.List(fields.String)
 })
 
+mod_paged_event_list = Model('PagedEventList', {
+    'events': fields.List(fields.Nested(mod_event_list)),
+    'pagination': JSONField()
+})
+
 mod_observable_type = Model('ObservableType', {
     'name': fields.String,
     'uuid': fields.String
@@ -825,6 +830,6 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_case_template_task_create, mod_case_template_task_full, mod_add_tasks_to_case, mod_comment, mod_comment_create,
                  mod_case_history, mod_bulk_add_observables, mod_case_observables,
                  mod_case_status_create, mod_case_status_list, mod_organization_basic,
-                 mod_case_task_create, mod_case_task_full, mod_user_role, mod_settings,
+                 mod_case_task_create, mod_case_task_full, mod_user_role, mod_settings, mod_paged_event_list,
                  mod_list_list, mod_list_value, mod_list_create, mod_data_type_list, mod_data_type_create,
                  mod_add_events_response, mod_response_message, mod_event_rule_create, mod_event_rule_list]

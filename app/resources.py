@@ -743,7 +743,6 @@ class AddEventsToCase(Resource):
         case = Case.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if case:
             response['case'] = case
-            case_observables = [observable.value.lower() for observable in case.observables]
             
             if 'events' in api.payload:
                 for evt in api.payload['events']:
@@ -758,18 +757,21 @@ class AddEventsToCase(Resource):
                             continue
                         try:
                             _event_observables += [observable for observable in event.observables]
-                            new_observables = [observable for observable in _event_observables if observable.value.lower() not in case_observables]
-                            case.observables += new_observables
+                            new_observables = [observable for observable in _event_observables if observable.value.lower() not in [o.value.lower() for o in case.observables]]
                             event.status = EventStatus.query.filter_by(name='Open', organization_uuid=current_user().organization_uuid).first()
+                            case.observables += new_observables
                             case.events.append(event)
                             case.save()
                             response['results'].append({'reference': evt, 'message': 'Event successfully merged into Case.'})
-                        except Exception:
+                        except Exception as e:
+                            print(e)
                             response['results'].append({'reference': evt, 'message': 'An error occurred while processing event observables.'})
                             response['success'] = False
                     else:
                         response['results'].append({'reference': evt, 'message': 'Event not found.'})
                         response['success'] = False
+                
+                case.save()
                 case.add_history('%s Event(s) were merged into this case' % len([r for r in response['results'] if 'success' in r['message']]))
             return response, 207
                             
@@ -1966,13 +1968,13 @@ event_list_parser.add_argument('severity', action='append', location='args', req
 event_list_parser.add_argument('grouped', type=xinputs.boolean, location='args', required=False)
 event_list_parser.add_argument('search', type=str, location='args', required=False)
 event_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
-event_list_parser.add_argument('page_size', type=int, location='args', default=25, required=False)
+event_list_parser.add_argument('page_size', type=int, location='args', default=5, required=False)
 
 @ns_event.route("")
 class EventList(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_event_list, as_list=True)
+    @api.marshal_with(mod_paged_event_list, as_list=True)
     @api.expect(event_list_parser)
     @token_required
     @user_has('view_events')
@@ -1980,6 +1982,7 @@ class EventList(Resource):
         ''' Returns a list of event '''
 
         args = event_list_parser.parse_args()
+        print(args)
 
         # The default filter specification
         filter_spec = [{
@@ -2030,8 +2033,15 @@ class EventList(Resource):
 
         # Import our association tables, many-to-many doesn't have parent/child keys
         from .models import event_tag_association, observable_event_association        
-        base_query = db.session.query(Event).join(observable_event_association).join(Observable).join(event_tag_association).join(Tag).order_by(desc(Event.created_at))
+        base_query = db.session.query(Event)
         
+        if args['search'] or (len(args['tags']) > 0 and not '' in args['tags']):
+            base_query = base_query.join(event_tag_association).join(Tag)
+            
+        if args['search'] or (len(args['observables']) > 0 and not '' in args['observables']):
+            base_query = base_query.join(observable_event_association).join(Observable)
+            
+        base_query = base_query.order_by(desc(Event.created_at))        
 
         # Return the default view of grouped events
         if args['grouped']:
@@ -2044,7 +2054,8 @@ class EventList(Resource):
 
                 filter_spec_signed = copy.deepcopy(filter_spec)
                 filter_spec_signed.append({'model':'Event','field':'signature','op':'eq','value':event.signature})
-                related_events_count = apply_filters(base_query, filter_spec_signed).count()
+
+                related_events_count = Event.query.filter_by(organization_uuid=current_user().organization_uuid, signature=event.signature).count()
                 event.__dict__['related_events_count'] = related_events_count
 
                 new_event_count_filter_signed = copy.deepcopy(new_event_count_filter)
@@ -2052,7 +2063,17 @@ class EventList(Resource):
                 related_events = apply_filters(base_query, new_event_count_filter_signed).all()
                 uuids = [e.uuid for e in related_events]
                 event.__dict__['new_related_events'] = uuids
-            return events
+
+            response = {
+                'events': events,
+                'pagination': {
+                    'total_results': pagination.total_results,
+                    'pages': pagination.num_pages,
+                    'page': pagination.page_number,
+                    'page_size': pagination.page_size
+                    }
+                }
+            return response
 
         # Return an ungrouped list of a signatures events
         elif not args['grouped'] and args['signature']:
@@ -2060,14 +2081,33 @@ class EventList(Resource):
             filtered_query = apply_filters(query, filter_spec)
             filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
             events = filtered_query.all()
-            return events
+            print(len(events))
+            response = {
+                'events': events,
+                'pagination': {
+                    'total_results': pagination.total_results,
+                    'pages': pagination.num_pages,
+                    'page': pagination.page_number,
+                    'page_size': pagination.page_size
+                    }
+                }
+            return response
 
         else:
             query = base_query.group_by(Event.signature)
             filtered_query = apply_filters(query, filter_spec)
             filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
-            events = filtered_query.all()            
-            return events
+            events = filtered_query.all()
+            response = {
+                'events': events,
+                'pagination': {
+                    'total_results': pagination.total_results,
+                    'pages': pagination.num_pages,
+                    'page': pagination.page_number,
+                    'page_size': pagination.page_size
+                    }
+                }
+            return response
 
 
     @api.doc(security="Bearer")
