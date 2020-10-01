@@ -42,9 +42,9 @@ def reference():
     return base64.b64encode(hasher.digest()).decode()
 
 events = []
-for i in range(0,15):
+for i in range(0,50):
     event = {
-      "title": "From API for Load Testing 7",
+      "title": "From API for Load Testing 2",
       "reference": reference(),
       "description": "This alert was generated via load testing",
       "tags": [

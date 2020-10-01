@@ -719,6 +719,8 @@ class CaseList(Resource):
             event.status = EventStatus.query.filter_by(name='Open', organization_uuid=current_user().organization_uuid).first()
             event.save()
 
+        case.add_history(message='Case created')
+
         return {'message': 'Successfully created the case.', 'uuid': case.uuid}
 
 
@@ -828,11 +830,14 @@ class CaseDetails(Resource):
                         message = '**Description** updated'
 
                     elif f == 'owner_uuid':
-                        owner = User.query.filter_by(
-                            uuid=api.payload['owner_uuid']).first()
-                        value = owner.username
-                        message = 'Case assigned to **{}**'.format(
-                            owner.username)
+                        if api.payload['owner_uuid'] == '':
+                            api.payload['owner_uuid'] = None
+                        else:
+                            owner = User.query.filter_by(
+                                uuid=api.payload['owner_uuid']).first()
+                            value = owner.username
+                            message = 'Case assigned to **{}**'.format(
+                                owner.username)
 
                     if message:
                         case.add_history(message=message)
