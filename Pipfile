@@ -24,6 +24,7 @@ gunicorn = "*"
 psycopg2 = "*"
 pymysql = "*"
 sqlalchemy-filters = "*"
+gevent = "*"
 
 [requires]
 python_version = "3.8"

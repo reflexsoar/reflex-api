@@ -652,6 +652,11 @@ mod_case_observables = Model('CaseObservables', {
     'observables': fields.List(fields.Nested(mod_observable_list))
 })
 
+mod_case_template_brief = Model('CaseTemplateBrief', {
+    'uuid': fields.String,
+    'title': fields.String,
+})
+
 mod_case_list = Model('CaseList', {
     'id': fields.String,
     'uuid': fields.String,
@@ -668,7 +673,8 @@ mod_case_list = Model('CaseList', {
     'created_by': fields.Nested(mod_user_list),
     'updated_by': fields.Nested(mod_user_list),
     'observables': fields.List(fields.Nested(mod_observable_list)),
-    'close_reason': fields.Nested(mod_close_reason_list)
+    'close_reason': fields.Nested(mod_close_reason_list),
+    'case_template': fields.Nested(mod_case_template_brief)
 })
 
 mod_event_short = Model('EventListShort', {
@@ -890,4 +896,4 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_case_task_create, mod_case_task_full, mod_user_role, mod_settings, mod_paged_event_list,
                  mod_list_list, mod_list_value, mod_list_create, mod_data_type_list, mod_data_type_create,
                  mod_add_events_response, mod_response_message, mod_event_rule_create, mod_event_rule_list,
-                 mod_close_reason_create, mod_close_reason_list]
+                 mod_close_reason_create, mod_close_reason_list, mod_case_template_brief]

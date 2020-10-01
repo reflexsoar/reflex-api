@@ -42,6 +42,12 @@ def reference():
     return base64.b64encode(hasher.digest()).decode()
 
 
+def case_templates():
+  
+  templates = [
+    {"title":"Phishing Analysis","description":"Use this case template when investigating a Phishing e-mail.","tasks":[{"title":"Fetch original e-mail","description":"Get a copy of the original e-mail so that analysis can be performed on it to determine if it really is a phishing e-mail or not.","group_uuid":null,"owner_uuid":null,"order":"0"},{"title":"Notify users","description":"Send a phishing alert e-mail to all users so they are aware they may have been targeted.  This should buy time until the e-mail is scrubbed from the environment.","group_uuid":null,"owner_uuid":null,"order":"1"},{"title":"Quarantine","description":"Remove the original message from the e-mail environment","group_uuid":null,"owner_uuid":null,"order":"2"},{"title":"Post Mortem","description":"What have we learned from this event that could help in future events?","group_uuid":null,"owner_uuid":null,"order":"3"}],"tlp":2,"severity":2,"tags":["phishing"]}
+  ]
+
 def random_severity():
   return random.randint(0,3)
 

@@ -805,6 +805,7 @@ class CaseDetails(Resource):
         ''' Updates information for a case '''
         case = Case.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if case:
+
             for f in ['severity', 'tlp', 'status_uuid', 'owner', 'description', 'owner_uuid']:
                 value = ""
                 message = None
@@ -844,6 +845,55 @@ class CaseDetails(Resource):
                     else:
                         case.add_history(
                             message="**{}** changed to **{}**".format(f.title(), value))
+            
+            if 'case_template_uuid' in api.payload:
+
+                # If the case already has a template, and none of the tasks have been started, remove the
+                # old template and its tasks/tags and add the new stuff
+                tasks_started = False
+                if case.case_template and api.payload['case_template_uuid'] != case.case_template_uuid:
+                    
+                    for task in case.tasks:
+
+                        # If any task is already started, don't apply a new template
+                        if task.status != 0:
+                            tasks_started = True
+                            break
+                        else:
+                            task.delete()
+
+                    # Remove the tags from the case that were assigned by the 
+                    # template
+                    for tag in case.case_template.tags:
+                        if tag in case.tags:
+                            case.tags = [tag for tag in case.tags if tag.name not in [t.name for t in case.case_template.tags]]
+
+                    case.case_template_uuid = None
+                    case.save()
+                    
+                # If there was an old template or no template at all
+                # apply the new template
+                if not tasks_started and api.payload['case_template_uuid'] != case.case_template_uuid:
+
+                    case_template = CaseTemplate.query.filter_by(uuid=api.payload['case_template_uuid'], organization_uuid=current_user().organization_uuid).first()
+                    if case_template:
+                        # Append the default tags
+                        for tag in case_template.tags:
+
+                            # If the tag does not already exist
+                            if tag not in case.tags:
+                                case.tags.append(tag)
+
+                        # Append the default tasks
+                        for task in case_template.tasks:
+                            case_task = CaseTask(title=task.title, description=task.description,
+                                                order=task.order, owner=task.owner, group=task.group,
+                                                from_template=True,
+                                                organization_uuid=current_user().organization_uuid)
+                            case.tasks.append(case_task)
+                        case.save()
+                        message = 'The case template **{}** was applied'.format(case_template.title)
+                        case.add_history(message=message)
 
             case.update(api.payload)
             return case
@@ -2078,9 +2128,9 @@ class CreateBulkEvents(Resource):
 
 
 event_list_parser = api.parser()
-event_list_parser.add_argument('status', location='args', default=[], type=str, action='append', required=False)
-event_list_parser.add_argument('tags', location='args', default=[], type=str, action='append', required=False)
-event_list_parser.add_argument('observables', location='args', default=[], type=str, action='append', required=False)
+event_list_parser.add_argument('status', location='args', default=[], type=str, action='split', required=False)
+event_list_parser.add_argument('tags', location='args', default=[], type=str, action='split', required=False)
+event_list_parser.add_argument('observables', location='args', default=[], type=str, action='split', required=False)
 event_list_parser.add_argument('signature', location='args', required=False)
 event_list_parser.add_argument('severity', action='append', location='args', required=False)
 event_list_parser.add_argument('grouped', type=xinputs.boolean, location='args', required=False)
@@ -2117,9 +2167,7 @@ class EventList(Resource):
      
         # Check if any of the observables are in the list (case sensitive)
         if len(args['observables']) > 0 and not '' in args['observables']:
-            observables = args['observables']
-            for o in observables:
-                filter_spec.append({'field':'value', 'op': 'eq', 'model':'Observable','value':o})
+            filter_spec.append({'field':'value', 'op': 'in', 'model':'Observable','value':args['observables']})
 
         # Check if any of the tags are in the list (case sensitive)
         if len(args['tags']) > 0 and not '' in args['tags']:
@@ -2127,7 +2175,7 @@ class EventList(Resource):
 
         # Check if any of the severities are in the list
         if args['severity']:
-            filter_spec.append({'model':'Event', 'field':'severity', 'op':'in', 'value': args['severity'][0].split(',')})
+            filter_spec.append({'model':'Event', 'field':'severity', 'op':'in', 'value': args['severity']})
 
         if args['case_uuid']:
             filter_spec.append({'model':'Event', 'field':'case_uuid', 'op':'eq', 'value': args['case_uuid']})

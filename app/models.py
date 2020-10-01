@@ -604,6 +604,8 @@ class Case(Base):
     close_comment = db.Column(db.Text)
     close_reason = db.relationship("CloseReason")
     close_reason_uuid = db.Column(db.String(255), db.ForeignKey('close_reason.uuid'))
+    case_template = db.relationship('CaseTemplate')
+    case_template_uuid = db.Column(db.String(255), db.ForeignKey('case_template.uuid'))
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
