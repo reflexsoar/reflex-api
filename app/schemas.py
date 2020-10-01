@@ -562,6 +562,17 @@ mod_case_create = Model('CaseCreate', {
     'events': fields.List(fields.String)
 })
 
+mod_close_reason_create = Model('CreateCloseReason', {
+    'title': fields.String,
+    'description': fields.String
+})
+
+mod_close_reason_list = Model('CloseReasonList', {
+    'uuid': fields.String,
+    'title': fields.String,
+    'description': fields.String
+})
+
 mod_case_template_create = Model('CaseTemplateCreate', {
     'title': fields.String(required=True),
     'owner_uuid': fields.String,
@@ -594,6 +605,7 @@ mod_case_template_full = Model('CaseTemplateList', {
 
 
 mod_case_status = Model('CaseStatusString', {
+    'uuid': fields.String,
     'name': fields.String,
     'closed': fields.Boolean
 })
@@ -606,14 +618,24 @@ mod_case_status_create = Model('CaseStatusCreate', {
 mod_case_status_list = Model('CaseStatusList', {
     'uuid': fields.String,
     'name': fields.String,
+    'description': fields.String,
+    'closed': fields.Boolean
+})
+
+mod_case_close_reason = Model('CaseCloseList', {
+    'uuid': fields.String,
+    'title': fields.String,
     'description': fields.String
 })
 
 mod_comment = Model('CommentDetails', {
     'uuid': fields.String,
     'message': fields.String,
+    'is_closure_comment': fields.Boolean,
+    'closure_reason': fields.Nested(mod_case_close_reason),
     'created_by': fields.Nested(mod_user_list),
-    'created_at': fields.DateTime
+    'created_at': fields.DateTime,
+    'case_uuid': fields.String
 })
 
 mod_comment_create = Model('CommentCreate', {
@@ -631,6 +653,7 @@ mod_case_observables = Model('CaseObservables', {
 })
 
 mod_case_list = Model('CaseList', {
+    'id': fields.String,
     'uuid': fields.String,
     'title': fields.String,
     'owner': fields.Nested(mod_user_list),
@@ -639,7 +662,13 @@ mod_case_list = Model('CaseList', {
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'status': fields.Nested(mod_case_status),
-    'event_count': ValueCount(attribute='events')
+    'event_count': ValueCount(attribute='events'),
+    'created_at': fields.DateTime,
+    'modified_at': fields.DateTime,
+    'created_by': fields.Nested(mod_user_list),
+    'updated_by': fields.Nested(mod_user_list),
+    'observables': fields.List(fields.Nested(mod_observable_list)),
+    'close_reason': fields.Nested(mod_close_reason_list)
 })
 
 mod_event_short = Model('EventListShort', {
@@ -668,7 +697,6 @@ mod_case_full = Model('CaseDetails', {
     'tags': fields.List(fields.Nested(mod_tag)),
     'tlp': fields.Integer,
     'severity': fields.Integer,
-    'comments': fields.List(fields.Nested(mod_comment)),
     'status_uuid': fields.String,
     'status': fields.Nested(mod_case_status),
     'event_count': ValueCount(attribute='events'),
@@ -678,9 +706,7 @@ mod_case_full = Model('CaseDetails', {
     'created_by': fields.Nested(mod_user_list),
     'updated_by': fields.Nested(mod_user_list),
     'observables': fields.List(fields.Nested(mod_observable_list)),
-    'events': fields.List(fields.Nested(mod_event_short)),
-    'history': fields.List(fields.Nested(mod_case_history)),
-    'tasks': fields.List(fields.Nested(mod_case_task_full))
+    'close_reason': fields.Nested(mod_close_reason_list)
 })
 
 mod_plugin_create = Model('PluginCreate', {
@@ -739,7 +765,9 @@ mod_settings = Model('SettingsList', {
     'logon_password_attempts': fields.Integer,
     'api_key_valid_days': fields.Integer,
     'agent_pairing_token_valid_minutes': fields.Integer,
-    'persistent_pairing_token': fields.String
+    'persistent_pairing_token': fields.String,
+    'require_event_dismiss_comment': fields.Boolean,
+    'require_case_close_comment': fields.Boolean
 })
 
 mod_case_metrics = Model('CaseMetrics', {
@@ -849,7 +877,7 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_observable, mod_observable_create, mod_observable_list, mod_observable_type, mod_observable_type_name,
                  mod_event_create, mod_event_details, mod_event_list, mod_credential_list,
                  mod_input_create, mod_input_list, mod_event_create_bulk, mod_event_status,
-                 mod_agent_create, mod_agent_list, mod_agent_role_list,
+                 mod_agent_create, mod_agent_list, mod_agent_role_list, mod_case_close_reason,
                  mod_case_create, mod_case_status, mod_case_full, mod_case_list,
                  mod_plugin_create, mod_plugin_list, mod_api_key, mod_persistent_pairing_token,
                  mod_agent_group_create, mod_agent_group_list, mod_event_short,
@@ -861,4 +889,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_case_status_create, mod_case_status_list, mod_organization_basic,
                  mod_case_task_create, mod_case_task_full, mod_user_role, mod_settings, mod_paged_event_list,
                  mod_list_list, mod_list_value, mod_list_create, mod_data_type_list, mod_data_type_create,
-                 mod_add_events_response, mod_response_message, mod_event_rule_create, mod_event_rule_list]
+                 mod_add_events_response, mod_response_message, mod_event_rule_create, mod_event_rule_list,
+                 mod_close_reason_create, mod_close_reason_list]

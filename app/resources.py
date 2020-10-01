@@ -18,7 +18,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc, func
-from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, Credential, Tag, List, ListValue, Permission, Playbook, Event, EventRule, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig, DataType
+from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, Credential, CloseReason, Tag, List, ListValue, Permission, Playbook, Event, EventRule, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig, DataType
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -44,6 +44,7 @@ ns_event = api.namespace(
     'Event', description='Event operations', path='/event')
 ns_event_rule = api.namespace('EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
 ns_case = api.namespace('Case', description='Case operations', path='/case')
+ns_case_history = api.namespace('CaseHistory', description='Case history operations', path='/case_history')
 ns_case_template = api.namespace(
     'CaseTemplate', description='Case Template operations', path='/case_template')
 ns_case_template_task = api.namespace(
@@ -65,6 +66,7 @@ ns_plugin = api.namespace(
     'Plugin', description='Plugin operations', path='/plugin')
 ns_plugin_config = api.namespace(
     'PluginConfig', description='Plugin Config operations', path='/plugin_config')
+ns_close_reason = api.namespace('CloseReason', description='Closure reason are used when closing a case and can be customized', path='/close_reason')
 ns_test = api.namespace('Test', description='Test', path='/test')
 
 ns_settings = api.namespace(
@@ -720,9 +722,6 @@ class CaseList(Resource):
         return {'message': 'Successfully created the case.', 'uuid': case.uuid}
 
 
-
-
-
 @ns_case.route("/<uuid>/add_events")
 class AddEventsToCase(Resource):
 
@@ -782,7 +781,7 @@ class AddEventsToCase(Resource):
 class CaseDetails(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_case_full)
+    @api.marshal_with(mod_case_list)
     @api.response('200', 'Success')
     @api.response('404', 'Case not found')
     @token_required
@@ -813,6 +812,11 @@ class CaseDetails(Resource):
                     if f == 'status_uuid':
                         status = CaseStatus.query.filter_by(
                             uuid=api.payload['status_uuid']).first()
+                        
+                        # Remove the closure reason if the new status re-opens the case
+                        if not status.closed: 
+                            api.payload['close_reason_uuid'] = None
+
                         value = status.name
                         f = 'status'
 
@@ -835,6 +839,7 @@ class CaseDetails(Resource):
                     else:
                         case.add_history(
                             message="**{}** changed to **{}**".format(f.title(), value))
+
             case.update(api.payload)
             return case
         else:
@@ -850,16 +855,23 @@ class CaseDetails(Resource):
             case.delete()
             return {'message': 'Sucessfully deleted case.'}
 
+case_task_parser = api.parser()
+case_task_parser.add_argument('case_uuid', type=str, location='args', required=False)
 
 @ns_case_task.route("")
 class CaseTaskList(Resource):
 
     @api.doc(security="Bearer")
+    @api.expect(case_task_parser)
     @api.marshal_with(mod_case_task_full, as_list=True)
     @token_required
     @user_has('view_case_tasks')
     def get(self, current_user):
         ''' Returns a list of case_task '''
+        args = case_task_parser.parse_args()
+
+        if args['case_uuid']:
+            return CaseTask.query.filter_by(case_uuid=args['case_uuid'], organization_uuid=current_user().organization_uuid).all()
         return CaseTask.query.filter_by(organization_uuid=current_user().organization_uuid).all()
 
     @api.doc(security="Bearer")
@@ -1188,16 +1200,26 @@ class CaseTemplateTaskDetails(Resource):
             return {'message': 'Sucessfully deleted case_template_task.'}
 
 
+case_comment_parser = api.parser()
+case_comment_parser.add_argument('case_uuid', type=str, location='args', required=False)
+
 @ns_case_comment.route("")
 class CaseCommentList(Resource):
 
     @api.doc(security="Bearer")
+    @api.expect(case_comment_parser)
     @api.marshal_with(mod_comment, as_list=True)
     @token_required
     @user_has('view_case_comments')
     def get(self, current_user):
         ''' Returns a list of comments '''
-        return CaseComment.query.filter_by(organization_uuid=current_user().organization_uuid).all()
+
+        args = case_comment_parser.parse_args()
+
+        if args['case_uuid']:
+            return CaseComment.query.filter_by(case_uuid=args['case_uuid'], organization_uuid=current_user().organization_uuid).order_by(asc(CaseComment.created_at)).all()
+        else:
+            return CaseComment.query.filter_by(organization_uuid=current_user().organization_uuid).order_by(asc(CaseComment.created_at)).all()
 
     @api.doc(security="Bearer")
     @api.expect(mod_comment_create)
@@ -1327,6 +1349,98 @@ class CaseStatusDetails(Resource):
         if case_status:
             case_status.delete()
             return {'message': 'Sucessfully deleted Case Status.'}
+
+
+case_history_parser = api.parser()
+case_history_parser.add_argument('case_uuid', type=str, location='args', required=False)
+
+@ns_case_history.route("")
+class CaseHistoryList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(case_history_parser)
+    @api.marshal_with(mod_case_history, as_list=True)
+    @token_required
+    @user_has('view_cases')
+    def get(self, current_user):
+        ''' Returns a list of case history events '''
+
+        args = case_history_parser.parse_args()
+
+        if args['case_uuid']:
+            return CaseHistory.query.filter_by(organization_uuid=current_user().organization_uuid, case_uuid=args['case_uuid']).all()
+        return CaseHistory.query.filter_by(organization_uuid=current_user().organization_uuid, case_uuid=args['case_uuid']).all()
+
+
+@ns_close_reason.route("")
+class CloseReasonList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_close_reason_list, as_list=True)
+    @token_required
+    def get(self, current_user):
+        ''' Returns a list of close_reasons '''
+        return CloseReason.query.all()
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_close_reason_create)
+    @api.response('409', 'Close Reason already exists.')
+    @api.response('200', 'Successfully create the CloseReason.')
+    @token_required
+    @user_has('add_close_reason')
+    def post(self, current_user):
+        ''' Creates a new Close Reason '''
+        close_reason = CloseReason.query.filter_by(
+            name=api.payload['name']).first()
+
+        if not close_reason:
+            close_reason = CloseReason(organization_uuid=current_user().organization_uuid, **api.payload)
+            close_reason.create()
+        else:
+            ns_close_reason.abort(409, 'Close Reason already exists.')
+        return {'message': 'Successfully created the Close Reason.'}
+
+
+@ns_close_reason.route("/<uuid>")
+class CloseReasonDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_close_reason_list)
+    @token_required
+    def get(self, uuid, current_user):
+        ''' Returns information about an CloseReason '''
+        close_reason = CloseReason.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if close_reason:
+            return close_reason
+        else:
+            ns_close_reason.abort(404, 'Close Reason not found.')
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_close_reason_create)
+    @api.marshal_with(mod_close_reason_list)
+    @token_required
+    @user_has('update_close_reason')
+    def put(self, uuid, current_user):
+        ''' Updates information for an Close Reason '''
+        close_reason = CloseReason.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if close_reason:
+            if 'name' in api.payload and CloseReason.query.filter_by(name=api.payload['name']).first():
+                ns_close_reason.abort(409, 'Close Reason name already exists.')
+            else:
+                close_reason.update(api.payload)
+                return close_reason
+        else:
+            ns_close_reason.abort(404, 'Close Reason not found.')
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_close_reason')
+    def delete(self, uuid, current_user):
+        ''' Deletes an CloseReason '''
+        close_reason = CloseReason.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if close_reason:
+            close_reason.delete()
+            return {'message': 'Sucessfully deleted Close Reason.'}
 
 
 @ns_playbook.route("")

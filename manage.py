@@ -593,14 +593,14 @@ def create_default_observable_types(org):
 def create_default_closure_reasons(org):
     print("Creating default closure reason for %s" % org.name)
     reasons = [
-        {'description': 'False positive'},
-        {'description': 'No action required'},
-        {'description': 'True positive'},
-        {'description': 'Other'}
+        {'title': 'False positive', 'description': 'False positive'},
+        {'title': 'No action required', 'description': 'No action required'},
+        {'title': 'True positive', 'description': 'True positive'},
+        {'title': 'Other', 'description': 'Other'}
     ]
     for r in reasons:
         reason = CloseReason(**r)
-        reason.orgazation = org
+        reason.organization = org
         reason.create()
 
 def create_default_event_statuses(org):

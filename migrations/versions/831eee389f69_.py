@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 39c7e2b50c4c
+Revision ID: 831eee389f69
 Revises: 
-Create Date: 2020-09-27 23:20:50.672560
+Create Date: 2020-09-30 12:28:18.039462
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '39c7e2b50c4c'
+revision = '831eee389f69'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -307,7 +307,8 @@ def upgrade():
     sa.Column('uuid', sa.String(length=255), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('modified_at', sa.DateTime(), nullable=True),
-    sa.Column('description', sa.String(length=255), nullable=False),
+    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.String(length=255), nullable=True),
     sa.Column('created_by_uuid', sa.String(length=255), nullable=True),
     sa.Column('organization_uuid', sa.String(length=255), nullable=True),
     sa.ForeignKeyConstraint(['created_by_uuid'], ['user.uuid'], ),
@@ -530,6 +531,7 @@ def upgrade():
     sa.Column('api_key_valid_days', sa.Integer(), nullable=True),
     sa.Column('agent_pairing_token_valid_minutes', sa.Integer(), nullable=True),
     sa.Column('peristent_pairing_token', sa.String(length=255), nullable=True),
+    sa.Column('require_event_dismiss_comment', sa.Boolean(), nullable=True),
     sa.ForeignKeyConstraint(['email_secret_uuid'], ['credential.uuid'], ),
     sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
     sa.PrimaryKeyConstraint('id'),
@@ -650,10 +652,13 @@ def upgrade():
     sa.Column('modified_at', sa.DateTime(), nullable=True),
     sa.Column('message', sa.Text(), nullable=True),
     sa.Column('case_uuid', sa.String(length=255), nullable=True),
+    sa.Column('is_closure_comment', sa.Text(), nullable=True),
+    sa.Column('closure_reason_uuid', sa.String(length=255), nullable=True),
     sa.Column('created_by_uuid', sa.String(length=255), nullable=True),
     sa.Column('updated_by_uuid', sa.String(length=255), nullable=True),
     sa.Column('organization_uuid', sa.String(length=255), nullable=True),
     sa.ForeignKeyConstraint(['case_uuid'], ['case.uuid'], ),
+    sa.ForeignKeyConstraint(['closure_reason_uuid'], ['close_reason.uuid'], ),
     sa.ForeignKeyConstraint(['created_by_uuid'], ['user.uuid'], ),
     sa.ForeignKeyConstraint(['organization_uuid'], ['organization.uuid'], ),
     sa.ForeignKeyConstraint(['updated_by_uuid'], ['user.uuid'], ),

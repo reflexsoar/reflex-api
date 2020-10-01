@@ -618,6 +618,7 @@ class Case(Base):
 
     def add_history(self, message):
         history_item = CaseHistory(message=message)
+        history_item.organization_uuid = self.organization_uuid
         history_item.create()
         self.history.append(history_item)
         self.save()
@@ -642,7 +643,8 @@ class CloseReason(Base):
     information to a case when closing it.  Example: this case was close as a false positive
     '''
 
-    description = db.Column(db.String(255), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.String(255))
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
@@ -703,6 +705,9 @@ class CaseComment(Base):
 
     message = db.Column(db.Text)
     case_uuid = db.Column(db.String(255), db.ForeignKey('case.uuid'))
+    is_closure_comment = db.Column(db.Text)
+    closure_reason_uuid = db.Column(db.String(255), db.ForeignKey('close_reason.uuid'))
+    closure_reason = db.relationship('CloseReason')
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
@@ -1211,6 +1216,8 @@ class GlobalSettings(Base):
     api_key_valid_days = db.Column(db.Integer, default=366)
     agent_pairing_token_valid_minutes = db.Column(db.Integer, default=15)
     peristent_pairing_token = db.Column(db.String(255))
+    require_event_dismiss_comment = db.Column(db.Boolean, default=False)
+    require_case_close_comment = db.Column(db.Boolean, default=False)
 
     def generate_persistent_pairing_token(self):
         '''

@@ -5,7 +5,7 @@ import hashlib
 import base64
 import requests
 
-host = 'https://staging.reflexsoar.com'
+host = 'http://localhost'
 
 def auth():
     response = requests.post('{}/api/v1.0/auth/login'.format(host),
