@@ -18,7 +18,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc, func
-from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, Credential, CloseReason, Tag, List, ListValue, Permission, Playbook, Event, EventRule, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig, DataType
+from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, Credential, CloseReason, Tag, List, ListValue, Permission, Playbook, Event, EventRule, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig, DataType, observable_case_association
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -586,6 +586,66 @@ class CaseBulkAddObservables(Resource):
             ns_case.abort(404, 'Case not found.')
 
         return case
+
+
+observable_parser = pager_parser.copy()
+observable_parser.add_argument('type', location='args', required=False, type=str, action='split')
+observable_parser.add_argument('value', location='args', required=False, type=str, action='split')
+
+@ns_case.route("/<uuid>/observables")
+class CaseObservableList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_observable_list_paged, as_list=True)
+    @api.expect(observable_parser)
+    @token_required
+    @user_has('view_cases')
+    def get(self, uuid, current_user):
+
+        args = observable_parser.parse_args()
+
+        filter_spec = []
+
+        base_query = db.session.query(Observable).join(observable_case_association).join(Case)
+
+        filter_spec = [
+            {
+                'model': 'Case',
+                'field': 'uuid',
+                'op':'eq',
+                'value': uuid
+            },
+            {
+                'model': 'Case',
+                'field': 'organization_uuid',
+                'op':'eq',
+                'value': current_user().organization_uuid
+            }
+        ]
+
+        if args['type'] and len(args['type']) > 0:
+            filter_spec.append({'model':'DataType', 'value': args['type'], 'op':'in', 'field':'name'})
+            base_query.join(DataType)
+        
+        if args['value'] and len(args['value']) > 0:
+            filter_spec.append({'model':'Observable','value': args['value'], 'op':'in', 'field':'value'})
+
+        filtered_query = apply_filters(base_query, filter_spec)
+        query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
+        results = filtered_query.all()
+
+        response = {
+            'observables': results,
+            'pagination': {
+                'total_results': pagination.total_results,
+                'pages': pagination.num_pages,
+                'page': pagination.page_number,
+                'page_size': pagination.page_size
+                }
+            }
+        return response
+        #results = Case.query.filter_by(organization_uuid=current_user().organization_uuid, uuid=uuid).first().observables
+
 
 case_parser = pager_parser.copy()
 case_parser.add_argument('title', location='args', required=False, type=str)
