@@ -632,7 +632,7 @@ class CaseObservableList(Resource):
 
         filtered_query = apply_filters(base_query, filter_spec)
         query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
-        results = filtered_query.all()
+        results = query.all()
 
         response = {
             'observables': results,
