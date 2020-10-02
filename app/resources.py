@@ -56,6 +56,7 @@ ns_case_status = api.namespace(
 ns_case_task = api.namespace(
     'CaseTask', description='Case Task operations', path='/case_task'
 )
+ns_observable = api.namespace('Observable', description='Observable operaitons', path='/observable')
 ns_credential = api.namespace(
     'Credential', description='Credential operations', path='/credential')
 ns_agent = api.namespace(
@@ -1007,7 +1008,6 @@ class CaseTaskDetails(Resource):
 
 case_template_parser = api.parser()
 case_template_parser.add_argument('title', location='args', required=False)
-
 
 @ns_case_template.route("")
 class CaseTemplateList(Resource):

@@ -673,6 +673,7 @@ mod_case_list = Model('CaseList', {
     'created_by': fields.Nested(mod_user_list),
     'updated_by': fields.Nested(mod_user_list),
     'observables': fields.List(fields.Nested(mod_observable_list)),
+    'observable_count': ValueCount(attribute='observables'),
     'close_reason': fields.Nested(mod_close_reason_list),
     'case_template': fields.Nested(mod_case_template_brief)
 })
