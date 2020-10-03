@@ -841,6 +841,9 @@ class Event(Base):
     case = db.relationship('Case', back_populates='events')
     raw_log = db.Column(db.JSON)
     signature = db.Column(db.String(255))
+    dismiss_reason_uuid = db.Column(db.String(255), db.ForeignKey('close_reason.uuid'))
+    dismiss_reason = db.relationship('CloseReason')
+    dismiss_comment = db.Column(db.Text)
     organization = db.relationship('Organization', back_populates='events')
     organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
     created_by_uuid = db.Column(db.String(255), db.ForeignKey(
@@ -1219,6 +1222,7 @@ class GlobalSettings(Base):
     agent_pairing_token_valid_minutes = db.Column(db.Integer, default=15)
     peristent_pairing_token = db.Column(db.String(255))
     require_event_dismiss_comment = db.Column(db.Boolean, default=False)
+    allow_event_deletion = db.Column(db.Boolean, default=False)
     require_case_close_comment = db.Column(db.Boolean, default=False)
 
     def generate_persistent_pairing_token(self):

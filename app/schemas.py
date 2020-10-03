@@ -355,6 +355,12 @@ mod_observable_list_paged = Model('PagedObservableList', {
     'pagination': JSONField()
 })
 
+mod_close_reason_list = Model('CloseReasonList', {
+    'uuid': fields.String,
+    'title': fields.String,
+    'description': fields.String
+})
+
 mod_bulk_tag = Model('BulkTag', {
     'tags': fields.List(fields.String)
 })
@@ -371,7 +377,8 @@ mod_event_create = Model('EventCreate', {
 })
 
 mod_event_status = Model('EventStatusString', {
-    'name': fields.String
+    'name': fields.String,
+    'closed': fields.Boolean,
 })
 
 mod_case_status_uuid = Model('CaseStatusUUID', {
@@ -380,6 +387,12 @@ mod_case_status_uuid = Model('CaseStatusUUID', {
 
 mod_case_uuid = Model('CaseUUID', {
     'uuid': fields.String
+})
+
+mod_event_bulk_dismiss = Model('EventBulkDismiss', {
+    'events': fields.List(fields.String),
+    'dismiss_reason_uuid': fields.String,
+    'dismiss_comment': fields.String,
 })
 
 mod_event_details = Model('EventDetails', {
@@ -394,6 +407,7 @@ mod_event_details = Model('EventDetails', {
     'observables': fields.List(fields.Nested(mod_observable_list)),
     'observable_count': ObservableCount(attribute='observables'),
     'ioc_count': IOCCount(attribute='observables'),
+    'dismiss_reason': fields.Nested(mod_close_reason_list),
     'case_uuid': fields.String,
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
@@ -430,6 +444,7 @@ mod_event_list = Model('EventList', {
     'case_uuid': fields.String,
     'signature': fields.String,
     'related_events_count': fields.Integer,
+    'dismiss_reason': fields.Nested(mod_close_reason_list),
     'new_related_events': fields.List(fields.String)
 })
 
@@ -572,11 +587,7 @@ mod_close_reason_create = Model('CreateCloseReason', {
     'description': fields.String
 })
 
-mod_close_reason_list = Model('CloseReasonList', {
-    'uuid': fields.String,
-    'title': fields.String,
-    'description': fields.String
-})
+
 
 mod_case_template_create = Model('CaseTemplateCreate', {
     'title': fields.String(required=True),
@@ -779,7 +790,8 @@ mod_settings = Model('SettingsList', {
     'agent_pairing_token_valid_minutes': fields.Integer,
     'persistent_pairing_token': fields.String,
     'require_event_dismiss_comment': fields.Boolean,
-    'require_case_close_comment': fields.Boolean
+    'require_case_close_comment': fields.Boolean,
+    'allow_event_deletion': fields.Boolean
 })
 
 mod_case_metrics = Model('CaseMetrics', {
@@ -902,4 +914,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_case_task_create, mod_case_task_full, mod_user_role, mod_settings, mod_paged_event_list,
                  mod_list_list, mod_list_value, mod_list_create, mod_data_type_list, mod_data_type_create,
                  mod_add_events_response, mod_response_message, mod_event_rule_create, mod_event_rule_list,
-                 mod_close_reason_create, mod_close_reason_list, mod_case_template_brief, mod_observable_list_paged]
+                 mod_close_reason_create, mod_close_reason_list, mod_case_template_brief, mod_observable_list_paged,
+                 mod_event_bulk_dismiss]

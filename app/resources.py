@@ -2385,6 +2385,39 @@ class EventList(Resource):
             ns_event.abort(409, 'Event already exists.')
 
 
+@ns_event.route('/bulk_dismiss')
+class EventBulkUpdate(Resource):
+    @api.doc(security="Bearer")
+    @api.expect(mod_event_bulk_dismiss)
+    @api.marshal_with(mod_event_details, as_list=True)
+    @token_required
+    @user_has('update_event')
+    def put(self, current_user):
+        ''' Dismisses multiple events at the same time with the same dismiss reason and comment '''
+        _events = []
+        if 'events' in api.payload:
+            for e in api.payload['events']:
+                event = Event.query.filter_by(uuid=e, organization_uuid=current_user().organization_uuid).first()
+                print(event)
+                if event:
+                    # If the event has already closed/dismissed, don't update it again
+                    if event.status.closed and ('dismiss_reason_uuid' in api.payload or 'dismiss_comment' in api.payload):
+                        if event.close_reason:
+                            api.payload.pop('dismiss_reason_uuid')
+                            api.payload.pop('dismiss_comment')
+
+                    if 'dismiss_reason_uuid' in api.payload:
+                        event_status = EventStatus.query.filter_by(organization_uuid=current_user().organization_uuid, closed=True).first()
+                        api.payload['status'] = event_status
+
+                    # Update the event
+                    event.update(api.payload)
+
+                    # Add it to a list so we can return it back for display refresh
+                    _events.append(event)
+
+        return _events
+
 @ns_event.route("/<uuid>")
 class EventDetails(Resource):
 
@@ -2411,11 +2444,19 @@ class EventDetails(Resource):
         ''' Updates information for a event '''
         event = Event.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if event:
-            if 'name' in api.payload and Event.query.filter_by(name=api.payload['name']).first():
-                ns_event.abort(409, 'Event name already exists.')
-            else:
-                event.update(api.payload)
-                return event
+
+            # If the event has already closed/dismissed, don't update it again
+            if event.status.closed and ('dismiss_reason_uuid' in api.payload or 'dismiss_comment' in api.payload):
+                if event.close_reason:
+                    api.payload.pop('dismiss_reason_uuid')
+                    api.payload.pop('dismiss_comment')
+
+            if 'dismiss_reason_uuid' in api.payload:
+                event_status = EventStatus.query.filter_by(organization_uuid=current_user().organization_uuid, closed=True).first()
+                api.payload['status'] = event_status
+
+            event.update(api.payload)
+            return event
         else:
             ns_event.abort(404, 'Event not found.')
 
