@@ -968,6 +968,29 @@ class CaseDetails(Resource):
         ''' Deletes a case '''
         case = Case.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if case:
+
+            # Delete any associated observables
+            #[o.delete() for o in case.observables]
+
+            # Delete comments
+            #[c.delete() for c in case.comments]
+
+            # Delete tasks
+            #[t.delete() for t in case.tasks]
+
+            # Delete history
+            #[h.delete() for t in case.history]
+
+            # Set any associated events back to New status
+            for event in case.events:
+                event.status = EventStatus.query.filter_by(organization_uuid=current_user().organization_uuid, name='New').first()
+                event.save()
+            
+            case.events = []
+            case.save()
+            case.observables = []
+            case.save()
+
             case.delete()
             return {'message': 'Sucessfully deleted case.'}
 
@@ -1318,7 +1341,7 @@ class CaseTemplateTaskDetails(Resource):
 case_comment_parser = api.parser()
 case_comment_parser.add_argument('case_uuid', type=str, location='args', required=False)
 
-@ns_case_comment.route("")
+@ns_case_comment.route("")  
 class CaseCommentList(Resource):
 
     @api.doc(security="Bearer")
