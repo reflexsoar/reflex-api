@@ -417,6 +417,7 @@ class Organization(Base):
     inputs = db.relationship('Input', back_populates='organization')    
     credentials = db.relationship('Credential', back_populates='organization')
     settings = db.relationship('GlobalSettings', back_populates='organization')
+    user_settings = db.relationship('UserSettings', back_populates='organization')
     tags = db.relationship('Tag', back_populates='organization')
 
 
@@ -445,8 +446,11 @@ class User(Base):
     deleted = db.Column(db.Boolean, default=False)
     role = db.relationship('Role', back_populates='users')
     role_uuid = db.Column(db.String(255), db.ForeignKey('role.uuid'))
+    settings_uuid = db.Column(db.String(255), db.ForeignKey('user_settings.uuid'))
+    settings = db.relationship('UserSettings', foreign_keys=[settings_uuid])
     organization = db.relationship('Organization', back_populates='users')
     organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
+    notifications = db.relationship('Notification')
     groups = db.relationship(
         'UserGroup', secondary=user_group_association, back_populates='members')
     api_key = db.Column(db.String(255))
@@ -558,6 +562,32 @@ class User(Base):
                 return False
         else:
             return False
+
+
+class UserSettings(Base):
+
+    notify_on_case_assign = db.Column(db.Boolean, default=False)
+    notify_on_task_assign = db.Column(db.Boolean, default=False)
+    user_uuid = db.Column(db.String(255), db.ForeignKey('user.uuid'))
+    organization = db.relationship('Organization', back_populates='user_settings')
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
+
+    # AUDIT COLUMNS
+    # TODO: Figure out how to move this to a mixin, it just doesn't want to work
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none)
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
+    created_by = db.relationship('User', foreign_keys=[created_by_uuid])
+    updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+
+
+class Notification(Base):
+
+    message = db.Column(db.Text)
+    recipient = db.relationship('User', back_populates='notifications')
+    recipient_uuid = db.Column(db.String(255), db.ForeignKey('user.uuid'))
+    is_read = db.Column(db.Boolean, default=False)
 
 
 class UserGroup(Base):
@@ -732,6 +762,7 @@ class CaseComment(Base):
     is_closure_comment = db.Column(db.Text)
     closure_reason_uuid = db.Column(db.String(255), db.ForeignKey('close_reason.uuid'))
     closure_reason = db.relationship('CloseReason')
+    edited = db.Column(db.Boolean, default=False)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work

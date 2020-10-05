@@ -653,6 +653,7 @@ mod_case_close_reason = Model('CaseCloseList', {
 mod_comment = Model('CommentDetails', {
     'uuid': fields.String,
     'message': fields.String,
+    'edited': fields.Boolean,
     'is_closure_comment': fields.Boolean,
     'closure_reason': fields.Nested(mod_case_close_reason),
     'created_by': fields.Nested(mod_user_list),

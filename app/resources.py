@@ -1535,6 +1535,7 @@ class CaseCommentDetails(Resource):
         ''' Updates information for a comment '''
         case_comment = CaseComment.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if case_comment:
+            case_comment.edited = True
             case_comment.update(api.payload)
             return case_comment
         else:
