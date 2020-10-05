@@ -1247,6 +1247,7 @@ class GlobalSettings(Base):
     allow_event_deletion = db.Column(db.Boolean, default=False)
     require_case_close_comment = db.Column(db.Boolean, default=False)
     assign_case_on_create = db.Column(db.Boolean, default=True)
+    assign_task_on_start = db.Column(db.Boolean, default=True)
 
     def generate_persistent_pairing_token(self):
         '''

@@ -1172,9 +1172,12 @@ class CaseTaskDetails(Resource):
     @user_has('update_case_task')
     def put(self, uuid, current_user):
         ''' Updates information for a case_task '''
+
+        settings = GlobalSettings.query.filter_by(organization_uuid=current_user().organization_uuid).first()
         case_task = CaseTask.query.filter_by(
             uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if case_task:
+
             if 'name' in api.payload and CaseTask.query.filter_by(title=api.payload['title'], case_uuid=api.payload['case_uuid']).first():
                 ns_case_task.abort(
                     409, 'Case Task name already exists.')
@@ -1191,11 +1194,15 @@ class CaseTaskDetails(Resource):
                         case_task.finish_date = datetime.datetime.utcnow()
                         history_message = "Task **{}** completed"
 
-                    case_task.save()
-                    case.add_history(message=history_message.format(case_task.title))
+                    # Automatically assign the task to the user who starts the task if set globally
+                    if api.payload['status'] == 1 and case_task.owner is None and settings.assign_task_on_start:
+                        case_task.owner = current_user()
 
+                    case_task.save()
+                    
                 case_task.update(api.payload)
                 case = Case.query.filter_by(uuid=case_task.case_uuid, organization_uuid=current_user().organization_uuid).first()
+                case.add_history(message=history_message.format(case_task.title))
                 return case_task
         else:
             ns_case_task.abort(404, 'Case Task not found.')
