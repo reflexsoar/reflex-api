@@ -758,7 +758,8 @@ class CaseList(Resource):
         _tags = []
         event_observables = []
         case_template_uuid = None
-        print(api.payload)
+        
+        settings = GlobalSettings.query.filter_by(organization_uuid=current_user().organization_uuid).first()
 
         if 'case_template_uuid' in api.payload:
             case_template_uuid = api.payload.pop('case_template_uuid')
@@ -772,6 +773,10 @@ class CaseList(Resource):
             user = User.query.filter_by(uuid=owner, organization_uuid=current_user().organization_uuid).first()
             if user:
                 api.payload['owner'] = user
+        else:
+            # Automatically assign the case to the creator if they didn't pick an owner
+            if settings.assign_case_on_create:
+                api.payload['owner'] = User.query.filter_by(uuid=current_user().uuid).first()
 
         if 'observables' in api.payload:
             observables = api.payload.pop('observables')
@@ -914,6 +919,34 @@ class AddEventsToCase(Resource):
             ns_case.abort(404, 'Case not found.')
 
 
+@ns_case.route('/<uuid>/report')
+class CaseReport(Resource):
+    
+    @api.doc(security="Bearer")
+    @api.response('200', 'Success')
+    @token_required
+    @user_has('view_cases')
+    def get(self, uuid, current_user):
+        ''' Returns a Markdown formatted overview of the Case '''
+        case = Case.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+
+        report_format = """# {title}
+## Observables
+{observables}
+## Events
+{events}
+## Tasks
+{tasks}
+## Comments
+## Case History       
+        """
+        return report_format.format(
+            title=case.title, 
+            observables="\n".join(["- {} - {}".format(o.value, o.dataType.name) for o in case.observables]),
+            events= "\n".join(["### {title}\n{description}\n```{raw_log}```".format(title=e.title, description=e.description, raw_log=e.raw_log) for e in case.events]),
+            tasks="\n".join(['### {title}\n{description}\n#### Notes\n {notes}'.format(title=t.title, description=t.description, notes="\n".join(["- {}".format(c) for c in t.notes])) for t in case.tasks])
+        )
+
 @ns_case.route("/<uuid>")
 class CaseDetails(Resource):
 
@@ -933,7 +966,7 @@ class CaseDetails(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(mod_case_create)
-    @api.marshal_with(mod_case_full)
+    @api.marshal_with(mod_case_list)
     @token_required
     @user_has('update_case')
     def put(self, uuid, current_user):
@@ -1159,10 +1192,10 @@ class CaseTaskDetails(Resource):
                         history_message = "Task **{}** completed"
 
                     case_task.save()
+                    case.add_history(message=history_message.format(case_task.title))
 
                 case_task.update(api.payload)
                 case = Case.query.filter_by(uuid=case_task.case_uuid, organization_uuid=current_user().organization_uuid).first()
-                case.add_history(message=history_message.format(case_task.title))
                 return case_task
         else:
             ns_case_task.abort(404, 'Case Task not found.')

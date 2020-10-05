@@ -799,7 +799,8 @@ mod_settings = Model('SettingsList', {
     'persistent_pairing_token': fields.String,
     'require_event_dismiss_comment': fields.Boolean,
     'require_case_close_comment': fields.Boolean,
-    'allow_event_deletion': fields.Boolean
+    'allow_event_deletion': fields.Boolean,
+    'assign_case_on_create': fields.Boolean
 })
 
 mod_case_metrics = Model('CaseMetrics', {
