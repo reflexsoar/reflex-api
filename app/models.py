@@ -407,6 +407,7 @@ class Organization(Base):
     observables = db.relationship('Observable',  back_populates='organization')
     cases = db.relationship('Case', back_populates='organization')
     case_tasks = db.relationship('CaseTask',  back_populates='organization')
+    case_task_notes = db.relationship('TaskNote', back_populates='organization')
     case_templates = db.relationship('CaseTemplate', back_populates='organization')
     case_template_tasks = db.relationship('CaseTemplateTask',  back_populates='organization')
     case_comments = db.relationship('CaseComment',  back_populates='organization')
@@ -686,10 +687,11 @@ class CaseTask(Base):
     group = db.relationship('UserGroup')
     owner_uuid = db.Column(db.String(255), db.ForeignKey('user.uuid'))
     owner = db.relationship('User', foreign_keys=[owner_uuid])
+    notes = db.relationship('TaskNote')
     case_uuid = db.Column(db.String(255), db.ForeignKey('case.uuid'))
     case = db.relationship('Case', back_populates='tasks')
     from_template = db.Column(db.Boolean, default=False)
-    status = db.Column(db.Integer, default=0)
+    status = db.Column(db.Integer, default=0) # 0 = Open, 1 = Started, 2 = Complete
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
@@ -700,6 +702,26 @@ class CaseTask(Base):
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
     organization = db.relationship('Organization', back_populates='case_tasks')
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
+
+
+class TaskNote(Base):
+
+    note = db.Column(db.Text, nullable=False)
+    task_uuid = db.Column(db.String(255), db.ForeignKey('case_task.uuid'))
+    task = db.relationship('CaseTask', back_populates='notes')
+    start_date = db.Column(db.DateTime)
+    finish_date = db.Column(db.DateTime)
+
+    # AUDIT COLUMNS
+    # TODO: Figure out how to move this to a mixin, it just doesn't want to work
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none)
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
+    created_by = db.relationship('User', foreign_keys=[created_by_uuid])
+    updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='case_task_notes')
     organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
 
 

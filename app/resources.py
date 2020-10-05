@@ -545,6 +545,79 @@ class DataTypeDetails(Resource):
             ns_data_type.abort(404, 'Data type not found.')
 
 
+observable_parser = pager_parser.copy()
+
+@ns_observable.route("")
+class ObservableList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(observable_parser)
+    @api.marshal_with(mod_observable_list, as_list=True)
+    @token_required
+    @user_has('view_observables')
+    def get(self, current_user):
+        ''' Returns a list of observable '''
+        args = observable_parser.parse_args()
+
+        base_query = db.session.query(Observable)
+        filter_spec = [
+            {
+                'model': 'Observable',
+                'field': 'organization_uuid',
+                'op':'eq',
+                'value': current_user().organization_uuid
+            }
+        ]
+
+        filtered_query = apply_filters(query, filter_spec)
+        query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
+        response = {
+            'observables': query.all(),
+            'pagination': {
+                'total_results': pagination.total_results,
+                'pages': pagination.num_pages,
+                'page': pagination.page_number,
+                'page_size': pagination.page_size
+                }
+            }
+        return response
+
+
+@ns_observable.route("/<uuid>")
+class ObservableDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_observable_list)
+    @api.response('200', 'Success')
+    @api.response('404', 'Observable not found')
+    @token_required
+    @user_has('view_observables')
+    def get(self, uuid, current_user):
+        ''' Returns information about a case task '''
+        observable = Observable.query.filter_by(
+            uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if observable:
+            return observable
+        else:
+            ns_observable.abort(404, 'Observable not found.')
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_observable_create)
+    @api.marshal_with(mod_observable_list)
+    @token_required
+    @user_has('update_observable')
+    def put(self, uuid, current_user):
+        ''' Updates information for a observable '''
+        print(api.payload)
+        observable = Observable.query.filter_by(
+            uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if observable:
+            observable.update(api.payload)
+            return observable
+        else:
+            ns_observable.abort(404, 'Observable not found.')
+
+
 @ns_case.route("/<uuid>/add_observables/_bulk")
 class CaseBulkAddObservables(Resource):
 
@@ -1032,7 +1105,7 @@ class CaseTaskList(Resource):
             case_task.create()
 
             case = Case.query.filter_by(uuid=api.payload['case_uuid']).first()
-            case.add_history("New task added")
+            case.add_history("Task **{}** added".format(case_task.title))
 
             return case_task
         else:
@@ -1072,7 +1145,23 @@ class CaseTaskDetails(Resource):
                 ns_case_task.abort(
                     409, 'Case Task name already exists.')
             else:
+                if 'status' in api.payload:
+
+                    # Set the start date on the Task
+                    if api.payload['status'] == 1:
+                        case_task.start_date = datetime.datetime.utcnow()
+                        history_message = "Task **{}** started"
+
+                    # Set the finish date on the Task
+                    if api.payload['status'] == 2:
+                        case_task.finish_date = datetime.datetime.utcnow()
+                        history_message = "Task **{}** completed"
+
+                    case_task.save()
+
                 case_task.update(api.payload)
+                case = Case.query.filter_by(uuid=case_task.case_uuid, organization_uuid=current_user().organization_uuid).first()
+                case.add_history(message=history_message.format(case_task.title))
                 return case_task
         else:
             ns_case_task.abort(404, 'Case Task not found.')
@@ -1086,6 +1175,9 @@ class CaseTaskDetails(Resource):
             uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if case_task:
             case_task.delete()
+
+            case = Case.query.filter_by(uuid=case_task.case_uuid, organization_uuid=current_user().organization_uuid).first()
+            case.add_history(message="Task {} deleted".format(case_task.title))
             return {'message': 'Sucessfully deleted case task.'}
 
 
@@ -2271,7 +2363,6 @@ class EventList(Resource):
                     {'model':'Event', 'field':'reference', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
                     {'model':'Event', 'field':'signature', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
                     {'model':'Observable', 'field':'value', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
-                    {'model':'Tag', 'field':'name', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
                     {'model':'Tag', 'field':'name', 'op':'ilike', 'value':'%{}%'.format(args['search'])}
                 ]
             })
@@ -2336,6 +2427,7 @@ class EventList(Resource):
             filtered_query = apply_filters(query, filter_spec)
             filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
             events = filtered_query.all()
+            
             response = {
                 'events': events,
                 'pagination': {
