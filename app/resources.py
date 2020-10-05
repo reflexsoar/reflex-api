@@ -758,6 +758,7 @@ class CaseList(Resource):
         _tags = []
         event_observables = []
         case_template_uuid = None
+        print(api.payload)
 
         if 'case_template_uuid' in api.payload:
             case_template_uuid = api.payload.pop('case_template_uuid')
@@ -766,8 +767,8 @@ class CaseList(Resource):
             tags = api.payload.pop('tags')
             _tags = parse_tags(tags, current_user().organization_uuid)
 
-        if 'owner' in api.payload:
-            owner = api.payload.pop('owner')
+        if 'owner_uuid' in api.payload:
+            owner = api.payload.pop('owner_uuid')
             user = User.query.filter_by(uuid=owner, organization_uuid=current_user().organization_uuid).first()
             if user:
                 api.payload['owner'] = user
