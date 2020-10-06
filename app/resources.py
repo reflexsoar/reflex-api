@@ -1017,6 +1017,7 @@ class CaseDetails(Resource):
             if 'tags' in api.payload:
                 _tags = parse_tags(api.payload.pop('tags'), current_user().organization_uuid)
                 case.tags = _tags
+                case.add_history(message="**Tags** were modified")
                 case.save()
             
             if 'case_template_uuid' in api.payload:
