@@ -722,6 +722,8 @@ class CaseTask(Base):
     case = db.relationship('Case', back_populates='tasks')
     from_template = db.Column(db.Boolean, default=False)
     status = db.Column(db.Integer, default=0) # 0 = Open, 1 = Started, 2 = Complete
+    start_date = db.Column(db.DateTime)
+    finish_date = db.Column(db.DateTime)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
@@ -740,8 +742,6 @@ class TaskNote(Base):
     note = db.Column(db.Text, nullable=False)
     task_uuid = db.Column(db.String(255), db.ForeignKey('case_task.uuid'))
     task = db.relationship('CaseTask', back_populates='notes')
-    start_date = db.Column(db.DateTime)
-    finish_date = db.Column(db.DateTime)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
@@ -1279,6 +1279,7 @@ class GlobalSettings(Base):
     require_case_close_comment = db.Column(db.Boolean, default=False)
     assign_case_on_create = db.Column(db.Boolean, default=True)
     assign_task_on_start = db.Column(db.Boolean, default=True)
+    allow_comment_editing = db.Column(db.Boolean, default=False)
 
     def generate_persistent_pairing_token(self):
         '''

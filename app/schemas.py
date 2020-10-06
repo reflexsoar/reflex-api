@@ -802,7 +802,8 @@ mod_settings = Model('SettingsList', {
     'require_case_close_comment': fields.Boolean,
     'allow_event_deletion': fields.Boolean,
     'assign_case_on_create': fields.Boolean,
-    'assign_task_on_start': fields.Boolean
+    'assign_task_on_start': fields.Boolean,
+    'allow_comment_editing': fields.Boolean
 })
 
 mod_case_metrics = Model('CaseMetrics', {

@@ -1014,6 +1014,11 @@ class CaseDetails(Resource):
                         case.add_history(
                             message="**{}** changed to **{}**".format(f.title(), value))
             
+            if 'tags' in api.payload:
+                _tags = parse_tags(api.payload.pop('tags'), current_user().organization_uuid)
+                case.tags = _tags
+                case.save()
+            
             if 'case_template_uuid' in api.payload:
 
                 # If the case already has a template, and none of the tasks have been started, remove the
