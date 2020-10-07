@@ -4,6 +4,7 @@ import hashlib
 import jwt
 import secrets
 import base64
+import os
 from flask import current_app, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func, text
@@ -708,7 +709,7 @@ class CaseFile(Base):
     hash_sha1 = db.Column(db.String(255))
     hash_sha256 = db.Column(db.String(255))
     extension = db.Column(db.String(10))
-    mimeType = db.Column(db.String(100))
+    mime_type = db.Column(db.String(100))
     case_uuid = db.Column(db.String(256), db.ForeignKey('case.uuid'))
     case = db.relationship('Case', back_populates='files')
 
@@ -731,35 +732,39 @@ class CaseFile(Base):
         sha1_hash + organization_uuid + .extension
         """
 
-        return self.hash_sha1+"-"+self.organization_uuid+"."+self.extension
+        return self.organization_uuid+"-"+self.hash_sha1+"."+self.extension
+
+    @property
+    def filepath(self):
+        return os.path.join(current_app.config['CASE_FILES_DIRECTORY'], self.on_disk_name)
+
+    def save_to_disk(self):
+        """
+        Saves a file to the uploads/case_files directory
+        """
+
+        with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), self.filepath), 'wb') as f:
+            f.write(self.data)
+            f.close()
     
-    def load_file(self, filepath):
+    def load_file(self):
         """
         Loads the file from disk so it can be returned to the user
         in an API response
         """
+        
+        self.data = open(self.filepath,'rb').read()
 
-        self.data = open(os.path.join(current_app.config['CASE_FILES_DIRECTORY'],self.on_disk_name),'rb').read()
-
-    def save_to_disk(self, data):
-        """
-        Saves the file to disk using the SHA1 hash of the file
-        as the file name
-        """
-
-        self.data = data
-        self.compute_hashes()
-        with open(os.path.join(current_app.config['CASE_FILES_DIRECTORY'], self.on_disk_name), 'wb') as f:
-            f.write(data)
-
-    def compute_hashes(self):
+    def compute_hashes(self, data):
         """
         Computes all the hashes of the file
         """
 
+        self.data = data
         self.compute_md5()
         self.compute_sha1()
         self.compute_sha256()
+        self.save()
     
     def compute_md5(self):
         """

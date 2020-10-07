@@ -742,8 +742,6 @@ mod_event_short = Model('EventListShort', {
     'signature': fields.String,
 })
 
-
-
 mod_case_full = Model('CaseDetails', {
     'id': fields.Integer,
     'uuid': fields.String,
@@ -927,6 +925,25 @@ mod_event_rule_list = Model('EventRuleList', {
     'modified_at': fields.DateTime
 })
 
+mod_case_file = Model('CaseFile', {
+    'uuid': fields.String,
+    'filename': fields.String,
+    'hash_md5': fields.String,
+    'hash_sha1': fields.String,
+    'hash_sha256': fields.String,
+    'mime_type': fields.String
+})
+
+mod_case_file_upload_response = Model('CaseFileUploadResponse', {
+    'uuid': fields.String,
+    'message': fields.String
+})
+
+mod_case_file_upload = Model('CaseFileUpload', {
+    'results': fields.List(fields.Nested(mod_case_file_upload_response)),
+    'success': fields.Boolean
+})
+
 
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create_success, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
@@ -951,4 +968,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_list_list, mod_list_value, mod_list_create, mod_data_type_list, mod_data_type_create,
                  mod_add_events_response, mod_response_message, mod_event_rule_create, mod_event_rule_list,
                  mod_close_reason_create, mod_close_reason_list, mod_case_template_brief, mod_observable_list_paged,
-                 mod_event_bulk_dismiss, mod_related_case, mod_forgot_password, mod_observable_brief]
+                 mod_event_bulk_dismiss, mod_related_case, mod_forgot_password, mod_observable_brief, mod_case_file,
+                 mod_case_file_upload, mod_case_file_upload_response]

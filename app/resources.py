@@ -19,7 +19,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc, func
-from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, Credential, CloseReason, Tag, List, ListValue, Permission, Playbook, Event, EventRule, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig, DataType, observable_case_association
+from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, CaseFile, Credential, CloseReason, Tag, List, ListValue, Permission, Playbook, Event, EventRule, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig, DataType, observable_case_association
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -671,6 +671,7 @@ class UploadCaseFile(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(upload_parser)
+    @api.marshal_with(mod_case_file_upload)
     @token_required
     @user_has('upload_case_files')
     def post(self, current_user, uuid):
@@ -678,22 +679,45 @@ class UploadCaseFile(Resource):
         def allowed_file(filename):
             return '.' in filename and filename.rsplit('.', 1)[1].lower() in current_app.config['CASE_FILE_EXTENSIONS']
 
-
         args = upload_parser.parse_args()
 
         if 'files' not in request.files:
             ns_plugin.abort(400, 'No file selected.')
+
+        response = {
+            'results': [],
+            'success': True
+        }
         
         uploaded_files = args['files']
         for uploaded_file in uploaded_files:
 
-            if uploaded_file.filename == '':
-                ns_plugin.abort(400, 'No file selected.')
+            hasher = hashlib.sha1()
+            hasher.update(uploaded_file.read())
 
-            if uploaded_file and allowed_file(uploaded_file.filename):
-                print(uploaded_file)
+            cf = CaseFile.query.filter_by(hash_sha1=hasher.hexdigest()).first()
 
-        return "OK"
+            if not cf:
+
+                try:
+                    if uploaded_file.filename == '':
+                        ns_plugin.abort(400, 'No file selected.')
+
+                    if uploaded_file and allowed_file(uploaded_file.filename):
+                        case_file = CaseFile(filename=uploaded_file.filename, case_uuid=uuid, organization_uuid=current_user().organization_uuid)
+                        case_file.compute_hashes(uploaded_file.read())
+                        case_file.extension = case_file.filename.rsplit('.',1)[1]
+                        case_file.mime_type = uploaded_file.mimetype
+                        case_file.create()
+                        case_file.save_to_disk()
+                        response['results'].append({'uuid': case_file.uuid, 'message': 'Successfully uploaded'})
+                except Exception as e:
+                    response['results'].append({'uuid': None, 'message':'Failed to process file {}, {}'.format(uploaded_file.filename, e)})
+                    response['success'] = False
+            else:
+                response['results'].append({'uuid': cf.uuid, 'message':'File already exists'})
+                response['success'] = False
+            return response
 
 
 @ns_case.route("/<uuid>/add_observables/_bulk")
