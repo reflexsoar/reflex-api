@@ -25,6 +25,7 @@ psycopg2 = "*"
 pymysql = "*"
 sqlalchemy-filters = "*"
 gevent = "*"
+flask-mail = "*"
 
 [requires]
 python_version = "3.8"

@@ -9,6 +9,7 @@ import hashlib
 import itertools
 import cryptography
 from zipfile import ZipFile
+from flask_mail import Mail, Message
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from sqlalchemy import or_
@@ -25,6 +26,7 @@ from .schemas import *
 api_v1 = Blueprint("api", __name__, url_prefix="/api/v1.0")
 
 api = Api(api_v1)
+mail = Mail()
 
 # Namespaces
 ns_user = api.namespace('User', description='User operations', path='/user')
@@ -157,6 +159,52 @@ def create_observables(observables, organization_uuid):
                 observable.save()
 
     return _observables
+
+
+@ns_auth.route("/forgot_password")
+class ForgotPassword(Resource):
+
+    @api.expect(mod_forgot_password)
+    @api.response(200, 'Success')
+    def post(self):
+        """
+        Initiates a forgot password sequence for a user if they
+        exist in the system
+
+        Expects the users e-mail address
+        """
+
+        user = User.query.filter_by(email=api.payload['email']).first()
+        if user:
+            password_reset_token = user.create_password_reset_token(request.user_agent.string.encode('utf-8'))
+            settings = GlobalSettings.query.filter_by(organization_uuid=user.organization_uuid).first()
+            print(settings)
+
+            mail_user = Credential.query.filter_by(uuid=settings.email_secret_uuid).first()
+            mail_config = {
+                'MAIL_USE_TLS': True
+            }
+            if settings.email_server:
+                mail_config['MAIL_SERVER'] = settings.email_server
+                mail_config['MAIL_PORT'] = 587
+
+            if settings.email_from:
+                mail_config['MAIL_DEFAULT_SENDER'] = settings.email_from
+            #if mail_user:
+                #mail_config['MAIL_USERNAME'] = str(mail_user.username)
+                #mail_config['MAIL_PASSWORD'] = mail_user.decrypt(current_app.config['MASTER_PASSWORD'])
+
+            print(mail_config,password_reset_token)
+
+            mail.init_mail(config=mail_config)
+            msg = Message('Hello',sender="jonsullpuss@gmail.com",recipients=['bcarroll@zeroonesecurity.com'])
+            mail.send(msg)
+
+            
+
+            # EMAIL THE THING
+
+        return {'message':'Initiated password reset sequence if user exists.'}
 
 
 @ns_auth.route("/login")
@@ -616,6 +664,36 @@ class ObservableDetails(Resource):
             return observable
         else:
             ns_observable.abort(404, 'Observable not found.')
+
+
+@ns_case.route("/<uuid>/upload_file")
+class UploadCaseFile(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(upload_parser)
+    @token_required
+    @user_has('upload_case_files')
+    def post(self, current_user, uuid):
+
+        def allowed_file(filename):
+            return '.' in filename and filename.rsplit('.', 1)[1].lower() in current_app.config['CASE_FILE_EXTENSIONS']
+
+
+        args = upload_parser.parse_args()
+
+        if 'files' not in request.files:
+            ns_plugin.abort(400, 'No file selected.')
+        
+        uploaded_files = args['files']
+        for uploaded_file in uploaded_files:
+
+            if uploaded_file.filename == '':
+                ns_plugin.abort(400, 'No file selected.')
+
+            if uploaded_file and allowed_file(uploaded_file.filename):
+                print(uploaded_file)
+
+        return "OK"
 
 
 @ns_case.route("/<uuid>/add_observables/_bulk")
@@ -2080,6 +2158,7 @@ class UploadPlugin(Resource):
         plugins = []
 
         args = upload_parser.parse_args()
+        print(args)
 
         def allowed_file(filename):
             return '.' in filename and filename.rsplit('.', 1)[1].lower() in current_app.config['PLUGIN_EXTENSIONS']
@@ -2135,7 +2214,8 @@ class UploadPlugin(Resource):
                             if 'config_template' in manifest_data:
                                 config_template = manifest_data['config_template']
                             else:
-                                config_template = None
+                                config_template = {}
+                
 
                 plugin = Plugin.query.filter_by(filename=filename).first()
                 if plugin:
@@ -2156,6 +2236,7 @@ class UploadPlugin(Resource):
                                     file_hash=hasher.hexdigest(),
                                     organization_uuid=current_user().organization_uuid)
                     plugin.create()
+                    
                 plugins.append(plugin)
         return plugins
 

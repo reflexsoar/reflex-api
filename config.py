@@ -15,6 +15,10 @@ class Config(object):
     PLUGIN_DIRECTORY = 'plugins/'
     PLUGIN_EXTENSIONS = ['zip']
 
+    CASE_FILES_DIRECTORY = 'uploads/case_files/'
+    CASE_FILE_EXTENSIONS = ['txt','doc','docx','zip','xls','xlsx']
+    FILE_OBSERVABLES_DIRECTORY = 'uploads/file_observables/'
+
     CELERY_BROKER_URL = 'redis://localhost:6379'
 
 class ProductionConfig(Config):

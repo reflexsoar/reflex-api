@@ -3,11 +3,13 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
+from flask_mail import Mail
 from config import app_config
 
 FLASK_BCRYPT = Bcrypt()
 db = SQLAlchemy()
 cors = CORS()
+mail = Mail()
 
 def create_app(environment='development'):
 
@@ -25,6 +27,7 @@ def create_app(environment='development'):
 
     db.init_app(app)
     cors.init_app(app)
+    mail.init_app(app)
 
     authorizations = {"Bearer": {"type": "apiKey", "in": "header", "name":"Authorization"}}
 

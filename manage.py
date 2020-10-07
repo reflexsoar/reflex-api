@@ -287,7 +287,9 @@ def create_super_admin(org):
         "create_event_rule": True,
         "update_event_rule": True,
         "delete_event_rule": True,
-        "view_event_rules": True
+        "view_event_rules": True,
+        'upload_case_files': True,
+        'view_case_files': True
     }
     permissions = Permission(**perms)
     permissions.organization = org
@@ -421,7 +423,9 @@ def create_admin(org, email, username):
         "create_event_rule": True,
         "update_event_rule": True,
         "delete_event_rule": True,
-        "view_event_rules": True
+        "view_event_rules": True,
+        'upload_case_files': True,
+        'view_case_files': True
     }
     permissions = Permission(**perms)
     permissions.organization = org
@@ -509,7 +513,9 @@ def create_analyst(org):
         "view_case_tasks": True,
         "update_case_task": True,
         "delete_case_task": True,
-        'view_settings': True
+        'view_settings': True,
+        'upload_case_files': True,
+        'view_case_files': True
     }
 
     permissions = Permission(**perms)

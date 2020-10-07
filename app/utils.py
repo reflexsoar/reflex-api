@@ -81,9 +81,9 @@ def _check_token():
                     current_user = Agent.query.filter_by(uuid=token['uuid']).first()
 
 
-                # Refresh tokens should not be used to access the API
+                # Refresh and Password Reset tokens should not be used to access the API
                 # only to refresh an access token
-                elif 'type' in token and token['type'] == 'refresh':
+                elif 'type' in token and token['type'] in ['refresh','password_reset']:
                     abort(401, 'Unauthorized')
                     
                 # The pairing token can only be used on the add_agent endpoint

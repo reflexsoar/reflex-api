@@ -10,6 +10,7 @@ from sqlalchemy.sql import func, text
 from sqlalchemy.orm import validates
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.hybrid import hybrid_method
+from sqlalchemy.dialects.mysql import LONGTEXT
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -312,6 +313,10 @@ class Permission(Base):
     update_case = db.Column(db.Boolean, default=False)
     delete_case = db.Column(db.Boolean, default=False)
 
+    # Case File Permissions
+    upload_case_files = db.Column(db.Boolean, default=False)
+    view_case_files = db.Column(db.Boolean, default=False)
+
     # Case Template Task Permissions
     create_case_task = db.Column(db.Boolean, default=False)
     view_case_tasks = db.Column(db.Boolean, default=False)
@@ -423,6 +428,7 @@ class Organization(Base):
     settings = db.relationship('GlobalSettings', back_populates='organization')
     user_settings = db.relationship('UserSettings', back_populates='organization')
     tags = db.relationship('Tag', back_populates='organization')
+    files = db.relationship('CaseFile', back_populates='organization')
 
 
 class Role(Base):
@@ -523,6 +529,16 @@ class User(Base):
             if k not in ['_sa_instance_state', 'created_at', 'modified_at', 'created_by', 'modified_by', 'uuid', 'id'] 
             and self.role.permissions.__dict__[k] == True
         ]
+
+    def create_password_reset_token(self, user_agent_string):
+        _token = jwt.encode({
+            'uuid': self.uuid,
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60),
+            'iat': datetime.datetime.utcnow(),
+            'type': 'password_reset'
+        }, current_app.config['SECRET_KEY']).decode('utf-8')
+
+        return _token
 
     def create_refresh_token(self, user_agent_string):
         _refresh_token = jwt.encode({
@@ -647,6 +663,7 @@ class Case(Base):
     close_reason_uuid = db.Column(db.String(255), db.ForeignKey('close_reason.uuid'))
     case_template = db.relationship('CaseTemplate')
     case_template_uuid = db.Column(db.String(255), db.ForeignKey('case_template.uuid'))
+    files = db.relationship('CaseFile')
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work
@@ -678,6 +695,98 @@ class Case(Base):
             self.save()
         if not self._closed:
             self.closed_at = None
+
+
+class CaseFile(Base):
+    """
+    A reference to a file that resides on disk that has been uploaded by a user
+    in relation to an active case
+    """
+
+    filename = db.Column(db.String(255), nullable=False)
+    hash_md5 = db.Column(db.String(255))
+    hash_sha1 = db.Column(db.String(255))
+    hash_sha256 = db.Column(db.String(255))
+    extension = db.Column(db.String(10))
+    mimeType = db.Column(db.String(100))
+    case_uuid = db.Column(db.String(256), db.ForeignKey('case.uuid'))
+    case = db.relationship('Case', back_populates='files')
+
+    # AUDIT COLUMNS
+    # TODO: Figure out how to move this to a mixin, it just doesn't want to work
+    created_by_uuid = db.Column(db.String(255), db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none)
+    updated_by_uuid = db.Column(db.String(255), db.ForeignKey(
+        'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
+    created_by = db.relationship('User', foreign_keys=[created_by_uuid])
+    updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
+    organization = db.relationship('Organization', back_populates='files')
+    organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
+    
+
+    @property
+    def on_disk_name(self):
+        """
+        Returns the name of the file as it is stored on disk
+        sha1_hash + organization_uuid + .extension
+        """
+
+        return self.hash_sha1+"-"+self.organization_uuid+"."+self.extension
+    
+    def load_file(self, filepath):
+        """
+        Loads the file from disk so it can be returned to the user
+        in an API response
+        """
+
+        self.data = open(os.path.join(current_app.config['CASE_FILES_DIRECTORY'],self.on_disk_name),'rb').read()
+
+    def save_to_disk(self, data):
+        """
+        Saves the file to disk using the SHA1 hash of the file
+        as the file name
+        """
+
+        self.data = data
+        self.compute_hashes()
+        with open(os.path.join(current_app.config['CASE_FILES_DIRECTORY'], self.on_disk_name), 'wb') as f:
+            f.write(data)
+
+    def compute_hashes(self):
+        """
+        Computes all the hashes of the file
+        """
+
+        self.compute_md5()
+        self.compute_sha1()
+        self.compute_sha256()
+    
+    def compute_md5(self):
+        """
+        Computes the MD5 value of the files binary data
+        """
+
+        hasher = hashlib.md5()
+        hasher.update(self.data)
+        self.hash_md5 = hasher.hexdigest()
+
+    def compute_sha1(self):
+        """
+        Computes the SHA1 value of the files binary data
+        """
+
+        hasher = hashlib.sha1()
+        hasher.update(self.data)
+        self.hash_sha1 = hasher.hexdigest()
+
+    def compute_sha256(self):
+        """
+        Computes the SHA256 value of the files binary data
+        """
+
+        hasher = hashlib.sha256()
+        hasher.update(self.data)
+        self.hash_sha256 = hasher.hexdigest()
 
 
 class CloseReason(Base):
@@ -1088,7 +1197,7 @@ class Playbook(Base):
 class Plugin(Base):
     name = db.Column(db.String(255), unique=True, nullable=False)
     description = db.Column(db.String(255), nullable=False)
-    logo = db.Column(db.Text)
+    logo = db.Column(LONGTEXT)
     manifest = db.Column(db.JSON, nullable=False)
     config_template = db.Column(db.JSON)
     enabled = db.Column(db.Boolean, default=False)
