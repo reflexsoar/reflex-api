@@ -671,10 +671,16 @@ class UploadCaseFile(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(upload_parser)
-    @api.marshal_with(mod_case_file_upload)
+    @api.marshal_with(mod_case_file, envelope="files")
     @token_required
     @user_has('upload_case_files')
     def post(self, current_user, uuid):
+
+        # Make sure the uploads folder exists
+        upload_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), current_app.config['CASE_FILES_DIRECTORY'])
+        print(upload_dir)
+        if not os.path.exists(upload_dir):
+            os.makedirs(upload_dir)
 
         def allowed_file(filename):
             return '.' in filename and filename.rsplit('.', 1)[1].lower() in current_app.config['CASE_FILE_EXTENSIONS']
@@ -684,10 +690,7 @@ class UploadCaseFile(Resource):
         if 'files' not in request.files:
             ns_plugin.abort(400, 'No file selected.')
 
-        response = {
-            'results': [],
-            'success': True
-        }
+        _files = []
         
         uploaded_files = args['files']
         for uploaded_file in uploaded_files:
@@ -697,27 +700,22 @@ class UploadCaseFile(Resource):
 
             cf = CaseFile.query.filter_by(hash_sha1=hasher.hexdigest()).first()
 
+            # If the file doesn't already exist, upload it
             if not cf:
+                # File name can not be empty
+                if uploaded_file.filename == '':
+                    continue
 
-                try:
-                    if uploaded_file.filename == '':
-                        ns_plugin.abort(400, 'No file selected.')
+                if uploaded_file and allowed_file(uploaded_file.filename):
+                    case_file = CaseFile(filename=uploaded_file.filename, case_uuid=uuid, organization_uuid=current_user().organization_uuid)
+                    case_file.compute_hashes(uploaded_file.read())
+                    case_file.extension = case_file.filename.rsplit('.',1)[1]
+                    case_file.mime_type = uploaded_file.mimetype
+                    case_file.create()
+                    case_file.save_to_disk()
+                    _files.append(case_file)
 
-                    if uploaded_file and allowed_file(uploaded_file.filename):
-                        case_file = CaseFile(filename=uploaded_file.filename, case_uuid=uuid, organization_uuid=current_user().organization_uuid)
-                        case_file.compute_hashes(uploaded_file.read())
-                        case_file.extension = case_file.filename.rsplit('.',1)[1]
-                        case_file.mime_type = uploaded_file.mimetype
-                        case_file.create()
-                        case_file.save_to_disk()
-                        response['results'].append({'uuid': case_file.uuid, 'message': 'Successfully uploaded'})
-                except Exception as e:
-                    response['results'].append({'uuid': None, 'message':'Failed to process file {}, {}'.format(uploaded_file.filename, e)})
-                    response['success'] = False
-            else:
-                response['results'].append({'uuid': cf.uuid, 'message':'File already exists'})
-                response['success'] = False
-            return response
+        return _files
 
 
 @ns_case.route("/<uuid>/add_observables/_bulk")

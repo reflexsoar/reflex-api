@@ -931,7 +931,9 @@ mod_case_file = Model('CaseFile', {
     'hash_md5': fields.String,
     'hash_sha1': fields.String,
     'hash_sha256': fields.String,
-    'mime_type': fields.String
+    'mime_type': fields.String,
+    'created_by': fields.Nested(mod_user_list),
+    'created_at': fields.DateTime
 })
 
 mod_case_file_upload_response = Model('CaseFileUploadResponse', {
