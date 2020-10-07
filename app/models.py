@@ -143,6 +143,10 @@ user_group_association = db.Table('user_group_assignment', db.metadata,
                                             db.ForeignKey('user_group.uuid'))
                                   )
 
+case_to_case = db.Table('case_to_case', db.metadata,
+                         db.Column('parent_case_uuid',  db.String(255), db.ForeignKey('case.uuid')),
+                         db.Column('child_case_uuid', db.String(255), db.ForeignKey('case.uuid')))
+
 # End relationships
 
 
@@ -630,6 +634,12 @@ class Case(Base):
     status = db.relationship("CaseStatus")
     tasks = db.relationship("CaseTask", back_populates='case', cascade='delete, save-update')
     history = db.relationship("CaseHistory", back_populates='case', cascade='delete, save-update')
+    related_cases = db.relationship(
+                'Case',
+                secondary=case_to_case,
+                primaryjoin=('case_to_case.c.parent_case_uuid == Case.uuid'),
+                secondaryjoin=('case_to_case.c.child_case_uuid == Case.uuid'),
+                backref=db.backref('parent_cases'))
     _closed = db.Column(db.Boolean, default=False)
     closed_at = db.Column(db.DateTime)
     close_comment = db.Column(db.Text)

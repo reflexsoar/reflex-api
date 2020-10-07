@@ -884,6 +884,8 @@ class AddEventsToCase(Resource):
         case = Case.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if case:
             response['case'] = case
+
+            new_observables = []
             
             if 'events' in api.payload:
                 for evt in api.payload['events']:
@@ -898,9 +900,8 @@ class AddEventsToCase(Resource):
                             continue
                         try:
                             _event_observables += [observable for observable in event.observables]
-                            new_observables = [observable for observable in _event_observables if observable.value.lower() not in [o.value.lower() for o in case.observables]]
+                            new_observables += [observable for observable in _event_observables if observable.value.lower() not in [o.value.lower() for o in case.observables and o not in new_observables]]
                             event.status = EventStatus.query.filter_by(name='Open', organization_uuid=current_user().organization_uuid).first()
-                            case.observables += new_observables
                             case.events.append(event)
                             case.save()
                             response['results'].append({'reference': evt, 'message': 'Event successfully merged into Case.'})
@@ -910,13 +911,73 @@ class AddEventsToCase(Resource):
                     else:
                         response['results'].append({'reference': evt, 'message': 'Event not found.'})
                         response['success'] = False
-                
+
+                case.observables += new_observables
                 case.save()
                 case.add_history('%s Event(s) were merged into this case' % len([r for r in response['results'] if 'success' in r['message']]))
             return response, 207
                             
         else:
             ns_case.abort(404, 'Case not found.')
+
+
+@ns_case.route('/<uuid>/relate_cases')
+class RelateCases(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_related_case, envelope='related_cases')
+    @api.response(207, 'Success')
+    @api.response(404, 'Case not found.')
+    @token_required
+    @user_has('view_cases')
+    def get(self, current_user, uuid):
+        ''' Returns a list of related cases '''
+        case = Case.query.filter_by(organization_uuid=current_user().organization_uuid, uuid=uuid).first()
+        _cases = []
+        if case:
+            if len(case.related_cases) > 0:
+                _cases += [c for c in case.related_cases]
+            if len(case.parent_cases) > 0:
+                _cases += [c for c in case.parent_cases]
+            return _cases
+
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_case_list)
+    @api.response(207, 'Success')
+    @api.response(404, 'Case not found.')
+    @token_required
+    @user_has('update_case')
+    def put(self, current_user, uuid):
+
+        case = Case.query.filter_by(organization_uuid=current_user().organization_uuid, uuid=uuid).first()
+        if case:
+            if 'cases' in api.payload:
+                _cases = api.payload.pop('cases')
+                for c in _cases:
+                    _case = Case.query.filter_by(organization_uuid=current_user().organization_uuid, uuid=c).all()
+                    if _case not in case.related_cases:
+                        case.related_cases += _case
+                case.save()
+        return case
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_related_case, envelope='related_cases')
+    @api.response(207, 'Success')
+    @api.response(404, 'Case not found.')
+    @token_required
+    @user_has('update_case')
+    def delete(self, current_user, uuid):
+        ''' Unlinks a case or a group of cases '''
+
+        case = Case.query.filter_by(organization_uuid=current_user().organization_uuid, uuid=uuid).first()
+        if case:
+            if 'cases' in api.payload:
+                _cases = api.payload.pop('cases')
+                case.related_cases = [c for c in case.related_cases if c.uuid not in _cases]
+                case.save()
+        _cases =  case.related_cases+case.parent_cases
+        return _cases
 
 
 @ns_case.route('/<uuid>/report')
@@ -990,6 +1051,18 @@ class CaseDetails(Resource):
 
                         value = status.name
                         f = 'status'
+
+                        # If the case is now set to close, close all the events
+                        if(status.closed):
+                            for event in case.events:
+                                event.status = EventStatus.query.filter_by(organization_uuid=current_user().organization_uuid, name='Closed', closed=True).first()
+                                event.save()
+                        
+                        # If the case is being re-opened
+                        if(case.status.closed and not status.closed):
+                            for event in case.events:
+                                event.status = EventStatus.query.filter_by(organization_uuid=current_user().organization_uuid, name='Open', closed=False).first()
+                                event.save()
 
                     elif f == 'severity':
                         value = {1: 'Low', 2: 'Medium', 3: 'High',
@@ -1070,6 +1143,11 @@ class CaseDetails(Resource):
                         case.add_history(message=message)
 
             case.update(api.payload)
+
+
+            
+
+
             return case
         else:
             ns_case.abort(404, 'Case not found.')

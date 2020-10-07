@@ -680,6 +680,16 @@ mod_case_template_brief = Model('CaseTemplateBrief', {
     'title': fields.String,
 })
 
+mod_related_case = Model('RelatedCase', {
+    'id': fields.Integer,
+    'uuid': fields.String,
+    'title': fields.String,
+    'event_count': ValueCount(attribute='events'),
+    'observable_count': ObservableCount(attribute='observables'),
+    'owner': fields.Nested(mod_user_list),
+    'status': fields.Nested(mod_case_status)
+})
+
 mod_case_list = Model('CaseList', {
     'id': fields.String,
     'uuid': fields.String,
@@ -719,6 +729,8 @@ mod_event_short = Model('EventListShort', {
     'case_uuid': fields.String,
     'signature': fields.String,
 })
+
+
 
 mod_case_full = Model('CaseDetails', {
     'id': fields.Integer,
@@ -927,4 +939,4 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_list_list, mod_list_value, mod_list_create, mod_data_type_list, mod_data_type_create,
                  mod_add_events_response, mod_response_message, mod_event_rule_create, mod_event_rule_list,
                  mod_close_reason_create, mod_close_reason_list, mod_case_template_brief, mod_observable_list_paged,
-                 mod_event_bulk_dismiss]
+                 mod_event_bulk_dismiss, mod_related_case]
