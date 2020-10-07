@@ -433,6 +433,12 @@ mod_observable = Model('ObservableDetails', {
     'dataType': fields.Nested(mod_observable_type_name)
 })
 
+mod_observable_brief = Model('ShortObservableDetails', {
+    'uuid': fields.String,
+    'value': fields.String,
+    'dataType': fields.Nested(mod_observable_type_name)
+})
+
 mod_event_list = Model('EventList', {
     'uuid': fields.String,
     'title': fields.String(required=True),
@@ -442,7 +448,7 @@ mod_event_list = Model('EventList', {
     'severity': fields.Integer,
     'status': fields.Nested(mod_event_status),
     'tags': fields.List(fields.Nested(mod_tag_list)),
-    'observables': fields.List(fields.Nested(mod_observable_list)),
+    'observables': fields.List(fields.Nested(mod_observable_brief)),
     'observable_count': ObservableCount(attribute='observables'),
     'ioc_count': IOCCount(attribute='observables'),
     'created_at': fields.DateTime,

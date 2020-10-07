@@ -1008,6 +1008,7 @@ class CaseReport(Resource):
             tasks="\n".join(['### {title}\n{description}\n#### Notes\n {notes}'.format(title=t.title, description=t.description, notes="\n".join(["- {}".format(c) for c in t.notes])) for t in case.tasks])
         )
 
+
 @ns_case.route("/<uuid>")
 class CaseDetails(Resource):
 
