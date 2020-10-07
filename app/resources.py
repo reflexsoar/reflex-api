@@ -1080,6 +1080,39 @@ class RelateCases(Resource):
         return _cases
 
 
+case_file_parser = pager_parser.copy()
+
+@ns_case.route('/<uuid>/files')
+class GetCaseFiles(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_case_file_list)
+    @api.response(207, 'Success')
+    @api.response(404, 'Case not found.')
+    @token_required
+    @user_has('view_cases')
+    def get(self, current_user, uuid):
+        """
+        Returns a list of files associated with a case
+        """
+
+        args = case_file_parser.parse_args()
+
+        if args:
+            base_query = db.session.query(CaseFile).filter_by(case_uuid=uuid)
+            query, pagination = apply_pagination(base_query, page_number=args['page'], page_size=args['page_size'])
+            response = {
+                'files': query.all(),
+                'pagination': {
+                    'total_results': pagination.total_results,
+                    'pages': pagination.num_pages,
+                    'page': pagination.page_number,
+                    'page_size': pagination.page_size
+                }
+            }
+            return response
+
+
 @ns_case.route('/<uuid>/report')
 class CaseReport(Resource):
     
