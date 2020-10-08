@@ -231,7 +231,8 @@ permission_fields = {
     "update_event_rule": fields.Boolean,
     "delete_event_rule": fields.Boolean,
     "upload_case_files": fields.Boolean,
-    "view_case_files": fields.Boolean
+    "view_case_files": fields.Boolean,
+    "delete_case_files": fields.Boolean
 }
 
 

@@ -47,6 +47,7 @@ ns_event = api.namespace(
 ns_event_rule = api.namespace('EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
 ns_case = api.namespace('Case', description='Case operations', path='/case')
 ns_case_history = api.namespace('CaseHistory', description='Case history operations', path='/case_history')
+ns_case_file = api.namespace('CaseFile', description='Case file attachment operations', path='/case_file')
 ns_case_template = api.namespace(
     'CaseTemplate', description='Case Template operations', path='/case_template')
 ns_case_template_task = api.namespace(
@@ -664,6 +665,26 @@ class ObservableDetails(Resource):
             return observable
         else:
             ns_observable.abort(404, 'Observable not found.')
+
+
+@ns_case_file.route("/<uuid>")
+class CaseFileDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('delete_case_files')
+    def delete(self, current_user, uuid):
+        """
+        Removes a case file from the system, cascades and removes the 
+        relationship with the actual case as well
+        """
+
+        case_file = CaseFile.query.filter_by(organization_uuid=current_user().organization_uuid, uuid=uuid).first()
+        if case_file:
+            case_file.delete()
+            return {'message': 'Successfully removed filed'}
+        else:
+            ns_case_file.abort(404, 'Case File not found.')
 
 
 @ns_case.route("/<uuid>/upload_file")

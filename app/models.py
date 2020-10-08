@@ -317,6 +317,7 @@ class Permission(Base):
     # Case File Permissions
     upload_case_files = db.Column(db.Boolean, default=False)
     view_case_files = db.Column(db.Boolean, default=False)
+    delete_case_files = db.Column(db.Boolean, default=False)
 
     # Case Template Task Permissions
     create_case_task = db.Column(db.Boolean, default=False)

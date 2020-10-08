@@ -17,6 +17,7 @@ class Config(object):
 
     CASE_FILES_DIRECTORY = 'uploads/case_files/'
     CASE_FILE_EXTENSIONS = ['txt','doc','docx','zip','xls','xlsx','json','csv']
+    MAX_FILE_SIZE = "51200" # Megabytes
     FILE_OBSERVABLES_DIRECTORY = 'uploads/file_observables/'
 
     CELERY_BROKER_URL = 'redis://localhost:6379'
@@ -40,7 +41,6 @@ class TestingConfig(Config):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PRESERVE_CONTEXT_ON_EXCEPTION = False
     WTF_CSRF_ENABLED = False
-    PRESERVE_CONTEXT_ON_EXCEPTION = False
 
 app_config = {
 	'development': DevelopmentConfig,
