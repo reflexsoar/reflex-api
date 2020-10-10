@@ -1414,6 +1414,7 @@ class CaseTaskDetails(Resource):
     def put(self, uuid, current_user):
         ''' Updates information for a case_task '''
 
+        history_message = None
         settings = GlobalSettings.query.filter_by(organization_uuid=current_user().organization_uuid).first()
         case_task = CaseTask.query.filter_by(
             uuid=uuid, organization_uuid=current_user().organization_uuid).first()
@@ -1443,7 +1444,8 @@ class CaseTaskDetails(Resource):
                     
                 case_task.update(api.payload)
                 case = Case.query.filter_by(uuid=case_task.case_uuid, organization_uuid=current_user().organization_uuid).first()
-                case.add_history(message=history_message.format(case_task.title))
+                if history_message:
+                    case.add_history(message=history_message.format(case_task.title))
                 return case_task
         else:
             ns_case_task.abort(404, 'Case Task not found.')
