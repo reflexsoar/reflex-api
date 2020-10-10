@@ -420,7 +420,8 @@ mod_event_details = Model('EventDetails', {
     'case_uuid': fields.String,
     'created_at': fields.DateTime,
     'modified_at': fields.DateTime,
-    'raw_log': JSONField()
+    'raw_log': JSONField(),
+    'signature': fields.String
 })
 
 mod_event_create_bulk = Model('EventCreateBulk', {

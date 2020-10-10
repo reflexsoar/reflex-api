@@ -973,6 +973,7 @@ class CaseList(Resource):
             # Set the default severity
             case.severity = case_template.severity
             case.tlp = case_template.tlp
+            case.case_template_uuid = case_template_uuid
             case.save()
 
 
@@ -1279,6 +1280,7 @@ class CaseDetails(Resource):
 
                     case_template = CaseTemplate.query.filter_by(uuid=api.payload['case_template_uuid'], organization_uuid=current_user().organization_uuid).first()
                     if case_template:
+
                         # Append the default tags
                         for tag in case_template.tags:
 
@@ -2591,7 +2593,7 @@ event_list_parser.add_argument('status', location='args', default=[], type=str, 
 event_list_parser.add_argument('tags', location='args', default=[], type=str, action='split', required=False)
 event_list_parser.add_argument('observables', location='args', default=[], type=str, action='split', required=False)
 event_list_parser.add_argument('signature', location='args', required=False)
-event_list_parser.add_argument('severity', action='append', location='args', required=False)
+event_list_parser.add_argument('severity', action='split', location='args', required=False)
 event_list_parser.add_argument('grouped', type=xinputs.boolean, location='args', required=False)
 event_list_parser.add_argument('case_uuid', type=str, location='args', required=False)
 event_list_parser.add_argument('search', type=str, location='args', required=False)
@@ -2618,6 +2620,7 @@ class EventList(Resource):
             'op': 'eq',
             'value': current_user().organization_uuid
         }]
+
 
         # Add the signature if we pass it
         if 'signature' in args and args['signature']:
