@@ -953,6 +953,20 @@ mod_case_file_list = Model('CaseFileList', {
     'pagination': JSONField()
 })
 
+mod_case_task_note = Model('CreateTaskNote', {
+    'note': fields.String,
+    'task_uuid': fields.String
+})
+
+mod_case_task_note_complete = Model('TaskNoteDetails', {
+    'uuid': fields.String,
+    'note': fields.String,
+    'task_uuid': fields.String,
+    'created_by': fields.Nested(mod_user_list),
+    'created_at': fields.DateTime,
+    'after_complete': fields.Boolean
+})
+
 
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create_success, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
@@ -978,4 +992,4 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_add_events_response, mod_response_message, mod_event_rule_create, mod_event_rule_list,
                  mod_close_reason_create, mod_close_reason_list, mod_case_template_brief, mod_observable_list_paged,
                  mod_event_bulk_dismiss, mod_related_case, mod_forgot_password, mod_observable_brief, mod_case_file,
-                 mod_case_file_upload, mod_case_file_upload_response, mod_case_file_list]
+                 mod_case_file_upload, mod_case_file_upload_response, mod_case_file_list, mod_case_task_note, mod_case_task_note_complete]

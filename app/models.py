@@ -867,6 +867,7 @@ class TaskNote(Base):
     note = db.Column(db.Text, nullable=False)
     task_uuid = db.Column(db.String(255), db.ForeignKey('case_task.uuid'))
     task = db.relationship('CaseTask', back_populates='notes')
+    after_complete = db.Column(db.Boolean, default=False)
 
     # AUDIT COLUMNS
     # TODO: Figure out how to move this to a mixin, it just doesn't want to work

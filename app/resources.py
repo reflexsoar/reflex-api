@@ -19,7 +19,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc, func
-from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, CaseFile, Credential, CloseReason, Tag, List, ListValue, Permission, Playbook, Event, EventRule, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig, DataType, observable_case_association
+from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, CaseFile, Credential, CloseReason, Tag, List, ListValue, Permission, Playbook, Event, EventRule, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, TaskNote, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig, DataType, observable_case_association
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -59,6 +59,7 @@ ns_case_status = api.namespace(
 ns_case_task = api.namespace(
     'CaseTask', description='Case Task operations', path='/case_task'
 )
+ns_case_task_note = api.namespace('CaseTaskNote', description='Task note operations', path='/task_note')
 ns_observable = api.namespace('Observable', description='Observable operaitons', path='/observable')
 ns_credential = api.namespace(
     'Credential', description='Credential operations', path='/credential')
@@ -1259,11 +1260,12 @@ class CaseDetails(Resource):
                     for task in case.tasks:
 
                         # If any task is already started, don't apply a new template
-                        if task.status != 0:
+                        if task.status != 0 and task.from_template:
                             tasks_started = True
                             break
                         else:
-                            task.delete()
+                            if task.from_template:
+                                task.delete()
 
                     # Remove the tags from the case that were assigned by the 
                     # template
@@ -1463,6 +1465,50 @@ class CaseTaskDetails(Resource):
             case = Case.query.filter_by(uuid=case_task.case_uuid, organization_uuid=current_user().organization_uuid).first()
             case.add_history(message="Task {} deleted".format(case_task.title))
             return {'message': 'Sucessfully deleted case task.'}
+
+
+task_note_parser = api.parser()
+task_note_parser.add_argument('task_uuid', location='args', required=True)
+
+@ns_case_task_note.route("")
+class CaseNoteList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(task_note_parser)
+    @api.marshal_with(mod_case_task_note_complete, as_list=True)
+    @api.response(200, 'Success')
+    @token_required
+    @user_has('view_case_tasks')
+    def get(self, current_user):
+
+        args = task_note_parser.parse_args()
+
+        if args:
+            notes = TaskNote.query.filter_by(task_uuid=args['task_uuid'], organization_uuid=current_user().organization_uuid).order_by(asc(TaskNote.created_at)).all()
+            return notes
+
+    
+    @api.doc(security="Bearer")
+    @api.expect(mod_case_task_note)
+    @api.marshal_with(mod_case_task_note_complete)
+    @api.response(200, 'Success')
+    @token_required
+    @user_has('update_case_task')
+    def post(self, current_user):
+
+        if 'task_uuid' in api.payload:
+            case_task = CaseTask.query.filter_by(uuid=api.payload['task_uuid'], organization_uuid=current_user().organization_uuid).first()
+            if case_task:
+                note = TaskNote(note=api.payload['note'], task=case_task, organization_uuid=current_user().organization_uuid)
+                note.create()
+
+                # If the case task is already complete, mark this note as occurring after
+                # the case was closed
+                if case_task.status == 2:
+                    note.after_complete = True
+                    note.save()
+
+                return note
 
 
 case_template_parser = api.parser()
