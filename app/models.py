@@ -1406,6 +1406,7 @@ class GlobalSettings(Base):
     assign_case_on_create = db.Column(db.Boolean, default=True)
     assign_task_on_start = db.Column(db.Boolean, default=True)
     allow_comment_editing = db.Column(db.Boolean, default=False)
+    events_page_refresh = db.Column(db.Integer, default=60)
 
     def generate_persistent_pairing_token(self):
         '''
