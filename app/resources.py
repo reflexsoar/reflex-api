@@ -658,7 +658,6 @@ class ObservableDetails(Resource):
     @user_has('update_observable')
     def put(self, uuid, current_user):
         ''' Updates information for a observable '''
-        print(api.payload)
         observable = Observable.query.filter_by(
             uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if observable:
@@ -666,6 +665,28 @@ class ObservableDetails(Resource):
             return observable
         else:
             ns_observable.abort(404, 'Observable not found.')
+
+
+@ns_observable.route("/_bulk")
+class BulkObservableDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_bulk_observable_update)
+    @api.marshal_with(mod_observable_list)
+    @token_required
+    @user_has('update_observable')
+    def put(self, current_user):
+        ''' Updates information for multiple observables '''
+        print(api.payload)
+        if 'observables' in api.payload:
+            _observables = []
+            for obs in api.payload.pop('observables'):
+                observable = Observable.query.filter_by(
+                    uuid=obs, organization_uuid=current_user().organization_uuid).first()
+                if observable:
+                    observable.update(api.payload)
+                    _observables.append(observable)
+            return _observables
 
 
 @ns_case_file.route("/<uuid>")

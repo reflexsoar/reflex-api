@@ -967,6 +967,12 @@ mod_case_task_note_complete = Model('TaskNoteDetails', {
     'after_complete': fields.Boolean
 })
 
+mod_bulk_observable_update = Model('BulkUpdateObservables', {
+    'observables': fields.List(fields.String),
+    'ioc': fields.Boolean,
+    'safe': fields.Boolean,
+    'spotted': fields.Boolean
+})
 
 schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_full, mod_user_create_success, mod_user_create,
                  mod_user_list, mod_user_self, mod_role_list, mod_role_create,
@@ -985,7 +991,7 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_user_group_create, mod_user_group_list, mod_add_user_to_group,
                  mod_case_template_create, mod_case_template_full, mod_add_events_to_case,
                  mod_case_template_task_create, mod_case_template_task_full, mod_add_tasks_to_case, mod_comment, mod_comment_create,
-                 mod_case_history, mod_bulk_add_observables, mod_case_observables,
+                 mod_case_history, mod_bulk_add_observables, mod_case_observables, mod_bulk_observable_update,
                  mod_case_status_create, mod_case_status_list, mod_organization_basic,
                  mod_case_task_create, mod_case_task_full, mod_user_role, mod_settings, mod_paged_event_list,
                  mod_list_list, mod_list_value, mod_list_create, mod_data_type_list, mod_data_type_create,
