@@ -3598,38 +3598,40 @@ class ListDetails(Resource):
         ''' Updates a List '''
         value_list = List.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if value_list:
-            if 'name' in api.payload and List.query.filter_by(name=api.payload['name'], organization_uuid=current_user().organization_uuid).first().uuid != uuid:
-                ns_list.abort(409, 'List with that name already exists.')
-            else:
+            
+            if 'name' in api.payload:
+                l =  List.query.filter_by(name=api.payload['name'], organization_uuid=current_user().organization_uuid).first()
+                if l and l.uuid != uuid:
+                    ns_list.abort(409, 'List with that name already exists.')
+                else:
+                    if 'values' in api.payload:
 
-                if 'values' in api.payload:
+                        # Get the current values in the list
+                        current_values = [v.value for v in value_list.values]
 
-                    # Get the current values in the list
-                    current_values = [v.value for v in value_list.values]
+                        # Determine what the new values should be, current, new or removed
+                        _values = api.payload.pop('values')
 
-                    # Determine what the new values should be, current, new or removed
-                    _values = api.payload.pop('values')
+                        # Detect if the user sent it as a list or a \n delimited string
+                        if not isinstance(_values, list):
+                            _values = _values.split('\n')
 
-                    # Detect if the user sent it as a list or a \n delimited string
-                    if not isinstance(_values, list):
-                        _values = _values.split('\n')
+                        removed_values = [v for v in current_values if v not in _values and v != '']
+                        new_values = [v for v in _values if v not in current_values and v != '']
 
-                    removed_values = [v for v in current_values if v not in _values and v != '']
-                    new_values = [v for v in _values if v not in current_values and v != '']
+                        # For all values not in the new list
+                        # delete them from the database and disassociate them 
+                        # from the list
+                        for v in removed_values:
+                            value = ListValue.query.filter_by(value=v, organization_uuid=current_user().organization_uuid, parent_list_uuid=value_list.uuid).first()
+                            value.delete()
 
-                    # For all values not in the new list
-                    # delete them from the database and disassociate them 
-                    # from the list
-                    for v in removed_values:
-                        value = ListValue.query.filter_by(value=v, organization_uuid=current_user().organization_uuid, parent_list_uuid=value_list.uuid).first()
-                        value.delete()
+                        for v in new_values:
+                            value = ListValue(value=v, organization_uuid=current_user().organization_uuid)
+                            value_list.values.append(value)
 
-                    for v in new_values:
-                        value = ListValue(value=v, organization_uuid=current_user().organization_uuid)
-                        value_list.values.append(value)
-
-                value_list.update(api.payload)
-                return value_list
+                    value_list.update(api.payload)
+                    return value_list
         else:
             ns_list.abort(404, 'List not found.')
 

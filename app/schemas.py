@@ -828,7 +828,7 @@ mod_settings = Model('SettingsList', {
     'assign_case_on_create': fields.Boolean,
     'assign_task_on_start': fields.Boolean,
     'allow_comment_editing': fields.Boolean,
-    'events_page_refresh': fields.Boolean
+    'events_page_refresh': fields.Integer
 })
 
 mod_case_metrics = Model('CaseMetrics', {
