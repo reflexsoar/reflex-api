@@ -807,6 +807,7 @@ class CaseBulkAddObservables(Resource):
 observable_parser = pager_parser.copy()
 observable_parser.add_argument('type', location='args', required=False, type=str, action='split')
 observable_parser.add_argument('value', location='args', required=False, type=str, action='split')
+observable_parser.add_argument('search', location='args', required=False, type=str, action='split')
 
 @ns_case.route("/<uuid>/observables")
 class CaseObservableList(Resource):
@@ -845,6 +846,9 @@ class CaseObservableList(Resource):
         
         if args['value'] and len(args['value']) > 0:
             filter_spec.append({'model':'Observable','value': args['value'], 'op':'in', 'field':'value'})
+        
+        if args['search'] and len(args['search']) > 0:
+            filter_spec.append({'model':'Observable', 'value': args['search'], 'op':'in', 'field':'value'})
 
         filtered_query = apply_filters(base_query, filter_spec)
         query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
