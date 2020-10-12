@@ -2,6 +2,12 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python,flask
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,flask
 
+# Databases
+*.db
+app/plugins/*
+app/uploads/case_files/*
+app/uploads/file_observables/*
+
 ### Flask ###
 instance/*
 !instance/.gitignore
