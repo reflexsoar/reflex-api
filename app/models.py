@@ -1085,7 +1085,7 @@ class CaseStatus(Base):
 
 class Observable(Base):
 
-    value = db.Column(db.String(255))
+    value = db.Column(db.Text)
     dataType_id = db.Column(db.String(255), db.ForeignKey('data_type.uuid'))
     dataType = db.relationship("DataType")
     tlp = db.Column(db.Integer)

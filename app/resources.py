@@ -1104,13 +1104,13 @@ class AddEventsToCase(Resource):
                             continue
                         try:
                             _event_observables += [observable for observable in event.observables]
-                            new_observables += [observable for observable in _event_observables if observable.value.lower() not in [o.value.lower() for o in case.observables and o not in new_observables]]
+                            new_observables += [observable for observable in _event_observables if observable.value.lower() not in [o.value.lower() for o in case.observables if o not in new_observables]]
                             event.status = EventStatus.query.filter_by(name='Open', organization_uuid=current_user().organization_uuid).first()
                             case.events.append(event)
                             case.save()
                             response['results'].append({'reference': evt, 'message': 'Event successfully merged into Case.'})
                         except Exception as e:
-                            response['results'].append({'reference': evt, 'message': 'An error occurred while processing event observables.'})
+                            response['results'].append({'reference': evt, 'message': 'An error occurred while processing event observables. {}'.format(e)})
                             response['success'] = False
                     else:
                         response['results'].append({'reference': evt, 'message': 'Event not found.'})

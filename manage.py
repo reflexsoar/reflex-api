@@ -79,6 +79,7 @@ def blacklist_token(token):
     blacklist = AuthTokenBlacklist(auth_token = token)
     blacklist.create()
 
+
 def create_org(name, description):
     print("Creating new organization %s" % name)
     organization = Organization(name=name, description=description)
