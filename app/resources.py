@@ -924,7 +924,10 @@ class CaseList(Resource):
         # can't be used if owner and my_cases filters are applied
         if args['my_tasks']:
             base_query = base_query.join(CaseTask, Case.uuid == CaseTask.case_uuid).join(User, User.uuid == CaseTask.owner_uuid).group_by(Case.id)
-            filter_spec.append({'model':'User', 'op':'eq', 'value':current_user().username, 'field':'username'})
+            filter_spec.append([
+                {'model':'User', 'op':'eq', 'value':current_user().username, 'field':'username'},
+                {'model':'CaseTask', 'op':'ne', 'value':2, 'field':'status'}
+            ])
 
         # If any of the filters have changed
         # apply them
