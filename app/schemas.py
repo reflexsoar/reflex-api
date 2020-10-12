@@ -704,7 +704,7 @@ mod_related_case = Model('RelatedCase', {
     'status': fields.Nested(mod_case_status)
 })
 
-mod_case_list = Model('CaseList', {
+mod_case_details = Model('CaseDetails', {
     'id': fields.String,
     'uuid': fields.String,
     'title': fields.String,
@@ -721,10 +721,36 @@ mod_case_list = Model('CaseList', {
     'modified_at': fields.DateTime,
     'created_by': fields.Nested(mod_user_list),
     'updated_by': fields.Nested(mod_user_list),
-    'observables': fields.List(fields.Nested(mod_observable_list)),
     'observable_count': ValueCount(attribute='observables'),
     'close_reason': fields.Nested(mod_close_reason_list),
     'case_template': fields.Nested(mod_case_template_brief)
+})
+
+mod_case_list = Model('CaseList', {
+    'id': fields.String,
+    'uuid': fields.String,
+    'title': fields.String,
+    'owner': fields.Nested(mod_user_list),
+    'description': fields.String,
+    'tags': fields.List(fields.Nested(mod_tag)),
+    'tlp': fields.Integer,
+    'severity': fields.Integer,
+    'status': fields.Nested(mod_case_status),
+    'event_count': ValueCount(attribute='events'),
+    'open_tasks': OpenTaskCount(attribute='tasks'),
+    'total_tasks': ValueCount(attribute='tasks'),
+    'created_at': fields.DateTime,
+    #'modified_at': fields.DateTime,
+    'created_by': fields.Nested(mod_user_list),
+    #'updated_by': fields.Nested(mod_user_list),
+    'observable_count': ValueCount(attribute='observables'),
+    'close_reason': fields.Nested(mod_close_reason_list),
+    #'case_template': fields.Nested(mod_case_template_brief)
+})
+
+mod_case_paged_list = Model('PagedCaseList', {
+   'cases': fields.List(fields.Nested(mod_case_list)),
+   'pagination': JSONField()
 })
 
 mod_event_short = Model('EventListShort', {
@@ -984,8 +1010,8 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_observable, mod_observable_create, mod_observable_list, mod_observable_type, mod_observable_type_name,
                  mod_event_create, mod_event_details, mod_event_list, mod_credential_list,
                  mod_input_create, mod_input_list, mod_event_create_bulk, mod_event_status,
-                 mod_agent_create, mod_agent_list, mod_agent_role_list, mod_case_close_reason,
-                 mod_case_create, mod_case_status, mod_case_full, mod_case_list,
+                 mod_agent_create, mod_agent_list, mod_agent_role_list, mod_case_close_reason, mod_case_details,
+                 mod_case_create, mod_case_status, mod_case_full, mod_case_list, mod_case_paged_list,
                  mod_plugin_create, mod_plugin_list, mod_api_key, mod_persistent_pairing_token,
                  mod_agent_group_create, mod_agent_group_list, mod_event_short,
                  mod_plugin_config_list, mod_plugin_config_create, mod_plugin_name,

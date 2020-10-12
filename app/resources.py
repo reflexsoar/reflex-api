@@ -13,13 +13,14 @@ from flask_mail import Mail, Message
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from sqlalchemy import or_
-from sqlalchemy_filters import apply_filters, apply_pagination, apply_sort
+from sqlalchemy_filters import apply_filters, apply_pagination, apply_sort, apply_loads
 from flask_socketio import emit
 from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc, func
-from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, CaseFile, Credential, CloseReason, Tag, List, ListValue, Permission, Playbook, Event, EventRule, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, TaskNote, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig, DataType, observable_case_association
+from sqlalchemy.orm import load_only
+from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, CaseFile, Credential, CloseReason, Tag, List, ListValue, Permission, Playbook, Event, EventRule, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, TaskNote, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig, DataType, observable_case_association, case_tag_association
 from .utils import token_required, user_has, _get_current_user, generate_token
 from .schemas import *
 
@@ -180,7 +181,6 @@ class ForgotPassword(Resource):
         if user:
             password_reset_token = user.create_password_reset_token(request.user_agent.string.encode('utf-8'))
             settings = GlobalSettings.query.filter_by(organization_uuid=user.organization_uuid).first()
-            print(settings)
 
             mail_user = Credential.query.filter_by(uuid=settings.email_secret_uuid).first()
             mail_config = {
@@ -196,7 +196,6 @@ class ForgotPassword(Resource):
                 #mail_config['MAIL_USERNAME'] = str(mail_user.username)
                 #mail_config['MAIL_PASSWORD'] = mail_user.decrypt(current_app.config['MASTER_PASSWORD'])
 
-            print(mail_config,password_reset_token)
 
             mail.init_mail(config=mail_config)
             msg = Message('Hello',sender="jonsullpuss@gmail.com",recipients=['bcarroll@zeroonesecurity.com'])
@@ -677,7 +676,7 @@ class BulkObservableDetails(Resource):
     @user_has('update_observable')
     def put(self, current_user):
         ''' Updates information for multiple observables '''
-        print(api.payload)
+        
         if 'observables' in api.payload:
             _observables = []
             for obs in api.payload.pop('observables'):
@@ -721,7 +720,7 @@ class UploadCaseFile(Resource):
 
         # Make sure the uploads folder exists
         upload_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), current_app.config['CASE_FILES_DIRECTORY'])
-        print(upload_dir)
+        
         if not os.path.exists(upload_dir):
             os.makedirs(upload_dir)
 
@@ -869,12 +868,19 @@ class CaseObservableList(Resource):
 
 case_parser = pager_parser.copy()
 case_parser.add_argument('title', location='args', required=False, type=str)
+case_parser.add_argument('status', location='args', required=False, action="split", type=str)
+case_parser.add_argument('severity', location='args', required=False, action="split", type=str)
+case_parser.add_argument('owner', location='args', required=False, action="split", type=str)
+case_parser.add_argument('tag', location='args', required=False, action="split", type=str)
+case_parser.add_argument('search', location='args', required=False, action="split", type=str)
+case_parser.add_argument('my_tasks', location='args', required=False, type=xinputs.boolean)
+case_parser.add_argument('my_cases', location='args', required=False, type=xinputs.boolean)
 
 @ns_case.route("")
 class CaseList(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_case_list, as_list=True)
+    @api.marshal_with(mod_case_paged_list)
     @api.expect(case_parser)
     @token_required
     @user_has('view_cases')
@@ -882,16 +888,63 @@ class CaseList(Resource):
         ''' Returns a list of case '''
 
         args = case_parser.parse_args()
-        if args['title']:
-            cases = Case.query.filter(
-                Case.title.ilike("%"+args['title']+"%"),
-                Case.organization_uuid==current_user().organization_uuid
-            ).paginate(args['page'], args['page_size'], False).items
-        else:
-            cases = Case.query.filter_by(organization_uuid=current_user().organization_uuid).paginate(
-                args['page'], args['page_size'], False).items
 
-        return cases
+
+        base_query = db.session.query(Case)
+
+        filter_spec = []
+        if args['status']:
+            base_query = base_query.join(CaseStatus)
+            filter_spec.append({'model':'CaseStatus', 'op':'in', 'value': args['status'], 'field':'name'})
+
+        if args['severity']:
+            filter_spec.append({'model':'Case', 'op':'in', 'value':args['severity'], 'field':'severity'})
+
+        if args['tag']:
+            base_query = base_query.join(case_tag_association).join(Tag)
+            filter_spec.append({'model':'Tag', 'op':'in', 'value':args['tag'], 'field':'name'})
+
+        if args['title']:
+            filter_spec.append({'model':'Case', 'op':'ilike', 'value':"%"+args['title']+"%", 'field':'title'})
+
+        # Only can be used if my_tasks is not being flagged
+        if (args['owner'] or args['my_cases']) and not args['my_tasks']:
+            base_query = base_query.join(User, User.uuid == Case.owner_uuid)
+
+        # Only can be used if my_tasks is not being flagged
+        if args['my_cases'] and not args['my_tasks'] and not args['owner']:
+            filter_spec.append({'model':'User', 'op':'eq', 'value':current_user().username, 'field':'username'})
+
+        # Only can be used if my_tasks is not being flagged
+        if args['owner'] and not args['my_tasks']:            
+            filter_spec.append({'model':'User', 'op':'in', 'value':args['owner'], 'field':'username'})
+
+        # Redefine the base query if using the my_task filter
+        # we need to relate several tables
+        # can't be used if owner and my_cases filters are applied
+        if args['my_tasks']:
+            base_query = base_query.join(CaseTask, Case.uuid == CaseTask.case_uuid).join(User, User.uuid == CaseTask.owner_uuid).group_by(Case.id)
+            filter_spec.append({'model':'User', 'op':'eq', 'value':current_user().username, 'field':'username'})
+
+        # If any of the filters have changed
+        # apply them
+        if len(filter_spec) > 0:
+            base_query = apply_filters(base_query, filter_spec)
+
+        query, pagination = apply_pagination(base_query, page_number=args['page'], page_size=args['page_size'])
+
+        response = {
+                'cases': query.all(),
+                'pagination': {
+                    'total_results': pagination.total_results,
+                    'pages': pagination.num_pages,
+                    'page': pagination.page_number,
+                    'page_size': pagination.page_size
+                }
+            }
+
+        return response        
+
 
     @api.doc(security="Bearer")
     @api.expect(mod_case_create)
@@ -1194,7 +1247,7 @@ class CaseReport(Resource):
 class CaseDetails(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_case_list)
+    @api.marshal_with(mod_case_details)
     @api.response('200', 'Success')
     @api.response('404', 'Case not found')
     @token_required
@@ -2309,7 +2362,6 @@ class UploadPlugin(Resource):
         plugins = []
 
         args = upload_parser.parse_args()
-        print(args)
 
         def allowed_file(filename):
             return '.' in filename and filename.rsplit('.', 1)[1].lower() in current_app.config['PLUGIN_EXTENSIONS']
@@ -2873,7 +2925,6 @@ class EventBulkUpdate(Resource):
         if 'events' in api.payload:
             for e in api.payload['events']:
                 event = Event.query.filter_by(uuid=e, organization_uuid=current_user().organization_uuid).first()
-                print(event)
                 if event:
                     # If the event has already closed/dismissed, don't update it again
                     if event.status.closed and ('dismiss_reason_uuid' in api.payload or 'dismiss_comment' in api.payload):
@@ -3964,4 +4015,5 @@ class CaseTrend(Resource):
         cases = Case.query.filter_by(organization_uuid=current_user().organization_uuid).group_by(func.strftime('%Y-%m-%d', Case.created_at)).all()
         print(cases)
         return {}
+
 
