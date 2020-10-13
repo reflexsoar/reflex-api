@@ -2988,6 +2988,10 @@ class EventDetails(Resource):
                 event_status = EventStatus.query.filter_by(organization_uuid=current_user().organization_uuid, closed=True).first()
                 api.payload['status'] = event_status
 
+            if 'status' in api.payload and api.payload['status'] == 0:
+                event_status = EventStatus.query.filter_by(organization_uuid=current_user().organization_uuid, closed=False, name='New').first()
+                api.payload['status'] = event_status
+
             event.update(api.payload)
             return event
         else:
