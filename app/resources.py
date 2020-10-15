@@ -1310,8 +1310,11 @@ class CaseDetails(Resource):
                         message = '**Description** updated'
 
                     elif f == 'owner_uuid':
+                        print("WE ARE HERE!")
                         if api.payload['owner_uuid'] == '':
+                            
                             api.payload['owner_uuid'] = None
+                            message = 'Case unassigned'
                         else:
                             owner = User.query.filter_by(
                                 uuid=api.payload['owner_uuid']).first()

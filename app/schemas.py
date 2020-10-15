@@ -749,9 +749,9 @@ mod_case_list = Model('CaseList', {
     'open_tasks': OpenTaskCount(attribute='tasks'),
     'total_tasks': ValueCount(attribute='tasks'),
     'created_at': ISO8601(attribute='created_at'),
-    #'modified_at': ISO8601(attribute='modified_at'),
+    'modified_at': ISO8601(attribute='modified_at'),
     'created_by': fields.Nested(mod_user_list),
-    #'updated_by': fields.Nested(mod_user_list),
+    'updated_by': fields.Nested(mod_user_list),
     'observable_count': ValueCount(attribute='observables'),
     'close_reason': fields.Nested(mod_close_reason_list),
     #'case_template': fields.Nested(mod_case_template_brief)
