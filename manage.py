@@ -491,18 +491,20 @@ def create_agent_role(org):
 def create_default_observable_types(org):
     print("Creating default Observable Types for %s" % org.name)
     dataTypes = [
-        {'name': 'ip', 'description': 'IP Address', 'regex': '/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/'},
+        {'name': 'ip', 'description': 'IP Address', 'regex': r'/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/'},
         {'name': 'domain', 'description': 'A domain name'},
         {'name': 'fqdn', 'description': 'A fully qualified domain name of a host'},
         {'name': 'host', 'description': 'A host name'},
-        {'name': 'email', 'description': 'An e-mail address', 'regex': '/^[a-zA-Z0-9.!#$%&\'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/'},
+        {'name': 'email', 'description': 'An e-mail address', 'regex': r'/^[a-zA-Z0-9.!#$%&\'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/'},
         {'name': 'email_subject', 'description': 'An e-mail subject'},
-        {'name': 'md5hash', 'description': 'A MD5 hash', 'regex': '/[a-f0-9A-F]{32}/'},
-        {'name': 'sha1hash', 'description': 'A SHA1 hash', 'regex': '/[a-f0-9A-F]{40}/'},
-        {'name': 'sha256hash', 'description': 'A SHA256 hash', 'regex': '/[a-f0-9A-F]{64}/'},
+        {'name': 'md5hash', 'description': 'A MD5 hash', 'regex': r'/[a-f0-9A-F]{32}/'},
+        {'name': 'sha1hash', 'description': 'A SHA1 hash', 'regex': r'/[a-f0-9A-F]{40}/'},
+        {'name': 'sha256hash', 'description': 'A SHA256 hash', 'regex': r'/[a-f0-9A-F]{64}/'},
         {'name': 'user', 'description': 'A username'},
         {'name': 'command', 'description': 'A command that was executed'},
-        {'name': 'url', 'description': 'An address to a universal resource', 'regex': '/(http|https)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/'}
+        {'name': 'url', 'description': 'An address to a universal resource', 'regex': r'/(http|https)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/'},
+        {'name': 'imphash', 'description': 'A hash of a binaries import table'},
+        {'name': 'process', 'description': 'A process that was launched on a machine', r'regex':'^([A-Z]?[:\\\/]).*(\.\w{3,})?$'}
     ]
     for d in dataTypes:
         dt = DataType(**d)
