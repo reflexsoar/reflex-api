@@ -38,6 +38,10 @@ class JSONField(fields.Raw):
     def format(self, value):
         return value
 
+class ISO8601(fields.Raw):
+    ''' Returns a Python DateTime object in ISO8601 format with the Zulu time indicator '''
+    def format(self, value):
+        return value.isoformat()+"Z"
 
 # Models
 mod_user_list = Model('UserList', {
@@ -61,7 +65,7 @@ mod_user_full = Model('UserFull', {
     'email': fields.String,
     'first_name': fields.String,
     'last_name': fields.String,
-    'last_logon': fields.DateTime,
+    'last_logon': ISO8601(attribute='last_logon'),
     'locked': fields.Boolean,
     'role': fields.Nested(mod_user_role)
 })
@@ -99,8 +103,8 @@ mod_user_group_list = Model('UserGroupList', {
     'uuid': fields.String,
     'name': fields.String,
     'description': fields.String,
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at'),
     'members': fields.List(fields.Nested(mod_user_list))
 })
 
@@ -418,8 +422,8 @@ mod_event_details = Model('EventDetails', {
     'ioc_count': IOCCount(attribute='observables'),
     'dismiss_reason': fields.Nested(mod_close_reason_list),
     'case_uuid': fields.String,
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at'),
     'raw_log': JSONField(),
     'signature': fields.String
 })
@@ -459,8 +463,8 @@ mod_event_list = Model('EventList', {
     'observables': fields.List(fields.Nested(mod_observable_brief)),
     'observable_count': ObservableCount(attribute='observables'),
     'ioc_count': IOCCount(attribute='observables'),
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at'),
     'case_uuid': fields.String,
     'signature': fields.String,
     'related_events_count': fields.Integer,
@@ -492,8 +496,8 @@ mod_input_list = Model('InputList', {
     'tags': fields.List(fields.Nested(mod_tag_list)),
     'config': JSONField(),
     'field_mapping': JSONField(),
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at')
 })
 
 mod_input_create = Model('CreateInput', {
@@ -518,6 +522,11 @@ mod_agent_group_list = Model('AgentGroupList', {
     'description': fields.String
 })
 
+mod_paged_agent_group_list = Model('PagedAgentGroupList', {
+    'groups': fields.List(fields.Nested(mod_agent_group_list)),
+    'pagination': JSONField()
+})
+
 mod_agent_group_create = Model('AgentGroupList', {
     'uuid': fields.String,
     'name': fields.String,
@@ -539,7 +548,7 @@ mod_agent_list = Model('AgentList', {
     'groups': fields.List(fields.Nested(mod_agent_group_list)),
     'active': fields.Boolean,
     'ip_address': fields.String,
-    'last_heartbeat': fields.DateTime
+    'last_heartbeat': ISO8601(attribute='last_heartbeat')
 })
 
 mod_case_template_task_create = Model('CaseTemplateTaskCreate', {
@@ -556,8 +565,8 @@ mod_case_template_task_full = Model('CaseTemplateTaskList', {
     'title': fields.String,
     'description': fields.String,
     'order': fields.Integer,
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at'),
     'group': fields.Nested(mod_user_group_list),
     'owner': fields.Nested(mod_user_list),
     'case_template_uuid': fields.String,
@@ -578,10 +587,10 @@ mod_case_task_full = Model('CaseTaskList', {
     'title': fields.String,
     'description': fields.String,
     'order': fields.Integer,
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime,
-    'start_date': fields.DateTime,
-    'finish_date': fields.DateTime,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at'),
+    'start_date': ISO8601(attribute='start_date'),
+    'finish_date': ISO8601(attribute='finish_data'),
     'group': fields.Nested(mod_user_group_list),
     'owner': fields.Nested(mod_user_list),
     'case_uuid': fields.String,
@@ -620,7 +629,7 @@ mod_case_template_create = Model('CaseTemplateCreate', {
 
 mod_case_history = Model('CaseHistoryEntry', {
     'message': fields.String,
-    'created_at': fields.DateTime,
+    'created_at': ISO8601(attribute='created_at'),
     'created_by': fields.Nested(mod_user_list)
 })
 
@@ -633,8 +642,8 @@ mod_case_template_full = Model('CaseTemplateList', {
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'status': fields.Nested(mod_event_status),
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at'),
     'tasks': fields.List(fields.Nested(mod_case_template_task_full)),
     'task_count': ValueCount(attribute='tasks')
 })
@@ -671,7 +680,7 @@ mod_comment = Model('CommentDetails', {
     'is_closure_comment': fields.Boolean,
     'closure_reason': fields.Nested(mod_case_close_reason),
     'created_by': fields.Nested(mod_user_list),
-    'created_at': fields.DateTime,
+    'created_at': ISO8601(attribute='created_at'),
     'case_uuid': fields.String
 })
 
@@ -717,8 +726,8 @@ mod_case_details = Model('CaseDetails', {
     'event_count': ValueCount(attribute='events'),
     'open_tasks': OpenTaskCount(attribute='tasks'),
     'total_tasks': ValueCount(attribute='tasks'),
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at'),
     'created_by': fields.Nested(mod_user_list),
     'updated_by': fields.Nested(mod_user_list),
     'observable_count': ValueCount(attribute='observables'),
@@ -739,10 +748,10 @@ mod_case_list = Model('CaseList', {
     'event_count': ValueCount(attribute='events'),
     'open_tasks': OpenTaskCount(attribute='tasks'),
     'total_tasks': ValueCount(attribute='tasks'),
-    'created_at': fields.DateTime,
-    #'modified_at': fields.DateTime,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at'),
     'created_by': fields.Nested(mod_user_list),
-    #'updated_by': fields.Nested(mod_user_list),
+    'updated_by': fields.Nested(mod_user_list),
     'observable_count': ValueCount(attribute='observables'),
     'close_reason': fields.Nested(mod_close_reason_list),
     #'case_template': fields.Nested(mod_case_template_brief)
@@ -764,8 +773,8 @@ mod_event_short = Model('EventListShort', {
     'tags': fields.List(fields.Nested(mod_tag_list)),
     'observable_count': ObservableCount(attribute='observables'),
     'ioc_count': IOCCount(attribute='observables'),
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at'),
     'case_uuid': fields.String,
     'signature': fields.String,
 })
@@ -783,8 +792,8 @@ mod_case_full = Model('CaseDetails', {
     'status': fields.Nested(mod_case_status),
     'event_count': ValueCount(attribute='events'),
     'observable_count': ObservableCount(attribute='observables'),
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at'),
     'created_by': fields.Nested(mod_user_list),
     'updated_by': fields.Nested(mod_user_list),
     'observables': fields.List(fields.Nested(mod_observable_list)),
@@ -808,8 +817,8 @@ mod_plugin_config_list = Model('PluginConfigList', {
     "plugin": fields.Nested(mod_plugin_name),
     "plugin_uuid": fields.String,
     "config": fields.String,
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at')
 
 })
 
@@ -823,8 +832,8 @@ mod_plugin_list = Model('PluginList', {
     "config_template": JSONField,
     "filename": fields.String,
     "file_hash": fields.String,
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at'),
     "configs": fields.List(fields.Nested(mod_plugin_config_list))
 })
 
@@ -854,7 +863,8 @@ mod_settings = Model('SettingsList', {
     'assign_case_on_create': fields.Boolean,
     'assign_task_on_start': fields.Boolean,
     'allow_comment_editing': fields.Boolean,
-    'events_page_refresh': fields.Integer
+    'events_page_refresh': fields.Integer,
+    'events_per_page': fields.Integer
 })
 
 mod_case_metrics = Model('CaseMetrics', {
@@ -882,8 +892,8 @@ mod_list_list = Model('ListView', {
     'values': AsNewLineDelimited(attribute='values'),
     'values_list': fields.List(fields.Nested(mod_list_value), attribute='values'),
     'value_count': ValueCount(attribute='values'),
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at')
 })
 
 mod_list_create = Model('ListCreate', {
@@ -899,8 +909,8 @@ mod_data_type_list = Model('DataTypeList', {
     'name': fields.String,
     'description': fields.String,
     'regex': fields.String,
-    'created_at': fields.DateTime,
-    'modified_at': fields.DateTime
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at')
 })
 
 mod_data_type_create = Model('CreateDataType', {
@@ -948,10 +958,10 @@ mod_event_rule_list = Model('EventRuleList', {
     'expire': fields.Boolean,
     'active': fields.Boolean,
     'observables': fields.List(fields.Nested(mod_observable_list)),
-    'expire_at': fields.DateTime,
-    'created_at': fields.DateTime,
+    'expire_at': ISO8601(attribute='expire_at'),
+    'created_at': ISO8601(attribute='created_at'),
     'created_by': fields.Nested(mod_user_list),
-    'modified_at': fields.DateTime
+    'modified_at': ISO8601(attribute='modified_at')
 })
 
 mod_case_file = Model('CaseFile', {
@@ -962,7 +972,7 @@ mod_case_file = Model('CaseFile', {
     'hash_sha256': fields.String,
     'mime_type': fields.String,
     'created_by': fields.Nested(mod_user_list),
-    'created_at': fields.DateTime
+    'created_at': ISO8601(attribute='created_at')
 })
 
 mod_case_file_upload_response = Model('CaseFileUploadResponse', {
@@ -990,7 +1000,7 @@ mod_case_task_note_complete = Model('TaskNoteDetails', {
     'note': fields.String,
     'task_uuid': fields.String,
     'created_by': fields.Nested(mod_user_list),
-    'created_at': fields.DateTime,
+    'created_at': ISO8601(attribute='created_at'),
     'after_complete': fields.Boolean
 })
 
@@ -1025,4 +1035,5 @@ schema_models = [mod_auth, mod_auth_success_token, mod_refresh_token, mod_user_f
                  mod_add_events_response, mod_response_message, mod_event_rule_create, mod_event_rule_list,
                  mod_close_reason_create, mod_close_reason_list, mod_case_template_brief, mod_observable_list_paged,
                  mod_event_bulk_dismiss, mod_related_case, mod_forgot_password, mod_observable_brief, mod_case_file,
-                 mod_case_file_upload, mod_case_file_upload_response, mod_case_file_list, mod_case_task_note, mod_case_task_note_complete]
+                 mod_case_file_upload, mod_case_file_upload_response, mod_case_file_list, mod_case_task_note, mod_case_task_note_complete,
+                 mod_paged_agent_group_list]
