@@ -193,6 +193,7 @@ class ForgotPassword(Resource):
 
         return {'message':'Initiated password reset sequence if user exists.'}
 
+
 @ns_auth.route("/reset_password/<token>")
 class ResetPassword(Resource):
 
@@ -468,7 +469,17 @@ class UserDetails(Resource):
                         del api.payload['email']
                     else:
                         ns_user.abort(409, 'Email already taken.')
+            
+            if 'password' in api.payload and not current_user().has_right('reset_user_password'):
+                print('not allowed homie')
+                api.payload.pop('password')
+            if 'password' in api.payload and current_user().has_right('reset_user_password'):
+                pw = api.payload.pop('password')
+                user.password = pw
+                user.save()
 
+            print(api.payload)
+            
             user.update(api.payload)
             return user
         else:
