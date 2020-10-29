@@ -2955,8 +2955,30 @@ class EventList(Resource):
             ns_event.abort(409, 'Event already exists.')
 
 
+@ns_event.route("/bulk_delete")
+class EventBulkDelete(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_event_bulk)
+    @token_required
+    @user_has('delete_event')
+    def delete(self, current_user):
+        '''
+        Takes in a list of event uuids and deletes them all
+        '''
+
+        if 'events' in api.payload:
+            for uuid in api.payload['events']:
+                event = Event.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+                if event:
+                    event.delete()
+
+        return {'message': 'Sucessfully deleted events.'}
+
+
 @ns_event.route('/bulk_dismiss')
 class EventBulkUpdate(Resource):
+
     @api.doc(security="Bearer")
     @api.expect(mod_event_bulk_dismiss)
     @api.marshal_with(mod_event_details, as_list=True)
