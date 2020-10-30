@@ -251,6 +251,7 @@ class auth(Resource):
                 request.user_agent.string.encode('utf-8'))
 
             user.last_logon = datetime.datetime.utcnow()
+            user.failed_logons = 0
             user.save()
 
             return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
