@@ -7,6 +7,7 @@
 app/plugins/*
 app/uploads/case_files/*
 app/uploads/file_observables/*
+tmp
 
 ### Flask ###
 instance/*

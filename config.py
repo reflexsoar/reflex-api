@@ -37,7 +37,7 @@ class TestingConfig(Config):
     ENV = "testing"
     TESTING = True
     DEBUG = False
-    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://{}:{}@{}:{}/{}'
+    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://{}:{}@{}:{}/{}-testing'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PRESERVE_CONTEXT_ON_EXCEPTION = False
     WTF_CSRF_ENABLED = False
