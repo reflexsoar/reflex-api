@@ -3306,6 +3306,15 @@ class AgentHeartbeat(Resource):
             agent.save()
             return {'message': 'Your heart still beats!'}
         else:
+            '''
+            If the agent can't be found, revoke the agent token
+            '''
+
+            auth_header = request.headers.get('Authorization')
+            access_token = auth_header.split(' ')[1]
+            token_blacklist = AuthTokenBlacklist(auth_token=access_token)
+            token_blacklist.create()
+            
             ns_agent.abort(400, 'Your heart stopped.')
 
 
