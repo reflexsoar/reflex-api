@@ -1,31 +1,51 @@
-import json
-import unittest
-from flask.testing import FlaskClient
-
-from app import create_app, db
-from app.models import *
-
-class RESTClient(FlaskClient):
-    def open(self, *args, **kwargs):
-        kwargs.setdefault('content_type', 'application/json')
-        return super().open(*args, **kwargs)
+from base_test import BaseTest
 
 
-
-class AuthenticationTests(unittest.TestCase):
-
-    def setUp(self):
-        self.app = create_app('development')
-        self.app.test_client_class = RESTClient
-        self.client = self.app.test_client()
-        ctx = self.app.app_context()
-        ctx.push()
+class AuthenticationTests(BaseTest):
 
     def test_auth(self):
-        body = {
-            'username': 'admin@reflexsoar.com',
-            'password': 'test22'
-        }
-        rv = self.client.post('/api/v1.0/auth/login', data=json.dumps(body))
-
+        
+        rv = self.login()
         self.assertEqual(rv.status_code, 200)
+
+    def test_auth_bad_password(self):
+
+        rv = self.login(password='foobar')
+        self.assertNotEqual(rv.status_code, 200)
+        self.assertEqual(rv.json['message'], 'Incorrect username or password')
+
+    def test_auth_bad_username(self):
+
+        rv = self.login(username='foobar@reflexsoar.com')
+        self.assertNotEqual(rv.status_code, 200)
+        self.assertEqual(rv.json['message'], 'Incorrect username or password')
+
+    def test_whoami(self):
+
+        rv = self.login()
+        rv = self.client.get('/api/v1.0/user/me', headers=self.auth_headers(rv))
+        self.assertEqual(rv.status_code, 200)
+        self.assertEqual(rv.json['email'], 'admin@reflexsoar.com')
+
+    def test_bad_token(self):
+
+        rv = self.client.get('/api/v1.0/user/me', headers=self.bad_headers())
+        self.assertEqual(rv.status_code, 401)
+        self.assertEqual(rv.json['message'], 'Invalid access token.')
+
+    def test_no_auth_token(self):
+
+        rv = self.client.get('/api/v1.0/user/me', headers=self.bad_headers(token=False))
+        self.assertEqual(rv.status_code, 403)
+        self.assertEqual(rv.json['message'], 'Access token required.')
+
+    def test_logout(self):
+
+        rv = self.login()
+        headers = self.auth_headers(rv)
+        rv = self.logout(headers)
+        self.assertEqual(rv.status_code, 200)
+        self.assertEqual(rv.json['message'], 'Successfully logged out.')
+
+
+
