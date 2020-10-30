@@ -2761,6 +2761,7 @@ event_list_parser.add_argument('title', type=str, location='args', action='split
 event_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
 event_list_parser.add_argument('page_size', type=int, location='args', default=5, required=False)
 event_list_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
+event_list_parser.add_argument('sort_desc', type=xinputs.boolean, location='args', default=True, required=False)
 
 @ns_event.route("")
 class EventList(Resource):
@@ -2840,7 +2841,11 @@ class EventList(Resource):
         if args['search'] or (len(args['observables']) > 0 and not '' in args['observables']):
             base_query = base_query.join(observable_event_association).join(Observable)
 
-        base_query = base_query.order_by(desc(getattr(Event,sort_by)))        
+        # Bidirectional sorting
+        if args['sort_desc']:
+            base_query = base_query.order_by(desc(getattr(Event,sort_by)))
+        if not args['sort_desc']:
+            base_query = base_query.order_by(asc(getattr(Event,sort_by)))
 
         # Return the default view of grouped events
         if args['grouped']:
