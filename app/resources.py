@@ -3962,13 +3962,16 @@ class DeletePassword(Resource):
         ''' Updates a credential '''
         credential = Credential.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if credential:
-            if 'name' in api.payload and Credential.query.filter_by(name=api.payload['name']).first():
+            cred = Credential.query.filter_by(name=api.payload['name']).first()
+            if 'name' in api.payload and cred.uuid != uuid:
                 ns_credential.abort(409, 'Credential name already exists.')
             else:
-                credential.encrypt(api.payload['secret'].encode(
-                ), current_app.config['MASTER_PASSWORD'])
-                credential.save()
-                return credential
+                if 'password' in api.payload:
+                    credential.encrypt(api.payload.pop('secret').encode(
+                                        ), current_app.config['MASTER_PASSWORD'])
+            credential.update(api.payload)
+            credential.save()
+            return credential
         else:
             ns_credential.abort(404, 'Credential not found.')
 
