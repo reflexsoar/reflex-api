@@ -3961,16 +3961,18 @@ class DeletePassword(Resource):
     @user_has('update_credential')
     def put(self, uuid, current_user):
         ''' Updates a credential '''
+        print(api.payload)
         credential = Credential.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if credential:
             cred = Credential.query.filter_by(name=api.payload['name']).first()
             if cred:
                 if 'name' in api.payload and cred.uuid != uuid:
                     ns_credential.abort(409, 'Credential name already exists.')
-            else:
-                if 'password' in api.payload:
-                    credential.encrypt(api.payload.pop('secret').encode(
-                                        ), current_app.config['MASTER_PASSWORD'])
+            
+            if 'secret' in api.payload:
+                credential.encrypt(api.payload.pop('secret').encode(
+                                    ), current_app.config['MASTER_PASSWORD'])
+                credential.save()
             credential.update(api.payload)
             credential.save()
             return credential
