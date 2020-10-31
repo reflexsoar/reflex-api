@@ -301,6 +301,7 @@ mod_credential_full = Model('Credential', {
 mod_credential_list = Model('CredentialLIst', {
     'uuid': fields.String,
     'name': fields.String,
+    'username': fields.String,
     'description': fields.String
 })
 
