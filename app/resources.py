@@ -3880,6 +3880,7 @@ class EncryptPassword(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(mod_credential_create)
+    @api.marshal_with(mod_credential_full)
     @api.response('400', 'Successfully created credential.')
     @api.response('409', 'Credential already exists.')
     @token_required
@@ -3893,7 +3894,7 @@ class EncryptPassword(Resource):
             credential.encrypt(api.payload['secret'].encode(
             ), current_app.config['MASTER_PASSWORD'])
             credential.create()
-            return {'message': 'Successfully created credential.', 'uuid': credential.uuid}, 200
+            return credential
         else:
             ns_credential.abort(409, 'Credential already exists.')
 
@@ -3963,8 +3964,9 @@ class DeletePassword(Resource):
         credential = Credential.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
         if credential:
             cred = Credential.query.filter_by(name=api.payload['name']).first()
-            if 'name' in api.payload and cred.uuid != uuid:
-                ns_credential.abort(409, 'Credential name already exists.')
+            if cred:
+                if 'name' in api.payload and cred.uuid != uuid:
+                    ns_credential.abort(409, 'Credential name already exists.')
             else:
                 if 'password' in api.payload:
                     credential.encrypt(api.payload.pop('secret').encode(
