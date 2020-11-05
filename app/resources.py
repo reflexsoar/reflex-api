@@ -2818,7 +2818,6 @@ class EventList(Resource):
             filter_spec.append({
                 'or': [
                     {'model':'Event', 'field':'title', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
-                    #{'model':'Event', 'field':'description', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
                     {'model':'Event', 'field':'reference', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
                     {'model':'Event', 'field':'signature', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
                     {'model':'Observable', 'field':'value', 'op':'ilike', 'value':'%{}%'.format(args['search'])},
