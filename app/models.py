@@ -1060,29 +1060,13 @@ class Event(Base):
         self.save()
         return
 
-    @property
-    def related_events(self):
-        '''
+    def load_related_events(self):
+        ''' 
         Searches the database for all related events
         '''
-        
         events = Event.query.filter_by(signature=self.signature).all()
-        self.__dict__['_related_events'] = [e.uuid for e in events]
-        return self._related_events
-
-    @property
-    def related_events_count(self):
-        '''
-        Returns a count of total related events
-        if not queried yet, query it
-        '''
-
-        if '_related_events' in self.__dict__:
-            return len(self._related_events)
-        else:
-            x = self.related_events
-            return len(self._related_events)
-
+        self.__dict__['new_related_events'] = [e.uuid for e in events if e.status.name == 'New']
+        self.__dict__['related_events_count'] = len(events)
 
 class EventStatus(Base):
 
