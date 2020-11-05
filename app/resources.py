@@ -2761,7 +2761,7 @@ event_list_parser.add_argument('case_uuid', type=str, location='args', required=
 event_list_parser.add_argument('search', type=str, location='args', required=False)
 event_list_parser.add_argument('title', type=str, location='args', action='split', required=False)
 event_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
-event_list_parser.add_argument('page_size', type=int, location='args', default=5, required=False)
+event_list_parser.add_argument('page_size', type=int, location='args', default=10, required=False)
 event_list_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
 event_list_parser.add_argument('sort_desc', type=xinputs.boolean, location='args', default=True, required=False)
 
@@ -2788,7 +2788,7 @@ class EventList(Resource):
 
         # Restrict what fields we can filter by
         sort_by = args['sort_by']
-        if sort_by not in ['created_at','modified_at', 'severity', 'name', 'tlp']:
+        if sort_by not in ['created_at','modified_at', 'severity', 'title', 'tlp']:
             sort_by = 'created_at'
 
         # Add the signature if we pass it
@@ -2848,6 +2848,8 @@ class EventList(Resource):
         if not args['sort_desc']:
             base_query = base_query.order_by(asc(getattr(Event,sort_by)))
 
+        print(base_query)
+
         # Return the default view of grouped events
         if args['grouped']:
             query = base_query.group_by(Event.signature)
@@ -2873,6 +2875,7 @@ class EventList(Resource):
             query = base_query
             filtered_query = apply_filters(query, filter_spec)
             filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
+            print(filtered_query)
             events = filtered_query.all()
             
             response = {
@@ -2890,6 +2893,7 @@ class EventList(Resource):
             query = base_query
             filtered_query = apply_filters(query, filter_spec)
             filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
+            
             events = filtered_query.all()
             response = {
                 'events': events,
@@ -3001,6 +3005,7 @@ class EventBulkUpdate(Resource):
 
         return _events
 
+
 @ns_event.route("/<uuid>")
 class EventDetails(Resource):
 
@@ -3057,6 +3062,35 @@ class EventDetails(Resource):
             event.delete()
             return {'message': 'Sucessfully deleted event.'}
 
+
+@ns_event.route("/<uuid>/new_related_events")
+class EventNewRelatedEvents(Resource): 
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_related_events)
+    @api.response('200', 'Success')
+    @api.response('404', 'Event not found')
+    @token_required
+    @user_has('view_events')
+    def get(self, current_user, uuid):
+        ''' Returns the UUIDs of all related events that are Open '''
+        event = Event.query.filter_by(uuid=uuid, organization_uuid=current_user().organization_uuid).first()
+        if event:
+            query = db.session.query(Event)
+            filter_spec = [
+                {'model':'Event', 'field': 'signature', 'value': event.signature, 'op': 'eq'},
+                {'model':'EventStatus', 'field': 'name', 'value': 'New', 'op': 'eq'}
+            ]
+            load_spec = [{'model':'Event','fields':['uuid']}]
+            filtered_query = apply_filters(query, filter_spec)
+            filtered_query = apply_loads(filtered_query, load_spec)
+            events = filtered_query.all()
+            if events:
+                return {'events': [e.uuid for e in events]}
+            else:
+                return []
+        else:
+            ns_event.abort(404, 'Event not found')
 
 @ns_event_rule.route("")
 class EventRuleList(Resource):
