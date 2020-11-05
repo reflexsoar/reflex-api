@@ -1334,6 +1334,8 @@ class CaseDetails(Resource):
                             for event in case.events:
                                 event.status = EventStatus.query.filter_by(organization_uuid=current_user().organization_uuid, name='Open', closed=False).first()
                                 event.save()
+                                
+                            case.closed = False
 
                     elif f == 'severity':
                         value = {1: 'Low', 2: 'Medium', 3: 'High',
@@ -1419,7 +1421,7 @@ class CaseDetails(Resource):
                         case.add_history(message=message)
 
             case.update(api.payload)
-            
+
             return case
         else:
             ns_case.abort(404, 'Case not found.')
