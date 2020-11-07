@@ -2868,7 +2868,6 @@ class EventList(Resource):
         if args['grouped']:
             query = base_query.group_by(Event.signature)
             filtered_query = apply_filters(query, filter_spec)
-            print(filtered_query)
             filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
             results = filtered_query.all()
             events = []
@@ -3026,7 +3025,7 @@ class EventTestQuery(Resource):
         if args['signature'] and not args['signature'].startswith('!'):
             base_query = db.session.query(Event)
         else:
-            base_query = db.session.query(Event, func.count(distinct(Event.uuid).label('related_events_count'))).outerjoin(EventStatus).group_by(Event.signature)
+            base_query = db.session.query(Event, func.count(distinct(Event.uuid).label('related_events_count'))).group_by(Event.signature)
 
         # User filters
         user_filters = [

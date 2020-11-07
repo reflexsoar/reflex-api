@@ -475,7 +475,7 @@ mod_event_list = Model('EventList', {
     'severity': fields.Integer,
     'status': fields.Nested(mod_event_status),
     'source': fields.String,
-    'tags': fields.List(fields.Nested(mod_tag_list)),
+    #'tags': fields.List(fields.Nested(mod_tag_list)),
     'observables': fields.List(fields.Nested(mod_observable_brief)),
     'observable_count': ObservableCount(attribute='observables'),
     'ioc_count': IOCCount(attribute='observables'),
@@ -484,7 +484,7 @@ mod_event_list = Model('EventList', {
     'case_uuid': fields.String,
     'signature': fields.String,
     'related_events_count': fields.Integer,
-    'dismiss_reason': fields.Nested(mod_close_reason_list)
+    #'dismiss_reason': fields.Nested(mod_close_reason_list)
 })
 
 mod_related_events = Model('RelatedEvents', {

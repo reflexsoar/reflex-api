@@ -1026,9 +1026,9 @@ class Event(Base):
     tlp = db.Column(db.Integer, default=2)
     severity = db.Column(db.Integer, default=2)
     status_id = db.Column(db.String(255), db.ForeignKey('event_status.uuid'))
-    status = db.relationship("EventStatus")
+    status = db.relationship("EventStatus", lazy='joined')
     observables = db.relationship(
-        'Observable', secondary=observable_event_association)
+        'Observable', secondary=observable_event_association, lazy="joined")
     tags = db.relationship('Tag', secondary=event_tag_association)
     case_uuid = db.Column(db.String(255), db.ForeignKey('case.uuid'))
     case = db.relationship('Case', back_populates='events')
