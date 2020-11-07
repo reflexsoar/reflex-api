@@ -974,7 +974,7 @@ class EventRule(Base):
 
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
-    event_signature = db.Column(db.String(255)) # The hash of the original event this rule was created against
+    event_signature = db.Column(db.String(255)) # The title of the event that this was created from
     rule_signature = db.Column(db.String(255)) # A hash of the title + user customized observable values
     target_case_uuid = db.Column(db.String(255)) # The target case to merge this into if merge into case is selected
     observables = db.relationship('Observable', secondary=observable_event_rule_association)
@@ -1010,8 +1010,11 @@ class EventRule(Base):
     def hash_target_observables(self, target_observables):
         hasher = hashlib.md5()
         obs = []
+        expected_observables = [{'dataType':obs.dataType.name.lower(), 'value':obs.value} for obs in self.observables]
         for observable in target_observables:
-            obs.append({'dataType': observable.dataType.name.lower(), 'value': observable.value.lower()})
+            obs_dict = {'dataType': observable.dataType.name.lower(), 'value': observable.value.lower()}
+            if obs_dict in expected_observables:
+                obs.append(obs_dict)
         obs = [dict(t) for t in {tuple(d.items()) for d in obs}] # Deduplicate the observables
         obs = sorted(sorted(obs, key = lambda i: i['dataType']), key = lambda i: i['value'])             
         hasher.update(str(obs).encode())

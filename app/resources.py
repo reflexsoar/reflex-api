@@ -2714,7 +2714,7 @@ class CreateBulkEvents(Resource):
                 event.hash_event()
 
                 # Process event rules against the new event
-                event_rules = EventRule.query.filter_by(organization_uuid=current_user().organization_uuid, event_signature=event.signature, active=True).all()
+                event_rules = EventRule.query.filter_by(organization_uuid=current_user().organization_uuid, event_signature=event.title, active=True).all()
                 if event_rules:
                     for rule in event_rules:
                         # Kill switch for if the rule is about to run but the expiration is set
@@ -2725,6 +2725,7 @@ class CreateBulkEvents(Resource):
 
                         # Check to make sure the observables match what the analyst has assigned to the rule
                         # if not skip this item
+                        print(rule.hash_target_observables(event.observables))
                         if rule.hash_target_observables(event.observables) == rule.rule_signature:
                             if rule.merge_into_case:
                                 add_event_to_case(rule.target_case_uuid, event.uuid, current_user().organization_uuid)
