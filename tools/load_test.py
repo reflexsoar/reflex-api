@@ -293,7 +293,8 @@ def random_event():
 
 
 events = []
-for i in range(0,50):
+for _ in range(1000):
+  for i in range(0,100):
     events.append(random_event())
-print("Sending {} events...".format(len(events)))
-bulk(events)
+  print("Sending {} events...".format(len(events)))
+  bulk(events)
