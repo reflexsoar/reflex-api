@@ -3105,9 +3105,41 @@ class EventBulkUpdate(Resource):
     @user_has('update_event')
     def put(self, current_user):
         ''' Dismisses multiple events at the same time with the same dismiss reason and comment '''
+        
+
+        # Get the dismissal reason if provided, if not abort, there needs to be one
+        if 'dismiss_reason_uuid' in api.payload:
+            event_status = EventStatus.query.filter_by(organization_uuid=current_user().organization_uuid, closed=True).first().uuid
+        else:
+            ns_event.abort(400, 'A dismissal reason is required.')
+
         _events = []
+
         if 'events' in api.payload:
-            for e in api.payload['events']:
+
+            event_pks = [e.id for e in Event.query.filter(Event.uuid.in_(api.payload['events'])).options(load_only('id')).all()]
+            
+            for e in event_pks:
+                
+                _events.append({
+                    'id': e,
+                    'status_id': event_status,
+                    'dismiss_reason_uuid': api.payload['dismiss_reason_uuid'],
+                    'dismiss_comment': api.payload['dismiss_comment']
+                })
+            
+
+                if len(_events) > 100:
+                    db.session.bulk_update_mappings(Event, _events)
+                    db.session.flush()
+                    db.session.commit()
+                    _events.clear()
+
+            print(_events)
+            db.session.bulk_update_mappings(Event, _events)
+            db.session.commit()
+                
+            """
                 event = Event.query.filter_by(uuid=e, organization_uuid=current_user().organization_uuid).first()
                 if event:
                     # If the event has already closed/dismissed, don't update it again
@@ -3115,18 +3147,16 @@ class EventBulkUpdate(Resource):
                         if event.close_reason:
                             api.payload.pop('dismiss_reason_uuid')
                             api.payload.pop('dismiss_comment')
-
-                    if 'dismiss_reason_uuid' in api.payload:
-                        event_status = EventStatus.query.filter_by(organization_uuid=current_user().organization_uuid, closed=True).first()
+                        
                         api.payload['status'] = event_status
 
                     # Update the event
                     event.update(api.payload)
 
                     # Add it to a list so we can return it back for display refresh
-                    _events.append(event)
+                    _events.append(event)"""
 
-        return _events
+        return {}
 
 
 @ns_event.route("/<uuid>")
