@@ -2701,17 +2701,16 @@ class CreateBulkEvents(Resource):
                 event.create()
 
                 event.status = event_status
-                event.save()
 
                 if len(_tags) > 0:
                     event.tags += _tags
-                    event.save()
 
                 if len(_observables) > 0:
                     event.observables += _observables
-                    event.save()
 
                 event.hash_event()
+
+                event.save()
 
                 # Process event rules against the new event
                 event_rules = EventRule.query.filter_by(organization_uuid=current_user().organization_uuid, event_signature=event.title, active=True).all()
