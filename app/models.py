@@ -1036,7 +1036,7 @@ class Event(Base):
     signature = db.Column(db.String(255))
     source = db.Column(db.String(255))
     dismiss_reason_uuid = db.Column(db.String(255), db.ForeignKey('close_reason.uuid'))
-    dismiss_reason = db.relationship('CloseReason')
+    dismiss_reason = db.relationship('CloseReason', lazy="joined")
     dismiss_comment = db.Column(db.Text)
     organization = db.relationship('Organization', back_populates='events')
     organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))

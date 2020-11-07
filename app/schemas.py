@@ -476,15 +476,15 @@ mod_event_list = Model('EventList', {
     'status': fields.Nested(mod_event_status),
     'source': fields.String,
     #'tags': fields.List(fields.Nested(mod_tag_list)),
-    'observables': fields.List(fields.Nested(mod_observable_brief)),
-    'observable_count': ObservableCount(attribute='observables'),
-    'ioc_count': IOCCount(attribute='observables'),
+    #'observables': fields.List(fields.Nested(mod_observable_brief)),
+    #'observable_count': ObservableCount(attribute='observables'),
+    #'ioc_count': IOCCount(attribute='observables'),
     'created_at': ISO8601(attribute='created_at'),
     'modified_at': ISO8601(attribute='modified_at'),
     'case_uuid': fields.String,
     'signature': fields.String,
     'related_events_count': fields.Integer,
-    #'dismiss_reason': fields.Nested(mod_close_reason_list)
+    'dismiss_reason': fields.Nested(mod_close_reason_list)
 })
 
 mod_related_events = Model('RelatedEvents', {
