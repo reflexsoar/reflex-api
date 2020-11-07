@@ -660,7 +660,7 @@ class Case(Base):
     tlp = db.Column(db.Integer, default=2)
     observables = db.relationship(
         'Observable', secondary=observable_case_association, cascade='delete, save-update')
-    events = db.relationship('Event', back_populates='case')
+    events = db.relationship('Event', back_populates='case', lazy="joined")
     tags = db.relationship('Tag', secondary=case_tag_association)
     status_uuid = db.Column(db.String(255), db.ForeignKey('case_status.uuid'))
     status = db.relationship("CaseStatus")
@@ -1026,7 +1026,7 @@ class Event(Base):
     tlp = db.Column(db.Integer, default=2)
     severity = db.Column(db.Integer, default=2)
     status_id = db.Column(db.String(255), db.ForeignKey('event_status.uuid'))
-    status = db.relationship("EventStatus", lazy='joined')
+    status = db.relationship("EventStatus", lazy="joined")
     observables = db.relationship(
         'Observable', secondary=observable_event_association, lazy="joined")
     tags = db.relationship('Tag', secondary=event_tag_association, lazy="joined")
@@ -1036,7 +1036,7 @@ class Event(Base):
     signature = db.Column(db.String(255))
     source = db.Column(db.String(255))
     dismiss_reason_uuid = db.Column(db.String(255), db.ForeignKey('close_reason.uuid'))
-    dismiss_reason = db.relationship('CloseReason', lazy="joined")
+    dismiss_reason = db.relationship('CloseReason')
     dismiss_comment = db.Column(db.Text)
     organization = db.relationship('Organization', back_populates='events')
     organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
@@ -1102,7 +1102,7 @@ class Observable(Base):
 
     value = db.Column(db.Text)
     dataType_id = db.Column(db.String(255), db.ForeignKey('data_type.uuid'))
-    dataType = db.relationship("DataType")
+    dataType = db.relationship("DataType", lazy="joined")
     tlp = db.Column(db.Integer)
     tags = db.relationship('Tag', secondary=observable_tag_association)
     ioc = db.Column(db.Boolean, default=False)
