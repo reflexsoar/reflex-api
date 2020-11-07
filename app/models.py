@@ -1029,7 +1029,7 @@ class Event(Base):
     status = db.relationship("EventStatus", lazy='joined')
     observables = db.relationship(
         'Observable', secondary=observable_event_association, lazy="joined")
-    tags = db.relationship('Tag', secondary=event_tag_association)
+    tags = db.relationship('Tag', secondary=event_tag_association, lazy="joined")
     case_uuid = db.Column(db.String(255), db.ForeignKey('case.uuid'))
     case = db.relationship('Case', back_populates='events')
     raw_log = db.Column(db.JSON)
