@@ -48,9 +48,6 @@ def user_has(permission):
 
     def decorator(f):
         def wrapper(*args, **kwargs):
-            print("!!! RUNNING USER_HAS")
-            print(args[0].__dict__)
-            print(kwargs)
             if(current_app.config['PERMISSIONS_DISABLED']):
                 return f(*args, **kwargs)
             current_user = kwargs['current_user']
@@ -136,10 +133,9 @@ def _check_token():
                     current_user = token
                 else:
                     try:
-                        print("!!!! LOADED USER FROM TOKEN")
                         current_user = User.query.filter_by(uuid=token['uuid']).options(joinedload(User.role), joinedload(User.organization), load_only(User.uuid, User.first_name, User.last_name, User.email, User.username, User.locked)).first()
                     except Exception as e:
-                        print(e)
+                        abort(401, 'Unknown user error.')
 
                     # If the user is currently locked
                     # reject the accesss_token and expire it
@@ -163,7 +159,6 @@ def _check_token():
             raise jwt.InvalidTokenError
     else:
         abort(403, 'Access token required.')
-    print("!!!!", current_user)
     return current_user
 
 

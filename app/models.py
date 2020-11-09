@@ -515,6 +515,7 @@ class User(Base):
         self.save()
         return {'api_key': self.api_key}
 
+
     def create_access_token(self):
         _access_token = jwt.encode({
             'uuid': self.uuid,
@@ -585,11 +586,6 @@ class User(Base):
         raise NotImplementedError
 
     def has_right(self, permission):
-
-        perm = {}
-        perm[permission] = True
-
-        print("!!! PERMISSION CHECK")
 
         if getattr(self.role.permissions,permission):
             return True
@@ -1141,17 +1137,8 @@ class Agent(Base):
 
     def has_right(self, permission):
 
-        perm = {}
-        perm[permission] = True
-
-        role = Role.query.filter_by(uuid=self.role_uuid).first()
-        if role:
-            permission = Permission.query.filter_by(
-                **perm, uuid=role.permissions_uuid).first()
-            if permission:
-                return True
-            else:
-                return False
+        if getattr(self.role.permissions,permission):
+            return True
         else:
             return False
 

@@ -215,7 +215,6 @@ class ResetPassword(Resource):
                         expired_token.create()
                         return {'message':'Password successfully changed.'}
                     except Exception as e:
-                        print(e)
                         ns_auth.abort(400, 'An error occured while trying to reset the users password.')
                 else:
                     ns_auth.abort(400, 'A new password is required.')
@@ -471,14 +470,11 @@ class UserDetails(Resource):
                         ns_user.abort(409, 'Email already taken.')
             
             if 'password' in api.payload and not current_user.has_right('reset_user_password'):
-                print('not allowed homie')
                 api.payload.pop('password')
             if 'password' in api.payload and current_user.has_right('reset_user_password'):
                 pw = api.payload.pop('password')
                 user.password = pw
                 user.save()
-
-            print(api.payload)
             
             user.update(api.payload)
             return user
@@ -1344,7 +1340,6 @@ class CaseDetails(Resource):
                         message = '**Description** updated'
 
                     elif f == 'owner_uuid':
-                        print("WE ARE HERE!")
                         if api.payload['owner_uuid'] == '':
                             
                             api.payload['owner_uuid'] = None
@@ -2723,7 +2718,6 @@ class CreateBulkEvents(Resource):
 
                         # Check to make sure the observables match what the analyst has assigned to the rule
                         # if not skip this item
-                        print(rule.hash_target_observables(event.observables))
                         if rule.hash_target_observables(event.observables) == rule.rule_signature:
                             if rule.merge_into_case:
                                 add_event_to_case(rule.target_case_uuid, event.uuid, current_user.organization.uuid)
@@ -2757,7 +2751,7 @@ event_list_parser.add_argument('signature', location='args', required=False)
 event_list_parser.add_argument('severity', action='split', location='args', required=False)
 event_list_parser.add_argument('grouped', type=xinputs.boolean, location='args', required=False)
 event_list_parser.add_argument('case_uuid', type=str, location='args', required=False)
-event_list_parser.add_argument('search', type=str, action='split', location='args', required=False)
+event_list_parser.add_argument('search', type=str, action='split', default=[], location='args', required=False)
 event_list_parser.add_argument('title', type=str, location='args', action='split', required=False)
 event_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
 event_list_parser.add_argument('page_size', type=int, location='args', default=10, required=False)
@@ -2776,7 +2770,6 @@ class EventList(Resource):
         ''' Returns a list of event '''
 
         args = event_list_parser.parse_args()
-        print(current_user)
 
         # The default filter specification
         filter_spec = [{
@@ -2819,7 +2812,11 @@ class EventList(Resource):
         if args['case_uuid']:
             filter_spec.append({'model':'Event', 'field':'case_uuid', 'op':'eq', 'value': args['case_uuid']})
 
-        if args['search'] and args['search'] != '':
+        # Filter out blank searches
+        if len(args['search']) > 0:
+            args['search'] = [s for s in args['search'] if s not in ['']]
+
+        if len(args['search']) > 0:
             searches = {
                 'or': []
             }
@@ -2827,10 +2824,9 @@ class EventList(Resource):
                 searches['or'].append({
                     'or': [
                         {'model':'Event', 'field':'title', 'op':'ilike', 'value':'%{}%'.format(s)},
+                        {'model':'Event', 'field':'description', 'op':'ilike', 'value':'%{}%'.format(s)},
                         {'model':'Event', 'field':'reference', 'op':'ilike', 'value':'%{}%'.format(s)},
-                        {'model':'Event', 'field':'signature', 'op':'ilike', 'value':'%{}%'.format(s)},
-                        {'model':'Observable', 'field':'value', 'op':'ilike', 'value':'%{}%'.format(s)},
-                        {'model':'Tag', 'field':'name', 'op':'ilike', 'value':'%{}%'.format(s)}
+                        {'model':'Event', 'field':'signature', 'op':'ilike', 'value':'%{}%'.format(s)}
                     ]
                 })
             filter_spec.append(searches)
@@ -2850,14 +2846,8 @@ class EventList(Resource):
             base_query = db.session.query(Event,func.count(distinct(Event.uuid)).label('_related_events_count')).options(joinedload(Event.tags), joinedload(Event.status), joinedload(Event.observables), joinedload(Event.dismiss_reason))
 
         if args['signature']:
-            base_query = db.session.query(Event)
+            base_query = db.session.query(Event).options(joinedload(Event.tags), joinedload(Event.status), joinedload(Event.observables), joinedload(Event.dismiss_reason))
         
-        if args['search'] or (len(args['tags']) > 0 and not '' in args['tags']):
-            base_query = base_query.join(event_tag_association).join(Tag)
-            
-        if args['search'] or (len(args['observables']) > 0 and not '' in args['observables']):
-            base_query = base_query.join(observable_event_association).join(Observable)
-
         # Bidirectional sorting
         if args['sort_desc']:
             base_query = base_query.order_by(desc(getattr(Event,sort_by)))
@@ -2950,7 +2940,7 @@ class EventList(Resource):
         event = Event.query.filter_by(
             reference=api.payload['reference']).first()
         if not event:
-            if 'tags' in api.payload:
+            if 'tags' in api.payload: 
                 tags = api.payload.pop('tags')
                 _tags = parse_tags(tags, current_user.organization.uuid)
 
@@ -3006,8 +2996,6 @@ class EventTestQuery(Resource):
 
         from sqlakeyset import get_page
 
-        start = datetime.datetime.utcnow().timestamp()
-
         # Parse the arguments
         args = test_parser.parse_args()
 
@@ -3027,7 +3015,7 @@ class EventTestQuery(Resource):
 
         # change the query if we are doing an event signature deep dive
         if args['signature'] and not args['signature'].startswith('!'):
-            base_query = db.session.query(Event).options(load_only(Event.id,Event.uuid,Event.title,Event.reference,Event.description,Event.tlp,Event.severity,Event.source,Event.tags,Event.observables,Event.created_at,Event.modified_at,Event.case_uuid,Event.signature), joinedload(Event.tags), joinedload(Event.status), joinedload(Event.observables), joinedload(Event.dismiss_reason))
+            base_query = db.session.query(Event).options(load_only(Event.id,Event.uuid,Event.title,Event.reference,Event.description,Event.tlp,Event.severity,Event.source,Event.created_at,Event.modified_at,Event.case_uuid,Event.signature), joinedload(Event.tags), joinedload(Event.status), joinedload(Event.observables), joinedload(Event.dismiss_reason))
         else:
             base_query = db.session.query(Event, func.count(distinct(Event.uuid).label('related_events_count'))).options(load_only(Event.id,Event.uuid,Event.title,Event.reference,Event.description,Event.tlp,Event.severity,Event.source,Event.created_at,Event.modified_at,Event.case_uuid,Event.signature), joinedload(Event.tags), joinedload(Event.status), joinedload(Event.observables), joinedload(Event.dismiss_reason)).group_by(Event.signature)
 
@@ -3049,8 +3037,6 @@ class EventTestQuery(Resource):
         else:
             base_query = base_query.order_by(getattr(Event,args['sort_by']).desc(), Event.id)
 
-        query_end = datetime.datetime.utcnow().timestamp()
-        print("Query Time: {}".format(query_end - query_start))
         page = get_page(base_query, per_page=args['limit'], page=bookmark)
 
         if args['signature'] and not args['signature'].startswith('!'):
@@ -3070,10 +3056,7 @@ class EventTestQuery(Resource):
                 'next': next_bookmark,
                 'previous': prev_bookmark
             }
-        }        
-
-        end = datetime.datetime.utcnow().timestamp()
-        print("Request End: {}".format(end-start))
+        }
         
         return response
 
@@ -3138,7 +3121,6 @@ class EventBulkUpdate(Resource):
                     db.session.commit()
                     _events.clear()
 
-            print(_events)
             db.session.bulk_update_mappings(Event, _events)
             db.session.commit()
                 
@@ -4140,7 +4122,6 @@ class DeletePassword(Resource):
     @user_has('update_credential')
     def put(self, uuid, current_user):
         ''' Updates a credential '''
-        print(api.payload)
         credential = Credential.query.filter_by(uuid=uuid, organization_uuid=current_user.organization.uuid).first()
         if credential:
             cred = Credential.query.filter_by(name=api.payload['name']).first()
@@ -4304,7 +4285,6 @@ class CaseTrend(Resource):
     @token_required
     def get(self, current_user):
         cases = Case.query.filter_by(organization_uuid=current_user.organization.uuid).group_by(func.strftime('%Y-%m-%d', Case.created_at)).all()
-        print(cases)
         return {}
 
 
