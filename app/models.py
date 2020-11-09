@@ -7,8 +7,9 @@ import base64
 import os
 from flask import current_app, request
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import func, select
 from sqlalchemy.sql import func, text
-from sqlalchemy.orm import validates
+from sqlalchemy.orm import validates, column_property
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.hybrid import hybrid_method
 from sqlalchemy.dialects.mysql import LONGTEXT
@@ -1025,17 +1026,17 @@ class Event(Base):
     tlp = db.Column(db.Integer, default=2)
     severity = db.Column(db.Integer, default=2)
     status_id = db.Column(db.String(255), db.ForeignKey('event_status.uuid'))
-    status = db.relationship("EventStatus", lazy="joined")
+    status = db.relationship("EventStatus")
     observables = db.relationship(
-        'Observable', secondary=observable_event_association, lazy="joined")
-    tags = db.relationship('Tag', secondary=event_tag_association, lazy="joined")
+        'Observable', secondary=observable_event_association)
+    tags = db.relationship('Tag', secondary=event_tag_association)
     case_uuid = db.Column(db.String(255), db.ForeignKey('case.uuid'))
     case = db.relationship('Case', back_populates='events')
     raw_log = db.Column(db.JSON)
     signature = db.Column(db.String(255))
     source = db.Column(db.String(255))
     dismiss_reason_uuid = db.Column(db.String(255), db.ForeignKey('close_reason.uuid'))
-    dismiss_reason = db.relationship('CloseReason', lazy='joined')
+    dismiss_reason = db.relationship('CloseReason')
     dismiss_comment = db.Column(db.Text)
     organization = db.relationship('Organization', back_populates='events')
     organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
@@ -1045,7 +1046,7 @@ class Event(Base):
         'user.uuid'), default=_current_user_id_or_none, onupdate=_current_user_id_or_none)
     created_by = db.relationship('User', foreign_keys=[created_by_uuid])
     updated_by = db.relationship('User', foreign_keys=[updated_by_uuid])
-
+    
     def hash_event(self, data_types=['host','user']):
         hasher = hashlib.md5()
         hasher.update(self.title.encode())
@@ -1059,6 +1060,8 @@ class Event(Base):
         self.signature = hasher.hexdigest()
         self.save()
         return
+
+    
         
 
 class EventStatus(Base):

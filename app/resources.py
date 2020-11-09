@@ -21,7 +21,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import desc, asc, func, case, distinct
-from sqlalchemy.orm import load_only
+from sqlalchemy.orm import load_only, joinedload
 from .models import User, UserGroup, db, RefreshToken, GlobalSettings, AuthTokenBlacklist, Role, CaseFile, Credential, CloseReason, Tag, List, ListValue, Permission, Playbook, Event, EventRule, Observable, DataType, Input, EventStatus, Agent, AgentRole, AgentGroup, Case, CaseTask, TaskNote, CaseHistory, CaseTemplate, CaseTemplateTask, CaseComment, CaseStatus, Plugin, PluginConfig, DataType, observable_case_association, case_tag_association
 from .utils import token_required, user_has, _get_current_user, generate_token, send_email, check_password_reset_token, build_search_filters
 from .schemas import *
@@ -2768,7 +2768,7 @@ event_list_parser.add_argument('sort_desc', type=xinputs.boolean, location='args
 class EventList(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_paged_event_list, as_list=True)
+    @api.marshal_with(mod_paged_event_list)
     @api.expect(event_list_parser)
     @token_required
     @user_has('view_events')
@@ -2778,7 +2778,6 @@ class EventList(Resource):
         args = event_list_parser.parse_args()
         print(current_user)
 
-        print("!!!!! CALLED CURRENT_USER().organization_uuid")
         # The default filter specification
         filter_spec = [{
             'model':'Event',
@@ -2786,8 +2785,6 @@ class EventList(Resource):
             'op': 'eq',
             'value': current_user.organization.uuid
         }]
-
-        print("!!!!! CALLED ORGANIZATION_UUID")
 
         # Restrict what fields we can filter by
         sort_by = args['sort_by']
@@ -2847,10 +2844,10 @@ class EventList(Resource):
 
         # Import our association tables, many-to-many doesn't have parent/child keys
         from .models import event_tag_association, observable_event_association
-        base_query = db.session.query(Event,func.count(distinct(Event.uuid)).label('_related_events_count'))
+        base_query = db.session.query(Event,func.count(distinct(Event.uuid)).label('_related_events_count')).options(joinedload(Event.tags), joinedload(Event.status), joinedload(Event.observables), joinedload(Event.dismiss_reason))
 
         if not args['grouped']:
-            base_query = db.session.query(Event,func.count(distinct(Event.uuid)).label('_related_events_count'))
+            base_query = db.session.query(Event,func.count(distinct(Event.uuid)).label('_related_events_count')).options(joinedload(Event.tags), joinedload(Event.status), joinedload(Event.observables), joinedload(Event.dismiss_reason))
 
         if args['signature']:
             base_query = db.session.query(Event)
@@ -2872,13 +2869,19 @@ class EventList(Resource):
             query = base_query.group_by(Event.signature)
             filtered_query = apply_filters(query, filter_spec)
             filtered_query, pagination = apply_pagination(filtered_query, page_number=args['page'], page_size=args['page_size'])
-            print("!!!!! CALLED EVENTS")
+
             results = filtered_query.all()
-            events = []
-            for result in results:
-                event = result[0]
-                event.__dict__['related_events_count'] = result[1]
-                events.append(event)
+            def count_related(e, c):
+                e.__dict__['related_events_count'] = c
+                return e
+
+            events = [count_related(r[0], r[1]) for r in results]
+            #events = []
+            #for result in results:
+            #    event = result[0]
+            #    event.__dict__['related_events_count'] = result[1]
+            #    events.append(event)
+            #events = results
 
             response = {
                 'events': events,
@@ -3024,9 +3027,9 @@ class EventTestQuery(Resource):
 
         # change the query if we are doing an event signature deep dive
         if args['signature'] and not args['signature'].startswith('!'):
-            base_query = db.session.query(Event)
+            base_query = db.session.query(Event).options(load_only(Event.id,Event.uuid,Event.title,Event.reference,Event.description,Event.tlp,Event.severity,Event.source,Event.tags,Event.observables,Event.created_at,Event.modified_at,Event.case_uuid,Event.signature), joinedload(Event.tags), joinedload(Event.status), joinedload(Event.observables), joinedload(Event.dismiss_reason))
         else:
-            base_query = db.session.query(Event, func.count(distinct(Event.uuid).label('related_events_count'))).group_by(Event.signature)
+            base_query = db.session.query(Event, func.count(distinct(Event.uuid).label('related_events_count'))).options(load_only(Event.id,Event.uuid,Event.title,Event.reference,Event.description,Event.tlp,Event.severity,Event.source,Event.created_at,Event.modified_at,Event.case_uuid,Event.signature), joinedload(Event.tags), joinedload(Event.status), joinedload(Event.observables), joinedload(Event.dismiss_reason)).group_by(Event.signature)
 
         # User filters
         user_filters = [
