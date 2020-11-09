@@ -440,7 +440,7 @@ class Role(Base):
     description = db.Column(db.String(255))
     users = db.relationship('User', back_populates='role')
     agents = db.relationship('Agent', back_populates='role')
-    permissions = db.relationship('Permission', back_populates='roles')
+    permissions = db.relationship('Permission', back_populates='roles', lazy="joined")
     permissions_uuid = db.Column(db.String(255), db.ForeignKey('permission.uuid'))
     organization = db.relationship('Organization', back_populates='roles')
     organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
@@ -461,7 +461,7 @@ class User(Base):
     role_uuid = db.Column(db.String(255), db.ForeignKey('role.uuid'))
     settings_uuid = db.Column(db.String(255), db.ForeignKey('user_settings.uuid'))
     settings = db.relationship('UserSettings', foreign_keys=[settings_uuid])
-    organization = db.relationship('Organization', back_populates='users')
+    organization = db.relationship('Organization', back_populates='users', lazy="joined")
     organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
     notifications = db.relationship('Notification')
     groups = db.relationship(
@@ -588,14 +588,10 @@ class User(Base):
         perm = {}
         perm[permission] = True
 
-        role = Role.query.filter_by(uuid=self.role_uuid).first()
-        if role:
-            permission = Permission.query.filter_by(
-                **perm, uuid=role.permissions_uuid).first()
-            if permission:
-                return True
-            else:
-                return False
+        print("!!! PERMISSION CHECK")
+
+        if getattr(self.role.permissions,permission):
+            return True
         else:
             return False
 
@@ -1039,7 +1035,7 @@ class Event(Base):
     signature = db.Column(db.String(255))
     source = db.Column(db.String(255))
     dismiss_reason_uuid = db.Column(db.String(255), db.ForeignKey('close_reason.uuid'))
-    dismiss_reason = db.relationship('CloseReason')
+    dismiss_reason = db.relationship('CloseReason', lazy='joined')
     dismiss_comment = db.Column(db.Text)
     organization = db.relationship('Organization', back_populates='events')
     organization_uuid = db.Column(db.String(255), db.ForeignKey('organization.uuid'))
