@@ -5,11 +5,11 @@ import hashlib
 import base64
 import requests
 
-host = 'https://45.55.49.49'
+host = 'http://localhost'
 
 def auth():
     response = requests.post('{}/api/v1.0/auth/login'.format(host),
-                             data=json.dumps({'username':'admin@reflexsoar.com', 'password':'reflex'}),
+                             data=json.dumps({'username':'admin@reflexsoar.com', 'password':'test22'}),
                              headers={'Content-Type': 'application/json'}, verify=False)
     if response.status_code == 200:
         token = response.json()['access_token']
@@ -32,7 +32,7 @@ def bulk(events):
         if response.status_code == 200:
             print(response.json())
         else:
-            print(response.content)
+            print(response.json())
     else:
         return events
     
@@ -110,146 +110,6 @@ def random_powershell_command():
 def random_event():
   alerts = [
     {
-      "title": "Host enumeration",
-      "description": "Enumeration activity was detected on a machine in the network.  This could be indicitive of an attacker trying to determine what access they have",
-      "reference": reference(),
-      "tags": [
-        "enumeration",
-        "T1262"
-      ],
-      "tlp": 2,
-      "severity": random_severity(),
-      "observables": [
-        {
-          "value": random_host_name(),
-          "ioc": False,
-          "tlp": 2,
-          "spotted": False,
-          "safe": False,
-          "dataType": "host",
-          "tags": [
-            "source-host", "windows", "internal"
-          ]
-        },
-        {
-          "value": random_username(),
-          "ioc": False,
-          "tlp": 2,
-          "spotted": False,
-          "safe": False,
-          "dataType": "user",
-          "tags": [
-            "source-user", "corporate-user"
-          ]
-        },
-        {
-          "value": random_enumeration_command(),
-          "ioc": False,
-          "tlp": 2,
-          "spotted": False,
-          "safe": False,
-          "dataType": "command",
-          "tags": [
-            "command"
-          ]
-        }
-      ],
-      "raw_log": "something something dark side"
-    },
-    {
-      "title": "Suspicious Powershell Command",
-      "description": "A powershell command was run that fetches information from a remote host",
-      "reference": reference(),
-      "tags": [
-        "enumeration",
-        "T1059.001"
-      ],
-      "tlp": 2,
-      "severity": random_severity(),
-      "observables": [
-        {
-          "value": random_host_name(),
-          "ioc": False,
-          "tlp": 2,
-          "spotted": False,
-          "safe": False,
-          "dataType": "host",
-          "tags": [
-            "source-host", "windows", "internal"
-          ]
-        },
-        {
-          "value": random_username(),
-          "ioc": False,
-          "tlp": 2,
-          "spotted": False,
-          "safe": False,
-          "dataType": "user",
-          "tags": [
-            "source-user", "corporate-user"
-          ]
-        },
-        {
-          "value": random_powershell_command(),
-          "ioc": False,
-          "tlp": 2,
-          "spotted": False,
-          "safe": False,
-          "dataType": "command",
-          "tags": [
-            "command"
-          ]
-        }
-      ],
-      "raw_log": "something something dark side"},
-    {
-      "title": "IDS hit for malicious IP address",
-      "description": "A host attempted to contact an IP address that is in a threat list as malicious",
-      "reference": reference(),
-      "tags": [
-        "enumeration",
-        "T1262"
-      ],
-      "tlp": 2,
-      "severity": random_severity(),
-      "observables": [
-        {
-          "value": random_host_name(),
-          "ioc": False,
-          "tlp": 2,
-          "spotted": False,
-          "safe": False,
-          "dataType": "host",
-          "tags": [
-            "source-host", "windows", "internal"
-          ]
-        },
-        {
-          "value": random_username(),
-          "ioc": False,
-          "tlp": 2,
-          "spotted": False,
-          "safe": False,
-          "dataType": "user",
-          "tags": [
-            "source-user", "corporate-user"
-          ]
-        },
-        {
-          "value": '208.67.222.222',
-          "ioc": False,
-          "tlp": 2,
-          "spotted": False,
-          "safe": False,
-          "dataType": "ip",
-          "tags": [
-            "destination-ip"
-          ]
-        }
-      ],
-      "raw_log": "something something dark side"
-    },
-    {
       "title": "User added to Local Administrators",
       "description": "A users privileges were escalated via addition to Local Administrators",
       "reference": reference(),
@@ -293,7 +153,7 @@ def random_event():
 
 
 events = []
-for i in range(0,50):
-    events.append(random_event())
+for i in range(0,3):
+  events.append(random_event())
 print("Sending {} events...".format(len(events)))
 bulk(events)
