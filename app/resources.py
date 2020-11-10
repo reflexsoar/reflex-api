@@ -914,18 +914,16 @@ class CaseList(Resource):
         args = case_parser.parse_args()
 
 
-        base_query = db.session.query(Case)
+        base_query = db.session.query(Case).options(joinedload(Case.tasks), joinedload(Case.close_reason), joinedload(Case.status), joinedload(Case.created_by), joinedload(Case.updated_by), joinedload(Case.observables), joinedload(Case.tags), joinedload(Case.owner))
 
         filter_spec = []
         if args['status']:
-            base_query = base_query.join(CaseStatus)
             filter_spec.append({'model':'CaseStatus', 'op':'in', 'value': args['status'], 'field':'name'})
 
         if args['severity']:
             filter_spec.append({'model':'Case', 'op':'in', 'value':args['severity'], 'field':'severity'})
 
         if args['tag']:
-            base_query = base_query.join(case_tag_association).join(Tag)
             filter_spec.append({'model':'Tag', 'op':'in', 'value':args['tag'], 'field':'name'})
 
         if args['title']:
@@ -1269,7 +1267,7 @@ class CaseDetails(Resource):
     @user_has('view_cases')
     def get(self, uuid, current_user):
         ''' Returns information about a case '''
-        case = Case.query.filter_by(uuid=uuid, organization_uuid=current_user.organization.uuid).first()
+        case = db.session.query(Case).options(joinedload(Case.case_template), joinedload(Case.close_reason), joinedload(Case.observables), joinedload(Case.status), joinedload(Case.owner), joinedload(Case.created_by), joinedload(Case.tags), joinedload(Case.updated_by)).filter_by(uuid=uuid, organization_uuid=current_user.organization.uuid).first()
         if case:
             return case
         else:

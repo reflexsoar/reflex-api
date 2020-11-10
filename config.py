@@ -32,7 +32,7 @@ class DevelopmentConfig(Config):
     ENV = 'development'
     SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://{}:{}@{}:{}/{}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ECHO = False
+    SQLALCHEMY_ECHO = True
 
 class TestingConfig(Config):
     ENV = "testing"
