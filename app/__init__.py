@@ -1,6 +1,7 @@
 import os
 import ssl
 from elasticsearch import Elasticsearch
+from .es_models import Client, User
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
@@ -88,6 +89,6 @@ def create_app(environment='development'):
 
     FLASK_BCRYPT.init_app(app)
 
-    app.elasticsearch = build_es_connection(app.config)
+    app.elasticsearch = Client(hosts=app.config['ELASTICSEARCH_URL'], username=app.config['ELASTICSEARCH_USERNAME'], password=app.config['ELASTICSEARCH_PASSWORD'])
 
     return app

@@ -1,4 +1,5 @@
 USER_SCHEMA = {
-    'index': '.reflex-users'
+    'index_alias': '.reflex-users',
+    'index_pattern': '.reflex-users-*',
     'base_query': {}
 }

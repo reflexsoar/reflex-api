@@ -203,6 +203,25 @@ class Base(JSONEncoder):
             return json.dumps({k: self.__dict__[k] for k in self.__dict__ if not k.startswith('_')}, cls=CustomJsonEncoder)
 
 
+class User(Base):
+
+    def __init__(self, *args, **kwargs):
+        self.email = None
+        self.username = None
+        self.first_name = None
+        self.last_name = None
+        self.password_hash = None
+        self.last_logon = None
+        self.failed_logons = 0
+        self.locked = False
+        self.organization = None
+        self.role = None
+        self.groups = []
+        self.api_key = None
+
+        super().__init__(*args, **kwargs)
+
+
 class Event(Base):
 
     def __init__(self, *args, **kwargs):
