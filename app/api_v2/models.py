@@ -3,6 +3,8 @@ import json
 import uuid
 import datetime
 import urllib3
+import hashlib
+from flask import current_app
 from collections import namedtuple
 from elasticsearch import Elasticsearch, helpers
 from json import JSONEncoder
@@ -272,6 +274,33 @@ class Event(Base):
         self.observables = [o for o in observables]
         #client.add(observables)
 
+    def hash_event(self, data_types=['host','user','ip']):
+        '''
+        Generates an md5 signature of the event by combining the Events title
+        and the observables attached to the event.  The Event signature is used
+        for correlating multiple instances of an event
+        '''
+        
+        _observables = []
+        obs = []
+
+        hasher = hashlib.md5()
+        hasher.update(self.title.encode())
+
+        for observable in self.observables:
+            o = Observable.get(current_app.elasticsearch, key_field=uuid, key_value=observable)
+            if o:
+                _observables += [o if o.data_type in data_types else None]
+
+        for observable in _observables:
+            if observable and observable.data_type in sorted(data_types):
+                obs.append({'data_type': observable.data_type.lower(), 'value': observable.value.lower()})
+        obs = [dict(t) for t in {tuple(d.items()) for d in obs}] # Deduplicate the observables
+        obs = sorted(sorted(obs, key = lambda i: i['data_type']), key = lambda i: i['value'])
+        hasher.update(str(obs).encode())
+        self.signature = hasher.hexdigest()
+        return
+
 
 class Observable(Base):
 
@@ -283,5 +312,16 @@ class Observable(Base):
         self.safe = False
         self.spotted = False
         self.ioc = False
+
+        super().__init__(*args, **kwargs)
+
+
+class DataType(Base):
+
+    def __init__(self, *args, **kwargs):
+
+        self.name = ""
+        self.description = ""
+        self.regex = ""
 
         super().__init__(*args, **kwargs)

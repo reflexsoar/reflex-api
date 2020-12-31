@@ -1,7 +1,7 @@
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from ..schemas import *
-from .models import User, Event, RawLog, Tag
+from .models import User, Event, RawLog, Tag, Observable
 
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
 
@@ -31,6 +31,73 @@ def parse_tags(tags):
         else:
             _tags += [tag.uuid]
     return _tags
+
+
+
+def create_observables(observables):
+    _observables = []
+    _tags = []
+    for o in observables:
+        if 'tags' in o:
+            tags = o.pop('tags')
+            _tags = parse_tags(tags)
+
+        
+        if len(_tags) > 0:
+            o['tags'] = _tags
+
+        
+
+        observable = Observable.get(current_app.elasticsearch, key_field='value', key_value=o['value'])
+        if observable:
+            _observables += [observable.uuid]
+        else:
+            observable = Observable(**o)
+            current_app.elasticsearch.add([observable])
+            _observables += [observable.uuid]
+
+        # TODO: Add threat list matching back in!
+
+        ''' observable_type = DataType.query.filter_by(name=o['dataType'], organization_uuid=organization_uuid).first()
+        if observable_type:
+            intel_lists = List.query.filter_by(organization_uuid=organization_uuid, tag_on_match=True, data_type_uuid=observable_type.uuid).all()
+
+            o['dataType'] = observable_type
+            observable = Observable(organization_uuid=organization_uuid, **o)
+            observable.create()
+            _observables += [observable]
+
+            if len(_tags) > 0:
+                observable.tags += _tags
+                observable.save()
+
+            # Intel list matching, if the value is on a list
+            # put the list name in an array so we can tag the observable
+            list_matches = []
+            for l in intel_lists:
+                hits = 0
+                if l.list_type == 'values':
+                    hits = len([v for v in l.values if v.value.lower() == o['value'].lower()])
+                if l.list_type == 'patterns':
+                    hits = len([v for v in l.values if re.match(v.value, o['value']) != None])
+                if hits > 0:
+                    list_matches.append(l.name.replace(' ','-').lower())
+
+            # Process the tags based on the matched intel lists
+            if len(list_matches) > 0:
+                list_tags = []
+                for m in list_matches:
+                    tag = Tag.query.filter_by(organization_uuid=organization_uuid, name='list:%s' % m).first()
+                    if tag:
+                        list_tags.append(tag)
+                    else:
+                        tag = Tag(organization_uuid=organization_uuid, **{'name':'list:%s' % m, 'color': '#ffffff'})
+                        list_tags.append(tag)
+                observable.tags += list_tags
+                observable.save()
+        '''
+
+    return _observables       
 
 
 ''' END HELPER FUNCTIONS '''
@@ -63,6 +130,7 @@ class EventList2(Resource):
     
     @api2.expect(mod_event_create)
     def post(self):
+
         ''' Creates a new event '''
 
         _observables = []
@@ -72,22 +140,21 @@ class EventList2(Resource):
         
         if not event:
 
-            ''' Create new tags, associate existing tags '''
+            # Create new tags, associate existing tags
             if 'tags' in api2.payload: 
                 tags = api2.payload.pop('tags')
-                print(tags)
                 _tags = parse_tags(tags)
 
-            ''' Create new observables, associate existing observables '''
+            # Create new observables, associate existing observables
             if 'observables' in api2.payload:
                 observables = api2.payload.pop('observables')
-                print(observables)
-                #_observables = create_observables(observables, current_user.organization.uuid)
+                _observables = create_observables(observables)
 
-            ''' Create the raw_log entry '''
+            # Create a raw_log entry
             raw_log = RawLog(source_log=api2.payload['raw_log'])
             current_app.elasticsearch.add([raw_log])
 
+            # Assign the raw_log UUID to the event so we can correlate on it
             api2.payload['raw_log'] = raw_log.uuid
 
             if len(_tags) > 0:
@@ -95,9 +162,11 @@ class EventList2(Resource):
             
             if len(_observables) > 0:
                 api2.payload['observables'] = _observables
-            
-            ''' Create the event object and insert into Elasticsearch '''
+
+            # Create the event object and insert into Elasticsearch 
             event = Event(**api2.payload)
+            print(event.observables)
+            event.hash_event()
             current_app.elasticsearch.add([event])
 
             # Set the default status to New
