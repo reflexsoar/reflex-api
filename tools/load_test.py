@@ -26,7 +26,7 @@ def bulk(events):
             'Content-Type': 'application/json',
             'Authorization': 'Bearer '+token
         }
-        response = requests.post('{}/api/v1.0/event/_bulk'.format(host),
+        response = requests.post('{}/api/v2.0/event/_bulk'.format(host),
                                  data=json.dumps({"events": events}),
                                  headers=headers, verify=False)
         if response.status_code == 200:
@@ -126,7 +126,7 @@ def random_event():
           "tlp": 2,
           "spotted": False,
           "safe": False,
-          "dataType": "host",
+          "data_type": "host",
           "tags": [
             "source-host", "windows", "internal"
           ]
@@ -137,7 +137,7 @@ def random_event():
           "tlp": 2,
           "spotted": False,
           "safe": False,
-          "dataType": "user",
+          "data_type": "user",
           "tags": [
             "source-user", "corporate-user"
           ]
@@ -153,7 +153,12 @@ def random_event():
 
 
 events = []
-for i in range(0,3):
-  events.append(random_event())
-print("Sending {} events...".format(len(events)))
-bulk(events)
+for i in range(0,10):
+  headers = {
+    'Content-Type': 'application/json'
+  }
+                                 
+  r = requests.post('http://localhost/api/v2.0/event', data=json.dumps(random_event()),
+      headers=headers, verify=False)
+#print("Sending {} events...".format(len(events)))
+#bulk(events)
