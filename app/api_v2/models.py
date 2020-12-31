@@ -98,7 +98,7 @@ class Client(object):
 
             for doc in documents:
                 self.conn.index(index=doc._index, body=doc.jsonify())
-            return True            
+            return True
         except Exception as e:
             print(e)
             return False
@@ -157,7 +157,7 @@ class Base(JSONEncoder):
 
 
     @classmethod
-    def get(self, client, uuid, *args, **kwargs):
+    def get(self, client, key_value, key_field='uuid', *args, **kwargs):
         '''
         Queries the elasticsearch index for all the documents and returns
         the single document object
@@ -168,7 +168,7 @@ class Base(JSONEncoder):
         body = {
             "query": {
                 "query_string": {
-                    "query": "uuid:{}".format(uuid)
+                    "query": "{}:{}".format(key_field, key_value)
                 }
             }
         }
@@ -222,6 +222,15 @@ class User(Base):
         super().__init__(*args, **kwargs)
 
 
+class RawLog(Base):
+
+    def __init__(self, *args, **kwargs):
+
+        self.source_log = None
+
+        super().__init__(*args, **kwargs)
+
+
 class Event(Base):
 
     def __init__(self, *args, **kwargs):
@@ -240,6 +249,7 @@ class Event(Base):
         self.dismissed = False
         self.dismiss_reason = None
         self.dismiss_comment = str()
+        self.raw_log = None
 
         super().__init__(*args, **kwargs)
 
