@@ -27,9 +27,13 @@ from .utils import token_required, user_has, _get_current_user, generate_token, 
 from .schemas import *
 
 api_v1 = Blueprint("api", __name__, url_prefix="/api/v1.0")
+api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
 
 api = Api(api_v1)
+api2 = Api(api_v2)
 mail = Mail()
+
+ns_user_2 = api2.namespace('User', description='User operations', path='/user')
 
 # Namespaces
 ns_user = api.namespace('User', description='User operations', path='/user')
@@ -358,6 +362,18 @@ class UserGenerateApiKey(Resource):
 user_parser = api.parser()
 user_parser.add_argument('username', location='args', required=False)
 
+@ns_user_2.route("")
+class UserList2(Resource):
+
+    #@api.doc(security="Bearer")
+    #@api.marshal_with(mod_user_full, as_list=True)
+    @api.expect(user_parser)
+    #@token_required
+    #@user_has('view_users')
+    def get(self):
+        ''' Returns a list of users '''
+        users = current_app.elasticsearch.search(index=".reflex-event*", body={})
+        return users
 
 @ns_user.route("")
 class UserList(Resource):

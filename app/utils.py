@@ -206,3 +206,5 @@ def build_search_filters(args,model='Event'):
                 
                 filters.append(filter_spec)
     return filters
+
+

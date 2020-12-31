@@ -22,15 +22,26 @@ class Config(object):
 
     CELERY_BROKER_URL = 'redis://localhost:6379'
 
+    # ELASTICSEARCH CONFIGURATION
+    ELASTICSEARCH_URL = ['localhost:9200']
+    ELASTICSEARCH_AUTH_SCHEMA = "http"
+    ELASTICSEARCH_USERNAME = 'elastic'
+    ELASTICSEARCH_PASSWORD = 'URWsI66IP6qBYj6yr1L7'
+    ELASTICSEARCH_SCHEME = 'https'
+    ELASTICSEARCH_CA = ''
+    ELASTICSEARCH_CERT_VERIFY = "none"
+
 class ProductionConfig(Config):
     DEBUG = False
     RESTPLUS_MASK_SWAGGER = False
     SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://{}:{}@{}:{}/{}'
+    
 
 class DevelopmentConfig(Config):
     DEBUG = True
     ENV = 'development'
     SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://{}:{}@{}:{}/{}'
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = True
 
@@ -42,6 +53,7 @@ class TestingConfig(Config):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PRESERVE_CONTEXT_ON_EXCEPTION = False
     WTF_CSRF_ENABLED = False
+    
 
 app_config = {
 	'development': DevelopmentConfig,
