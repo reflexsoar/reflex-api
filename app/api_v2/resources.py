@@ -1,7 +1,7 @@
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from ..schemas import *
-from .models import User, Event, RawLog
+from .models import User, Event, RawLog, Tag
 
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
 
@@ -17,6 +17,23 @@ ns_event_v2 = api2.namespace(
 for model in schema_models:
     api2.models[model.name] = model
 ''' END SCHEMA REGISTRATION '''
+
+''' BEGIN HELPER FUNCTIONS '''
+def parse_tags(tags):
+    ''' Tags a list of supplied tags and creates Tag objects for each one '''
+    _tags = []
+    for t in tags:
+        tag = Tag.get(current_app.elasticsearch, key_field='name', key_value=t)
+        if not tag:
+            tag = Tag(name=t)
+            current_app.elasticsearch.add([tag])
+            _tags += [tag.uuid]
+        else:
+            _tags += [tag.uuid]
+    return _tags
+
+
+''' END HELPER FUNCTIONS '''
 
 ''' BEGIN ROUTES '''
 user_parser = api2.parser()
@@ -59,7 +76,7 @@ class EventList2(Resource):
             if 'tags' in api2.payload: 
                 tags = api2.payload.pop('tags')
                 print(tags)
-                #_tags = parse_tags(tags, current_user.organization.uuid)
+                _tags = parse_tags(tags)
 
             ''' Create new observables, associate existing observables '''
             if 'observables' in api2.payload:
@@ -71,9 +88,17 @@ class EventList2(Resource):
             raw_log = RawLog(source_log=api2.payload['raw_log'])
             current_app.elasticsearch.add([raw_log])
 
-            #event = Event(organization_uuid=current_user.organization.uuid, **api.payload)
             api2.payload['raw_log'] = raw_log.uuid
-            print(api2.payload)
+
+            if len(_tags) > 0:
+                api2.payload['tags'] = _tags
+            
+            if len(_observables) > 0:
+                api2.payload['observables'] = _observables
+            
+            ''' Create the event object and insert into Elasticsearch '''
+            event = Event(**api2.payload)
+            current_app.elasticsearch.add([event])
 
             # Set the default status to New
             #event_status = EventStatus.query.filter_by(name="New", organization_uuid=current_user.organization.uuid).first()

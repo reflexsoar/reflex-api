@@ -173,10 +173,13 @@ class Base(JSONEncoder):
             }
         }
 
-        response = client.conn.search(index=document._index, body=body)
-        if response['hits']['total']['value'] > 0:
-            return [self(**h['_source'], _id=h['_id']) for h in response['hits']['hits']][0]
-        else:
+        try:
+            response = client.conn.search(index=document._index, body=body)
+            if response['hits']['total']['value'] > 0:
+                return [self(**h['_source'], _id=h['_id']) for h in response['hits']['hits']][0]
+            else:
+                return None
+        except Exception as e:
             return None
 
 
@@ -219,6 +222,14 @@ class User(Base):
         self.groups = []
         self.api_key = None
 
+        super().__init__(*args, **kwargs)
+
+
+class Tag(Base):
+
+    def __init__(self, *args, **kwargs):
+
+        self.name = None
         super().__init__(*args, **kwargs)
 
 
