@@ -15,6 +15,31 @@ class IOCCount(fields.Raw):
         iocs = [o for o in value if 'ioc' in o and o['ioc'] == True]
         return len(iocs)
 
+
+mod_auth = Model('AuthModel', {
+    'username': fields.String(default='reflex'),
+    'password': fields.String(default='reflex')
+})
+
+mod_auth_success_token = Model('AuthSuccessToken', {
+    'access_token': fields.String
+})
+
+mod_refresh_token = Model('RefreshToken', {
+    'refresh_token': fields.String
+})
+
+mod_user_full = Model('UserFull', {
+    'uuid': fields.String,
+    'username': fields.String,
+    'email': fields.String,
+    'first_name': fields.String,
+    'last_name': fields.String,
+    'last_logon': fields.String,
+    'locked': fields.Boolean,
+    #'role': fields.Nested(mod_user_role)
+})
+
 mod_tag_list = Model('TagList', {
     'uuid': fields.String,
     'name': fields.String
@@ -89,4 +114,4 @@ mod_event_list = Model('EventList', {
 })
 
 
-schema_models = [mod_event_list, mod_event_create, mod_observable_brief, mod_observable_create, mod_raw_log]
+schema_models = [mod_user_full, mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, mod_observable_brief, mod_observable_create, mod_raw_log]

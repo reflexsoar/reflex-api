@@ -1,7 +1,8 @@
+import datetime
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from .schemas import *
-from .models import Event, Observable
+from .models import Event, Observable, User
 
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
 
@@ -9,6 +10,7 @@ api2 = Api(api_v2)
 
 ''' BEGIN NAMESPACES '''
 ns_user_v2 = api2.namespace('User', description='User operations', path='/user')
+ns_auth_v2 = api2.namespace('Auth', description='Authentication operations', path='/auth')
 ns_event_v2 = api2.namespace(
     'Event', description='Event operations', path='/event')
 ''' END NAMESPACES '''
@@ -18,6 +20,7 @@ for model in schema_models:
     api2.models[model.name] = model
 ''' END SCHEMA REGISTRATION '''
 
+'''
 def create_observables(observables):
     _observables = []
     _tags = []
@@ -26,11 +29,8 @@ def create_observables(observables):
             tags = o.pop('tags')
             _tags = parse_tags(tags)
 
-        
         if len(_tags) > 0:
-            o['tags'] = _tags
-
-        
+            o['tags'] = _tags        
 
         observable = Observable.get(current_app.elasticsearch, key_field='value', key_value=o['value'])
         if observable:
@@ -42,7 +42,7 @@ def create_observables(observables):
 
         # TODO: Add threat list matching back in!
 
-        ''' observable_type = DataType.query.filter_by(name=o['dataType'], organization_uuid=organization_uuid).first()
+         observable_type = DataType.query.filter_by(name=o['dataType'], organization_uuid=organization_uuid).first()
         if observable_type:
             intel_lists = List.query.filter_by(organization_uuid=organization_uuid, tag_on_match=True, data_type_uuid=observable_type.uuid).all()
 
@@ -79,14 +79,47 @@ def create_observables(observables):
                         list_tags.append(tag)
                 observable.tags += list_tags
                 observable.save()
-        '''
 
     return _observables       
+
+'''
 
 
 ''' END HELPER FUNCTIONS '''
 
 ''' BEGIN ROUTES '''
+
+'''
+START AUTHENTICATION ROUTES
+'''
+
+@ns_auth_v2.route("/login")
+class Login(Resource):
+
+    @api2.expect(mod_auth)
+    @api2.response(200, 'Success', mod_auth_success_token)
+    @api2.response(401, 'Incorrect username or password')
+    def post(self):
+        ''' Authenticate the user and return their api token '''
+
+        user = User.search().filter('term', username=api2.payload['username']).execute()
+        if not user:
+            ns_auth_v2.abort(401, 'Incorrect username or password')
+    
+        user = user[0]
+        if user.check_password(api2.payload['password']):
+            # Generate an access token
+            _access_token = user.create_access_token()
+
+            # Generate a refresh tokenn
+            _refresh_token = user.create_refresh_token(
+                request.user_agent.string.encode('utf-8'))
+
+            user.update(failed_logons=0, last_logon=datetime.datetime.utcnow())
+
+            return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
+
+
 user_parser = api2.parser()
 user_parser.add_argument('username', location='args', required=False)
 
@@ -94,14 +127,16 @@ user_parser.add_argument('username', location='args', required=False)
 class UserList2(Resource):
 
     #@api.doc(security="Bearer")
-    #@api.marshal_with(mod_user_full, as_list=True)
+    @api2.marshal_with(mod_user_full, as_list=True)
     @api2.expect(user_parser)
     #@token_required
     #@user_has('view_users')
     def get(self):
         ''' Returns a list of users '''
-        users = User.query(current_app.elasticsearch)
-        return users
+        s = User.search()
+        response = s.execute()
+        print()
+        return [user._source for user in response['hits']['hits']]
 
 event_list_parser = api2.parser()
 event_list_parser.add_argument('query', type=str, location='args', required=False)
@@ -109,7 +144,6 @@ event_list_parser.add_argument('page', type=int, location='args', default=1, req
 event_list_parser.add_argument('page_size', type=int, location='args', default=10, required=False)
 event_list_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
 event_list_parser.add_argument('sort_desc', type=xinputs.boolean, location='args', default=True, required=False)
-
 
 @ns_event_v2.route("")
 class EventList2(Resource):
