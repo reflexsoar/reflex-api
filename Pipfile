@@ -29,6 +29,7 @@ flask-mail = "*"
 cffi = "*"
 flask-caching = "*"
 sqlakeyset = "*"
+elasticsearch-dsl = "*"
 
 [requires]
 python_version = "3.8"

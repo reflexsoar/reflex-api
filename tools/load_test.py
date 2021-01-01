@@ -150,8 +150,6 @@ def random_event():
   return alerts[random.randint(0, len(alerts)-1)]
 
 
-
-
 events = []
 for i in range(0,10):
   headers = {

@@ -1,16 +1,17 @@
-import ssl
-import json
-import uuid
 import datetime
-import urllib3
 import hashlib
-from flask import current_app
-from collections import namedtuple
-from elasticsearch import Elasticsearch
-from elasticsearch_dsl import Document, InnerDoc, Date, Integer, Keyword, Text, Boolean, Nested, connections
-from json import JSONEncoder
+from elasticsearch_dsl import Document, InnerDoc, Nested, Keyword, Integer, Date, Text, Boolean, connections
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+ELASTICSEARCH_URL = ['localhost:9200']
+ELASTICSEARCH_AUTH_SCHEMA = "http"
+ELASTICSEARCH_USERNAME = 'elastic'
+ELASTICSEARCH_PASSWORD = ''
+ELASTICSEARCH_SCHEME = 'https'
+ELASTICSEARCH_CA = ''
+ELASTICSEARCH_CERT_VERIFY = "none"
+
+connections.create_connection(hosts=ELASTICSEARCH_URL, http_auth=(ELASTICSEARCH_USERNAME, ELASTICSEARCH_PASSWORD), use_ssl=True, verify_certs=False)
 
 class Observable(InnerDoc):
 
@@ -22,7 +23,7 @@ class Observable(InnerDoc):
     safe = Boolean()
     tlp = Integer()
     created_at = datetime.datetime.utcnow()
-
+    
 class Event(Document):
 
     title = Text(fields={'raw': Keyword()})
@@ -48,10 +49,10 @@ class Event(Document):
 
     def save(self, **kwargs):
         self.created_at = datetime.datetime.utcnow()
-        self.hash_event()
+        #self.hash_event()
         return super().save(**kwargs)
 
-    def hash_event(self, data_types=['host','user','ip','string']):
+    def hash_event(self, data_types=['host','user','ip']):
         '''
         Generates an md5 signature of the event by combining the Events title
         and the observables attached to the event.  The Event signature is used
@@ -62,18 +63,40 @@ class Event(Document):
         obs = []
 
         hasher = hashlib.md5()
-        print(self.title.encode())
         hasher.update(self.title.encode())
 
         for observable in self.observables:
-            _observables += [observable if observable.data_type in data_types else None]
+            o = self.o.get(uuid=observable)
+            if o:
+                _observables += [o if o['data_type'] in data_types else None]
 
         for observable in _observables:
             if observable and observable.data_type in sorted(data_types):
-                print({'data_type': observable.data_type.lower(), 'value': observable.value.lower()})
-                obs.append({'data_type': observable.data_type.lower(), 'value': observable.value.lower()})
+                obs.append({'data_type': observable['data_type'].lower(), 'value': observable['value'].lower()})
         obs = [dict(t) for t in {tuple(d.items()) for d in obs}] # Deduplicate the observables
         obs = sorted(sorted(obs, key = lambda i: i['data_type']), key = lambda i: i['value'])
         hasher.update(str(obs).encode())
         self.signature = hasher.hexdigest()
         return
+
+Event.init()
+
+event_content = {
+    'meta': {
+        'id': 'abcxyz2'
+    },
+    'title': 'Admin group addition',
+    'description': 'Something new was added to an admin group',
+    'tags': ['privilege','tactic','admin'],
+    'observables': [
+        {
+            'value':'brian',
+            'data_type': 'user',
+            'tags': ['secops','manager']
+        }
+    ]
+}
+
+event = Event(**event_content)
+event.save()
+

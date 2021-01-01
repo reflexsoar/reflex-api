@@ -1,7 +1,7 @@
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
-from ..schemas import *
-from .models import User, Event, RawLog, Tag, Observable
+from .schemas import *
+from .models import Event, Observable
 
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
 
@@ -119,14 +119,29 @@ class UserList2(Resource):
         users = User.query(current_app.elasticsearch)
         return users
 
+event_list_parser = api2.parser()
+event_list_parser.add_argument('query', type=str, location='args', required=False)
+event_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
+event_list_parser.add_argument('page_size', type=int, location='args', default=10, required=False)
+event_list_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
+event_list_parser.add_argument('sort_desc', type=xinputs.boolean, location='args', default=True, required=False)
+
+
 @ns_event_v2.route("")
 class EventList2(Resource):
 
     @api2.marshal_with(mod_event_list, as_list=True)
+    @api2.expect(event_list_parser)
     def get(self):
         ''' Returns a list of events '''
-        events = Event.query(current_app.elasticsearch)
-        return events
+    
+        args = event_list_parser.parse_args()
+        
+        s = Event.search()
+        response = s.execute()
+
+        return [event._source for event in response['hits']['hits']]
+        #return []
     
     @api2.expect(mod_event_create)
     def post(self):
@@ -136,54 +151,11 @@ class EventList2(Resource):
         _observables = []
         _tags = []
         
-        event = Event.get(current_app.elasticsearch, key_field='reference', key_value=api2.payload['reference'])
-        
+        event = Event.search().filter('term', reference=api2.payload['reference']).execute()
+                
         if not event:
-
-            # Create new tags, associate existing tags
-            if 'tags' in api2.payload: 
-                tags = api2.payload.pop('tags')
-                _tags = parse_tags(tags)
-
-            # Create new observables, associate existing observables
-            if 'observables' in api2.payload:
-                observables = api2.payload.pop('observables')
-                _observables = create_observables(observables)
-
-            # Create a raw_log entry
-            raw_log = RawLog(source_log=api2.payload['raw_log'])
-            current_app.elasticsearch.add([raw_log])
-
-            # Assign the raw_log UUID to the event so we can correlate on it
-            api2.payload['raw_log'] = raw_log.uuid
-
-            if len(_tags) > 0:
-                api2.payload['tags'] = _tags
-            
-            if len(_observables) > 0:
-                api2.payload['observables'] = _observables
-
-            # Create the event object and insert into Elasticsearch 
             event = Event(**api2.payload)
-            print(event.observables)
-            event.hash_event()
-            current_app.elasticsearch.add([event])
-
-            # Set the default status to New
-            #event_status = EventStatus.query.filter_by(name="New", organization_uuid=current_user.organization.uuid).first()
-            #event.status = event_status
-            #event.save()
-
-            #if len(_tags) > 0:
-            #    event.tags += _tags
-            #    event.save()
-
-            #if len(_observables) > 0:
-            #    event.observables += _observables
-            #    event.save()
-
-            #event.hash_event()
-
+            event.save()
             return {'message': 'Successfully created the event.'}
         else:
             ns_event_v2.abort(409, 'Event already exists.')
