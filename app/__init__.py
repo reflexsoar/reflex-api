@@ -59,6 +59,9 @@ def create_app(environment='development'):
     FLASK_BCRYPT.init_app(app)
 
     from app.api_v2.models import connections
+
+    # TODO: Configure this to use API_KEY authentication
+    # TODO: Configure this to support CA files and Certificate verification
     connections.create_connection(hosts=app.config['ELASTICSEARCH_URL'], http_auth=(app.config['ELASTICSEARCH_USERNAME'], app.config['ELASTICSEARCH_PASSWORD']), verify_certs=False, use_ssl=True)
 
     return app

@@ -18,22 +18,6 @@ for model in schema_models:
     api2.models[model.name] = model
 ''' END SCHEMA REGISTRATION '''
 
-''' BEGIN HELPER FUNCTIONS '''
-def parse_tags(tags):
-    ''' Tags a list of supplied tags and creates Tag objects for each one '''
-    _tags = []
-    for t in tags:
-        tag = Tag.get(current_app.elasticsearch, key_field='name', key_value=t)
-        if not tag:
-            tag = Tag(name=t)
-            current_app.elasticsearch.add([tag])
-            _tags += [tag.uuid]
-        else:
-            _tags += [tag.uuid]
-    return _tags
-
-
-
 def create_observables(observables):
     _observables = []
     _tags = []
