@@ -95,19 +95,27 @@ START AUTHENTICATION ROUTES
 
 @ns_auth_v2.route("/login")
 class Login(Resource):
+    
 
     @api2.expect(mod_auth)
     @api2.response(200, 'Success', mod_auth_success_token)
     @api2.response(401, 'Incorrect username or password')
     def post(self):
-        ''' Authenticate the user and return their api token '''
+        '''
+        Log a user in to the platform and provide them with an access_token
+        and a refresh_token for getting new access_tokens should they
+        return to the site and their access_token is expired
+        '''
 
-        user = User.search().filter('term', username=api2.payload['username']).execute()
+        # Find the user based on their username, if their account is locked don't return a user
+        # object to prevent processing any more failed logons
+        user = User.search().filter('term', username=api2.payload['username']).query('match', locked=False).execute()
         if not user:
             ns_auth_v2.abort(401, 'Incorrect username or password')
     
         user = user[0]
         if user.check_password(api2.payload['password']):
+
             # Generate an access token
             _access_token = user.create_access_token()
 
@@ -115,9 +123,46 @@ class Login(Resource):
             _refresh_token = user.create_refresh_token(
                 request.user_agent.string.encode('utf-8'))
 
+            # Update the users failed_logons and last_logon entries
             user.update(failed_logons=0, last_logon=datetime.datetime.utcnow())
 
             return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
+
+        if user.failed_logons == None:
+            user.update(failed_logons= 0)
+
+        # TODO: Move this back to a global setting when settings is migrated
+        if user.failed_logons >= 5:
+            user.update(locked=True)
+        else:
+            user.update(failed_logons=user.failed_logons+1)
+
+        ns_auth_v2.abort(401, 'Incorrect username or password')
+
+
+@ns_auth_v2.route('/logout')
+class Logout(Resource):
+
+    #@api2.doc(security="Bearer")
+    @api2.response(200, 'Successfully logged out.')
+    @api2.response(401, 'Not logged in.')
+    #@token_required
+    def get(self): # NOTE: add current_user back after enabling token_required
+        '''
+        Logs a user out of the platform and invalidates their access_token
+        so that they can't use it again.  The token is stored in a blocked token
+        index for lookup when calling the API
+        '''
+        try:
+            auth_header = request.headers.get('Authorization')
+            access_token = auth_header.split(' ')[1]
+            b_token = AuthTokenBlacklist(auth_token=access_token)
+            b_token.create()
+            return {'message': 'Successfully logged out.'}, 200
+        except:
+            return {'message': 'Not logged in.'}, 401
+
+        ns_auth.abort(401, 'Not logged in.')
 
 
 user_parser = api2.parser()

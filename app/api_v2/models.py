@@ -36,11 +36,15 @@ class User(Document):
         name = 'reflex-users'
 
     def set_password(self, password):
+        '''
+        Encrypts the password for the user. The Document base class
+        does not support @property setters/getters so a custom function
+        is required to make this work
+        '''
+
         self.password_hash = FLASK_BCRYPT.generate_password_hash(
             password).decode('utf-8')
 
-
-    """ TODO: TURN THIS BACK ON
     def generate_api_key(self):
         '''
         Generates a long living API key, which the user can use to make
@@ -53,24 +57,28 @@ class User(Document):
         _api_key = jwt.encode({
             'uuid': self.uuid,
             'organization': self.organization_uuid,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(
-                    days = GlobalSettings.query.filter_by(
-                        organization_uuid = self.organization_uuid).first().api_key_valid_days),
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=365),
             'iat': datetime.datetime.utcnow(),
             'type': 'api'
-        }, current_app.config['SECRET_KEY']).decode('utf-8')
+        }, current_app.config['SECRET_KEY'])
 
-        if self.api_key != None:
-            blacklist = AuthTokenBlacklist(auth_token = self.api_key)
-            blacklist.create()
-            self.api_key = _api_key
-        else:
-            self.api_key = _api_key
-        self.save()
+        #if self.api_key != None:
+        #    blacklist = AuthTokenBlacklist(auth_token = self.api_key)
+        #    blacklist.create()
+        #    self.api_key = _api_key
+        #else:
+        #    self.api_key = _api_key
+        #self.save()
+        self.update(api_key=api_key)
         return {'api_key': self.api_key}
-    """
+
 
     def create_access_token(self):
+        '''
+        Generates an access_token that is presented each time the
+        user calls the API, valid for 6 hours by default
+        '''
+
         _access_token = jwt.encode({
             'uuid': self.uuid,
             #'organization': self.organization_uuid,
@@ -158,6 +166,12 @@ class User(Document):
     """
 
 
+class BlockedToken(Document):
+
+    token = Text()
+
+    class Index:
+        name = 'reflex-blocked-tokens'
 
 class Observable(InnerDoc):
 

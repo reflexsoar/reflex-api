@@ -1,5 +1,5 @@
 from elasticsearch_dsl import connections
-from app.api_v2.models import User
+from app.api_v2.models import User, BlockedToken
 
 connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','URWsI66IP6qBYj6yr1L7'))
 
@@ -11,10 +11,11 @@ user_content = {
     'last_name': 'Admin'
 }
 
-User.init()
+#User.init()
+BlockedToken.init()
 
-user_password = user_content.pop('password')
-user = User(**user_content)
-user.set_password(user_password)
-print(user.__dict__)
-user.save()
+#user_password = user_content.pop('password')
+#user = User(**user_content)
+#user.set_password(user_password)
+#print(user.__dict__)
+#user.save()
