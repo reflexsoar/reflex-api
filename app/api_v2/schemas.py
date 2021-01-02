@@ -37,6 +37,7 @@ mod_user_full = Model('UserFull', {
     'last_name': fields.String,
     'last_logon': fields.String,
     'locked': fields.Boolean,
+    'failed_logons': fields.Integer
     #'role': fields.Nested(mod_user_role)
 })
 

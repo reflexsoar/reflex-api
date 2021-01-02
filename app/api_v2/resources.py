@@ -192,10 +192,19 @@ class UserList2(Resource):
     @user_has('view_users')
     def get(self, current_user):
         ''' Returns a list of users '''
-        s = User.search()
-        response = s.execute()
-        print()
-        return [user._source for user in response['hits']['hits']]
+
+        args = user_parser.parse_args()
+
+        if args['username']:
+            user = User.search().filter('term', username=args['username']).execute()
+            if user:
+                return [user[0]]
+            else:
+                return []
+        else:
+            s = User.search()
+            response = s.execute()
+            return [user for user in response]
 
     def post(self):
         raise NotImplementedError
