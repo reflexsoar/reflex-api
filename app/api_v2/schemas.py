@@ -40,6 +40,10 @@ mod_user_full = Model('UserFull', {
     #'role': fields.Nested(mod_user_role)
 })
 
+mod_api_key = Model('UserApiKey', {
+    'api_key': fields.String
+})
+
 mod_permissions = Model('Permissions', {
     'add_user': fields.Boolean,
     'update_user': fields.Boolean,
@@ -232,4 +236,4 @@ mod_event_list = Model('EventList', {
 
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full, 
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, 
-mod_observable_brief, mod_observable_create, mod_raw_log, mod_permissions]
+mod_observable_brief, mod_observable_create, mod_raw_log, mod_permissions, mod_api_key]

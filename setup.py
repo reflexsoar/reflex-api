@@ -4,10 +4,12 @@ from app.api_v2.models import User, ExpiredToken, Role
 connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','URWsI66IP6qBYj6yr1L7'))
 
 
-
-#User.init()
-ExpiredToken.init()
-
+def check_setup_status():
+    '''
+    Checks to see if setup has already been run by looking for the 
+    Reflex indices in the Elasticsearch cluster
+    '''
+    raise NotImplementedError
 
 
 def create_admin_role(admin_id):
@@ -126,6 +128,106 @@ def create_admin_role(admin_id):
     role = Role(**role_contents)
     role.save()
 
+
+def create_analyst_role():
+
+    perms = { 
+        'view_users': True,
+        'view_roles': True,
+        "add_tag": True,
+        "update_tag": True,
+        "delete_tag": True,
+        "view_tags": True,
+        "add_credential": True,
+        "update_credential": True,
+        "decrypt_credential": True,
+        "delete_credential": True,
+        "view_credentials": True ,
+        "add_playbook": True,
+        "view_playbooks": True,
+        "add_tag_to_playbook": True,
+        "remove_tag_from_playbook": True,
+        "add_event": True,
+        "view_events": True,
+        "update_event": True,
+        "add_tag_to_event": True,
+        "remove_tag_from_event": True,
+        "add_observable": True,
+        "update_observable": True,
+        "delete_observable": True,
+        "add_tag_to_observable": True,
+        "remove_tag_from_observable": True,
+        "view_agents": True,
+        "view_inputs": True,
+        "create_case": True,
+        "view_cases": True,
+        "update_case": True,
+        "create_case_comment": True,
+        "view_case_comments": True,
+        "update_case_comment": True,
+        "view_plugins": True,
+        "view_agent_groups": True,
+        "view_user_groups": True,
+        "create_case_template": True,
+        "view_case_templates": True,
+        "update_case_template": True,
+        "delete_case_template": True,
+        "create_case_task": True,
+        "view_case_tasks": True,
+        "update_case_task": True,
+        "delete_case_task": True,
+        'view_settings': True,
+        'upload_case_files': True,
+        'view_case_files': True,
+        'delete_case_files': True,
+        "create_event_rule": True,
+        "update_event_rule": True,
+        "delete_event_rule": True,
+    }
+
+    role_contents = {
+        'name': 'Analyst',
+        'description': 'A normal analyst user',
+        'permissions': perms,
+        'members': []
+    }
+
+    role = Role(**role_contents)
+    role.save()
+
+
+def create_agent_role():
+
+    perms = { 
+        "decrypt_credential": True,
+        "view_credentials": True ,
+        "view_playbooks": True,
+        "add_event": True,
+        "update_event": True,
+        "add_tag_to_event": True,
+        "remove_tag_from_event": True,
+        "add_observable": True,
+        "update_observable": True,
+        "delete_observable": True,
+        "add_tag_to_observable": True,
+        "remove_tag_from_observable": True,
+        "view_agents": True,
+        "view_plugins": True,
+        "add_event": True,
+        'view_settings': True
+    }
+
+    role_contents = {
+        'name': 'Agent',
+        'description': 'Reserved for agents',
+        'permissions': perms,
+        'members': []
+    }
+
+    role = Role(**role_contents)
+    role.save()
+
+
 def create_admin_user():
     User.init()
 
@@ -146,4 +248,6 @@ def create_admin_user():
 
 admin_id = create_admin_user()
 create_admin_role(admin_id)
+create_analyst_role()
+create_agent_role()
 ExpiredToken.init()

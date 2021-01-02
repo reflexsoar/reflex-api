@@ -62,13 +62,12 @@ class User(Document):
             'type': 'api'
         }, current_app.config['SECRET_KEY'])
 
-        #if self.api_key != None:
-        #    blacklist = AuthTokenBlacklist(auth_token = self.api_key)
-        #    blacklist.create()
-        #    self.api_key = _api_key
-        #else:
-        #    self.api_key = _api_key
-        #self.save()
+        if self.api_key != None:
+            expired_token = ExpiredToken(token=self.api_key)
+            expired_token = save()
+            self.api_key = _api_key
+        else:
+            self.api_key = _api_key
         self.update(api_key=_api_key)
         return {'api_key': self.api_key}
 
@@ -147,22 +146,23 @@ class User(Document):
 
         raise NotImplementedError
 
-    def save(self, **kwargs):
-        self.created_at = datetime.datetime.utcnow()
-        return super().save(**kwargs)
-
-    """
     def has_right(self, permission):
         '''
         Checks to see if the user has the proper 
         permissions to perform an API action
         '''
 
-        if getattr(self.role.permissions,permission):
+        role = Role.search().filter('term', members=self.meta.id).execute()
+        role = Role.get(id=role[0].meta.id)
+
+        if getattr(role.permissions, permission):
             return True
         else:
             return False
-    """
+
+    def save(self, **kwargs):
+        self.created_at = datetime.datetime.utcnow()
+        return super().save(**kwargs)
 
 
 class Permission(InnerDoc):
@@ -363,6 +363,7 @@ class ExpiredToken(Document):
     class Index:
         name = 'reflex-expired-tokens'
 
+
 class Observable(InnerDoc):
 
     tags = Keyword()
@@ -373,6 +374,7 @@ class Observable(InnerDoc):
     safe = Boolean()
     tlp = Integer()
     created_at = datetime.datetime.utcnow()
+
 
 class Event(Document):
 

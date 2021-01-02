@@ -3,7 +3,7 @@ from flask import request, current_app, abort, make_response, send_from_director
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from .schemas import *
 from .models import Event, Observable, User, Role
-from .utils import token_required
+from .utils import token_required, user_has
 
 # Instantiate a new API object
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
@@ -153,9 +153,6 @@ class Logout(Resource):
         ns_auth.abort(401, 'Not logged in.')
 
 
-user_parser = api2.parser()
-user_parser.add_argument('username', location='args', required=False)
-
 @ns_user_v2.route("/me")
 class UserInfo(Resource):
 
@@ -169,6 +166,22 @@ class UserInfo(Resource):
         current_user.role = role
 
         return current_user
+
+
+@ns_user_v2.route('/generate_api_key')
+class UserGenerateApiKey(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_api_key)
+    @token_required
+    @user_has('use_api')
+    def get(self, current_user):
+        ''' Returns a new API key for the user making the request '''
+        return current_user.generate_api_key()
+
+
+user_parser = api2.parser()
+user_parser.add_argument('username', location='args', required=False)
 
 @ns_user_v2.route("")
 class UserList2(Resource):
@@ -184,6 +197,9 @@ class UserList2(Resource):
         response = s.execute()
         print()
         return [user._source for user in response['hits']['hits']]
+
+    def post(self):
+        raise NotImplementedError
 
 event_list_parser = api2.parser()
 event_list_parser.add_argument('query', type=str, location='args', required=False)
