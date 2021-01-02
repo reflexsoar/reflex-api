@@ -2,23 +2,23 @@ import datetime
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from .schemas import *
-from .models import Event, Observable, User
+from .models import Event, Observable, User, Role
+from .utils import token_required
 
+# Instantiate a new API object
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
-
 api2 = Api(api_v2)
 
-''' BEGIN NAMESPACES '''
+# All the API namespaces
 ns_user_v2 = api2.namespace('User', description='User operations', path='/user')
 ns_auth_v2 = api2.namespace('Auth', description='Authentication operations', path='/auth')
 ns_event_v2 = api2.namespace(
     'Event', description='Event operations', path='/event')
-''' END NAMESPACES '''
 
-''' BEGIN SCHEMA REGISTRATION '''
+# Register all the schemas from flask-restx
 for model in schema_models:
     api2.models[model.name] = model
-''' END SCHEMA REGISTRATION '''
+
 
 '''
 def create_observables(observables):
@@ -81,16 +81,6 @@ def create_observables(observables):
                 observable.save()
 
     return _observables       
-
-'''
-
-
-''' END HELPER FUNCTIONS '''
-
-''' BEGIN ROUTES '''
-
-'''
-START AUTHENTICATION ROUTES
 '''
 
 @ns_auth_v2.route("/login")
@@ -102,14 +92,12 @@ class Login(Resource):
     @api2.response(401, 'Incorrect username or password')
     def post(self):
         '''
-        Log a user in to the platform and provide them with an access_token
-        and a refresh_token for getting new access_tokens should they
-        return to the site and their access_token is expired
+        Log a user in to the platform and provide them with an access_token a refresh_token
         '''
 
         # Find the user based on their username, if their account is locked don't return a user
         # object to prevent processing any more failed logons
-        user = User.search().filter('term', username=api2.payload['username']).query('match', locked=False).execute()
+        user = User.search().filter('term', username=api2.payload['username']).execute()
         if not user:
             ns_auth_v2.abort(401, 'Incorrect username or password')
     
@@ -167,6 +155,20 @@ class Logout(Resource):
 
 user_parser = api2.parser()
 user_parser.add_argument('username', location='args', required=False)
+
+@ns_user_v2.route("/me")
+class UserInfo(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_user_self)
+    @token_required
+    def get(self, current_user):
+        ''' Returns information about the currently logged in user '''
+        
+        role = Role.search().filter('term', members=current_user.meta.id).execute()[0]
+        current_user.role = role
+
+        return current_user
 
 @ns_user_v2.route("")
 class UserList2(Resource):

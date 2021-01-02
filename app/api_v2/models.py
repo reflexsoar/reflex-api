@@ -56,7 +56,7 @@ class User(Document):
 
         _api_key = jwt.encode({
             'uuid': self.uuid,
-            'organization': self.organization_uuid,
+            #'organization': self.organization_uuid,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=365),
             'iat': datetime.datetime.utcnow(),
             'type': 'api'
@@ -69,7 +69,7 @@ class User(Document):
         #else:
         #    self.api_key = _api_key
         #self.save()
-        self.update(api_key=api_key)
+        self.update(api_key=_api_key)
         return {'api_key': self.api_key}
 
 
@@ -80,7 +80,7 @@ class User(Document):
         '''
 
         _access_token = jwt.encode({
-            'uuid': self.uuid,
+            'id': self.meta.id,
             #'organization': self.organization_uuid,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=360),
             'iat': datetime.datetime.utcnow(),
@@ -99,7 +99,7 @@ class User(Document):
 
     def create_password_reset_token(self):
         _token = jwt.encode({
-            'uuid': self.uuid,
+            'uuid': self.meta.id,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30),
             'iat': datetime.datetime.utcnow(),
             'type': 'password_reset'
@@ -109,7 +109,7 @@ class User(Document):
 
     def create_refresh_token(self, user_agent_string):
         _refresh_token = jwt.encode({
-            'uuid': self.uuid,
+            'id': self.meta.id,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=30),
             'iat': datetime.datetime.utcnow(),
             'type': 'refresh'
@@ -148,7 +148,6 @@ class User(Document):
         raise NotImplementedError
 
     def save(self, **kwargs):
-        self.uuid = uuid.uuid4()
         self.created_at = datetime.datetime.utcnow()
         return super().save(**kwargs)
 
@@ -166,12 +165,203 @@ class User(Document):
     """
 
 
-class BlockedToken(Document):
+class Permission(InnerDoc):
+
+    # User Permissions
+    add_user = Boolean()
+    update_user = Boolean()
+    delete_user = Boolean()
+    add_user_to_role = Boolean()
+    remove_user_from_role = Boolean()
+    reset_user_password = Boolean()
+    unlock_user = Boolean()
+    view_users = Boolean()
+
+    # Role Permissions
+    add_role = Boolean()
+    update_role = Boolean()
+    delete_role = Boolean()
+    set_role_permissions = Boolean()
+    view_roles = Boolean()
+
+    # User Group Permissions
+    create_user_group = Boolean()
+    view_user_groups = Boolean()
+    update_user_groups = Boolean()
+    delete_user_group = Boolean()
+
+    # EVENTS
+    add_event = Boolean()  # Allows a user to add an event
+    view_events = Boolean() # Allows a user to view/list events
+    update_event = Boolean() # Allows a user to update an events mutable properties
+    delete_event = Boolean() # Allows a user to delete an event
+
+    # EVENT RULES
+    create_event_rule = Boolean()
+    view_event_rules = Boolean()
+    update_event_rule = Boolean()
+    delete_event_rule = Boolean()
+
+    # Observable Permissions
+    add_observable = Boolean()
+    update_observable = Boolean()
+    delete_observable = Boolean()
+    add_tag_to_observable = Boolean()
+    remove_tag_from_observable = Boolean()
+
+    # Playbook Permission
+    add_playbook = Boolean()
+    update_playbook = Boolean()
+    delete_playbook = Boolean()
+    view_playbooks = Boolean()
+    add_tag_to_playbook = Boolean()
+    remove_tag_from_playbook = Boolean()
+
+    # Agent Permissions
+    view_agents = Boolean()
+    update_agent = Boolean()
+    delete_agent = Boolean()
+    pair_agent = Boolean()
+
+    # Agent Group Permissions
+    create_agent_group = Boolean()
+    view_agent_groups = Boolean()
+    update_agent_group = Boolean()
+    delete_agent_group = Boolean()
+
+    # Input Permissions
+    add_input = Boolean()
+    view_inputs = Boolean()
+    update_input = Boolean()
+    delete_input = Boolean()
+
+    # Tag Permissions
+    add_tag = Boolean()
+    update_tag = Boolean()
+    delete_tag = Boolean()
+    view_tags = Boolean()
+
+    # Case Permissions
+    create_case = Boolean()
+    view_cases = Boolean()
+    update_case = Boolean()
+    delete_case = Boolean()
+
+    # Case File Permissions
+    upload_case_files = Boolean()
+    view_case_files = Boolean()
+    delete_case_files = Boolean()
+
+    # Case Template Task Permissions
+    create_case_task = Boolean()
+    view_case_tasks = Boolean()
+    update_case_task = Boolean()
+    delete_case_task = Boolean()
+
+    # Case Template Permissions
+    create_case_template = Boolean()
+    view_case_templates = Boolean()
+    update_case_template = Boolean()
+    delete_case_template = Boolean()
+
+    # Case Template Task Permissions
+    create_case_template_task = Boolean()
+    view_case_template_tasks = Boolean()
+    update_case_template_task = Boolean()
+    delete_case_template_task = Boolean()
+
+    # Case Comment Permissions
+    create_case_comment = Boolean()
+    view_case_comments = Boolean()
+    update_case_comment = Boolean()
+    delete_case_comment = Boolean()
+
+    # Case Status Permissions
+    create_case_status = Boolean()
+    update_case_status = Boolean()
+    delete_case_status = Boolean()
+
+    # Plugin Permissions
+    view_plugins = Boolean()
+    create_plugin = Boolean()
+    delete_plugin = Boolean()
+    update_plugin = Boolean()
+
+    # Credential Permissions
+    add_credential = Boolean()
+    update_credential = Boolean()
+    decrypt_credential = Boolean()
+    delete_credential = Boolean()
+    view_credentials = Boolean()
+
+    # Organization Administration
+    add_organization = Boolean()
+    view_organizatons = Boolean()
+    update_organization = Boolean()
+    delete_organization = Boolean()
+
+    # List Permissions
+    add_list = Boolean()
+    update_list = Boolean()
+    view_lists = Boolean()
+    delete_list = Boolean()
+
+    # Data Type Permissions
+    create_data_type = Boolean()
+    update_data_type = Boolean()
+
+    # Update Settings
+    update_settings = Boolean()
+    view_settings = Boolean()
+    create_persistent_pairing_token = Boolean()
+
+    # API Permissions
+    use_api = Boolean()
+
+
+class Role(Document):
+
+    uuid = Text() # Unique identifier for the role
+    name = Text() # The name of the role (should be unique)
+    description = Text() # A brief description of the role
+    members = Keyword()  # Contains a list of user IDs
+    permissions = Nested(Permission)
+
+    class Index:
+        name = 'reflex-user-roles'
+
+    def add_user_to_role(self, user_id):
+        '''
+        Adds users unique IDs to the members field
+        '''
+        if isinstance(user_id, list):
+            self.update(members = self.members + user_id)
+        else:
+            self.update(members = self.members.append(user_id))
+
+    def remove_user_from_role(self, user_id):
+        '''
+        Removes members from the members field
+        '''
+        if isinstance(user_id, list):
+            self.update(members= [m for m in self.members if m not in user_id])
+        else:
+            self.members.remove(user_id)
+            self.update(members=self.members)
+
+    def save(self, **kwargs):
+        '''
+        Saves the Role
+        ''' 
+        return super().save(**kwargs)
+
+
+class ExpiredToken(Document):
 
     token = Text()
 
     class Index:
-        name = 'reflex-blocked-tokens'
+        name = 'reflex-expired-tokens'
 
 class Observable(InnerDoc):
 
@@ -223,7 +413,6 @@ class Event(Document):
         obs = []
 
         hasher = hashlib.md5()
-        print(self.title.encode())
         hasher.update(self.title.encode())
 
         for observable in self.observables:
