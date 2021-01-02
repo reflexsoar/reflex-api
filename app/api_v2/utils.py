@@ -114,27 +114,25 @@ def _check_token():
                 # set it to current_user
 
                 # TODO: ADD AGENT FUNCTIONALITY BACK IN
-                #if 'type' in token and token['type'] == 'agent':
-                #    current_user = Agent.query.filter_by(uuid=token['uuid']).first()
+                if 'type' in token and token['type'] == 'agent':
+                    current_user = Agent.query.filter_by(uuid=token['uuid']).first()
 
                 # Refresh and Password Reset tokens should not be used to access the API
                 # only to refresh an access token or reset the password
 
                 # TODO: ADD REFRESH/RESET FUNCTIONALITY BACK IN
-                #elif 'type' in token and token['type'] in ['refresh','password_reset']:
-                #    abort(401, 'Unauthorized')
+                elif 'type' in token and token['type'] in ['refresh','password_reset']:
+                    abort(401, 'Unauthorized')
                     
                 # The pairing token can only be used on the add_agent endpoint
                 # and because the token is signed we don't have to worry about 
                 # someone adding a the pairing type to their token
 
-                # TODO: ADD PAIRING TOKENS BACK IN
-                #elif 'type' in token and token['type'] == 'pairing':
-                #    current_user = token
-                if token:
+                elif 'type' in token and token['type'] == 'pairing':
+                    current_user = token
+                else:
                     try:
                         current_user = User.get_by_uuid(token['uuid'])
-                        #current_user = User.query.filter_by(uuid=token['uuid']).options(joinedload(User.role), joinedload(User.organization), load_only(User.uuid, User.first_name, User.last_name, User.email, User.username, User.locked)).first()
                     except Exception as e:
                         abort(401, 'Unknown user error.')
 

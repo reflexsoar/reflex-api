@@ -27,6 +27,7 @@ class BaseDocument(Document):
     @classmethod
     def get_by_uuid(self, uuid):
         response = self.search().query('match', uuid=uuid).execute()
+        print(response)
         if response:
             document = response[0]
             return document
@@ -35,8 +36,11 @@ class BaseDocument(Document):
     def save(self, **kwargs):
         if not self.created_at:
             self.created_at = datetime.datetime.utcnow()
+        
+        if not self.uuid:
+            self.uuid = uuid.uuid4()
+
         self.updated_at = datetime.datetime.utcnow()
-        self.uuid = uuid.uuid4()
         return super(BaseDocument, self).save(**kwargs)
 
     def update(self, **kwargs):
@@ -82,7 +86,6 @@ class User(BaseDocument):
 
         _api_key = jwt.encode({
             'uuid': self.uuid,
-            #'organization': self.organization_uuid,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=365),
             'iat': datetime.datetime.utcnow(),
             'type': 'api'
