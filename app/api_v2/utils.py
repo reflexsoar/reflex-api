@@ -133,7 +133,7 @@ def _check_token():
                 #    current_user = token
                 if token:
                     try:
-                        current_user = User.get(id=token['id'])
+                        current_user = User.get_by_uuid(token['uuid'])
                         #current_user = User.query.filter_by(uuid=token['uuid']).options(joinedload(User.role), joinedload(User.organization), load_only(User.uuid, User.first_name, User.last_name, User.email, User.username, User.locked)).first()
                     except Exception as e:
                         abort(401, 'Unknown user error.')
@@ -154,6 +154,7 @@ def _check_token():
                 print(e)
                 abort(401, 'Invalid access token.')
             except Exception as e:
+                print(e)
                 abort(401, 'Unknown token error.')
 
         except IndexError:

@@ -244,7 +244,9 @@ def create_admin_user():
     user.set_password(user_password)
     user.save()
 
-    return user.meta.id
+    user.update(first_name='Super')
+
+    return user.uuid
 
 admin_id = create_admin_user()
 create_admin_role(admin_id)

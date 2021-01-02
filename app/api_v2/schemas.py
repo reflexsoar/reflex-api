@@ -41,6 +41,20 @@ mod_user_full = Model('UserFull', {
     #'role': fields.Nested(mod_user_role)
 })
 
+mod_user_create_success = Model('UserCreateSuccess', {
+    'message': fields.String,
+    'user': fields.Nested(mod_user_full)
+})
+
+mod_user_create = Model('UserCreate', {
+    'username': fields.String,
+    'email': fields.String,
+    'password': fields.String,
+    'first_name': fields.String,
+    'last_name': fields.String,
+    'locked': fields.Boolean
+})
+
 mod_api_key = Model('UserApiKey', {
     'api_key': fields.String
 })
@@ -237,4 +251,5 @@ mod_event_list = Model('EventList', {
 
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full, 
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, 
-mod_observable_brief, mod_observable_create, mod_raw_log, mod_permissions, mod_api_key]
+mod_observable_brief, mod_observable_create, mod_raw_log, mod_permissions, mod_api_key,
+mod_user_create, mod_user_create_success]

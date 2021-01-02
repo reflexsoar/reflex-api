@@ -96,11 +96,10 @@ class Login(Resource):
 
         # Find the user based on their username, if their account is locked don't return a user
         # object to prevent processing any more failed logons
-        user = User.search().filter('term', username=api2.payload['username']).execute()
+        user = User.get_by_username(api2.payload['username'])
         if not user:
             ns_auth_v2.abort(401, 'Incorrect username or password')
     
-        user = user[0]
         if user.check_password(api2.payload['password']):
 
             # Generate an access token
@@ -161,7 +160,7 @@ class UserInfo(Resource):
     def get(self, current_user):
         ''' Returns information about the currently logged in user '''
         
-        role = Role.search().filter('term', members=current_user.meta.id).execute()[0]
+        role = Role.get_by_member(uuid=current_user.uuid)
         current_user.role = role
 
         return current_user
@@ -196,9 +195,9 @@ class UserList2(Resource):
         args = user_parser.parse_args()
 
         if args['username']:
-            user = User.search().filter('term', username=args['username']).execute()
+            user = User.get_by_username(args['username'])
             if user:
-                return [user[0]]
+                return [user]
             else:
                 return []
         else:
@@ -206,8 +205,27 @@ class UserList2(Resource):
             response = s.execute()
             return [user for user in response]
 
-    def post(self):
-        raise NotImplementedError
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_user_create)
+    @api2.marshal_with(mod_user_create_success)
+    @api2.response('409', 'User already exists.')
+    @api2.response('200', "Successfully created the user.")
+    @token_required
+    @user_has('add_user')
+    def post(self, current_user):
+        ''' Creates a new user '''
+
+        # Check to see if the user already exists
+        user = User.get_by_email(api2.payload['email'])
+        if user:
+            ns_user_v2.abort(409, "User with this e-mail already exists.")
+        else:
+            user_password = api2.payload.pop('password')
+            user = User(**api2.payload)
+            user.set_password(user_password)
+            user.save()
+            return {'message': 'Successfully created the user.', 'user': user}  
+
 
 event_list_parser = api2.parser()
 event_list_parser.add_argument('query', type=str, location='args', required=False)
@@ -240,7 +258,7 @@ class EventList2(Resource):
         _observables = []
         _tags = []
         
-        event = Event.search().filter('term', reference=api2.payload['reference']).execute()
+        event = Event.get_by_reference(api2.payload['reference'])
                 
         if not event:
             event = Event(**api2.payload)

@@ -15,9 +15,34 @@ from app import FLASK_BCRYPT
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-class User(Document):
-    
+class BaseDocument(Document):
+
     uuid = Text()
+    created_at = Date()
+    updated_at = Date()
+
+    @classmethod
+    def get_by_uuid(self, uuid):
+        response = self.search().query('match', uuid=uuid).execute()
+        if response:
+            document = response[0]
+            return document
+        return response
+
+    def save(self, **kwargs):
+        if not self.created_at:
+            self.created_at = datetime.datetime.utcnow()
+        self.updated_at = datetime.datetime.utcnow()
+        self.uuid = uuid.uuid4()
+        return super(BaseDocument, self).save(**kwargs)
+
+    def update(self, **kwargs):
+        self.updated_at = datetime.datetime.utcnow()
+        return super(BaseDocument, self).update(**kwargs)
+
+
+class User(BaseDocument):
+    
     email = Text()
     username = Text()
     first_name = Text()
@@ -29,8 +54,6 @@ class User(Document):
     locked = Boolean()
     #groups = Nested(Group)
     api_key = Text()
-    created_at = Date()
-    updated_at = Date()
     
     class Index:
         name = 'reflex-users'
@@ -79,7 +102,7 @@ class User(Document):
         '''
 
         _access_token = jwt.encode({
-            'id': self.meta.id,
+            'uuid': self.uuid,
             #'organization': self.organization_uuid,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=360),
             'iat': datetime.datetime.utcnow(),
@@ -98,7 +121,7 @@ class User(Document):
 
     def create_password_reset_token(self):
         _token = jwt.encode({
-            'uuid': self.meta.id,
+            'uuid': self.uuid,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30),
             'iat': datetime.datetime.utcnow(),
             'type': 'password_reset'
@@ -108,7 +131,7 @@ class User(Document):
 
     def create_refresh_token(self, user_agent_string):
         _refresh_token = jwt.encode({
-            'id': self.meta.id,
+            'uuid': self.uuid,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=30),
             'iat': datetime.datetime.utcnow(),
             'type': 'refresh'
@@ -152,17 +175,30 @@ class User(Document):
         permissions to perform an API action
         '''
 
-        role = Role.search().filter('term', members=self.meta.id).execute()
-        role = Role.get(id=role[0].meta.id)
+        role = Role.search().query('match', members=self.uuid).execute()
+        if role:
+            role = role[0]
 
         if getattr(role.permissions, permission):
             return True
         else:
             return False
 
-    def save(self, **kwargs):
-        self.created_at = datetime.datetime.utcnow()
-        return super().save(**kwargs)
+    @classmethod
+    def get_by_username(self, username):
+        response = self.search().query('match', username=username).execute()
+        if response:
+            user = response[0]
+            return user
+        return response
+
+    @classmethod
+    def get_by_email(self, email):
+        response = self.search().query('match', email=email).execute()
+        if response:
+            user = response[0]
+            return user
+        return response
 
 
 class Permission(InnerDoc):
@@ -349,10 +385,20 @@ class Role(Document):
             self.members.remove(user_id)
             self.update(members=self.members)
 
+    @classmethod
+    def get_by_member(self, uuid):
+        response = self.search().query('match', members=uuid).execute()
+        if response:
+            print(response)
+            role = response[0]
+            return role
+        return response
+
     def save(self, **kwargs):
         '''
         Saves the Role
         ''' 
+        self.uuid = uuid.uuid4()
         return super().save(**kwargs)
 
 
@@ -366,6 +412,7 @@ class ExpiredToken(Document):
 
 class Observable(InnerDoc):
 
+    uuid = Text()
     tags = Keyword()
     data_type = Text()
     value = Text()
@@ -375,9 +422,14 @@ class Observable(InnerDoc):
     tlp = Integer()
     created_at = datetime.datetime.utcnow()
 
+    def save(self, **kwargs):
+        self.uuid = uuid.uuid4()
+        return super().save(**kwargs)
+
 
 class Event(Document):
 
+    uuid = Text()
     title = Text(fields={'raw': Keyword()})
     description = Text(fields={'raw': Keyword()})
     reference = Text()
@@ -400,6 +452,7 @@ class Event(Document):
         self.observables.append(Observable(**content))
 
     def save(self, **kwargs):
+        self.uuid = uuid.uuid4()
         self.created_at = datetime.datetime.utcnow()
         self.hash_event()
         return super().save(**kwargs)
@@ -429,3 +482,11 @@ class Event(Document):
         hasher.update(str(obs).encode())
         self.signature = hasher.hexdigest()
         return
+
+    @classmethod
+    def get_by_reference(self, reference):
+        response = self.search().query('match', reference=reference).execute()
+        if response:
+            document = response[0]
+            return document
+        return response
