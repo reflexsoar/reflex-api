@@ -16,6 +16,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class BaseDocument(Document):
+    """
+    Base class for Documents containing common fields
+    """
 
     uuid = Text()
     created_at = Date()
@@ -87,11 +90,11 @@ class User(BaseDocument):
 
         if self.api_key != None:
             expired_token = ExpiredToken(token=self.api_key)
-            expired_token = save()
+            expired_token.save()
             self.api_key = _api_key
         else:
             self.api_key = _api_key
-        self.update(api_key=_api_key)
+        self.save()
         return {'api_key': self.api_key}
 
 
@@ -371,19 +374,20 @@ class Role(Document):
         Adds users unique IDs to the members field
         '''
         if isinstance(user_id, list):
-            self.update(members = self.members + user_id)
+            self.members = self.members + user_id
         else:
-            self.update(members = self.members.append(user_id))
+            self.members = self.members.append(user_id)
+        self.save()
 
     def remove_user_from_role(self, user_id):
         '''
         Removes members from the members field
         '''
         if isinstance(user_id, list):
-            self.update(members= [m for m in self.members if m not in user_id])
+            self.members = [m for m in self.members if m not in user_id]
         else:
             self.members.remove(user_id)
-            self.update(members=self.members)
+        self.save()
 
     @classmethod
     def get_by_member(self, uuid):
