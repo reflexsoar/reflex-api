@@ -86,7 +86,6 @@ def create_observables(observables):
 @ns_auth_v2.route("/login")
 class Login(Resource):
     
-
     @api2.expect(mod_auth)
     @api2.response(200, 'Success', mod_auth_success_token)
     @api2.response(401, 'Incorrect username or password')
@@ -186,12 +185,12 @@ user_parser.add_argument('username', location='args', required=False)
 @ns_user_v2.route("")
 class UserList2(Resource):
 
-    #@api.doc(security="Bearer")
+    @api2.doc(security="Bearer")
     @api2.marshal_with(mod_user_full, as_list=True)
     @api2.expect(user_parser)
-    #@token_required
-    #@user_has('view_users')
-    def get(self):
+    @token_required
+    @user_has('view_users')
+    def get(self, current_user):
         ''' Returns a list of users '''
         s = User.search()
         response = s.execute()
