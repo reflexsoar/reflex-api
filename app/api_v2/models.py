@@ -203,7 +203,7 @@ class User(BaseDocument):
 
     @classmethod
     def get_by_username(self, username):
-        response = self.search().query('match', username=username).execute()
+        response = self.search().query('match', username=escape_special_characters(username)).execute()
         if response:
             user = response[0]
             return user
