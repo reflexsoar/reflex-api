@@ -39,7 +39,6 @@ class BaseDocument(Document):
     @classmethod
     def get_by_uuid(self, uuid):
         response = self.search().query('match', uuid=uuid).execute()
-        print(response)
         if response:
             document = response[0]
             return document
@@ -234,8 +233,10 @@ class User(BaseDocument):
 
         success = False
         if isinstance(data, dict):
-            for k,v in data:
-                print(k, v)
+            for k in data:
+                if getattr(self, k):
+                    setattr(self, k, data[k])
+            self.save()
             success = True
 
         if success:
@@ -431,7 +432,6 @@ class Role(Document):
     def get_by_member(self, uuid):
         response = self.search().query('match', members=uuid).execute()
         if response:
-            print(response)
             role = response[0]
             return role
         return response
@@ -517,7 +517,6 @@ class Event(Document):
 
         for observable in _observables:
             if observable and observable.data_type in sorted(data_types):
-                print({'data_type': observable.data_type.lower(), 'value': observable.value.lower()})
                 obs.append({'data_type': observable.data_type.lower(), 'value': observable.value.lower()})
         obs = [dict(t) for t in {tuple(d.items()) for d in obs}] # Deduplicate the observables
         obs = sorted(sorted(obs, key = lambda i: i['data_type']), key = lambda i: i['value'])

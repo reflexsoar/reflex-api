@@ -293,7 +293,7 @@ class UserDetails(Resource):
                 user.set_password(pw)
                 user.save()
             
-            #user.update_from_dict(api2.payload)
+            user.update_from_dict(api2.payload)
             return user
         else:
             ns_user_v2.abort(404, 'User not found.')
