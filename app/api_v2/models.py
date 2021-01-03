@@ -5,8 +5,15 @@ import uuid
 import datetime
 import urllib3
 import hashlib
+import secrets
+import base64
 from flask import current_app
 from collections import namedtuple
+from cryptography.fernet import Fernet
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.fernet import InvalidToken
 from elasticsearch import Elasticsearch
 from elasticsearch_dsl import Document, InnerDoc, Date, Integer, Keyword, Text, Boolean, Nested, connections
 from json import JSONEncoder
@@ -21,7 +28,7 @@ def escape_special_characters(string):
     and return false matches
     '''
 
-    characters = ['.']
+    characters = ['.',' ']
     for character in characters:
         string = string.replace(character, '\\'+character)
     return string
@@ -38,13 +45,22 @@ class BaseDocument(Document):
 
     @classmethod
     def get_by_uuid(self, uuid):
+        '''
+        Fetches a document by the uuid field
+        '''
         response = self.search().query('match', uuid=uuid).execute()
         if response:
             document = response[0]
             return document
         return response
 
+    
     def save(self, **kwargs):
+        '''
+        Overrides the default Document save() function and adds
+        audit fields created_at, updated_at and a default uuid field
+        '''
+
         if not self.created_at:
             self.created_at = datetime.datetime.utcnow()
         
@@ -55,6 +71,12 @@ class BaseDocument(Document):
         return super(BaseDocument, self).save(**kwargs)
 
     def update(self, **kwargs):
+        '''
+        Overrides the default Document update() function and 
+        adds an update to updated_at each time the document 
+        is saved 
+        '''
+
         self.updated_at = datetime.datetime.utcnow()
         return super(BaseDocument, self).update(**kwargs)
 
@@ -517,6 +539,59 @@ class Event(Document):
         return response
 
 
+class Credential(BaseDocument):
+
+    name = Keyword()
+    description = Text()
+    username = Text()
+    secret = Text()
+
+    class Index:
+        name = 'reflex-credentials'
+    
+    def _derive_key(self, secret: bytes, salt: bytes, iterations: int = 100_000) -> bytes:
+
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=iterations,
+            backend=default_backend()
+        )
+        return base64.urlsafe_b64encode(kdf.derive(secret))
+
+    def encrypt(self, message: bytes, secret: str, iterations: int = 100_000) -> bytes:
+        iterations = 100_000
+        salt = secrets.token_bytes(16)
+        key = self._derive_key(secret.encode(), salt, iterations)
+        self.secret = base64.urlsafe_b64encode(b'%b%b%b' % (salt, iterations.to_bytes(4, 'big'),
+                                                            base64.urlsafe_b64encode(Fernet(key).encrypt(message)))).decode()
+        self.save()
+
+    def decrypt(self, secret: str) -> bytes:
+        decoded = base64.urlsafe_b64decode(self.secret)
+        salt, iter, token = decoded[:16], decoded[16:20], base64.urlsafe_b64decode(
+            decoded[20:])
+        iterations = int.from_bytes(iter, 'big')
+        key = self._derive_key(secret.encode(), salt, iterations)
+        try:
+            return Fernet(key).decrypt(token).decode()
+        except InvalidToken:
+            return None
+
+    @classmethod
+    def get_by_name(self, name):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search().query('term', name=name).execute()
+        if response:
+            document = response[0]
+            return document
+        return response
+
+
 class Settings(BaseDocument):
 
     base_url = Text()
@@ -572,7 +647,7 @@ class Settings(BaseDocument):
         if self.peristent_pairing_token != None:
             expired = ExpiredToken(token = self.peristent_pairing_token)
             expired.create()
-            
+
         self.update(peristent_pairing_token = _api_key)
         
         return {'token': self.peristent_pairing_token}

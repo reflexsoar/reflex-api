@@ -2,7 +2,7 @@ import datetime
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from .schemas import *
-from .models import Event, Observable, User, Role, Settings
+from .models import Event, Observable, User, Role, Settings, Credential
 from .utils import token_required, user_has
 
 # Instantiate a new API object
@@ -14,6 +14,7 @@ ns_user_v2 = api2.namespace('User', description='User operations', path='/user')
 ns_auth_v2 = api2.namespace('Auth', description='Authentication operations', path='/auth')
 ns_event_v2 = api2.namespace('Event', description='Event operations', path='/event')
 ns_settings_v2 = api2.namespace('Settings', description='Settings operations', path='/settings')
+ns_credential_v2 = api2.namespace('Credential', description='Credential operations', path='/credential')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -360,6 +361,125 @@ class EventList2(Resource):
             return {'message': 'Successfully created the event.'}
         else:
             ns_event_v2.abort(409, 'Event already exists.')
+
+
+@ns_credential_v2.route('/encrypt')
+class EncryptPassword(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_credential_create)
+    @api2.marshal_with(mod_credential_full)
+    @api2.response('400', 'Successfully created credential.')
+    @api2.response('409', 'Credential already exists.')
+    @token_required
+    @user_has('add_credential')
+    def post(self, current_user):
+        ''' Encrypts the password '''
+        credential = Credential.get_by_name(api2.payload['name'])
+        if not credential:
+            pw = api2.payload.pop('secret')
+            print(pw)
+            credential = Credential(**api2.payload)
+            credential.save()
+            credential.encrypt(pw.encode(
+            ), current_app.config['MASTER_PASSWORD'])
+            
+            return credential
+        else:
+            ns_credential_v2.abort(409, 'Credential already exists.')
+
+
+@ns_credential_v2.route("")
+class CredentialList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_credential_list)
+    @token_required
+    @user_has('view_credentials')
+    def get(self, current_user):
+        credentials = Credential.search().execute()
+        if credentials:
+            return [c for c in credentials]
+        else:
+            return []
+
+
+@ns_credential_v2.route('/decrypt/<uuid>')
+class DecryptPassword(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_credential_return)
+    @api2.response('404', 'Credential not found.')
+    @token_required
+    @user_has('decrypt_credential')
+    def get(self, uuid, current_user):
+        ''' Decrypts the credential for use '''
+        credential = Credential.get_by_uuid(uuid=uuid)
+        if credential:
+            value = credential.decrypt(current_app.config['MASTER_PASSWORD'])
+            if value:
+                return {'secret': value}
+            else:
+                ns_credential_v2.abort(401, 'Invalid master password.')
+        else:
+            ns_credential_v2.abort(404, 'Credential not found.')
+
+
+@ns_credential_v2.route('/<uuid>')
+class CredentialDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_credential_full)
+    @api2.response('404', 'Credential not found.')
+    @token_required
+    @user_has('view_credentials')
+    def get(self, uuid, current_user):
+        ''' Gets the full details of a credential '''
+        credential = Credential.get_by_uuid(uuid)
+        if credential:
+            return credential
+        else:
+            ns_credential_v2.abort(409, 'Credential not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_credential_update, validate=True)
+    @api2.marshal_with(mod_credential_full)
+    @api2.response('404', 'Credential not found.')
+    @api2.response('409', 'Credential name already exists.')
+    @token_required
+    @user_has('update_credential')
+    def put(self, uuid, current_user):
+        ''' Updates a credential '''
+        credential = Credential.get_by_uuid(uuid=uuid)
+        if credential:
+            if 'name' in api2.payload:
+                cred = Credential.get_by_name(api2.payload['name'])
+                if cred:
+                    if cred.uuid != uuid:
+                        ns_credential_v2.abort(409, 'Credential name already exists.')
+            
+            if 'secret' in api2.payload:
+                credential.encrypt(api2.payload.pop('secret').encode(
+                                    ), current_app.config['MASTER_PASSWORD'])
+            if len(api2.payload) > 0:
+                credential.update(**api2.payload)
+            return credential
+        else:
+            ns_credential_v2.abort(404, 'Credential not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.response('404', 'Credential not found.')
+    @api2.response('200', "Credential sucessfully deleted.")
+    @token_required
+    @user_has('delete_credential')
+    def delete(self, uuid, current_user):
+        ''' Deletes a credential '''
+        credential = Credential.get_by_uuid(uuid=uuid)
+        if credential:
+            credential.delete()
+            return {'message': 'Credential successfully deleted.'}
+        else:
+            ns_credential_v2.abort(404, 'Credential not found.')
 
 
 @ns_settings_v2.route("")
