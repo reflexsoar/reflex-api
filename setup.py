@@ -6,7 +6,8 @@ from app.api_v2.models import (
     Settings,
     Credential,
     Agent,
-    Input
+    Input,
+    ThreatList
 )
 
 connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','URWsI66IP6qBYj6yr1L7'))
@@ -280,7 +281,8 @@ def initial_settings():
         'assign_task_on_start': True,
         'allow_comment_editing': False,
         'events_page_refresh': 60,
-        'events_per_page': 10
+        'events_per_page': 10,
+        'data_types': ['ip','user','host','fqdn','sha1','md5','sha256','imphash','ssdeep','vthash','network','domain','url','mail']
     }
 
     settings = Settings(**settings_content)
@@ -291,6 +293,7 @@ ExpiredToken.init()
 Credential.init()
 Input.init()
 Agent.init()
+ThreatList.init()
 
 admin_id = create_admin_user()
 create_admin_role(admin_id)

@@ -653,8 +653,8 @@ class Agent(BaseDocument):
 
     name = Keyword()
     inputs = Keyword() # A list of UUIDs of which inputs to run
-    roles = Keyword()
-    # groups = Keyword()
+    roles = Keyword() # A list of roles that the agent belongs to
+    groups = Keyword() # A list of UUIDs that the agent belongs to
     active = Boolean()
     ip_address = Ip()
     last_heartbeat = Date()
@@ -676,6 +676,31 @@ class Agent(BaseDocument):
             return True
         else:
             return False
+
+    @classmethod
+    def get_by_name(self, name):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search().query('term', name=name).execute()
+        if response:
+            user = response[0]
+            return user
+        return response
+
+
+class ThreatList(BaseDocument):
+
+    name = Keyword()
+    description = Text()
+    list_type = Text() # value or pattern
+    data_type = Text()
+    tag_on_match = Boolean() # Default to False
+    values = Keyword() # A list of values to match on
+
+    class Index:
+        name = 'reflex-threat-lists'
 
     @classmethod
     def get_by_name(self, name):
@@ -713,6 +738,7 @@ class Settings(BaseDocument):
     allow_comment_editing = Boolean() # Default False
     events_page_refresh = Integer() # Default 60
     events_per_page = Integer() # Default 10 
+    data_types = Keyword() # ip,user,host,fqdn,sha1,md5,sha256,imphash,ssdeep,vthash,network,domain,url,mail
 
     class Index:
         name = 'reflex-settings'

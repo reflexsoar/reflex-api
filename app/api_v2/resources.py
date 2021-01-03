@@ -3,7 +3,7 @@ import datetime
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from .schemas import *
-from .models import Event, Observable, User, Role, Settings, Credential, Input, Agent
+from .models import Event, Observable, User, Role, Settings, Credential, Input, Agent, ThreatList
 from .utils import token_required, user_has, generate_token
 
 # Instantiate a new API object
@@ -18,6 +18,7 @@ ns_settings_v2 = api2.namespace('Settings', description='Settings operations', p
 ns_credential_v2 = api2.namespace('Credential', description='Credential operations', path='/credential')
 ns_input_v2 = api2.namespace('Input', description='Input operations', path='/input')
 ns_agent_v2 = api2.namespace('Agent', description='Agent operations', path='/agent')
+ns_list_v2 = api2.namespace('List', description='Lists API endpoints for managing indicator lists, lists may be string values or regular expressions', path='/list')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -705,6 +706,145 @@ class CredentialDetails(Resource):
             return {'message': 'Credential successfully deleted.'}
         else:
             ns_credential_v2.abort(404, 'Credential not found.')
+
+
+@ns_list_v2.route("")
+class ThreatListList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_list_list, as_list=True)
+    @token_required
+    @user_has('view_lists')
+    def get(self, current_user):
+        ''' Returns a list of ThreatLists '''
+        lists = ThreatList.search().execute()
+        if lists:
+            return [l for l in lists]
+        else:
+            return []
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_list_create)
+    @api2.marshal_with(mod_list_list)
+    @api2.response('409', 'ThreatList already exists.')
+    @api2.response('200', "Successfully created the list.")
+    @token_required
+    @user_has('add_list')
+    def post(self, current_user):
+        '''
+        Creates a new ThreatList 
+        
+        Supported list types: `values|pattern`
+        
+        '''
+
+        if api2.payload['list_type'] not in ['values', 'pattern']:
+            ns_list_v2.abort(400, "Invalid list type.")
+
+        if 'values' in api2.payload:
+            _values = api2.payload.pop('values')
+            if not isinstance(_values, list):
+                _values = _values.split('\n')
+            values = []
+            for value in _values:
+                if value == '':
+                    continue
+                values.append(value)
+
+            api2.payload['values'] = values
+
+        if api2.payload['data_type'] not in Settings.load().data_types:
+            ns_list_v2.abort(409, "Data type not found.")
+
+        value_list = ThreatList.get_by_name(name=api2.payload['name'])
+
+        if not value_list:
+            value_list = ThreatList(**api2.payload)
+            value_list.save()
+            return value_list
+        else:
+            ns_list_v2.abort(409, "ThreatList already exists.")
+
+
+@ns_list_v2.route("/<uuid>")
+class ThreatListDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_list_create)
+    @api2.marshal_with(mod_list_list)
+    @token_required
+    @user_has('update_list')
+    def put(self, uuid, current_user):
+        ''' Updates a ThreatList '''
+        value_list = ThreatList.get_by_uuid(uuid=uuid)
+        if value_list:
+            
+            if 'name' in api2.payload:
+                l =  ThreatList.get_by_name(name=api2.payload['name'])
+                if l and l.uuid != uuid:
+                    ns_list_v2.abort(409, 'ThreatList with that name already exists.')
+
+            if 'values' in api2.payload:
+
+                # Get the current values in the list
+                current_values = [v for v in value_list.values]
+
+                # Determine what the new values should be, current, new or removed
+                _values = api2.payload.pop('values')
+
+                # Detect if the user sent it as a list or a \n delimited string
+                if not isinstance(_values, list):
+                    _values = _values.split('\n')
+
+                removed_values = [v for v in current_values if v not in _values and v != '']
+                new_values = [v for v in _values if v not in current_values and v != '']
+
+                # For all values not in the new list
+                # delete them from the database and disassociate them 
+                # from the list
+                for v in removed_values:
+                    value_list.values.remove(v)
+
+                for v in new_values:
+                    if value_list.values:
+                        value_list.values.append(v)
+                    else:
+                        value_list.values = [v]
+                
+                value_list.save()
+
+            # Update the list with all other fields
+            if len(api2.payload) > 0:
+                value_list.update(**api2.payload)
+
+            return value_list
+        else:
+            ns_list_v2.abort(404, 'ThreatList not found.')
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('delete_list')
+    def delete(self, uuid, current_user):
+        ''' Removes a ThreatList '''
+        value_list = ThreatList.get_by_uuid(uuid=uuid)
+        if value_list:
+            value_list.delete()
+            return {'message': 'ThreatList successfully delete.'}
+        else:
+            ns_list_v2.abort(404, 'ThreatList not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_list_list)
+    @token_required
+    @user_has('view_lists')
+    def get(self, uuid, current_user):
+        ''' Gets the details of a ThreatList '''
+
+        value_list = ThreatList.get_by_uuid(uuid=uuid)
+        if value_list:
+            return value_list
+        else:
+            ns_list_v2.abort(404, 'ThreatList not found.')
 
 
 @ns_settings_v2.route("")

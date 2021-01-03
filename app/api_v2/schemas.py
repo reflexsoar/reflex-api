@@ -8,6 +8,10 @@ class ObservableCount(fields.Raw):
     def format(self, value):
         return len(value)
 
+class ValueCount(fields.Raw):
+    def format(self, value):
+        return len(value)
+
 class IOCCount(fields.Raw):
     ''' Returns the number of observables that are IOC '''
 
@@ -19,6 +23,11 @@ class ISO8601(fields.Raw):
     ''' Returns a Python DateTime object in ISO8601 format with the Zulu time indicator '''
     def format(self, value):
         return value.isoformat()+"Z"
+
+class AsNewLineDelimited(fields.Raw):
+    ''' Returns an array as a string delimited by new line characters '''
+    def format(self, value):
+        return '\n'.join([v for v in value])
 
 
 mod_auth = Model('AuthModel', {
@@ -274,7 +283,8 @@ mod_settings = Model('SettingsList', {
     'assign_task_on_start': fields.Boolean,
     'allow_comment_editing': fields.Boolean,
     'events_page_refresh': fields.Integer,
-    'events_per_page': fields.Integer
+    'events_per_page': fields.Integer,
+    'data_types': fields.List(fields.String)
 })
 
 mod_persistent_pairing_token = Model('PeristentPairingToken', {
@@ -358,9 +368,30 @@ mod_agent_list = Model('AgentList', {
 })
 
 
+mod_list_list = Model('ListView', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'list_type': fields.String,
+    'tag_on_match': fields.Boolean,
+    'data_type': fields.String,
+    'values': AsNewLineDelimited(attribute='values'),
+    'values_list': fields.List(fields.String, attribute='values'),
+    'value_count': ValueCount(attribute='values'),
+    'created_at': ISO8601(attribute='created_at'),
+    'updated_at': ISO8601(attribute='updated_at')
+})
+
+mod_list_create = Model('ListCreate', {
+    'name': fields.String,
+    'list_type': fields.String,
+    'tag_on_match': fields.Boolean,
+    'data_type': fields.String,
+    'values': fields.String
+})
+
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full, 
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, 
 mod_observable_brief, mod_observable_create, mod_raw_log, mod_permissions, mod_api_key,
 mod_user_create, mod_user_create_success, mod_settings, mod_persistent_pairing_token,
 mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list, mod_credential_return,
-mod_input_create, mod_input_list, mod_agent_list, mod_agent_create]
+mod_input_create, mod_input_list, mod_agent_list, mod_agent_create, mod_list_list, mod_list_create]
