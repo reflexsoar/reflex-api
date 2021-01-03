@@ -181,6 +181,24 @@ class UserGenerateApiKey(Resource):
 user_parser = api2.parser()
 user_parser.add_argument('username', location='args', required=False)
 
+
+@ns_user_v2.route("/<uuid>/unlock")
+class UnlockUser(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_user_full)
+    @token_required
+    @user_has('unlock_user')
+    def put(self, uuid, current_user):
+        ''' Unlocks a user and resets their failed logons back to 0 '''
+        user = User.get_by_uuid(uuid)
+        print(user.locked)
+        if user:
+            user.unlock()
+            return user
+        else:
+            ns_user_v2.abort(404, 'User not found.')
+
 @ns_user_v2.route("")
 class UserList2(Resource):
 
@@ -226,6 +244,83 @@ class UserList2(Resource):
             user.save()
             return {'message': 'Successfully created the user.', 'user': user}  
 
+
+@ns_user_v2.route("/<uuid>")
+class UserDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_user_full)
+    @token_required
+    @user_has('view_users')
+    def get(self, uuid, current_user):
+        ''' Returns information about a user '''
+        user = User.get_by_uuid(uuid)
+        if user:
+            return user
+        else:
+            ns_user_v2.abort(404, 'User not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_user_create)
+    @api2.marshal_with(mod_user_full)
+    @token_required
+    @user_has('update_user')
+    def put(self, uuid, current_user):
+        ''' Updates information for a user '''
+
+        user = User.get_by_uuid(uuid)
+        if user:
+            if 'username' in api.payload:
+                target_user = User.get_by_username(api2.payload['username'])
+                if target_user:
+                    if target_user.uuid == uuid:
+                        del api2.payload['username']
+                    else:
+                        ns_user.abort(409, 'Username already taken.')
+
+            if 'email' in api.payload:
+                target_user = User.get_by_email(api2.payload['email'])
+                if target_user:
+                    if target_user.uuid == uuid:
+                        del api2.payload['email']
+                    else:
+                        ns_user.abort(409, 'Email already taken.')
+            
+            if 'password' in api2.payload and not current_user.has_right('reset_user_password'):
+                api2.payload.pop('password')
+            if 'password' in api2.payload and current_user.has_right('reset_user_password'):
+                pw = api.payload.pop('password')
+                user.set_password(pw)
+                user.save()
+            
+            user.update_from_dict(api2.payload)
+            return user
+        else:
+            ns_user_v2.abort(404, 'User not found.')
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('delete_user')
+    def delete(self, uuid, current_user):
+        ''' 
+        Deletes a user 
+        
+        Users are soft deleted, meaning they never get removed from the database.  Instead,
+        their deleted attribute is set and they do not show up in the UI.  This is 
+        used to preserve database relationships like ownership, comment history.
+        Deleted users can not be restored at this time.        
+        '''
+        user = User.get_by_uuid(uuid)
+        if user:
+            if current_user.uuid == user.uuid:
+                ns_user_v2.abort(403, 'User can not delete themself.')
+            else:
+                user.deleted = True
+                user.locked = True
+                user.save()
+                return {'message': 'User successfully deleted.'}
+        else:
+            ns_user_v2.abort(404, 'User not found.')
 
 event_list_parser = api2.parser()
 event_list_parser.add_argument('query', type=str, location='args', required=False)

@@ -15,6 +15,18 @@ from app import FLASK_BCRYPT
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
+def escape_special_characters(string):
+    ''' 
+    Escapes characters in Elasticsearch that might wedge a search
+    and return false matches
+    '''
+
+    characters = ['.']
+    for character in characters:
+        string = string.replace(character, '\\'+character)
+    return string
+
+
 class BaseDocument(Document):
     """
     Base class for Documents containing common fields
@@ -200,11 +212,34 @@ class User(BaseDocument):
 
     @classmethod
     def get_by_email(self, email):
-        response = self.search().query('match', email=email).execute()
+        response = self.search().query('match', email=escape_special_characters(email)).execute()
         if response:
             user = response[0]
             return user
         return response
+
+    def unlock(self):
+        '''
+        Unlocks a user account and resets their failed_logons back to 0
+        '''
+        if self.locked:
+            self.locked = False
+            self.failed_logons = 0
+            self.save()
+
+    def update_from_dict(self, data):
+        '''
+        Updates a set of properties from a dictionary
+        '''
+
+        success = False
+        if isinstance(data, dict):
+            for k,v in data:
+                print(k, v)
+            success = True
+
+        if success:
+            self.save()
 
 
 class Permission(InnerDoc):
