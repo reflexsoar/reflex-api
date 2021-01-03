@@ -13,7 +13,7 @@ api2 = Api(api_v2)
 ns_user_v2 = api2.namespace('User', description='User operations', path='/user')
 ns_auth_v2 = api2.namespace('Auth', description='Authentication operations', path='/auth')
 ns_event_v2 = api2.namespace('Event', description='Event operations', path='/event')
-ns_settings_v2 = api2.namespace('GlobalSettings', description='Settings operations', path='/global_settings') # TODO: Rename this to settings instead of global_settings
+ns_settings_v2 = api2.namespace('Settings', description='Settings operations', path='/settings')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -363,7 +363,7 @@ class EventList2(Resource):
 
 
 @ns_settings_v2.route("")
-class Settings(Resource):
+class GlobalSettings(Resource):
 
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_settings)

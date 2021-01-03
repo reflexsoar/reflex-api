@@ -154,7 +154,7 @@ class User(BaseDocument):
             'type': 'refresh'
         }, current_app.config['SECRET_KEY'])
 
-        user_agent_hash = hashlib.md5(user_agent_string).hexdigest()
+        #user_agent_hash = hashlib.md5(user_agent_string).hexdigest()
 
         #refresh_token = RefreshToken.query.filter_by(
         #    user_agent_hash=user_agent_hash).first()
@@ -546,8 +546,33 @@ class Settings(BaseDocument):
 
     @classmethod
     def load(self):
+        ''' 
+        Loads the settings, there should only be one entry
+        in the index so execute should only return one entry, if for some
+        reason there are more than one settings documents, return the most recent
+        '''
         settings = self.search().execute()
+        print(settings)
         if settings:
-            return settings
+            return settings[0]
         else:
             return None
+
+    def generate_persistent_pairing_token(self):
+        '''
+        Generates a long living pairing token which can be used in
+        automated deployment of agents
+        '''
+
+        _api_key = jwt.encode({
+            'iat': datetime.datetime.utcnow(),
+            'type': 'pairing'
+        }, current_app.config['SECRET_KEY'])
+
+        if self.peristent_pairing_token != None:
+            expired = ExpiredToken(token = self.peristent_pairing_token)
+            expired.create()
+            
+        self.update(peristent_pairing_token = _api_key)
+        
+        return {'token': self.peristent_pairing_token}
