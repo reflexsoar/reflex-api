@@ -226,22 +226,6 @@ class User(BaseDocument):
             self.failed_logons = 0
             self.save()
 
-    def update_from_dict(self, data):
-        '''
-        Updates a set of properties from a dictionary
-        '''
-
-        success = False
-        if isinstance(data, dict):
-            for k in data:
-                if getattr(self, k):
-                    setattr(self, k, data[k])
-            self.save()
-            success = True
-
-        if success:
-            self.save()
-
 
 class Permission(InnerDoc):
 
