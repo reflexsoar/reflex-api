@@ -15,6 +15,11 @@ class IOCCount(fields.Raw):
         iocs = [o for o in value if 'ioc' in o and o['ioc'] == True]
         return len(iocs)
 
+class ISO8601(fields.Raw):
+    ''' Returns a Python DateTime object in ISO8601 format with the Zulu time indicator '''
+    def format(self, value):
+        return value.isoformat()+"Z"
+
 
 mod_auth = Model('AuthModel', {
     'username': fields.String(default='reflex'),
@@ -35,7 +40,7 @@ mod_user_full = Model('UserFull', {
     'email': fields.String,
     'first_name': fields.String,
     'last_name': fields.String,
-    'last_logon': fields.String,
+    'last_logon': ISO8601(attribute='last_logon'),
     'locked': fields.Boolean,
     'failed_logons': fields.Integer,
     'disabled': fields.Boolean
@@ -192,7 +197,7 @@ mod_observable_create = Model('ObservableCreate', {
 })
 
 mod_observable_list = Model('ObservableList', {
-    'tags': fields.List(fields.Nested(mod_tag_list)),
+    'tags': fields.List(fields.String),
     'value': fields.String,
     'ioc': fields.Boolean,
     'tlp': fields.Integer,
@@ -239,8 +244,8 @@ mod_event_list = Model('EventList', {
     'observables': fields.List(fields.Nested(mod_observable_brief)),
     'observable_count': ObservableCount(attribute='observables'),
     'ioc_count': IOCCount(attribute='observables'),
-    'created_at': fields.String,#ISO8601(attribute='created_at'),
-    'modified_at': fields.String, #ISO8601(attribute='modified_at'),
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at'),
     'case_uuid': fields.String,
     'signature': fields.String,
     'related_events_count': fields.Integer,
@@ -308,9 +313,35 @@ mod_credential_return = Model('CredentialReturn', {
     'secret': fields.String
 })
 
+mod_input_list = Model('InputList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'plugin': fields.String,
+    'description': fields.String,
+    'enabled': fields.Boolean,
+    'credential': fields.String,
+    'tags': fields.List(fields.String),
+    'config': fields.String,
+    'field_mapping': fields.String,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at')
+})
+
+mod_input_create = Model('CreateInput', {
+    'name': fields.String,
+    'description': fields.String,
+    'plugin': fields.String,
+    'enabled': fields.Boolean,
+    'credential': fields.String(required=True),
+    'tags': fields.List(fields.String),
+    'config': fields.String,
+    'field_mapping': fields.String
+})
+
 
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full, 
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, 
 mod_observable_brief, mod_observable_create, mod_raw_log, mod_permissions, mod_api_key,
 mod_user_create, mod_user_create_success, mod_settings, mod_persistent_pairing_token,
-mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list, mod_credential_return]
+mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list, mod_credential_return,
+mod_input_create, mod_input_list]

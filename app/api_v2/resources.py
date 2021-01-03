@@ -1,8 +1,9 @@
+import base64
 import datetime
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from .schemas import *
-from .models import Event, Observable, User, Role, Settings, Credential
+from .models import Event, Observable, User, Role, Settings, Credential, Input
 from .utils import token_required, user_has
 
 # Instantiate a new API object
@@ -15,6 +16,7 @@ ns_auth_v2 = api2.namespace('Auth', description='Authentication operations', pat
 ns_event_v2 = api2.namespace('Event', description='Event operations', path='/event')
 ns_settings_v2 = api2.namespace('Settings', description='Settings operations', path='/settings')
 ns_credential_v2 = api2.namespace('Credential', description='Credential operations', path='/credential')
+ns_input_v2 = api2.namespace('Input', description='Input operations', path='/input')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -361,6 +363,108 @@ class EventList2(Resource):
             return {'message': 'Successfully created the event.'}
         else:
             ns_event_v2.abort(409, 'Event already exists.')
+
+
+@ns_input_v2.route("")
+class InputList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_input_list, as_list=True)
+    @token_required
+    @user_has('view_inputs')
+    def get(self, current_user):
+        ''' Returns a list of inputs '''
+        inputs = Input.search().execute()
+        if inputs:
+            return [i for i in inputs]
+        else:
+            return []
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_input_create)
+    @api2.response('409', 'Input already exists.')
+    @api2.response('200', 'Successfully create the input.')
+    @token_required
+    @user_has('add_input')
+    def post(self, current_user):
+        ''' Creates a new input '''
+        _tags = []
+        inp = Input.get_by_name(name=api2.payload['name'])
+
+        if not inp:
+
+            if 'credential' in api2.payload:
+                cred_uuid = api2.payload.pop('credential')
+                api2.payload['credential'] = cred_uuid
+
+            if 'config' in api2.payload:
+                try:
+                    api2.payload['config'] = json.loads(base64.b64decode(
+                        api2.payload['config']).decode('ascii').strip())
+                except Exception:
+                    ns_input_v2.abort(
+                        400, 'Invalid JSON configuration, check your syntax')
+
+            if 'field_mapping' in api2.payload:
+                try:
+                    api2.payload['field_mapping'] = json.loads(base64.b64decode(
+                        api2.payload['field_mapping']).decode('ascii').strip())
+                except Exception:
+                    ns_input_v2.abort(
+                        400, 'Invalid JSON in field_mapping, check your syntax')
+
+            inp = Input(**api2.payload)
+            inp.save()
+
+            if len(_tags) > 0:
+                inp.tags += _tags
+                inp.save()
+        else:
+            ns_input_v2.abort(409, 'Input already exists.')
+        return {'message': 'Successfully created the input.'}
+
+
+@ns_input_v2.route("/<uuid>")
+class InputDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_input_list)
+    @token_required
+    @user_has('view_inputs')
+    def get(self, uuid, current_user):
+        ''' Returns information about an input '''
+        inp = Input.get_by_uuid(uuid=uuid)
+        if inp:
+            return inp
+        else:
+            ns_input_v2.abort(404, 'Input not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_input_create)
+    @api2.marshal_with(mod_input_list)
+    @token_required
+    @user_has('update_input')
+    def put(self, uuid, current_user):
+        ''' Updates information for an input '''
+        inp = Input.get_by_uuid(uuid=uuid)
+        if inp:
+            if 'name' in api2.payload and Input.get_by_name(name=api2.payload['name']):
+                ns_input_v2.abort(409, 'Input name already exists.')
+            else:
+                inp.update(**api2.payload)
+                return inp
+        else:
+            ns_input_v2.abort(404, 'Input not found.')
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('delete_input')
+    def delete(self, uuid, current_user):
+        ''' Deletes an input '''
+        inp = Input.get_by_uuid(uuid=uuid)
+        if inp:
+            inp.delete()
+            return {'message': 'Sucessfully deleted input.'}
 
 
 @ns_credential_v2.route('/encrypt')

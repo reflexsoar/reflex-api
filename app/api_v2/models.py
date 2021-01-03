@@ -15,7 +15,18 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import InvalidToken
 from elasticsearch import Elasticsearch
-from elasticsearch_dsl import Document, InnerDoc, Date, Integer, Keyword, Text, Boolean, Nested, connections
+from elasticsearch_dsl import (
+    Document,
+    InnerDoc,
+    Date,
+    Integer,
+    Keyword,
+    Text,
+    Boolean,
+    Nested,
+    Ip,
+    connections
+)
 from json import JSONEncoder
 from app import FLASK_BCRYPT
 
@@ -590,6 +601,67 @@ class Credential(BaseDocument):
             document = response[0]
             return document
         return response
+
+
+class Input(BaseDocument):
+
+    name = Keyword()
+    description = Text()
+
+    # Renamed from 'plugin'. 
+    # The name of the ingestor being used e.g. 'elasticsearch' or 'ews'
+    source = Text() 
+
+    enabled = Boolean() # Default to False
+    config = Text()
+    credential = Text() # The UUID of the credential in use
+    tags = Keyword()
+    field_mapping = Text()
+
+    class Index:
+        name = 'reflex-inputs'
+
+    @classmethod
+    def get_by_name(self, name):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search().query('term', name=name).execute()
+        if response:
+            user = response[0]
+            return user
+        return response
+
+
+class Agent(BaseDocument):
+
+    name = Keyword()
+    inputs = Keyword() # A list of UUIDs of which inputs to run
+    roles = Keyword()
+    # groups = Keyword()
+    active = Boolean()
+    ip_address = Ip()
+    last_heartbeat = Date()
+
+    class Index:
+        name = 'reflex-agents'
+
+    def has_right(self, permission):
+        '''
+        Checks to see if the user has the proper 
+        permissions to perform an API action
+        '''
+
+        role = Role.search().query('match', members=self.uuid).execute()
+        if role:
+            role = role[0]
+
+        if getattr(role.permissions, permission):
+            return True
+        else:
+            return False
+
 
 
 class Settings(BaseDocument):

@@ -1,5 +1,13 @@
 from elasticsearch_dsl import connections
-from app.api_v2.models import User, ExpiredToken, Role, Settings, Credential
+from app.api_v2.models import (
+    User,
+    ExpiredToken,
+    Role,
+    Settings,
+    Credential,
+    Agent,
+    Input
+)
 
 connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','URWsI66IP6qBYj6yr1L7'))
 
@@ -278,7 +286,9 @@ def initial_settings():
 
 # Initialize empty indices
 #ExpiredToken.init()
-Credential.init()
+#Credential.init()
+Input.init()
+Agent.init()
 
 #admin_id = create_admin_user()
 #create_admin_role(admin_id)
