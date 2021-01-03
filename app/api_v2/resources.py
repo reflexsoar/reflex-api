@@ -118,7 +118,7 @@ class Login(Resource):
             user.update(failed_logons= 0)
 
         # TODO: Move this back to a global setting when settings is migrated
-        if user.failed_logons >= 5:
+        if user.failed_logons >= Settings.load().logon_password_attempts:
             user.update(locked=True)
         else:
             user.update(failed_logons=user.failed_logons+1)
