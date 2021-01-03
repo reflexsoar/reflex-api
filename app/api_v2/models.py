@@ -531,3 +531,39 @@ class Event(Document):
             document = response[0]
             return document
         return response
+
+
+class Settings(BaseDocument):
+
+    base_url = Text()
+    require_case_templates = Boolean() # Default True
+    #email_from = Text()
+    #email_server = db.Column(db.String(255))
+    #email_secret_uuid = db.Column(db.String(255), db.ForeignKey("credential.uuid"))
+    #email_secret = db.relationship('Credential')
+    allow_comment_deletion = Boolean() # Default False
+    playbook_action_timeout = Integer() # Default 300
+    playbook_timeout = Integer() # Default 3600
+    logon_password_attempts = Integer() # Default 5
+    api_key_valid_days = Integer() # Default 366 days 
+    agent_pairing_token_valid_minutes = Integer() # Default 15
+    peristent_pairing_token = Text()
+    require_event_dismiss_comment = Boolean() # Default False
+    allow_event_deletion = Boolean() # Default False
+    require_case_close_comment = Boolean() # Default False 
+    assign_case_on_create = Boolean() # Default True 
+    assign_task_on_start = Boolean() # Default True 
+    allow_comment_editing = Boolean() # Default False
+    events_page_refresh = Integer() # Default 60
+    events_per_page = Integer() # Default 10 
+
+    class Index:
+        name = 'reflex-settings'
+
+    @classmethod
+    def load(self):
+        settings = self.search().execute()
+        if settings:
+            return settings
+        else:
+            return None

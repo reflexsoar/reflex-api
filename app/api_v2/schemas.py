@@ -37,7 +37,8 @@ mod_user_full = Model('UserFull', {
     'last_name': fields.String,
     'last_logon': fields.String,
     'locked': fields.Boolean,
-    'failed_logons': fields.Integer
+    'failed_logons': fields.Integer,
+    'disabled': fields.Boolean
     #'role': fields.Nested(mod_user_role)
 })
 
@@ -248,8 +249,35 @@ mod_event_list = Model('EventList', {
     'raw_log': fields.Nested(mod_raw_log, attribute='_raw_log')
 })
 
+mod_settings = Model('SettingsList', {
+    'base_url': fields.String,
+    'require_case_templates': fields.Boolean,
+    'allow_comment_deletion': fields.Boolean,
+    'email_from': fields.String,
+    'email_server': fields.String,
+    'email_secret_uuid': fields.String,
+    'playbook_action_timeout': fields.Integer,
+    'playbook_timeout': fields.Integer,
+    'logon_password_attempts': fields.Integer,
+    'api_key_valid_days': fields.Integer,
+    'agent_pairing_token_valid_minutes': fields.Integer,
+    'persistent_pairing_token': fields.String,
+    'require_event_dismiss_comment': fields.Boolean,
+    'require_case_close_comment': fields.Boolean,
+    'allow_event_deletion': fields.Boolean,
+    'assign_case_on_create': fields.Boolean,
+    'assign_task_on_start': fields.Boolean,
+    'allow_comment_editing': fields.Boolean,
+    'events_page_refresh': fields.Integer,
+    'events_per_page': fields.Integer
+})
+
+mod_persistent_pairing_token = Model('PeristentPairingToken', {
+    'token': fields.String
+})
+
 
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full, 
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, 
 mod_observable_brief, mod_observable_create, mod_raw_log, mod_permissions, mod_api_key,
-mod_user_create, mod_user_create_success]
+mod_user_create, mod_user_create_success, mod_settings, mod_persistent_pairing_token]

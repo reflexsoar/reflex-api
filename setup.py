@@ -1,5 +1,5 @@
 from elasticsearch_dsl import connections
-from app.api_v2.models import User, ExpiredToken, Role
+from app.api_v2.models import User, ExpiredToken, Role, Settings
 
 connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','URWsI66IP6qBYj6yr1L7'))
 
@@ -248,8 +248,37 @@ def create_admin_user():
 
     return user.uuid
 
-admin_id = create_admin_user()
-create_admin_role(admin_id)
-create_analyst_role()
-create_agent_role()
-ExpiredToken.init()
+
+def initial_settings():
+
+    Settings.init()
+
+    settings_content = {
+        'base_url': 'localhost',
+        'required_case_templates': True,
+        'allow_comment_deletion': False,
+        'playbook_action_timeout': 300,
+        'playbook_timeout': 3600,
+        'logon_password_attempts': 5,
+        'api_key_valid_days': 366,
+        'agent_pairing_token_valid_minutes': 15,
+        'peristent_pairing_token': None,
+        'require_event_dismiss_comment': False,
+        'allow_event_deletion': False,
+        'require_case_close_comment': False,
+        'assign_case_on_create': True,
+        'assign_task_on_start': True,
+        'allow_comment_editing': False,
+        'events_page_refresh': 60,
+        'events_per_page': 10
+    }
+
+    settings = Settings(**settings_content)
+    settings.save()
+
+#admin_id = create_admin_user()
+#create_admin_role(admin_id)
+#create_analyst_role()
+#create_agent_role()
+#ExpiredToken.init()
+initial_settings()

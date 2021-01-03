@@ -2,7 +2,7 @@ import datetime
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from .schemas import *
-from .models import Event, Observable, User, Role
+from .models import Event, Observable, User, Role, Settings
 from .utils import token_required, user_has
 
 # Instantiate a new API object
@@ -12,8 +12,8 @@ api2 = Api(api_v2)
 # All the API namespaces
 ns_user_v2 = api2.namespace('User', description='User operations', path='/user')
 ns_auth_v2 = api2.namespace('Auth', description='Authentication operations', path='/auth')
-ns_event_v2 = api2.namespace(
-    'Event', description='Event operations', path='/event')
+ns_event_v2 = api2.namespace('Event', description='Event operations', path='/event')
+ns_settings_v2 = api2.namespace('GlobalSettings', description='Settings operations', path='/global_settings') # TODO: Rename this to settings instead of global_settings
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -178,10 +178,6 @@ class UserGenerateApiKey(Resource):
         return current_user.generate_api_key()
 
 
-user_parser = api2.parser()
-user_parser.add_argument('username', location='args', required=False)
-
-
 @ns_user_v2.route("/<uuid>/unlock")
 class UnlockUser(Resource):
 
@@ -199,6 +195,9 @@ class UnlockUser(Resource):
         else:
             ns_user_v2.abort(404, 'User not found.')
 
+
+user_parser = api2.parser()
+user_parser.add_argument('username', location='args', required=False)
 @ns_user_v2.route("")
 class UserList2(Resource):
 
@@ -293,7 +292,7 @@ class UserDetails(Resource):
                 user.set_password(pw)
                 user.save()
             
-            user.update_from_dict(api2.payload)
+            user.update(**api2.payload)
             return user
         else:
             ns_user_v2.abort(404, 'User not found.')
@@ -322,13 +321,13 @@ class UserDetails(Resource):
         else:
             ns_user_v2.abort(404, 'User not found.')
 
+
 event_list_parser = api2.parser()
 event_list_parser.add_argument('query', type=str, location='args', required=False)
 event_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
 event_list_parser.add_argument('page_size', type=int, location='args', default=10, required=False)
 event_list_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
 event_list_parser.add_argument('sort_desc', type=xinputs.boolean, location='args', default=True, required=False)
-
 @ns_event_v2.route("")
 class EventList2(Resource):
 
@@ -361,3 +360,44 @@ class EventList2(Resource):
             return {'message': 'Successfully created the event.'}
         else:
             ns_event_v2.abort(409, 'Event already exists.')
+
+
+@ns_settings_v2.route("")
+class Settings(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_settings)
+    @token_required
+    @user_has('view_settings')    
+    def get(self, current_user):
+        ''' Retrieves the global settings for the system '''
+        settings = Settings.load()
+        return settings
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_settings)
+    @token_required    
+    @user_has('update_settings')
+    def put(self, current_user):
+
+        if 'agent_pairing_token_valid_minutes' in api2.payload:
+            if int(api2.payload['agent_pairing_token_valid_minutes']) > 365:
+                ns_settings_v2.abort(400, 'agent_pairing_token_valid_minutes can not be greated than 365 days.')
+
+        settings = Settings.load()
+        settings.update(**api2.payload)
+
+        return {'message': 'Succesfully updated settings'}
+
+
+@ns_settings_v2.route("/generate_persistent_pairing_token")
+class PersistentPairingToken(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_persistent_pairing_token)
+    @token_required
+    @user_has('create_persistent_pairing_token')
+    def get(self, current_user):
+        ''' Returns a new API key for the user making the request '''
+        settings = Settings.load()
+        return settings.generate_persistent_pairing_token()
