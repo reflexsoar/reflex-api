@@ -64,6 +64,7 @@ def create_admin_role(admin_id):
         "delete_observable": True,
         "add_tag_to_observable": True,
         "remove_tag_from_observable": True,
+        "add_agent": True,
         "view_agents": True,
         "update_agent": True,
         "delete_agent": True,
@@ -165,6 +166,7 @@ def create_analyst_role():
         "delete_observable": True,
         "add_tag_to_observable": True,
         "remove_tag_from_observable": True,
+        "add_agent": True,
         "view_agents": True,
         "view_inputs": True,
         "create_case": True,
@@ -285,14 +287,14 @@ def initial_settings():
     settings.save()
 
 # Initialize empty indices
-#ExpiredToken.init()
-#Credential.init()
+ExpiredToken.init()
+Credential.init()
 Input.init()
 Agent.init()
 
-#admin_id = create_admin_user()
-#create_admin_role(admin_id)
-#create_analyst_role()
-#create_agent_role()
+admin_id = create_admin_user()
+create_admin_role(admin_id)
+create_analyst_role()
+create_agent_role()
 
-#initial_settings()
+initial_settings()

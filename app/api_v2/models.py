@@ -65,7 +65,7 @@ class BaseDocument(Document):
             return document
         return response
 
-    
+      
     def save(self, **kwargs):
         '''
         Overrides the default Document save() function and adds
@@ -313,6 +313,7 @@ class Permission(InnerDoc):
     remove_tag_from_playbook = Boolean()
 
     # Agent Permissions
+    add_agent = Boolean()
     view_agents = Boolean()
     update_agent = Boolean()
     delete_agent = Boolean()
@@ -414,10 +415,9 @@ class Permission(InnerDoc):
     use_api = Boolean()
 
 
-class Role(Document):
+class Role(BaseDocument):
 
-    uuid = Text() # Unique identifier for the role
-    name = Text() # The name of the role (should be unique)
+    name = Keyword() # The name of the role (should be unique)
     description = Text() # A brief description of the role
     members = Keyword()  # Contains a list of user IDs
     permissions = Nested(Permission)
@@ -432,7 +432,10 @@ class Role(Document):
         if isinstance(user_id, list):
             self.members = self.members + user_id
         else:
-            self.members = self.members.append(user_id)
+            if self.members:
+                self.members.append([user_id])
+            else:
+                self.members = [user_id]
         self.save()
 
     def remove_user_from_role(self, user_id):
@@ -451,6 +454,18 @@ class Role(Document):
         if response:
             role = response[0]
             return role
+        return response
+
+    @classmethod
+    def get_by_name(self, name):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search().query('term', name=name).execute()
+        if response:
+            user = response[0]
+            return user
         return response
 
     def save(self, **kwargs):
@@ -662,6 +677,17 @@ class Agent(BaseDocument):
         else:
             return False
 
+    @classmethod
+    def get_by_name(self, name):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search().query('term', name=name).execute()
+        if response:
+            user = response[0]
+            return user
+        return response
 
 
 class Settings(BaseDocument):

@@ -3,8 +3,8 @@ import datetime
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from .schemas import *
-from .models import Event, Observable, User, Role, Settings, Credential, Input
-from .utils import token_required, user_has
+from .models import Event, Observable, User, Role, Settings, Credential, Input, Agent
+from .utils import token_required, user_has, generate_token
 
 # Instantiate a new API object
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
@@ -17,6 +17,7 @@ ns_event_v2 = api2.namespace('Event', description='Event operations', path='/eve
 ns_settings_v2 = api2.namespace('Settings', description='Settings operations', path='/settings')
 ns_credential_v2 = api2.namespace('Credential', description='Credential operations', path='/credential')
 ns_input_v2 = api2.namespace('Input', description='Input operations', path='/input')
+ns_agent_v2 = api2.namespace('Agent', description='Agent operations', path='/agent')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -465,6 +466,126 @@ class InputDetails(Resource):
         if inp:
             inp.delete()
             return {'message': 'Sucessfully deleted input.'}
+
+
+@ns_agent_v2.route("/pair_token")
+class AgentPairToken(Resource):
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('pair_agent')
+    def get(self, current_user):
+        ''' 
+        Generates a short lived pairing token used by the agent to get a long running JWT
+        '''
+
+        settings = Settings.load()
+        return generate_token(None, settings.agent_pairing_token_valid_minutes, 'pairing')
+
+
+@ns_agent_v2.route("")
+class AgentList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_agent_list, as_list=True)
+    @token_required
+    @user_has('view_agents')
+    def get(self, current_user):
+        ''' Returns a list of Agents '''
+        agents = Agent.search().execute()
+        if agents:
+            return [agent for agent in agents]
+        else:
+            return []
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_agent_create)
+    @api2.response('409', 'Agent already exists.')
+    @api2.response('200', "Successfully created the agent.")
+    @token_required
+    @user_has('add_agent')
+    def post(self, current_user):
+        ''' Creates a new Agent '''
+
+        agent = Agent.get_by_name(name=api2.payload['name'])
+        if not agent:
+
+            agent = Agent(**api2.payload)
+            role = Role.get_by_name(name='Agent')
+            role.add_user_to_role(agent.uuid)
+            agent.save()
+
+            token = generate_token(str(agent.uuid), 86400, token_type='agent')
+
+            return {'message': 'Successfully created the agent.', 'uuid': str(agent.uuid), 'token': token}
+        else:
+            ns_agent_v2.abort(409, "Agent already exists.")
+
+
+@ns_agent_v2.route("/heartbeat/<uuid>")
+class AgentHeartbeat(Resource):
+
+    @api2.doc(security="Bearer")
+    @token_required
+    def get(self, uuid, current_user):
+        agent = Agent.get_by_uuid(uuid=uuid)
+        if agent:
+            agent.last_heartbeat = datetime.datetime.utcnow()
+            agent.save()
+            return {'message': 'Your heart still beats!'}
+        else:
+            '''
+            If the agent can't be found, revoke the agent token
+            '''
+
+            auth_header = request.headers.get('Authorization')
+            access_token = auth_header.split(' ')[1]
+            expired = ExpiredToken(token=access_token)
+            expired.save()
+            
+            ns_agent_v2.abort(400, 'Your heart stopped.')
+
+
+@ns_agent_v2.route("/<uuid>")
+class AgentDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_agent_create)
+    @api2.marshal_with(mod_agent_list)
+    @token_required
+    @user_has('update_agent')
+    def put(self, uuid, current_user):
+        ''' Updates an Agent '''
+        agent = Agent.get_by_uuid(uuid=uuid)
+        if agent:
+            agent.update(**api2.payload)
+            return agent
+        else:
+            ns_agent_v2.abort(404, 'Agent not found.')
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('delete_agent')
+    def delete(self, uuid, current_user):
+        ''' Removes a Agent '''
+        agent = Agent.get_by_uuid(uuid=uuid)
+        if agent:
+            agent.delete()
+            return {'message': 'Agent successfully delete.'}
+        else:
+            ns_agent_v2.abort(404, 'Agent not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_agent_list)
+    @token_required
+    @user_has('view_agents')
+    def get(self, uuid, current_user):
+        ''' Gets the details of a Agent '''
+        agent = Agent.get_by_uuid(uuid=uuid)
+        if agent:
+            return agent
+        else:
+            ns_agent_v2.abort(404, 'Agent not found.')
 
 
 @ns_credential_v2.route('/encrypt')

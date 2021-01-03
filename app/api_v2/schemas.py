@@ -339,9 +339,28 @@ mod_input_create = Model('CreateInput', {
 })
 
 
+mod_agent_create = Model('AgentCreate', {
+    'name': fields.String,
+    'roles': fields.List(fields.String),
+    'ip_address': fields.String,
+    'inputs': fields.List(fields.String)
+})
+
+mod_agent_list = Model('AgentList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'inputs': fields.List(fields.String),
+    'roles': fields.List(fields.String),
+    'groups': fields.List(fields.String),
+    'active': fields.Boolean,
+    'ip_address': fields.String,
+    'last_heartbeat': ISO8601(attribute='last_heartbeat')
+})
+
+
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full, 
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, 
 mod_observable_brief, mod_observable_create, mod_raw_log, mod_permissions, mod_api_key,
 mod_user_create, mod_user_create_success, mod_settings, mod_persistent_pairing_token,
 mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list, mod_credential_return,
-mod_input_create, mod_input_list]
+mod_input_create, mod_input_list, mod_agent_list, mod_agent_create]

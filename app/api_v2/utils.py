@@ -9,17 +9,16 @@ from sqlalchemy.orm import joinedload, subqueryload, load_only
 from .models import User, ExpiredToken
 
 
-def generate_token(uuid, organization_uuid, duration=10, token_type='agent'):
+def generate_token(uuid, duration=10, token_type='agent'):
     token_data = {
         'uuid': uuid,
-        'organization': organization_uuid,
         'iat': datetime.datetime.utcnow(),
         'type': token_type
     }
 
     if duration:
         token_data['exp'] = datetime.datetime.utcnow() + datetime.timedelta(minutes=duration)
-    _access_token = jwt.encode(token_data, current_app.config['SECRET_KEY']).decode('utf-8')
+    _access_token = jwt.encode(token_data, current_app.config['SECRET_KEY'])
     
     return _access_token
 
