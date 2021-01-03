@@ -270,30 +270,30 @@ class UserDetails(Resource):
 
         user = User.get_by_uuid(uuid)
         if user:
-            if 'username' in api.payload:
+            if 'username' in api2.payload:
                 target_user = User.get_by_username(api2.payload['username'])
                 if target_user:
                     if target_user.uuid == uuid:
                         del api2.payload['username']
                     else:
-                        ns_user.abort(409, 'Username already taken.')
+                        ns_user_v2.abort(409, 'Username already taken.')
 
-            if 'email' in api.payload:
+            if 'email' in api2.payload:
                 target_user = User.get_by_email(api2.payload['email'])
                 if target_user:
                     if target_user.uuid == uuid:
                         del api2.payload['email']
                     else:
-                        ns_user.abort(409, 'Email already taken.')
+                        ns_user_v2.abort(409, 'Email already taken.')
             
             if 'password' in api2.payload and not current_user.has_right('reset_user_password'):
                 api2.payload.pop('password')
             if 'password' in api2.payload and current_user.has_right('reset_user_password'):
-                pw = api.payload.pop('password')
+                pw = api2.payload.pop('password')
                 user.set_password(pw)
                 user.save()
             
-            user.update_from_dict(api2.payload)
+            #user.update_from_dict(api2.payload)
             return user
         else:
             ns_user_v2.abort(404, 'User not found.')
