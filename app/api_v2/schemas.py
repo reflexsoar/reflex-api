@@ -43,39 +43,6 @@ mod_refresh_token = Model('RefreshToken', {
     'refresh_token': fields.String
 })
 
-mod_user_full = Model('UserFull', {
-    'uuid': fields.String,
-    'username': fields.String,
-    'email': fields.String,
-    'first_name': fields.String,
-    'last_name': fields.String,
-    'last_logon': ISO8601(attribute='last_logon'),
-    'locked': fields.Boolean,
-    'failed_logons': fields.Integer,
-    'disabled': fields.Boolean,
-    'created_at': ISO8601(attribute='created_at'),
-    'updated_at': ISO8601(attribute='updated_at')
-    #'role': fields.Nested(mod_user_role)
-})
-
-mod_user_create_success = Model('UserCreateSuccess', {
-    'message': fields.String,
-    'user': fields.Nested(mod_user_full)
-})
-
-mod_user_create = Model('UserCreate', {
-    'username': fields.String,
-    'email': fields.String,
-    'password': fields.String,
-    'first_name': fields.String,
-    'last_name': fields.String,
-    'locked': fields.Boolean
-})
-
-mod_api_key = Model('UserApiKey', {
-    'api_key': fields.String
-})
-
 mod_permissions = Model('Permissions', {
     'add_user': fields.Boolean,
     'update_user': fields.Boolean,
@@ -176,12 +143,81 @@ mod_permissions = Model('Permissions', {
     'use_api': fields.Boolean
 })
 
+mod_role_create = Model('RoleCreate', {
+    'name': fields.String,
+    'description': fields.String
+})
+
+mod_user_role = Model('UserRole', {
+    'uuid': fields.String,
+    'name': fields.String
+})
+
 mod_user_role_no_members = Model('UserRole', {
     'uuid': fields.String,
     'permissions': fields.Nested(mod_permissions),
     'name': fields.String,
     'description': fields.String
 })
+
+mod_user_role_no_perms = Model('UserRoleNoPerms', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String
+})
+
+mod_user_brief = Model('UserBrief', {
+    'uuid': fields.String,
+    'username': fields.String,
+    'email': fields.String,
+    'first_name': fields.String,
+    'last_name': fields.String
+})
+
+mod_role_list = Model('Role', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String,
+    'members': fields.List(fields.String),
+    'permissions': fields.Nested(mod_permissions)
+})
+
+mod_user_full = Model('UserFull', {
+    'uuid': fields.String,
+    'username': fields.String,
+    'email': fields.String,
+    'first_name': fields.String,
+    'last_name': fields.String,
+    'last_logon': ISO8601(attribute='last_logon'),
+    'locked': fields.Boolean,
+    'failed_logons': fields.Integer,
+    'disabled': fields.Boolean,
+    'created_at': ISO8601(attribute='created_at'),
+    'updated_at': ISO8601(attribute='updated_at'),
+    'role': fields.Nested(mod_user_role_no_perms)
+})
+
+mod_user_create_success = Model('UserCreateSuccess', {
+    'message': fields.String,
+    'user': fields.Nested(mod_user_full)
+})
+
+mod_user_create = Model('UserCreate', {
+    'username': fields.String,
+    'email': fields.String,
+    'password': fields.String,
+    'first_name': fields.String,
+    'last_name': fields.String,
+    'locked': fields.Boolean
+})
+
+mod_api_key = Model('UserApiKey', {
+    'api_key': fields.String
+})
+
+
+
+
 
 mod_user_self = Model('UserSelf', {
     'uuid': fields.String,
@@ -441,4 +477,5 @@ mod_observable_brief, mod_observable_create, mod_raw_log, mod_permissions, mod_a
 mod_user_create, mod_user_create_success, mod_settings, mod_persistent_pairing_token,
 mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list, mod_credential_return,
 mod_input_create, mod_input_list, mod_agent_list, mod_agent_create, mod_list_list, mod_list_create,
-mod_event_rule_create, mod_event_rule_list, mod_data_type_list, mod_data_type_create]
+mod_event_rule_create, mod_event_rule_list, mod_data_type_list, mod_data_type_create, mod_user_role_no_perms,
+mod_user_brief, mod_role_list, mod_role_create]

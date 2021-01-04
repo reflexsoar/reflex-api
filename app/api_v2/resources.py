@@ -25,6 +25,7 @@ api2 = Api(api_v2)
 
 # All the API namespaces
 ns_user_v2 = api2.namespace('User', description='User operations', path='/user')
+ns_role_v2 = api2.namespace('Role', description='Role operations', path='/role')
 ns_auth_v2 = api2.namespace('Auth', description='Authentication operations', path='/auth')
 ns_event_v2 = api2.namespace('Event', description='Event operations', path='/event')
 ns_settings_v2 = api2.namespace('Settings', description='Settings operations', path='/settings')
@@ -180,10 +181,8 @@ class UserInfo(Resource):
     @token_required
     def get(self, current_user):
         ''' Returns information about the currently logged in user '''
-        
-        role = Role.get_by_member(uuid=current_user.uuid)
+        role = Role.get_by_member(current_user.uuid)
         current_user.role = role
-
         return current_user
 
 
@@ -219,7 +218,7 @@ class UnlockUser(Resource):
 user_parser = api2.parser()
 user_parser.add_argument('username', location='args', required=False)
 @ns_user_v2.route("")
-class UserList2(Resource):
+class UserList(Resource):
 
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_user_full, as_list=True)
@@ -240,6 +239,7 @@ class UserList2(Resource):
         else:
             s = User.search()
             response = s.execute()
+            [user.load_role() for user in response]
             return [user for user in response]
 
     @api2.doc(security="Bearer")
@@ -257,10 +257,19 @@ class UserList2(Resource):
         if user:
             ns_user_v2.abort(409, "User with this e-mail already exists.")
         else:
+            user_role = api2.payload.pop('role_uuid')
+            
+            
             user_password = api2.payload.pop('password')
             user = User(**api2.payload)
             user.set_password(user_password)
             user.save()
+
+            role = Role.get_by_uuid(uuid=user_role)
+            role.add_user_to_role(user.uuid)
+
+            user.role = role
+
             return {'message': 'Successfully created the user.', 'user': user}  
 
 
@@ -289,6 +298,7 @@ class UserDetails(Resource):
 
         user = User.get_by_uuid(uuid)
         if user:
+
             if 'username' in api2.payload:
                 target_user = User.get_by_username(api2.payload['username'])
                 if target_user:
@@ -311,8 +321,23 @@ class UserDetails(Resource):
                 pw = api2.payload.pop('password')
                 user.set_password(pw)
                 user.save()
+
+            # Update the users role if a role update is triggered
+            if 'role_uuid' in api2.payload:
+
+                # Remove them from their old role
+                role = Role.get_by_member(uuid=user.uuid)
+                if role:
+                    role.remove_user_from_role(user_id=user.uuid)
+
+                # Add them to their new role
+                role_uuid = api2.payload.pop('role_uuid')
+                role = Role.get_by_uuid(uuid=role_uuid)
+                role.add_user_to_role(user_id=user.uuid)
+                user.role = role
             
             user.update(**api2.payload)
+            
             return user
         else:
             ns_user_v2.abort(404, 'User not found.')
@@ -340,6 +365,87 @@ class UserDetails(Resource):
                 return {'message': 'User successfully deleted.'}
         else:
             ns_user_v2.abort(404, 'User not found.')
+
+
+@ns_role_v2.route("")
+class RoleList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_role_list, as_list=True)
+    @token_required
+    @user_has('view_roles')
+    def get(self, current_user):
+        ''' Returns a list of Roles '''
+        roles = Role.search().execute()
+        if roles:
+            return [r for r in roles]
+        else:
+            return []
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_role_create)
+    @api2.response('409', 'Role already exists.')
+    @api2.response('200', "Successfully created the role.")
+    @token_required
+    @user_has('add_role')
+    def post(self, current_user):
+        ''' Creates a new Role '''
+        role = Role.get_by_name(name=api2.payload['name'])
+        if not role:
+            role = Role(**api2.payload)
+            role.save()
+            return {'message': 'Successfully created the role.', 'uuid': role.uuid}
+        else:
+            ns_role_v2.abort(409, "Role already exists.")
+
+
+@ns_role_v2.route("/<uuid>")
+class RoleDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_role_list)
+    @token_required
+    @user_has('update_role')
+    def put(self, uuid, current_user):
+        ''' Updates an Role '''
+        role = Role.get_by_uuid(uuid=uuid)
+        if role:
+            if 'name' in api2.payload and Role.get_by_name(name=api2.payload['name']):
+                ns_role_v2.abort(409, 'Role with that name already exists.')
+            else:
+                role.update(**api2.payload)
+                return role
+        else:
+            ns_role_v2.abort(404, 'Role not found.')
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('delete_role')
+    def delete(self, uuid, current_user):
+        ''' Removes a Role '''
+        role = Role.get_by_uuid(uuid=uuid)
+        if role:
+            if len(role.members) > 0:
+                ns_role_v2.abort(
+                    400, 'Can not delete a role with assigned users.  Assign the users to a new role first.')
+            else:
+                role.delete()
+                return {'message': 'Role successfully delete.'}
+        else:
+            ns_role_v2.abort(404, 'Role not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_role_list)
+    @token_required
+    @user_has('view_roles')
+    def get(self, uuid, current_user):
+        ''' Gets the details of a Role '''
+        role = Role.get_by_uuid(uuid=uuid)
+        if role:
+            return role
+        else:
+            ns_role_v2.abort(404, 'Role not found.')
+
 
 
 @ns_data_type_v2.route("")

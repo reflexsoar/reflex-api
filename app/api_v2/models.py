@@ -260,6 +260,9 @@ class User(BaseDocument):
             self.failed_logons = 0
             self.save()
 
+    def load_role(self):
+        self.role = Role.get_by_member(self.uuid)
+
 
 class Permission(InnerDoc):
 
@@ -433,8 +436,8 @@ class Role(BaseDocument):
         if isinstance(user_id, list):
             self.members = self.members + user_id
         else:
-            if self.members:
-                self.members.append([user_id])
+            if self.members and user_id not in self.members:
+                self.members.append(user_id)
             else:
                 self.members = [user_id]
         self.save()
@@ -452,6 +455,7 @@ class Role(BaseDocument):
     @classmethod
     def get_by_member(self, uuid):
         response = self.search().query('match', members=uuid).execute()
+        print(response)
         if response:
             role = response[0]
             return role
@@ -468,13 +472,6 @@ class Role(BaseDocument):
             user = response[0]
             return user
         return response
-
-    def save(self, **kwargs):
-        '''
-        Saves the Role
-        ''' 
-        self.uuid = uuid.uuid4()
-        return super().save(**kwargs)
 
 
 class ExpiredToken(BaseDocument):
