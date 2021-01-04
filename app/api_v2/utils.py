@@ -140,7 +140,6 @@ def _check_token():
                     if current_user.locked:
                         expired = ExpiredToken(token=access_token)
                         expired.save()
-                        
                         abort(401, 'Unauthorized')
 
             except ValueError:
@@ -148,10 +147,8 @@ def _check_token():
             except jwt.ExpiredSignatureError:
                 abort(401, 'Access token expired.')
             except (jwt.DecodeError, jwt.InvalidTokenError) as e:
-                print(e)
                 abort(401, 'Invalid access token.')
             except Exception as e:
-                print(e)
                 abort(401, 'Unknown token error.')
 
         except IndexError:

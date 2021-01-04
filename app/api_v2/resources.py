@@ -3,7 +3,7 @@ import datetime
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from .schemas import *
-from .models import Event, Observable, User, Role, Settings, Credential, Input, Agent, ThreatList
+from .models import Event, Observable, User, Role, Settings, Credential, Input, Agent, ThreatList, ExpiredToken
 from .utils import token_required, user_has, generate_token
 
 # Instantiate a new API object
@@ -134,11 +134,11 @@ class Login(Resource):
 @ns_auth_v2.route('/logout')
 class Logout(Resource):
 
-    #@api2.doc(security="Bearer")
+    @api2.doc(security="Bearer")
     @api2.response(200, 'Successfully logged out.')
     @api2.response(401, 'Not logged in.')
-    #@token_required
-    def get(self): # NOTE: add current_user back after enabling token_required
+    @token_required
+    def get(self, current_user):
         '''
         Logs a user out of the platform and invalidates their access_token
         so that they can't use it again.  The token is stored in a blocked token
@@ -147,13 +147,13 @@ class Logout(Resource):
         try:
             auth_header = request.headers.get('Authorization')
             access_token = auth_header.split(' ')[1]
-            b_token = AuthTokenBlacklist(auth_token=access_token)
-            b_token.create()
+            b_token = ExpiredToken(token=access_token)
+            b_token.save()
             return {'message': 'Successfully logged out.'}, 200
         except:
             return {'message': 'Not logged in.'}, 401
 
-        ns_auth.abort(401, 'Not logged in.')
+        ns_auth_v2.abort(401, 'Not logged in.')
 
 
 @ns_user_v2.route("/me")

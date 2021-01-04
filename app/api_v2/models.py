@@ -751,7 +751,6 @@ class Settings(BaseDocument):
         reason there are more than one settings documents, return the most recent
         '''
         settings = self.search().execute()
-        print(settings)
         if settings:
             return settings[0]
         else:

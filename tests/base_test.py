@@ -5,6 +5,8 @@ from flask.testing import FlaskClient
 from app import create_app, db
 from app.models import *
 
+API_VERSION = 'v2.0'
+
 class RESTClient(FlaskClient):
     def open(self, *args, **kwargs):
         kwargs.setdefault('content_type', 'application/json')
@@ -18,16 +20,16 @@ class BaseTest(unittest.TestCase):
         self.app.test_client_class = RESTClient
         self.client = self.app.test_client()
 
-    def login(self, username='admin@reflexsoar.com', password='test22'):
+    def login(self, username='admin', password='reflex'):
 
         body = {
             'username': username,
             'password': password
         }
-        return self.client.post('/api/v1.0/auth/login', data=json.dumps(body))
+        return self.client.post('/api/'+API_VERSION+'/auth/login', data=json.dumps(body))
 
     def logout(self, headers):
-        return self.client.get('/api/v1.0/auth/logout', headers=headers)
+        return self.client.get('/api/'+API_VERSION+'/auth/logout', headers=headers)
 
     def auth_headers(self, data):
         return {'Authorization': 'Bearer {}'.format(data.json['access_token'])}

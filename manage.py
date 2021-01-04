@@ -25,9 +25,9 @@ def run():
     app.run(port=80)
 
 @manager.command
-def test():
+def test(test='*'):
     """Runs the unit tests."""
-    tests = unittest.TestLoader().discover('tests', pattern='test*.py')
+    tests = unittest.TestLoader().discover('tests', pattern='test_{}.py'.format(test))
     result = unittest.TextTestRunner(verbosity=2).run(tests)
     if result.wasSuccessful():
         return 0
