@@ -104,7 +104,6 @@ def _check_token():
 
 
             expired = ExpiredToken.search().filter('term', token=access_token).execute()
-            print(expired)
             if expired:
                 abort(401, 'Token retired.')
             try:

@@ -52,7 +52,9 @@ mod_user_full = Model('UserFull', {
     'last_logon': ISO8601(attribute='last_logon'),
     'locked': fields.Boolean,
     'failed_logons': fields.Integer,
-    'disabled': fields.Boolean
+    'disabled': fields.Boolean,
+    'created_at': ISO8601(attribute='created_at'),
+    'updated_at': ISO8601(attribute='updated_at')
     #'role': fields.Nested(mod_user_role)
 })
 
@@ -254,7 +256,7 @@ mod_event_list = Model('EventList', {
     'observable_count': ObservableCount(attribute='observables'),
     'ioc_count': IOCCount(attribute='observables'),
     'created_at': ISO8601(attribute='created_at'),
-    'modified_at': ISO8601(attribute='modified_at'),
+    'updated_at': ISO8601(attribute='updated_at'),
     'case_uuid': fields.String,
     'signature': fields.String,
     'related_events_count': fields.Integer,
@@ -334,7 +336,7 @@ mod_input_list = Model('InputList', {
     'config': fields.String,
     'field_mapping': fields.String,
     'created_at': ISO8601(attribute='created_at'),
-    'modified_at': ISO8601(attribute='modified_at')
+    'updated_at': ISO8601(attribute='updated_at')
 })
 
 mod_input_create = Model('CreateInput', {
@@ -367,13 +369,26 @@ mod_agent_list = Model('AgentList', {
     'last_heartbeat': ISO8601(attribute='last_heartbeat')
 })
 
+mod_data_type_list = Model('DataTypeList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String,
+    'regex': fields.String,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at')
+})
+
+mod_data_type_create = Model('CreateDataType', {
+    'name': fields.String,
+    'description': fields.String
+})
 
 mod_list_list = Model('ListView', {
     'uuid': fields.String,
     'name': fields.String,
     'list_type': fields.String,
     'tag_on_match': fields.Boolean,
-    'data_type': fields.String,
+    'data_type': fields.Nested(mod_data_type_list),
     'values': AsNewLineDelimited(attribute='values'),
     'values_list': fields.List(fields.String, attribute='values'),
     'value_count': ValueCount(attribute='values'),
@@ -419,10 +434,11 @@ mod_event_rule_list = Model('EventRuleList', {
     'updated_at': ISO8601(attribute='updated_at')
 })
 
+
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full, 
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, 
 mod_observable_brief, mod_observable_create, mod_raw_log, mod_permissions, mod_api_key,
 mod_user_create, mod_user_create_success, mod_settings, mod_persistent_pairing_token,
 mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list, mod_credential_return,
 mod_input_create, mod_input_list, mod_agent_list, mod_agent_create, mod_list_list, mod_list_create,
-mod_event_rule_create, mod_event_rule_list]
+mod_event_rule_create, mod_event_rule_list, mod_data_type_list, mod_data_type_create]

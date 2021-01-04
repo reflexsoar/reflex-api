@@ -7,7 +7,10 @@ from app.api_v2.models import (
     Credential,
     Agent,
     Input,
-    ThreatList
+    ThreatList,
+    Event,
+    EventRule,
+    DataType
 )
 
 connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','URWsI66IP6qBYj6yr1L7'))
@@ -260,6 +263,29 @@ def create_admin_user():
     return user.uuid
 
 
+def create_default_data_types():
+    DataType.init()
+
+    data_types = [
+        {'name': 'ip', 'description': 'IP Address', 'regex': r'/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/'},
+        {'name': 'domain', 'description': 'A domain name'},
+        {'name': 'fqdn', 'description': 'A fully qualified domain name of a host'},
+        {'name': 'host', 'description': 'A host name'},
+        {'name': 'email', 'description': 'An e-mail address', 'regex': r'/^[a-zA-Z0-9.!#$%&\'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/'},
+        {'name': 'email_subject', 'description': 'An e-mail subject'},
+        {'name': 'md5hash', 'description': 'A MD5 hash', 'regex': r'/[a-f0-9A-F]{32}/'},
+        {'name': 'sha1hash', 'description': 'A SHA1 hash', 'regex': r'/[a-f0-9A-F]{40}/'},
+        {'name': 'sha256hash', 'description': 'A SHA256 hash', 'regex': r'/[a-f0-9A-F]{64}/'},
+        {'name': 'user', 'description': 'A username'},
+        {'name': 'command', 'description': 'A command that was executed'},
+        {'name': 'url', 'description': 'An address to a universal resource', 'regex': r'/(http|https)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/'},
+        {'name': 'imphash', 'description': 'A hash of a binaries import table'},
+        {'name': 'process', 'description': 'A process that was launched on a machine', r'regex':'^([A-Z]?[:\\\/]).*(\.\w{3,})?$'}
+    ]
+    for d in data_types:
+        data_type = DataType(**d)
+        data_type.save()
+
 def initial_settings():
 
     Settings.init()
@@ -295,10 +321,13 @@ Input.init()
 Agent.init()
 ThreatList.init()
 EventRule.init()
+Event.init()
+
 
 admin_id = create_admin_user()
 create_admin_role(admin_id)
 create_analyst_role()
 create_agent_role()
+create_default_data_types()
 
 initial_settings()

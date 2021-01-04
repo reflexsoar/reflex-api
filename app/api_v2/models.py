@@ -25,6 +25,7 @@ from elasticsearch_dsl import (
     Boolean,
     Nested,
     Ip,
+    Object,
     connections
 )
 from json import JSONEncoder
@@ -504,16 +505,16 @@ class Observable(InnerDoc):
 class Event(BaseDocument):
 
     uuid = Text()
-    title = Text(fields={'raw': Keyword()})
-    description = Text(fields={'raw': Keyword()})
-    reference = Text()
+    title = Keyword()
+    description = Text()
+    reference = Keyword()
     source = Text()
     tlp = Integer()
     severity = Integer()
     tags = Keyword()
     observables = Nested(Observable)
     status = Integer()
-    signature = Text()
+    signature = Keyword()
     dismissed = Boolean()
     dismiss_reason = Text()
     dismiss_comment = Text()
@@ -526,8 +527,6 @@ class Event(BaseDocument):
         self.observables.append(Observable(**content))
 
     def save(self, **kwargs):
-        self.uuid = uuid.uuid4()
-        self.created_at = datetime.datetime.utcnow()
         self.hash_event()
         return super().save(**kwargs)
 
@@ -563,6 +562,14 @@ class Event(BaseDocument):
             document = response[0]
             return document
         return response
+
+    @classmethod
+    def get_by_signature(self, signature):
+        response = self.search().query('match', signature=signature).execute()
+        if len(response) > 1:
+            return [d for d in response]
+        else:
+            return [response]
 
 
 class EventRule(BaseDocument):
@@ -677,6 +684,14 @@ class Credential(BaseDocument):
         return response
 
 
+class FieldMap(InnerDoc):
+
+    field = Keyword()
+    data_type = Text()
+    tlp = Integer()
+    tags = Keyword()
+
+
 class Input(BaseDocument):
 
     name = Keyword()
@@ -687,10 +702,10 @@ class Input(BaseDocument):
     source = Text() 
 
     enabled = Boolean() # Default to False
-    config = Text()
+    config = Object()
     credential = Text() # The UUID of the credential in use
     tags = Keyword()
-    field_mapping = Text()
+    field_mapping = Nested(FieldMap)
 
     class Index:
         name = 'reflex-inputs'
@@ -749,18 +764,54 @@ class Agent(BaseDocument):
         return response
 
 
+class AgentGroup(BaseDocument):
+
+    name = Keyword()
+    description = Text()
+
+
+class DataType(BaseDocument):
+
+    name = Keyword()
+    description = Text()
+    regex = Text()
+
+    class Index:
+        name = 'reflex-data-types'
+
+    @classmethod
+    def get_by_name(self, name):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search().query('term', name=name).execute()
+        if response:
+            user = response[0]
+            return user
+        return response
+
+
+class DataTypeBrief(InnerDoc):
+
+    name = Keyword()
+
 class ThreatList(BaseDocument):
 
     name = Keyword()
     description = Text()
     list_type = Text() # value or pattern
-    data_type = Text()
+    data_type_uuid = Keyword()
     tag_on_match = Boolean() # Default to False
     values = Keyword() # A list of values to match on
 
     class Index:
         name = 'reflex-threat-lists'
 
+    @property
+    def data_type(self):
+        return DataType.get_by_uuid(uuid=self.data_type_uuid)
+    
     @classmethod
     def get_by_name(self, name):
         '''

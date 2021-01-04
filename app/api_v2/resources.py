@@ -3,7 +3,20 @@ import datetime
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from .schemas import *
-from .models import Event, EventRule, Observable, User, Role, Settings, Credential, Input, Agent, ThreatList, ExpiredToken
+from .models import (
+    Event,
+    EventRule,
+    Observable,
+    User,
+    Role,
+    Settings,
+    Credential,
+    Input,
+    Agent,
+    ThreatList,
+    ExpiredToken,
+    DataType
+)
 from .utils import token_required, user_has, generate_token
 
 # Instantiate a new API object
@@ -20,6 +33,8 @@ ns_input_v2 = api2.namespace('Input', description='Input operations', path='/inp
 ns_agent_v2 = api2.namespace('Agent', description='Agent operations', path='/agent')
 ns_list_v2 = api2.namespace('List', description='Lists API endpoints for managing indicator lists, lists may be string values or regular expressions', path='/list')
 ns_event_rule_v2 = api2.namespace('EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
+ns_agent_group_v2 = api2.namespace('AgentGroup', description='Agent Group operations', path='/agent_group')
+ns_data_type_v2 = api2.namespace('DataType', description='DataType operations', path='/data_type')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -194,7 +209,6 @@ class UnlockUser(Resource):
     def put(self, uuid, current_user):
         ''' Unlocks a user and resets their failed logons back to 0 '''
         user = User.get_by_uuid(uuid)
-        print(user.locked)
         if user:
             user.unlock()
             return user
@@ -328,8 +342,71 @@ class UserDetails(Resource):
             ns_user_v2.abort(404, 'User not found.')
 
 
+@ns_data_type_v2.route("")
+class DataTypeList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_data_type_list)
+    @token_required
+    def get(self, current_user):
+        ''' Gets a list of all the data types '''
+        data_types = DataType.search().execute()
+        if data_types:
+            return [d for d in data_types]
+        else:
+            return []
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_data_type_create)
+    @api2.response('200', 'Successfully created data type.')
+    @token_required
+    @user_has('create_data_type')
+    def post(self, current_user):
+        ''' Creates a new data_type set '''
+        data_type = DataType(**api2.payload)
+        data_type.save()
+        return {'message': 'Successfully created data type.', 'uuid': str(data_type.uuid)}
+
+
+@ns_data_type_v2.route("/<uuid>")
+class DataTypeDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_data_type_list)
+    @token_required
+    def get(self, uuid, current_user):
+        ''' Gets a data type '''
+        data_type = DataType.get_by_uuid(uuid=uuid)
+        if data_type:
+            return data_type
+        else:
+            ns_data_type.abort(404, 'Data type not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_data_type_create)
+    @api2.marshal_with(mod_data_type_list)
+    @token_required
+    @user_has('update_data_type')
+    def put(self, uuid, current_user):
+        ''' Updates the data type '''
+        data_type = DataType.get_by_uuid(uuid=uuid)
+        if data_type:
+            data_type.update(**api2.payload)
+            return data_type
+        else:
+            ns_data_type.abort(404, 'Data type not found.')
+
+
 event_list_parser = api2.parser()
-event_list_parser.add_argument('query', type=str, location='args', required=False)
+event_list_parser.add_argument('status', location='args', default=[], type=str, action='split', required=False)
+event_list_parser.add_argument('tags', location='args', default=[], type=str, action='split', required=False)
+event_list_parser.add_argument('observables', location='args', default=[], type=str, action='split', required=False)
+event_list_parser.add_argument('signature', location='args', required=False)
+event_list_parser.add_argument('severity', action='split', location='args', required=False)
+event_list_parser.add_argument('grouped', type=xinputs.boolean, location='args', required=False)
+event_list_parser.add_argument('case_uuid', type=str, location='args', required=False)
+event_list_parser.add_argument('search', type=str, action='split', default=[], location='args', required=False)
+event_list_parser.add_argument('title', type=str, location='args', action='split', required=False)
 event_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
 event_list_parser.add_argument('page_size', type=int, location='args', default=10, required=False)
 event_list_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
@@ -343,12 +420,12 @@ class EventList2(Resource):
         ''' Returns a list of events '''
     
         args = event_list_parser.parse_args()
-        
-        s = Event.search()
-        response = s.execute()
 
-        return [event._source for event in response['hits']['hits']]
-        #return []
+        if 'signature' in args and args['signature']:
+            return Event.get_by_signature(signature=args['signature'])
+        else:
+            response = Event.search().execute()
+            return [event for event in response]
     
     @api2.expect(mod_event_create)
     def post(self):
@@ -357,15 +434,10 @@ class EventList2(Resource):
 
         _observables = []
         _tags = []
-        
-        event = Event.get_by_reference(api2.payload['reference'])
-                
-        if not event:
-            event = Event(**api2.payload)
-            event.save()
-            return {'message': 'Successfully created the event.'}
-        else:
-            ns_event_v2.abort(409, 'Event already exists.')
+
+        event = Event(**api2.payload)
+        event.save()
+        return {'message': 'Successfully created the event.'}
 
 
 @ns_event_rule_v2.route("")
@@ -470,6 +542,8 @@ class InputList(Resource):
         ''' Returns a list of inputs '''
         inputs = Input.search().execute()
         if inputs:
+            for i in inputs:
+                print(i.config)
             return [i for i in inputs]
         else:
             return []
@@ -681,6 +755,12 @@ class AgentDetails(Resource):
             ns_agent_v2.abort(404, 'Agent not found.')
 
 
+@ns_agent_group_v2.route("")
+class AgentGroupList(Resource):
+
+    def get(self):
+        return []
+
 @ns_credential_v2.route('/encrypt')
 class EncryptPassword(Resource):
 
@@ -696,7 +776,6 @@ class EncryptPassword(Resource):
         credential = Credential.get_by_name(api2.payload['name'])
         if not credential:
             pw = api2.payload.pop('secret')
-            print(pw)
             credential = Credential(**api2.payload)
             credential.save()
             credential.encrypt(pw.encode(
@@ -844,9 +923,6 @@ class ThreatListList(Resource):
                 values.append(value)
 
             api2.payload['values'] = values
-
-        if api2.payload['data_type'] not in Settings.load().data_types:
-            ns_list_v2.abort(409, "Data type not found.")
 
         value_list = ThreatList.get_by_name(name=api2.payload['name'])
 
