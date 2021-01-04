@@ -145,7 +145,8 @@ mod_permissions = Model('Permissions', {
 
 mod_role_create = Model('RoleCreate', {
     'name': fields.String,
-    'description': fields.String
+    'description': fields.String,
+    'permissions': fields.Nested(mod_permissions)
 })
 
 mod_user_role = Model('UserRole', {

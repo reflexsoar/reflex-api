@@ -394,7 +394,7 @@ class RoleList(Resource):
         if not role:
             role = Role(**api2.payload)
             role.save()
-            return {'message': 'Successfully created the role.', 'uuid': role.uuid}
+            return {'message': 'Successfully created the role.', 'uuid': str(role.uuid)}
         else:
             ns_role_v2.abort(409, "Role already exists.")
 
@@ -403,6 +403,7 @@ class RoleList(Resource):
 class RoleDetails(Resource):
 
     @api2.doc(security="Bearer")
+    @api2.expect(mod_role_create)
     @api2.marshal_with(mod_role_list)
     @token_required
     @user_has('update_role')
@@ -410,7 +411,8 @@ class RoleDetails(Resource):
         ''' Updates an Role '''
         role = Role.get_by_uuid(uuid=uuid)
         if role:
-            if 'name' in api2.payload and Role.get_by_name(name=api2.payload['name']):
+            exists = Role.get_by_name(name=api2.payload['name'])
+            if 'name' in api2.payload and exists and exists.uuid != role.uuid:
                 ns_role_v2.abort(409, 'Role with that name already exists.')
             else:
                 role.update(**api2.payload)
@@ -425,7 +427,7 @@ class RoleDetails(Resource):
         ''' Removes a Role '''
         role = Role.get_by_uuid(uuid=uuid)
         if role:
-            if len(role.members) > 0:
+            if role.members and len(role.members) > 0:
                 ns_role_v2.abort(
                     400, 'Can not delete a role with assigned users.  Assign the users to a new role first.')
             else:
