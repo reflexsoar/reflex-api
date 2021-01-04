@@ -501,7 +501,7 @@ class Observable(InnerDoc):
         return super().save(**kwargs)
 
 
-class Event(Document):
+class Event(BaseDocument):
 
     uuid = Text()
     title = Text(fields={'raw': Keyword()})
@@ -563,6 +563,65 @@ class Event(Document):
             document = response[0]
             return document
         return response
+
+
+class EventRule(BaseDocument):
+    '''
+    An Event Rule is created so that when new events come in they can
+    be automatically handled based on how the analyst sees fit without the
+    analyst actually having to do anything.
+    '''
+
+    name = Keyword()
+    description = Text()
+    event_signature = Keyword() # The title of the event that this was created from
+    rule_signature = Keyword() # A hash of the title + user customized observable values
+    target_case = Keyword() # The target case to merge this into if merge into case is selected
+    observables = Nested(Observable)
+    merge_into_case = Boolean()
+    dismiss = Boolean()
+    expire = Boolean() # If not set the rule will never expire, Default: True
+    expire_at = Date() # Computed from the created_at date of the event + a timedelta in days
+    active = Boolean() # Users can override the alarm and disable it out-right
+
+    class Index:
+        name = 'reflex-event-rules'
+
+    def hash_observables(self):
+        hasher = hashlib.md5()
+        obs = []
+        for observable in self.observables:
+            obs.append({'data_type': observable.data_type.lower(), 'value': observable.value.lower()})
+        obs = [dict(t) for t in {tuple(d.items()) for d in obs}] # Deduplicate the observables
+        obs = sorted(sorted(obs, key = lambda i: i['data_type']), key = lambda i: i['value'])        
+        hasher.update(str(obs).encode())
+        self.rule_signature = hasher.hexdigest()
+        self.save()
+        return
+
+    def hash_target_observables(self, target_observables):
+        hasher = hashlib.md5()
+        obs = []
+        expected_observables = [{'data_type':obs.data_type.lower(), 'value':obs.value.lower()} for obs in self.observables]
+        for observable in target_observables:
+            obs_dict = {'data_type': observable.data_type.name.lower(), 'value': observable.value.lower()}
+            if obs_dict in expected_observables:
+                obs.append(obs_dict)
+        obs = [dict(t) for t in {tuple(d.items()) for d in obs}] # Deduplicate the observables
+        obs = sorted(sorted(obs, key = lambda i: i['data_type']), key = lambda i: i['value'])             
+        hasher.update(str(obs).encode())
+        return hasher.hexdigest()
+
+    def save(self, **kwargs):
+        '''
+        Deduplicate observables
+        '''
+        obs = []
+        for observable in self.observables:
+            obs.append({'data_type': observable.data_type.lower(), 'value': observable.value.lower()})
+        self.observables = [dict(t) for t in {tuple(d.items()) for d in obs}] # Deduplicate the observables
+
+        return super().save(**kwargs)
 
 
 class Credential(BaseDocument):

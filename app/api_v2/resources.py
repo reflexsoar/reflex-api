@@ -3,7 +3,7 @@ import datetime
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from .schemas import *
-from .models import Event, Observable, User, Role, Settings, Credential, Input, Agent, ThreatList, ExpiredToken
+from .models import Event, EventRule, Observable, User, Role, Settings, Credential, Input, Agent, ThreatList, ExpiredToken
 from .utils import token_required, user_has, generate_token
 
 # Instantiate a new API object
@@ -19,6 +19,7 @@ ns_credential_v2 = api2.namespace('Credential', description='Credential operatio
 ns_input_v2 = api2.namespace('Input', description='Input operations', path='/input')
 ns_agent_v2 = api2.namespace('Agent', description='Agent operations', path='/agent')
 ns_list_v2 = api2.namespace('List', description='Lists API endpoints for managing indicator lists, lists may be string values or regular expressions', path='/list')
+ns_event_rule_v2 = api2.namespace('EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -365,6 +366,97 @@ class EventList2(Resource):
             return {'message': 'Successfully created the event.'}
         else:
             ns_event_v2.abort(409, 'Event already exists.')
+
+
+@ns_event_rule_v2.route("")
+class EventRuleList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_event_rule_list)
+    @token_required
+    @user_has('view_event_rules')
+    def get(self, current_user):
+        ''' Gets a list of all the event rules '''
+        event_rules = EventRule.search().execute()
+        if event_rules:
+            return [r for r in event_rules]
+        else:
+            return []
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_event_rule_create)
+    @api2.response('200', 'Successfully created event rule.')
+    @token_required
+    @user_has('create_event_rule')
+    def post(self, current_user):
+        ''' Creates a new event_rule set '''
+
+        if 'expire_days' in api2.payload and not isinstance(api2.payload['expire_days'], int):
+            ns_event_rule_v2(400, 'expire_days should be an integer.')
+
+        # Computer when the rule should expire
+        if 'expire' in api2.payload and api2.payload['expire']:
+            if 'expire_days' in api2.payload:
+                expire_days = api2.payload.pop('expire_days')
+
+                expire_at = datetime.datetime.utcnow() + datetime.timedelta(days=expire_days)
+                api2.payload['expire_at'] = expire_at
+            else:
+                ns_event_rule_v2.abort(400, 'Missing expire_days field.')
+
+        event_rule = EventRule(**api2.payload)
+        event_rule.hash_observables()
+        event_rule.save()
+
+        return {'message': 'Successfully created event rule.', 'uuid': str(event_rule.uuid)}
+
+
+@ns_event_rule_v2.route("/<uuid>")
+class EventRuleDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_event_rule_list)
+    @token_required
+    @user_has('view_event_rules')
+    def get(self, uuid, current_user):
+        ''' Gets a event rule '''
+        event_rule = EventRule.get_by_uuid(uuid=uuid)
+        if event_rule:
+            return event_rule
+        else:
+            ns_event_rule_v2.abort(404, 'Event rule not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_event_rule_create)
+    @api2.marshal_with(mod_event_rule_list)
+    @token_required
+    @user_has('update_event_rule')
+    def put(self, uuid, current_user):
+        ''' Updates the event rule '''
+        event_rule = EventRule.get_by_uuid(uuid=uuid)
+        
+        if event_rule:
+
+            if 'observables' in api2.payload:
+                event_rule.observables = api2.payload.pop('observables')
+                event_rule.hash_observables()
+
+            if len(api2.payload) > 0:
+                event_rule.update(**api2.payload)
+
+            return event_rule
+        else:
+            ns_event_rule_v2.abort(404, 'Event rule not found.')
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('delete_event_rule')
+    def delete(self, uuid, current_user):
+        ''' Removes an event rule '''
+        event_rule = EventRule.get_by_uuid(uuid=uuid)
+        if event_rule:
+            event_rule.delete()
+            return {'message': 'Sucessfully deleted the event rule.'}
 
 
 @ns_input_v2.route("")

@@ -294,6 +294,7 @@ Credential.init()
 Input.init()
 Agent.init()
 ThreatList.init()
+EventRule.init()
 
 admin_id = create_admin_user()
 create_admin_role(admin_id)

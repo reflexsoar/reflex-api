@@ -201,7 +201,7 @@ mod_observable_create = Model('ObservableCreate', {
     'tlp': fields.Integer,
     'spotted': fields.Boolean,
     'safe': fields.Boolean,
-    'dataType': fields.String(required=True),
+    'data_type': fields.String(required=True),
     'tags': fields.List(fields.String)
 })
 
@@ -389,9 +389,40 @@ mod_list_create = Model('ListCreate', {
     'values': fields.String
 })
 
+mod_event_rule_create = Model('CreateEventRule', {
+    'name': fields.String,
+    'description': fields.String,
+    'event_signature': fields.String,
+    'merge_into_case': fields.Boolean,
+    'target_case_uuid': fields.String,
+    'observables': fields.List(fields.Nested(mod_observable_create)),
+    'dismiss': fields.Boolean,
+    'expire': fields.Boolean,
+    'expire_days': fields.Integer,
+    'active': fields.Boolean    
+})
+
+mod_event_rule_list = Model('EventRuleList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String,
+    'event_signature': fields.String,
+    'rule_signature': fields.String,
+    'merge_into_case': fields.Boolean,
+    'target_case_uuid': fields.String,
+    'dismiss': fields.Boolean,
+    'expire': fields.Boolean,
+    'active': fields.Boolean,
+    'observables': fields.List(fields.Nested(mod_observable_brief)),
+    'expire_at': ISO8601(attribute='expire_at'),
+    'created_at': ISO8601(attribute='created_at'),
+    'updated_at': ISO8601(attribute='updated_at')
+})
+
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full, 
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, 
 mod_observable_brief, mod_observable_create, mod_raw_log, mod_permissions, mod_api_key,
 mod_user_create, mod_user_create_success, mod_settings, mod_persistent_pairing_token,
 mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list, mod_credential_return,
-mod_input_create, mod_input_list, mod_agent_list, mod_agent_create, mod_list_list, mod_list_create]
+mod_input_create, mod_input_list, mod_agent_list, mod_agent_create, mod_list_list, mod_list_create,
+mod_event_rule_create, mod_event_rule_list]
