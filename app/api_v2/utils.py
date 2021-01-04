@@ -104,8 +104,9 @@ def _check_token():
 
 
             expired = ExpiredToken.search().filter('term', token=access_token).execute()
+            print(expired)
             if expired:
-                raise ValueError('Token retired.')
+                abort(401, 'Token retired.')
             try:
                 token = jwt.decode(access_token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
 
@@ -132,7 +133,7 @@ def _check_token():
                 else:
                     try:
                         current_user = User.get_by_uuid(token['uuid'])
-                    except Exception as e:
+                    except:
                         abort(401, 'Unknown user error.')
 
                     # If the user is currently locked

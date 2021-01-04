@@ -476,9 +476,9 @@ class Role(BaseDocument):
         return super().save(**kwargs)
 
 
-class ExpiredToken(Document):
+class ExpiredToken(BaseDocument):
 
-    token = Text()
+    token = Keyword()
 
     class Index:
         name = 'reflex-expired-tokens'
