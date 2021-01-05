@@ -12,7 +12,8 @@ from app.api_v2.models import (
     EventRule,
     DataType,
     CaseComment,
-    CaseHistory
+    CaseHistory,
+    CaseTemplate
 )
 
 connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','URWsI66IP6qBYj6yr1L7'))
@@ -318,21 +319,22 @@ def initial_settings():
     settings.save()
 
 # Initialize empty indices
-ExpiredToken.init()
-Credential.init()
-Input.init()
-Agent.init()
-ThreatList.init()
-EventRule.init()
-Event.init()
-CaseComment.init()
-CaseHistory.init()
-
-
-admin_id = create_admin_user()
-create_admin_role(admin_id)
-create_analyst_role()
-create_agent_role()
-create_default_data_types()
-
-initial_settings()
+#ExpiredToken.init()
+#Credential.init()
+#Input.init()
+#Agent.init()
+#ThreatList.init()
+#EventRule.init()
+#Event.init()
+#CaseComment.init()
+#CaseHistory.init()
+CaseTemplate.init()
+#
+#
+#admin_id = create_admin_user()
+#create_admin_role(admin_id)
+#create_analyst_role()
+#create_agent_role()
+#create_default_data_types()
+#
+#initial_settings()

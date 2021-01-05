@@ -17,7 +17,8 @@ from .models import (
     ExpiredToken,
     DataType,
     CaseComment,
-    CaseHistory
+    CaseHistory,
+    CaseTemplate
 )
 from .utils import token_required, user_has, generate_token
 
@@ -40,6 +41,7 @@ ns_agent_group_v2 = api2.namespace('AgentGroup', description='Agent Group operat
 ns_data_type_v2 = api2.namespace('DataType', description='DataType operations', path='/data_type')
 ns_case_comment_v2 = api2.namespace('CaseComment', description='Case Comments', path='/case_comment')
 ns_case_history_v2 = api2.namespace('CaseHistory', description='Case history operations', path='/case_history')
+ns_case_template_v2 = api2.namespace('CaseTemplate', description='Case Template operations', path='/case_template')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -744,6 +746,105 @@ class CaseCommentDetails(Resource):
             case_comment.delete()
             return {'message': 'Sucessfully deleted comment.'}
 
+
+case_template_parser = api2.parser()
+case_template_parser.add_argument('title', location='args', required=False)
+@ns_case_template_v2.route("")
+class CaseTemplateList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_case_template_full, as_list=True)
+    @api2.expect(case_template_parser)
+    @token_required
+    @user_has('view_case_templates')
+    def get(self, current_user):
+        ''' Returns a list of case_template '''
+
+        args = case_template_parser.parse_args()
+        case_templates = None
+
+        if args['title']:
+            case_templates = CaseTemplate.title_search(s=args['title'])
+        else:
+            case_templates = CaseTemplate.search().execute()
+        if case_templates:
+            return [c for c in case_templates]
+        else:
+            return []
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_case_template_create)
+    @api2.response('409', 'Case Template already exists.')
+    @api2.response('200', "Successfully created the case_template.")
+    @api2.marshal_with(mod_case_template_full)
+    @token_required
+    @user_has('create_case_template')
+    def post(self, current_user):
+
+        # Check to see if the case template already exists and
+        # return an error indicating as such
+        case_template = CaseTemplate.get_by_title(title=api2.payload['title'])
+        if case_template:
+            ns_case_template_v2.abort(409, 'Case Template already exists.')
+        else:
+            ''' Creates a new case_template template '''
+
+            case_template = CaseTemplate(**api2.payload)
+            case_template.save()
+
+            # Set the default status to New
+            #case_template_status = CaseStatus.query.filter_by(
+             #   name="New").first()
+            #case_template.status = case_template_status
+            #case_template.save()
+
+            return case_template
+
+@ns_case_template_v2.route("/<uuid>")
+class CaseTemplateDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_case_template_full)
+    @api2.response('200', 'Success')
+    @api2.response('404', 'Case Template not found')
+    @token_required
+    @user_has('view_case_templates')
+    def get(self, uuid, current_user):
+        ''' Returns information about a case_template '''
+        case_template = CaseTemplate.get_by_uuid(uuid=uuid)
+        if case_template:
+            return case_template
+        else:
+            ns_case_template_v2.abort(404, 'Case Template not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_case_template_create)
+    @api2.marshal_with(mod_case_template_full)
+    @token_required
+    @user_has('update_case_template')
+    def put(self, uuid, current_user):
+        ''' Updates information for a case_template '''
+        case_template = CaseTemplate.get_by_uuid(uuid=uuid)
+        if case_template:
+            if 'title' in api2.payload:
+                exists = CaseTemplate.get_by_title(title=api2.payload['title'])
+                if exists and exists.uuid != case_template.uuid:
+                    ns_case_template_v2.abort(409, 'A Case Template with that title already exists.')
+            
+            case_template.update(**api2.payload)
+            return case_template
+        else:
+            ns_case_template_v2.abort(404, 'Case Template not found.')
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('delete_case_template')
+    def delete(self, uuid, current_user):
+        ''' Deletes a case_template '''
+        case_template = CaseTemplate.get_by_uuid(uuid=uuid)
+        if case_template:
+            case_template.delete()
+            return {'message': 'Sucessfully deleted case_template.'}
 
 
 @ns_input_v2.route("")

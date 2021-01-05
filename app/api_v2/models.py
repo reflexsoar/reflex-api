@@ -677,6 +677,114 @@ class CaseComment(BaseDocument):
         return []
 
 
+#class CaseTaskNotes()
+
+
+class CaseTask(BaseDocument):
+    '''
+    An action that needs to occur on a Case
+    '''
+
+    title = Keyword()
+    order = Integer()
+    description = Text()
+    owner = Keyword() # The user that is assigned to this task by default
+    group = Keyword() # The group that is assigned to this task by default
+    case = Keyword() # The UUID of the case this task belongs to
+    from_template = Boolean() # Indicates if the task came from a template. Default: False
+    status = Integer() # 0 = Open, 1 = Started, 2 = Complete
+    start_date = Date()
+    finish_date = Date()
+
+    class Index:
+        name = 'case-tasks'
+
+    def close_task(self):
+        '''
+        Closes the task and gives it a completion date
+        '''
+        self.status = 2
+        self.finish_date = datetime.datetime.utcnow()
+        self.save()
+
+    def start_task(self):
+        '''
+        Starts the task and gives it a date
+        '''
+        self.status = 1
+        self.start_date = datetime.datetime.utcnow()
+        self.save()
+
+    def reopen_task(self):
+        '''
+        Reopens the task and resets the finish_date
+        '''
+        self.status = 1
+        self.finish_date = None
+        self.save()
+
+
+class CaseTemplateTask(InnerDoc):
+    '''
+    An action that needs to occur on a Case
+    '''
+
+    uuid = Keyword()
+    title = Keyword()
+    order = Integer()
+    description = Text()
+    owner = Keyword() # The user that is assigned to this task by default
+    group = Keyword() # The group that is assigned to this task by default
+    case = Keyword() # The UUID of the case this task belongs to
+    from_template = Boolean() # Indicates if the task came from a template. Default: False
+    status = Integer() # 0 = Open, 1 = Started, 2 = Complete
+    start_date = Date()
+    finish_date = Date()
+
+
+class CaseTemplate(BaseDocument):
+    '''
+    A Case Template represents a static format that a case can
+    be created from when the work path is clearly defined
+    '''
+
+    title = Keyword()
+    description = Text()
+    severity = Integer() # The default severity of the case
+    owner = Keyword() # The default owner of the case
+    tlp = Integer() # The default TLP of the case
+    tags = Keyword()
+    tasks = Nested(CaseTemplateTask)
+
+    class Index:
+        name = 'reflex-case-templates'
+
+    @classmethod
+    def title_search(self, s):
+        '''
+        Searches for a title based on a wildcard
+        '''
+        s = self.search().query('wildcard', title=s+'*')
+        print(s.to_dict())
+        results = s.execute()
+        if results:
+            return [r for r in results]
+        else:
+            return []
+
+    @classmethod
+    def get_by_title(self, title):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search().query('term', title=title).execute()
+        if response:
+            document = response[0]
+            return document
+        return response
+
+
 class Credential(BaseDocument):
 
     name = Keyword()

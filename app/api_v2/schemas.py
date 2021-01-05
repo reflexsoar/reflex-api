@@ -408,7 +408,7 @@ mod_data_type_list = Model('DataTypeList', {
     'description': fields.String,
     'regex': fields.String,
     'created_at': ISO8601(attribute='created_at'),
-    'modified_at': ISO8601(attribute='modified_at')
+    'updated_at': ISO8601(attribute='updated_at')
 })
 
 mod_data_type_create = Model('CreateDataType', {
@@ -495,6 +495,60 @@ mod_comment_create = Model('CommentCreate', {
     'message': fields.String
 })
 
+mod_case_task_create = Model('CaseTaskCreate', {
+    'title': fields.String,
+    'order': fields.Integer,
+    'description': fields.String,
+    'group_uuid': fields.String,
+    'owner_uuid': fields.String,
+    'case_uuid': fields.String
+})
+
+mod_case_template_task_create = Model('CaseTemplateTaskCreate', {
+    'title': fields.String,
+    'order': fields.Integer,
+    'description': fields.String,
+    'group_uuid': fields.String,
+    'owner_uuid': fields.String
+})
+
+mod_case_template_create = Model('CaseTemplateCreate', {
+    'title': fields.String(required=True),
+    'owner_uuid': fields.String,
+    'description': fields.String(required=True),
+    'tags': fields.List(fields.String),
+    'tlp': fields.Integer,
+    'tasks': fields.List(fields.Nested(mod_case_template_task_create)),
+    'severity': fields.Integer
+})
+
+mod_case_template_task_full = Model('CaseTemplateTaskList', {
+    'uuid': fields.String,
+    'title': fields.String,
+    'description': fields.String,
+    'order': fields.Integer,
+    'created_at': ISO8601(attribute='created_at'),
+    'updated_at': ISO8601(attribute='updated_at'),
+    #'group': fields.Nested(mod_user_group_list),
+    #'owner': fields.Nested(mod_user_list),
+    'status': fields.Integer
+})
+
+mod_case_template_full = Model('CaseTemplateList', {
+    'uuid': fields.String,
+    'title': fields.String,
+    #'owner': fields.Nested(mod_user_list),
+    'description': fields.String,
+    'tags': fields.List(fields.String),
+    'tlp': fields.Integer,
+    'severity': fields.Integer,
+    #'status': fields.Nested(mod_event_status),
+    'created_at': ISO8601(attribute='created_at'),
+    'updated_at': ISO8601(attribute='updated_at'),
+    'tasks': fields.List(fields.Nested(mod_case_template_task_full)),
+    'task_count': ValueCount(attribute='tasks')
+})
+
 
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full, 
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, 
@@ -503,4 +557,6 @@ mod_user_create, mod_user_create_success, mod_settings, mod_persistent_pairing_t
 mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list, mod_credential_return,
 mod_input_create, mod_input_list, mod_agent_list, mod_agent_create, mod_list_list, mod_list_create,
 mod_event_rule_create, mod_event_rule_list, mod_data_type_list, mod_data_type_create, mod_user_role_no_perms,
-mod_user_brief, mod_role_list, mod_role_create, mod_case_history, mod_comment, mod_comment_create, mod_case_close_reason]
+mod_user_brief, mod_role_list, mod_role_create, mod_case_history, mod_comment, mod_comment_create, mod_case_close_reason,
+mod_case_template_create, mod_case_template_task_create, mod_case_task_create, mod_case_template_task_full,
+mod_case_template_full]
