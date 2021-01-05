@@ -628,6 +628,55 @@ class EventRule(BaseDocument):
         return super().save(**kwargs)
 
 
+class CaseHistory(BaseDocument):
+    ''' 
+    A case history entry that shows what changed on the case
+    the message should be stored in markdown format
+    so that it can be processed by the UI
+    '''
+
+    message = Text()
+    case = Keyword() # The uuid of the case this history belongs to
+
+    class Index:
+        name = 'reflex-case-history'
+
+    @classmethod
+    def get_by_case(self, uuid):
+        '''
+        Fetches a document by the uuid field
+        '''
+        response = self.search().query('term', case=uuid).execute()
+        if response:
+            return [r for r in response]
+        return []
+
+
+class CaseComment(BaseDocument):
+    '''
+    A case comment that allows analysts to exchange information
+    and notes on a case
+    '''
+
+    message = Text()
+    case = Keyword() # The uuid of the case this comment belongs to
+    is_closure_comment = Boolean() # Is this comment related to closing the case
+    edited = Boolean() # Should be True when the comment is edited, Default: False
+
+    class Index:
+        name = 'reflex-case-comments'
+
+    @classmethod
+    def get_by_case(self, uuid):
+        '''
+        Fetches a document by the uuid field
+        '''
+        response = self.search().query('term', case_uuid=uuid).execute()
+        if response:
+            return [r for r in response]
+        return []
+
+
 class Credential(BaseDocument):
 
     name = Keyword()

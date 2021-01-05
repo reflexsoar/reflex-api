@@ -10,7 +10,9 @@ from app.api_v2.models import (
     ThreatList,
     Event,
     EventRule,
-    DataType
+    DataType,
+    CaseComment,
+    CaseHistory
 )
 
 connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','URWsI66IP6qBYj6yr1L7'))
@@ -286,6 +288,7 @@ def create_default_data_types():
         data_type = DataType(**d)
         data_type.save()
 
+
 def initial_settings():
 
     Settings.init()
@@ -322,6 +325,8 @@ Agent.init()
 ThreatList.init()
 EventRule.init()
 Event.init()
+CaseComment.init()
+CaseHistory.init()
 
 
 admin_id = create_admin_user()

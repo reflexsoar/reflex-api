@@ -15,7 +15,9 @@ from .models import (
     Agent,
     ThreatList,
     ExpiredToken,
-    DataType
+    DataType,
+    CaseComment,
+    CaseHistory
 )
 from .utils import token_required, user_has, generate_token
 
@@ -36,6 +38,8 @@ ns_list_v2 = api2.namespace('List', description='Lists API endpoints for managin
 ns_event_rule_v2 = api2.namespace('EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
 ns_agent_group_v2 = api2.namespace('AgentGroup', description='Agent Group operations', path='/agent_group')
 ns_data_type_v2 = api2.namespace('DataType', description='DataType operations', path='/data_type')
+ns_case_comment_v2 = api2.namespace('CaseComment', description='Case Comments', path='/case_comment')
+ns_case_history_v2 = api2.namespace('CaseHistory', description='Case history operations', path='/case_history')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -520,7 +524,7 @@ event_list_parser.add_argument('page_size', type=int, location='args', default=1
 event_list_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
 event_list_parser.add_argument('sort_desc', type=xinputs.boolean, location='args', default=True, required=False)
 @ns_event_v2.route("")
-class EventList2(Resource):
+class EventList(Resource):
 
     @api2.marshal_with(mod_event_list, as_list=True)
     @api2.expect(event_list_parser)
@@ -637,6 +641,109 @@ class EventRuleDetails(Resource):
         if event_rule:
             event_rule.delete()
             return {'message': 'Sucessfully deleted the event rule.'}
+
+
+@ns_case_history_v2.route("/<uuid>")
+class CaseHistoryList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_case_history, as_list=True)
+    @token_required
+    @user_has('view_cases')
+    def get(self, uuid, current_user):
+        ''' Returns a list of case history events '''
+
+        history = CaseHistory.get_by_case(uuid=uuid)
+
+        if history:
+            return [h for h in history]
+        else:
+            return []
+
+case_comment_parser = api2.parser()
+case_comment_parser.add_argument('case_uuid', type=str, location='args', required=True)
+
+@ns_case_comment_v2.route("")  
+class CaseCommentList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(case_comment_parser)
+    @api2.marshal_with(mod_comment, as_list=True)
+    @token_required
+    @user_has('view_case_comments')
+    def get(self, current_user):
+        ''' Returns a list of comments '''
+
+        args = case_comment_parser.parse_args()
+
+        if 'case_uuid' in args:
+            comments = CaseComment.get_by_case(uuid=args['case_uuid'])
+            if comments:
+                return [c for c in comments]
+            else:
+                return []
+        else:
+            ns_case_comment_v2.abort(400, 'A case UUID is required.')
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_comment_create)
+    @api2.response(200, 'AMAZING', mod_comment)
+    @api2.marshal_with(mod_comment)
+    @token_required
+    @user_has('create_case_comment')
+    def post(self, current_user):
+        _tags = []
+        ''' Creates a new comment '''
+        case_comment = CaseComment(**api2.payload)
+        case_comment.save()
+
+        #case = Case.get_query.filter_by(uuid=api2.payload['case_uuid']).first()
+        #case.add_history(message="Commented added to case")
+        return case_comment
+
+
+@ns_case_comment_v2.route("/<uuid>")
+class CaseCommentDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_comment)
+    @api2.response('200', 'Success')
+    @api2.response('404', 'Comment not found')
+    @token_required
+    @user_has('view_case_comments')
+    def get(self, uuid, current_user):
+        ''' Returns information about a comment '''
+        case_comment = CaseComment.get_by_uuid(uuid=uuid)
+        if case_comment:
+            return case_comment
+        else:
+            ns_case_comment_v2.abort(404, 'Comment not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_comment_create)
+    @api2.marshal_with(mod_comment)
+    @token_required
+    @user_has('update_case_comment')
+    def put(self, uuid, current_user):
+        ''' Updates information for a comment '''
+        case_comment = CaseComment.get_by_uuid(uuid=uuid)
+        if case_comment:
+            case_comment.edited = True
+            case_comment.save()
+            return case_comment
+        else:
+            ns_case_comment_v2.abort(404, 'Comment not found.')
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('delete_case_comment')
+    def delete(self, uuid, current_user):
+        ''' Deletes a comment '''
+        case_comment = CaseComment.get_by_uuid(uuid=uuid)
+        if case_comment:
+            case_comment.delete()
+            return {'message': 'Sucessfully deleted comment.'}
+
 
 
 @ns_input_v2.route("")

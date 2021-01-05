@@ -21,8 +21,8 @@ COV = coverage.coverage(
 )
 
 @manager.command
-def run():
-    app.run(port=80)
+def run(host="0.0.0.0", port=80, threaded=False):
+    app.run(port=port, threaded=threaded)
 
 @manager.command
 def test(test='*'):

@@ -216,10 +216,6 @@ mod_api_key = Model('UserApiKey', {
     'api_key': fields.String
 })
 
-
-
-
-
 mod_user_self = Model('UserSelf', {
     'uuid': fields.String,
     'username': fields.String,
@@ -471,6 +467,34 @@ mod_event_rule_list = Model('EventRuleList', {
     'updated_at': ISO8601(attribute='updated_at')
 })
 
+mod_case_history = Model('CaseHistoryEntry', {
+    'message': fields.String,
+    'created_at': ISO8601(attribute='created_at'),
+    #'created_by': fields.Nested(mod_user_list)
+})
+
+mod_case_close_reason = Model('CaseCloseList', {
+    'uuid': fields.String,
+    'title': fields.String,
+    'description': fields.String
+})
+
+mod_comment = Model('CommentDetails', {
+    'uuid': fields.String,
+    'message': fields.String,
+    'edited': fields.Boolean,
+    'is_closure_comment': fields.Boolean,
+    'closure_reason': fields.Nested(mod_case_close_reason),
+    #'created_by': fields.Nested(mod_user_list),
+    'created_at': ISO8601(attribute='created_at'),
+    'case_uuid': fields.String
+})
+
+mod_comment_create = Model('CommentCreate', {
+    'case_uuid': fields.String,
+    'message': fields.String
+})
+
 
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full, 
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, 
@@ -479,4 +503,4 @@ mod_user_create, mod_user_create_success, mod_settings, mod_persistent_pairing_t
 mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list, mod_credential_return,
 mod_input_create, mod_input_list, mod_agent_list, mod_agent_create, mod_list_list, mod_list_create,
 mod_event_rule_create, mod_event_rule_list, mod_data_type_list, mod_data_type_create, mod_user_role_no_perms,
-mod_user_brief, mod_role_list, mod_role_create]
+mod_user_brief, mod_role_list, mod_role_create, mod_case_history, mod_comment, mod_comment_create, mod_case_close_reason]
