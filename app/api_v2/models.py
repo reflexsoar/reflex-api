@@ -381,6 +381,11 @@ class Permission(InnerDoc):
     update_case_status = Boolean()
     delete_case_status = Boolean()
 
+    # Close Reason Permissions
+    create_close_reason = Boolean()
+    update_close_reason = Boolean()
+    delete_close_reason = Boolean()
+
     # Plugin Permissions
     view_plugins = Boolean()
     create_plugin = Boolean()
@@ -710,6 +715,18 @@ class CloseReason(BaseDocument):
 
     class Index:
         name = 'reflex-close-reasons'
+
+    @classmethod
+    def get_by_name(self, title):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search().query('term', title=title).execute()
+        if response:
+            user = response[0]
+            return user
+        return response
 
 
 class Case(BaseDocument):

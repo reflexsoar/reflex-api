@@ -47,6 +47,7 @@ ns_case_status_v2 = api2.namespace('CaseStatus', description='Case Status operat
 ns_case_comment_v2 = api2.namespace('CaseComment', description='Case Comments', path='/case_comment')
 ns_case_history_v2 = api2.namespace('CaseHistory', description='Case history operations', path='/case_history')
 ns_case_template_v2 = api2.namespace('CaseTemplate', description='Case Template operations', path='/case_template')
+ns_close_reason_v2 = api2.namespace('CloseReason', description='Closure reason are used when closing a case and can be customized', path='/close_reason')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -729,6 +730,83 @@ class CaseStatusDetails(Resource):
         if case_status:
             case_status.delete()
             return {'message': 'Sucessfully deleted Case Status.'}
+
+
+@ns_close_reason_v2.route("")
+class CloseReasonList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_close_reason_list, as_list=True)
+    @token_required
+    def get(self, current_user):
+        ''' Returns a list of close_reasons '''
+        close_reasons = CloseReason.search().execute()
+        if close_reasons:
+            return [c for c in close_reasons]
+        else:
+            return []
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_close_reason_create)
+    @api2.response('409', 'Close Reason already exists.')
+    @api2.response('200', 'Successfully create the CloseReason.')
+    @token_required
+    @user_has('create_close_reason')
+    def post(self, current_user):
+        ''' Creates a new Close Reason '''
+        close_reason = CloseReason.get_by_name(title=api2.payload['title'])
+
+        if not close_reason:
+            close_reason = CloseReason(**api2.payload)
+            close_reason.save()
+        else:
+            ns_close_reason_v2.abort(409, 'Close Reason with that name already exists.')
+        return {'message': 'Successfully created the Close Reason.'}
+
+
+@ns_close_reason_v2.route("/<uuid>")
+class CloseReasonDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_close_reason_list)
+    @token_required
+    def get(self, uuid, current_user):
+        ''' Returns information about an CloseReason '''
+        close_reason = CloseReason.get_by_uuid(uuid=uuid)
+        if close_reason:
+            return close_reason
+        else:
+            ns_close_reason_v2.abort(404, 'Close Reason not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_close_reason_create)
+    @api2.marshal_with(mod_close_reason_list)
+    @token_required
+    @user_has('update_close_reason')
+    def put(self, uuid, current_user):
+        ''' Updates information for an Close Reason '''
+        close_reason = CloseReason.get_by_uuid(uuid=uuid)
+        if close_reason:
+            exists = CloseReason.get_by_name(title=api2.payload['title'])
+            if 'title' in api2.payload and exists and exists.uuid != close_reason.uuid:
+                ns_close_reason_v2.abort(409, 'Close Reason title already exists.')
+            else:
+                close_reason.update(**api2.payload)
+                return close_reason
+        else:
+            ns_close_reason_v2.abort(404, 'Close Reason not found.')
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('delete_close_reason')
+    def delete(self, uuid, current_user):
+        ''' Deletes an CloseReason '''
+        close_reason = CloseReason.get_by_uuid(uuid=uuid)
+        if close_reason:
+            close_reason.delete()
+            return {'message': 'Sucessfully deleted Close Reason.'}
+
+
 
 
 case_parser = pager_parser.copy()

@@ -135,7 +135,10 @@ def create_admin_role(admin_id):
         "view_event_rules": True,
         'upload_case_files': True,
         'view_case_files': True,
-        'delete_case_files': True
+        'delete_case_files': True,
+        "create_close_reason": True,
+        "update_close_reason": True,
+        "delete_close_reason": True
     }
 
     role_contents = {
@@ -204,6 +207,9 @@ def create_analyst_role():
         "create_event_rule": True,
         "update_event_rule": True,
         "delete_event_rule": True,
+        "create_close_reason": False,
+        "update_close_reason": False,
+        "delete_close_reason": False
     }
 
     role_contents = {
@@ -355,29 +361,29 @@ def initial_settings():
     settings.save()
 
 # Initialize empty indices
-#ExpiredToken.init()
-#Credential.init()
-#Input.init()
-#Agent.init()
-#ThreatList.init()
-#EventRule.init()
-#Event.init()
-#CaseComment.init()
-#CaseHistory.init()
-#CaseTemplate.init()
+ExpiredToken.init()
+Credential.init()
+Input.init()
+Agent.init()
+ThreatList.init()
+EventRule.init()
+Event.init()
+CaseComment.init()
+CaseHistory.init()
+CaseTemplate.init()
 Case.init()
 CaseTask.init()
 
 
 #
 #
-#admin_id = create_admin_user()
-#create_admin_role(admin_id)
-#create_analyst_role()
-#create_agent_role()
-#create_default_data_types()
+admin_id = create_admin_user()
+create_admin_role(admin_id)
+create_analyst_role()
+create_agent_role()
+create_default_data_types()
 create_default_closure_reasons()
 create_default_case_status()
 #
 
-#initial_settings()
+initial_settings()
