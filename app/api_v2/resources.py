@@ -18,7 +18,10 @@ from .models import (
     DataType,
     CaseComment,
     CaseHistory,
-    CaseTemplate
+    CaseTemplate,
+    Case,
+    CaseStatus,
+    CloseReason
 )
 from .utils import token_required, user_has, generate_token
 
@@ -39,6 +42,8 @@ ns_list_v2 = api2.namespace('List', description='Lists API endpoints for managin
 ns_event_rule_v2 = api2.namespace('EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
 ns_agent_group_v2 = api2.namespace('AgentGroup', description='Agent Group operations', path='/agent_group')
 ns_data_type_v2 = api2.namespace('DataType', description='DataType operations', path='/data_type')
+ns_case_v2 = api2.namespace('Case', description='Case operations', page='/case')
+ns_case_status_v2 = api2.namespace('CaseStatus', description='Case Status operations', page='/case_status')
 ns_case_comment_v2 = api2.namespace('CaseComment', description='Case Comments', path='/case_comment')
 ns_case_history_v2 = api2.namespace('CaseHistory', description='Case history operations', path='/case_history')
 ns_case_template_v2 = api2.namespace('CaseTemplate', description='Case Template operations', path='/case_template')
@@ -47,6 +52,12 @@ ns_case_template_v2 = api2.namespace('CaseTemplate', description='Case Template 
 for model in schema_models:
     api2.models[model.name] = model
 
+
+# Generic parsers
+pager_parser = api2.parser()
+pager_parser.add_argument('page_size', location='args',
+                          required=False, type=int, default=25)
+pager_parser.add_argument('page', location='args', required=False, type=int, default=1)
 
 '''
 def create_observables(observables):
@@ -645,6 +656,414 @@ class EventRuleDetails(Resource):
             return {'message': 'Sucessfully deleted the event rule.'}
 
 
+@ns_case_status_v2.route("")
+class CaseStatusList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_case_status_list, as_list=True)
+    @token_required
+    def get(self, current_user):
+        ''' Returns a list of case_statuss '''
+        statuses = CaseStatus.search().execute()
+        if statuses:
+            return [s for s in statuses]
+        else:
+            return []
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_case_status_create)
+    @api2.response('409', 'Case Status already exists.')
+    @api2.response('200', 'Successfully create the CaseStatus.')
+    @token_required
+    @user_has('create_case_status')
+    def post(self, current_user):
+        ''' Creates a new Case Status '''
+        case_status = CaseStatus.get_by_name(name=api2.payload['name'])
+
+        if not case_status:
+            case_status = CaseStatus(**api2.payload)
+            case_status.save()
+        else:
+            ns_case_status.abort(409, 'Case Status already exists.')
+        return {'message': 'Successfully created the Case Status.'}
+
+
+@ns_case_status_v2.route("/<uuid>")
+class CaseStatusDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_case_status_list)
+    @token_required
+    def get(self, uuid, current_user):
+        ''' Returns information about an CaseStatus '''
+        case_status = CaseStatus.get_by_uuid(uuid=uuid)
+        if case_status:
+            return case_status
+        else:
+            ns_case_status_v2.abort(404, 'Case Status not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_case_status_create)
+    @api2.marshal_with(mod_case_status_list)
+    @token_required
+    @user_has('update_case_status')
+    def put(self, uuid, current_user):
+        ''' Updates information for an Case Status '''
+        case_status = CaseStatus.get_by_uuid(uuid=uuid)
+        if case_status:
+            exists = CaseStatus.get_by_name(name=api2.payload['name'])
+            if 'name' in api2.payload and exists and exists.uuid != case_status.uuid:
+                ns_case_status_v2.abort(409, 'Case Status name already exists.')
+            else:
+                case_status.update(**api2.payload)
+                return case_status
+        else:
+            ns_case_status_v2.abort(404, 'Case Status not found.')
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('delete_case_status')
+    def delete(self, uuid, current_user):
+        ''' Deletes an CaseStatus '''
+        case_status = CaseStatus.get_by_uuid(uuid=uuid)
+        if case_status:
+            case_status.delete()
+            return {'message': 'Sucessfully deleted Case Status.'}
+
+
+case_parser = pager_parser.copy()
+case_parser.add_argument('title', location='args', required=False, type=str)
+case_parser.add_argument('status', location='args', required=False, action="split", type=str)
+case_parser.add_argument('severity', location='args', required=False, action="split", type=str)
+case_parser.add_argument('owner', location='args', required=False, action="split", type=str)
+case_parser.add_argument('tag', location='args', required=False, action="split", type=str)
+case_parser.add_argument('search', location='args', required=False, action="split", type=str)
+case_parser.add_argument('my_tasks', location='args', required=False, type=xinputs.boolean)
+case_parser.add_argument('my_cases', location='args', required=False, type=xinputs.boolean)
+@ns_case_v2.route("")
+class CaseList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_case_paged_list)
+    @api2.expect(case_parser)
+    @token_required
+    @user_has('view_cases')
+    def get(self, current_user):
+        ''' Returns a list of case '''
+
+        args = case_parser.parse_args()
+
+        # TODO: REIMPLIMENT ALL THE FILTERING LOGIC
+
+        s = Case.search()[args['page']:args['page_size']]
+        cases = s.execute()
+        print(cases)
+
+        #TODO: REIMPLEMENT PAGINATION
+
+        response = {
+                'cases': [c for c in cases],
+                'pagination': {
+                    'total_results': 0,
+                    'pages': 0,
+                    'page': 0,
+                    'page_size': 0
+                }
+            }
+
+        return response
+
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_case_create)
+    @api2.response('409', 'Case already exists.')
+    @api2.response('200', "Successfully created the case.")
+    @token_required
+    @user_has('create_case')
+    def post(self, current_user):
+        ''' Creates a new case '''
+
+        _tags = []
+        event_observables = []
+        case_template_uuid = None
+        
+        settings = Settings.load()
+
+        if 'case_template_uuid' in api2.payload:
+            case_template_uuid = api2.payload.pop('case_template_uuid')
+
+        # TODO: MIGRATE THIS
+        # if 'owner_uuid' in api.payload:
+        #    owner = api2.payload.pop('owner_uuid')
+        #    user = User.query.filter_by(uuid=owner, organization_uuid=current_user.organization.uuid).first()
+        #    if user:
+        #        api.payload['owner'] = user
+        #else:
+        #    # Automatically assign the case to the creator if they didn't pick an owner
+        #    if settings.assign_case_on_create:
+        #        api.payload['owner'] = User.query.filter_by(uuid=current_user.uuid).first()
+
+        # TODO: MIGRATE THIS
+        #  if 'observables' in api.payload:
+        #     observables = api.payload.pop('observables')
+        #    api.payload['observables'] = []
+        #    for uuid in observables:
+        #        observable = Observable.query.filter_by(uuid=uuid, organization_uuid=current_user.organization.uuid).first()
+        #        if observable:
+        #            api.payload['observables'].append(observable)
+
+        """ TODO: MIGRATE THIS
+        if 'events' in api.payload:
+            api.payload['observables'] = []
+            events = api.payload.pop('events')
+            api.payload['events'] = []
+            observable_collection = {}
+
+            # Pull all the observables out of the events
+            # so they can be added to the case
+            for uuid in events:
+                event = Event.query.filter_by(uuid=uuid, organization_uuid=current_user.organization.uuid).first()
+                if event:
+                    api.payload['events'].append(event)
+                if event.observables:
+                    for observable in event.observables:
+                        if observable.value in observable_collection:
+                            observable_collection[observable.value].append(
+                                observable)
+                        else:
+                            observable_collection[observable.value] = [
+                                observable]
+
+            # Sort and pull out the most recent observable in the group
+            # of observables
+            for observable in observable_collection:
+                observable_collection[observable] = sorted(
+                    observable_collection[observable], key=lambda x: x.created_at, reverse=True)
+                api.payload['observables'].append(
+                    observable_collection[observable][0])
+        """
+
+        case = Case(**api2.payload)
+        case.save()
+
+        # Set the default status to New
+        case_status = CaseStatus.get_by_name(name="New")
+        case.status = case_status.uuid
+        case.save()
+        
+        # If the user selected a case template, take the template items
+        # and copy them over to the case
+        if case_template_uuid:
+            case_template = CaseTemplate.get_by_uuid(uuid=case_template_uuid)
+
+            # Append the default tags
+            for tag in case_template.tags:
+
+                # If the tag does not already exist
+                if tag not in case.tags:
+                    case.tags.append(tag)
+
+            # TODO: MIGRATE THIS
+            # Append the default tasks
+            # for task in case_template.tasks:
+            #    case_task = CaseTask(title=task.title, description=task.description,
+            #                         order=task.order, owner=task.owner, group=task.group,
+            #                         from_template=True,
+            #                         organization_uuid=current_user.organization.uuid)
+            #    case.tasks.append(case_task)
+
+            # Set the default severity
+            # case.severity = case_template.severity
+            # case.tlp = case_template.tlp
+            case.case_template = case_template_uuid
+            case.save()
+
+
+        # TODO: MIGRATE THIS
+        # for event in case.events:
+        #     event.status = EventStatus.query.filter_by(name='Open', organization_uuid=current_user.organization.uuid).first()
+        #     event.save()
+
+        case.add_history(message='Case created')
+
+        return {'message': 'Successfully created the case.', 'uuid': str(case.uuid)}
+
+
+@ns_case_v2.route("/<uuid>")
+class CaseDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_case_details)
+    @api2.response('200', 'Success')
+    @api2.response('404', 'Case not found')
+    @token_required
+    @user_has('view_cases')
+    def get(self, uuid, current_user):
+        ''' Returns information about a case '''
+        case = Case.get_by_uuid(uuid=uuid)
+        if case:
+            return case
+        else:
+            ns_case.abort(404, 'Case not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_case_create)
+    @api2.marshal_with(mod_case_list)
+    @token_required
+    @user_has('update_case')
+    def put(self, uuid, current_user):
+        ''' Updates information for a case '''
+        case = Case.get_by_uuid(uuid=uuid)
+        if case:
+
+            for f in ['severity', 'tlp', 'status_uuid', 'owner', 'description', 'owner_uuid']:
+                value = ""
+                message = None
+
+                # TODO: handle notifications here, asynchronous of course to not block this processing
+                if f in api.payload:
+                    if f == 'status_uuid':
+                        status = CaseStatus.get_by_uuid(uuid=api2.payload['status_uuid'])
+                        
+                        # Remove the closure reason if the new status re-opens the case
+                        if not status.closed: 
+                            api2.payload['close_reason_uuid'] = None
+
+                        value = status.name
+                        f = 'status'
+
+                        # If the case is now set to close, close all the events
+                        # TODO: MIGRATE THIS
+                        #if(status.closed):
+                        #    for event in case.events:
+                        #        event.status = EventStatus.query.filter_by(organization_uuid=current_user.organization.uuid, name='Closed', closed=True).first()
+                        #        event.save()
+                        #    
+                        #    case.closed = True
+                        
+                        # If the case is being re-opened
+                        # TODO: MIGRATE THIS
+                        #if(case.status.closed and not status.closed):
+                        #    for event in case.events:
+                        #        event.status = EventStatus.query.filter_by(organization_uuid=current_user.organization.uuid, name='Open', closed=False).first()
+                        #        event.save()
+                        #        
+                        #    case.closed = False
+
+                    elif f == 'severity':
+                        value = {1: 'Low', 2: 'Medium', 3: 'High',
+                                 4: 'Critical'}[api2.payload[f]]
+
+                    elif f == 'description':
+                        message = '**Description** updated'
+
+                    # TODO: MIGRATE THIS
+                    #elif f == 'owner_uuid':
+                    #    if api2.payload['owner_uuid'] == '':
+                    #        
+                    #        api2.payload['owner_uuid'] = None
+                    #        message = 'Case unassigned'
+                    #    else:
+                    #        owner = User.get_by_uuid(uuid=api2.payload['owner_uuid'])
+                    #        value = owner.username
+                    #        message = 'Case assigned to **{}**'.format(
+                    #            owner.username)
+
+                    if message:
+                        case.add_history(message=message)
+                    else:
+                        case.add_history(
+                            message="**{}** changed to **{}**".format(f.title(), value))
+            
+            # if 'tags' in api.payload:
+            #    _tags = parse_tags(api2.payload.pop('tags'), current_user.organization.uuid)
+            #    case.tags = _tags
+            #    case.add_history(message="**Tags** were modified")
+            #    case.save()
+            
+            """ TODO: MIGRATE THIS
+             if 'case_template_uuid' in api.payload:
+
+                # If the case already has a template, and none of the tasks have been started, remove the
+                # old template and its tasks/tags and add the new stuff
+                tasks_started = False
+                if case.case_template and api.payload['case_template_uuid'] != case.case_template:
+                    
+                    for task in case.tasks:
+
+                        # If any task is already started, don't apply a new template
+                        if task.status != 0 and task.from_template:
+                            tasks_started = True
+                            break
+                        else:
+                            if task.from_template:
+                                task.delete()
+
+                    # Remove the tags from the case that were assigned by the 
+                    # template
+                    for tag in case.case_template.tags:
+                        if tag in case.tags:
+                            case.tags = [tag for tag in case.tags if tag.name not in [t.name for t in case.case_template.tags]]
+
+                    case.case_template_uuid = None
+                    case.save()
+                    
+                # If there was an old template or no template at all
+                # apply the new template
+                if not tasks_started and api.payload['case_template_uuid'] != case.case_template_uuid:
+
+                    case_template = CaseTemplate.query.filter_by(uuid=api.payload['case_template_uuid'], organization_uuid=current_user.organization.uuid).first()
+                    if case_template:
+
+                        # Append the default tags
+                        for tag in case_template.tags:
+
+                            # If the tag does not already exist
+                            if tag not in case.tags:
+                                case.tags.append(tag)
+
+                        # Append the default tasks
+                        for task in case_template.tasks:
+                            case_task = CaseTask(title=task.title, description=task.description,
+                                                order=task.order, owner=task.owner, group=task.group,
+                                                from_template=True,
+                                                organization_uuid=current_user.organization.uuid)
+                            case.tasks.append(case_task)
+                        case.save()
+                        message = 'The case template **{}** was applied'.format(case_template.title)
+                        case.add_history(message=message)
+                """
+
+            case.update(**api2.payload)
+
+            return case
+        else:
+            ns_case.abort(404, 'Case not found.')
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('delete_case')
+    def delete(self, uuid, current_user):
+        ''' Deletes a case '''
+        case = Case.get_by_uuid(uuid=uuid)
+        if case:
+
+            # TODO: MIGRATE THIS
+            # Set any associated events back to New status
+            # for event in case.events:
+            #    event.status = EventStatus.query.filter_by(organization_uuid=current_user.organization.uuid, name='New').first()
+            #    event.save()
+            
+            # TODO: MIGRATE THIS
+            # case.events = []
+            # case.save()
+            # case.observables = []
+            # case.save()
+
+            case.delete()
+            return {'message': 'Sucessfully deleted case.'}
+
+
 @ns_case_history_v2.route("/<uuid>")
 class CaseHistoryList(Resource):
 
@@ -799,6 +1218,7 @@ class CaseTemplateList(Resource):
             #case_template.save()
 
             return case_template
+
 
 @ns_case_template_v2.route("/<uuid>")
 class CaseTemplateDetails(Resource):

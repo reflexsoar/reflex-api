@@ -686,6 +686,18 @@ class CaseStatus(BaseDocument):
     class Index:
         name = 'reflex-case-statuses'
 
+    @classmethod
+    def get_by_name(self, name):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search().query('term', name=name).execute()
+        if response:
+            user = response[0]
+            return user
+        return response
+
 
 class CloseReason(BaseDocument):
     '''
@@ -729,14 +741,32 @@ class Case(BaseDocument):
     @property
     def status(self):
         return CaseStatus.get_by_uuid(uuid=self._status)
+
+    @status.setter
+    def status(self, value):
+        self._status = value
     
     @property
     def close_reason(self):
-        return CloseReason.get_by_uuid(uuid=self._close_reason)
+        if(self._close_reason):
+            return CloseReason.get_by_uuid(uuid=self._close_reason)
+        else:
+            return None
+
+    @close_reason.setter
+    def close_reason(self, value):
+        self._close_reason = value
 
     @property
     def case_template(self):
-        return CaseTemplate.get_by_uuid(uuid=self._case_template)
+        if (self._case_template):
+            return CaseTemplate.get_by_uuid(uuid=self._case_template)
+        else:
+            return None
+
+    @case_template.setter
+    def case_template(self, value):
+        self._case_template = value
 
     def close(self, comment, reason):
         '''

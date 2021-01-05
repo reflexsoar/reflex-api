@@ -13,7 +13,11 @@ from app.api_v2.models import (
     DataType,
     CaseComment,
     CaseHistory,
-    CaseTemplate
+    CaseTemplate,
+    Case,
+    CloseReason,
+    CaseStatus,
+    CaseTask
 )
 
 connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','URWsI66IP6qBYj6yr1L7'))
@@ -290,6 +294,38 @@ def create_default_data_types():
         data_type.save()
 
 
+def create_default_case_status():
+    CaseStatus.init()
+
+    statuses = {
+        'New': 'A new case.',
+        'Closed': 'A cased that has been closed.',
+        'Hold': 'A case that has been worked on but is currently not being worked.',
+        'In Progress': 'A case that is currently being worked on.'
+    }
+    for s in statuses:
+        status = CaseStatus(name=s, description=statuses[s])
+        status.save()
+        if s == 'Closed':
+            status.closed = True
+            status.save()
+
+
+def create_default_closure_reasons():
+
+    CloseReason.init()
+
+    reasons = [
+        {'title': 'False positive', 'description': 'False positive'},
+        {'title': 'No action required', 'description': 'No action required'},
+        {'title': 'True positive', 'description': 'True positive'},
+        {'title': 'Other', 'description': 'Other'}
+    ]
+
+    for r in reasons:
+        reason = CloseReason(**r)
+        reason.save()
+
 def initial_settings():
 
     Settings.init()
@@ -328,7 +364,11 @@ def initial_settings():
 #Event.init()
 #CaseComment.init()
 #CaseHistory.init()
-CaseTemplate.init()
+#CaseTemplate.init()
+Case.init()
+CaseTask.init()
+
+
 #
 #
 #admin_id = create_admin_user()
@@ -336,5 +376,8 @@ CaseTemplate.init()
 #create_analyst_role()
 #create_agent_role()
 #create_default_data_types()
+create_default_closure_reasons()
+create_default_case_status()
 #
+
 #initial_settings()
