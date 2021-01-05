@@ -677,6 +677,93 @@ class CaseComment(BaseDocument):
         return []
 
 
+class CaseStatus(BaseDocument):
+
+    name = Keyword()
+    description = Text()
+    closed = Boolean()
+
+    class Index:
+        name = 'reflex-case-statuses'
+
+
+class CloseReason(BaseDocument):
+    '''
+    A custom sub-status for why a case was closed
+    e.g. False Positive, Not Enough Information
+    '''
+
+    title = Keyword()
+    description = Text()
+
+    class Index:
+        name = 'reflex-close-reasons'
+
+
+class Case(BaseDocument):
+    '''
+    A case contains all the investigative work related to a
+    series of events that were observed in the system
+    '''
+
+    title = Keyword()
+    description = Text()
+    severity = Integer()
+    owner = Keyword()
+    tlp = Integer()
+    # observables
+    # events
+    tags = Keyword()
+    _status = Keyword() # The UUID of the case status
+    related_cases = Keyword() # A list of UUIDs related to this case
+    closed = Boolean()
+    closed_at = Date()
+    close_comment = Text()
+    _close_reason = Keyword() # The UUID of the closure reason
+    _case_template = Keyword() # The UUID of the case template
+    files = Keyword() # The UUIDs of case files
+
+    class Index:
+        name = 'reflex-cases'
+
+    @property
+    def status(self):
+        return CaseStatus.get_by_uuid(uuid=self._status)
+    
+    @property
+    def close_reason(self):
+        return CloseReason.get_by_uuid(uuid=self._close_reason)
+
+    @property
+    def case_template(self):
+        return CaseTemplate.get_by_uuid(uuid=self._case_template)
+
+    def close(self, comment, reason):
+        '''
+        Closes a case and sets the time that it was closed
+        '''
+        self._close_reason = reason
+        self.close_comment = comment
+        self.closed_at = datetime.datetime.utcnow()
+        self.closed = True
+        self.save()
+
+    def reopen(self):
+        '''
+        Reopens a case
+        '''
+        self.closed = False
+        self.close_at = None
+        self.save()
+
+    def add_history(self, message):
+        '''
+        Creates a history message and associates it with
+        this case
+        '''
+        history = CaseHistory(message=message, case=self.uuid)
+        history.save()
+
 #class CaseTaskNotes()
 
 
@@ -949,6 +1036,7 @@ class DataType(BaseDocument):
 class DataTypeBrief(InnerDoc):
 
     name = Keyword()
+
 
 class ThreatList(BaseDocument):
 
