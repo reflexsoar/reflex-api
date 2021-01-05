@@ -650,8 +650,6 @@ class InputList(Resource):
         ''' Returns a list of inputs '''
         inputs = Input.search().execute()
         if inputs:
-            for i in inputs:
-                print(i.config)
             return [i for i in inputs]
         else:
             return []

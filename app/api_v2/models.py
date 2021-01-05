@@ -51,7 +51,7 @@ class BaseDocument(Document):
     Base class for Documents containing common fields
     """
 
-    uuid = Text()
+    uuid = Keyword()
     created_at = Date()
     updated_at = Date()
 
@@ -60,7 +60,7 @@ class BaseDocument(Document):
         '''
         Fetches a document by the uuid field
         '''
-        response = self.search().query('match', uuid=uuid).execute()
+        response = self.search().query('term', uuid=uuid).execute()
         if response:
             document = response[0]
             return document
