@@ -372,11 +372,8 @@ CaseComment.init()
 CaseHistory.init()
 CaseTemplate.init()
 Case.init()
-CaseTask.init()
+#CaseTask.init()
 
-
-#
-#
 admin_id = create_admin_user()
 create_admin_role(admin_id)
 create_analyst_role()
@@ -384,6 +381,5 @@ create_agent_role()
 create_default_data_types()
 create_default_closure_reasons()
 create_default_case_status()
-#
 
 initial_settings()

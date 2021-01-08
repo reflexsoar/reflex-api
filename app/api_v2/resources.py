@@ -1,5 +1,6 @@
 import base64
 import datetime
+import asyncio
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
 from .schemas import *
@@ -42,8 +43,8 @@ ns_list_v2 = api2.namespace('List', description='Lists API endpoints for managin
 ns_event_rule_v2 = api2.namespace('EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
 ns_agent_group_v2 = api2.namespace('AgentGroup', description='Agent Group operations', path='/agent_group')
 ns_data_type_v2 = api2.namespace('DataType', description='DataType operations', path='/data_type')
-ns_case_v2 = api2.namespace('Case', description='Case operations', page='/case')
-ns_case_status_v2 = api2.namespace('CaseStatus', description='Case Status operations', page='/case_status')
+ns_case_v2 = api2.namespace('Case', description='Case operations', path='/case')
+ns_case_status_v2 = api2.namespace('CaseStatus', description='Case Status operations', path='/case_status')
 ns_case_comment_v2 = api2.namespace('CaseComment', description='Case Comments', path='/case_comment')
 ns_case_history_v2 = api2.namespace('CaseHistory', description='Case history operations', path='/case_history')
 ns_case_template_v2 = api2.namespace('CaseTemplate', description='Case Template operations', path='/case_template')
@@ -807,11 +808,9 @@ class CloseReasonDetails(Resource):
             return {'message': 'Sucessfully deleted Close Reason.'}
 
 
-
-
 case_parser = pager_parser.copy()
 case_parser.add_argument('title', location='args', required=False, type=str)
-case_parser.add_argument('status', location='args', required=False, action="split", type=str)
+case_parser.add_argument('status', location='args', required=False, type=str)
 case_parser.add_argument('severity', location='args', required=False, action="split", type=str)
 case_parser.add_argument('owner', location='args', required=False, action="split", type=str)
 case_parser.add_argument('tag', location='args', required=False, action="split", type=str)
@@ -832,10 +831,20 @@ class CaseList(Resource):
         args = case_parser.parse_args()
 
         # TODO: REIMPLIMENT ALL THE FILTERING LOGIC
+        if args['page'] == 1:
+            args['page'] = 0
 
-        s = Case.search()[args['page']:args['page_size']]
-        cases = s.execute()
-        print(cases)
+        cases = Case.search()
+        
+        # Apply filters
+        if 'status' in args and args['status']:
+            cases = cases.filter('match', status__name=args['status'])
+
+        if 'severity' in args and args['severity']:
+            cases = cases.filter('terms', severity=args['severity'])          
+        
+        # Paginate the cases
+        cases = cases[args['page']:args['page_size']+args['page']]
 
         #TODO: REIMPLEMENT PAGINATION
 
@@ -864,22 +873,20 @@ class CaseList(Resource):
         _tags = []
         event_observables = []
         case_template_uuid = None
+        owner_uuid = None
         
         settings = Settings.load()
 
         if 'case_template_uuid' in api2.payload:
-            case_template_uuid = api2.payload.pop('case_template_uuid')
-
-        # TODO: MIGRATE THIS
-        # if 'owner_uuid' in api.payload:
-        #    owner = api2.payload.pop('owner_uuid')
-        #    user = User.query.filter_by(uuid=owner, organization_uuid=current_user.organization.uuid).first()
-        #    if user:
-        #        api.payload['owner'] = user
-        #else:
-        #    # Automatically assign the case to the creator if they didn't pick an owner
-        #    if settings.assign_case_on_create:
-        #        api.payload['owner'] = User.query.filter_by(uuid=current_user.uuid).first()
+            case_template = CaseTemplate.get_by_uuid(uuid=api2.payload.pop('case_template_uuid'))
+            api2.payload['case_template'] = case_template
+        
+        if 'owner_uuid' in api2.payload:
+            owner_uuid = api2.payload.pop('owner_uuid')               
+        else:
+            # Automatically assign the case to the creator if they didn't pick an owner
+            if settings.assign_case_on_create:
+                owner_uuid = current_user.uuid
 
         # TODO: MIGRATE THIS
         #  if 'observables' in api.payload:
@@ -922,12 +929,10 @@ class CaseList(Resource):
         """
 
         case = Case(**api2.payload)
-        case.save()
 
         # Set the default status to New
-        case_status = CaseStatus.get_by_name(name="New")
-        case.status = case_status.uuid
-        case.save()
+        case.status = CaseStatus.get_by_name(name="New")
+        case.set_owner(owner_uuid)
         
         # If the user selected a case template, take the template items
         # and copy them over to the case
@@ -954,13 +959,13 @@ class CaseList(Resource):
             # case.severity = case_template.severity
             # case.tlp = case_template.tlp
             case.case_template = case_template_uuid
-            case.save()
-
 
         # TODO: MIGRATE THIS
         # for event in case.events:
         #     event.status = EventStatus.query.filter_by(name='Open', organization_uuid=current_user.organization.uuid).first()
         #     event.save()
+
+        case.save()
 
         case.add_history(message='Case created')
 
@@ -982,7 +987,7 @@ class CaseDetails(Resource):
         if case:
             return case
         else:
-            ns_case.abort(404, 'Case not found.')
+            ns_case_v2.abort(404, 'Case not found.')
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_case_create)
@@ -1116,7 +1121,7 @@ class CaseDetails(Resource):
 
             return case
         else:
-            ns_case.abort(404, 'Case not found.')
+            ns_case_v2.abort(404, 'Case not found.')
 
     @api2.doc(security="Bearer")
     @token_required
@@ -1142,17 +1147,22 @@ class CaseDetails(Resource):
             return {'message': 'Sucessfully deleted case.'}
 
 
-@ns_case_history_v2.route("/<uuid>")
+case_history_parser = api2.parser()
+case_history_parser.add_argument('case_uuid', type=str, location='args', required=True)
+@ns_case_history_v2.route("")
 class CaseHistoryList(Resource):
 
     @api2.doc(security="Bearer")
+    @api2.expect(case_history_parser)
     @api2.marshal_with(mod_case_history, as_list=True)
     @token_required
     @user_has('view_cases')
-    def get(self, uuid, current_user):
+    def get(self, current_user):
         ''' Returns a list of case history events '''
 
-        history = CaseHistory.get_by_case(uuid=uuid)
+        args = case_history_parser.parse_args()
+
+        history = CaseHistory.get_by_case(uuid=args['case_uuid'])
 
         if history:
             return [h for h in history]

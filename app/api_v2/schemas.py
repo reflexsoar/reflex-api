@@ -29,6 +29,11 @@ class AsNewLineDelimited(fields.Raw):
     def format(self, value):
         return '\n'.join([v for v in value])
 
+class OpenTaskCount(fields.Raw):
+    ''' Returns a count of open tasks '''
+
+    def format(self, value):
+        return len([a for a in value if a.status != 2])
 
 mod_auth = Model('AuthModel', {
     'username': fields.String(default='reflex'),
@@ -147,6 +152,11 @@ mod_role_create = Model('RoleCreate', {
     'name': fields.String,
     'description': fields.String,
     'permissions': fields.Nested(mod_permissions)
+})
+
+mod_user_list = Model('UserList', {
+    'username': fields.String,
+    'uuid': fields.String
 })
 
 mod_user_role = Model('UserRole', {
@@ -470,7 +480,7 @@ mod_event_rule_list = Model('EventRuleList', {
 mod_case_history = Model('CaseHistoryEntry', {
     'message': fields.String,
     'created_at': ISO8601(attribute='created_at'),
-    #'created_by': fields.Nested(mod_user_list)
+    'created_by': fields.Nested(mod_user_list)
 })
 
 mod_case_close_reason = Model('CaseCloseList', {
@@ -485,7 +495,7 @@ mod_comment = Model('CommentDetails', {
     'edited': fields.Boolean,
     'is_closure_comment': fields.Boolean,
     'closure_reason': fields.Nested(mod_case_close_reason),
-    #'created_by': fields.Nested(mod_user_list),
+    'created_by': fields.Nested(mod_user_list),
     'created_at': ISO8601(attribute='created_at'),
     'case_uuid': fields.String
 })
@@ -595,12 +605,12 @@ mod_case_create = Model('CaseCreate', {
 })
 
 mod_case_list = Model('CaseList', {
-    'id': fields.String,
+    #'id': fields.String,
     'uuid': fields.String,
     'title': fields.String,
-    #'owner': fields.Nested(mod_user_list),
-    'description': fields.String,
-    'tags': fields.List(fields.String),
+    'owner': fields.Nested(mod_user_list),
+    #'description': fields.String,
+    #'tags': fields.List(fields.String),
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'status': fields.Nested(mod_case_status),
@@ -612,31 +622,31 @@ mod_case_list = Model('CaseList', {
     #'created_by': fields.Nested(mod_user_list),
     #'updated_by': fields.Nested(mod_user_list),
     #'observable_count': ValueCount(attribute='observables'),
-    'close_reason': fields.Nested(mod_close_reason_list),
-    'closed': fields.Boolean()
+    #'close_reason': fields.Nested(mod_close_reason_list),
+    #'closed': fields.Boolean(),
     #'case_template': fields.Nested(mod_case_template_brief)
 })
 
 mod_case_details = Model('CaseDetails', {
-    'id': fields.String,
+    #'id': fields.String,
     'uuid': fields.String,
     'title': fields.String,
-    #'owner': fields.Nested(mod_user_list),
+    'owner': fields.Nested(mod_user_list),
     'description': fields.String,
-    'tags': fields.List(fields.String),
+    #'tags': fields.List(fields.String),
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'status': fields.Nested(mod_case_status),
-    #'event_count': ValueCount(attribute='events'),
-    #'open_tasks': OpenTaskCount(attribute='tasks'),
-    #'total_tasks': ValueCount(attribute='tasks'),
+    'event_count': ValueCount(attribute='events'),
+    'open_tasks': OpenTaskCount(attribute='tasks'),
+    'total_tasks': ValueCount(attribute='tasks'),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
-    #'created_by': fields.Nested(mod_user_list),
-    #'updated_by': fields.Nested(mod_user_list),
-    #'observable_count': ValueCount(attribute='observables'),
-    'close_reason': fields.Nested(mod_close_reason_list),
-    'case_template': fields.Nested(mod_case_template_brief)
+    'created_by': fields.Nested(mod_user_list),
+    'updated_by': fields.Nested(mod_user_list),
+    'observable_count': ValueCount(attribute='observables'),
+    #'close_reason': fields.Nested(mod_close_reason_list),
+    #'case_template': fields.Nested(mod_case_template_brief)
 })
 
 mod_case_paged_list = Model('PagedCaseList', {
@@ -654,6 +664,7 @@ mod_event_rule_create, mod_event_rule_list, mod_data_type_list, mod_data_type_cr
 mod_user_brief, mod_role_list, mod_role_create, mod_case_history, mod_comment, mod_comment_create, mod_case_close_reason,
 mod_case_template_create, mod_case_template_task_create, mod_case_task_create, mod_case_template_task_full,
 mod_case_template_full, mod_close_reason_create, mod_close_reason_list, mod_case_status, mod_case_status_create,
-mod_case_status_list, mod_case_template_brief, mod_case_create, mod_case_list, mod_case_details, mod_case_paged_list]
+mod_case_status_list, mod_case_template_brief, mod_case_create, mod_case_list, mod_case_details, mod_case_paged_list,
+mod_user_list]
 
 

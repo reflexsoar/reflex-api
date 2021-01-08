@@ -7,7 +7,7 @@ import urllib3
 import hashlib
 import secrets
 import base64
-from flask import current_app
+from flask import current_app, request
 from collections import namedtuple
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
@@ -46,6 +46,32 @@ def escape_special_characters(string):
     return string
 
 
+def _current_user_id_or_none():
+    try:
+        auth_header = request.headers.get('Authorization')
+
+        current_user = None
+        if auth_header:
+            access_token = auth_header.split(' ')[1]
+            token = jwt.decode(access_token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+            if 'type' in token and token['type'] == 'agent':
+                current_user = None
+            elif 'type' in token and token['type'] == 'pairing':
+                current_user = None
+            else:
+                current_user = token['uuid']
+        if current_user:
+            user = User.get_by_uuid(uuid=current_user)
+            current_user = {
+                'username': user.username,
+                'uuid': user.uuid
+            }
+        
+        return current_user
+    
+    except Exception as e:
+        return None
+
 class BaseDocument(Document):
     """
     Base class for Documents containing common fields
@@ -54,6 +80,8 @@ class BaseDocument(Document):
     uuid = Keyword()
     created_at = Date()
     updated_at = Date()
+    updated_by = Nested()
+    created_by = Nested()
 
     @classmethod
     def get_by_uuid(self, uuid):
@@ -65,8 +93,7 @@ class BaseDocument(Document):
             document = response[0]
             return document
         return response
-
-      
+   
     def save(self, **kwargs):
         '''
         Overrides the default Document save() function and adds
@@ -75,11 +102,15 @@ class BaseDocument(Document):
 
         if not self.created_at:
             self.created_at = datetime.datetime.utcnow()
+
+        if not self.created_by:
+            self.created_by = _current_user_id_or_none()        
         
         if not self.uuid:
             self.uuid = uuid.uuid4()
 
         self.updated_at = datetime.datetime.utcnow()
+        self.updated_by = _current_user_id_or_none()
         return super(BaseDocument, self).save(**kwargs)
 
     def update(self, **kwargs):
@@ -90,6 +121,7 @@ class BaseDocument(Document):
         '''
 
         self.updated_at = datetime.datetime.utcnow()
+        self.updated_by = _current_user_id_or_none()
         return super(BaseDocument, self).update(**kwargs)
 
 
@@ -460,7 +492,6 @@ class Role(BaseDocument):
     @classmethod
     def get_by_member(self, uuid):
         response = self.search().query('match', members=uuid).execute()
-        print(response)
         if response:
             role = response[0]
             return role
@@ -641,7 +672,7 @@ class CaseHistory(BaseDocument):
     '''
 
     message = Text()
-    case = Keyword() # The uuid of the case this history belongs to
+    case_uuid = Keyword() # The uuid of the case this history belongs to
 
     class Index:
         name = 'reflex-case-history'
@@ -651,7 +682,7 @@ class CaseHistory(BaseDocument):
         '''
         Fetches a document by the uuid field
         '''
-        response = self.search().query('term', case=uuid).execute()
+        response = self.search().query('match', case=uuid).execute()
         if response:
             return [r for r in response]
         return []
@@ -664,7 +695,7 @@ class CaseComment(BaseDocument):
     '''
 
     message = Text()
-    case = Keyword() # The uuid of the case this comment belongs to
+    case_uuid = Keyword() # The uuid of the case this comment belongs to
     is_closure_comment = Boolean() # Is this comment related to closing the case
     edited = Boolean() # Should be True when the comment is edited, Default: False
 
@@ -676,7 +707,8 @@ class CaseComment(BaseDocument):
         '''
         Fetches a document by the uuid field
         '''
-        response = self.search().query('term', case_uuid=uuid).execute()
+        response = self.search().query('match', case_uuid=uuid).execute()
+        print(response)
         if response:
             return [r for r in response]
         return []
@@ -729,6 +761,29 @@ class CloseReason(BaseDocument):
         return response
 
 
+
+class Owner(InnerDoc):
+
+    uuid = Keyword()
+    username = Keyword()
+
+class CloseReasonNested(InnerDoc):
+
+    uuid = Keyword()
+    title = Keyword()
+    description = Text()
+
+class CaseStatusNested(InnerDoc):
+
+    uuid = Keyword()
+    name = Keyword()
+    closed = Boolean()
+
+class CaseTemplateNested(InnerDoc):
+
+    uuid = Keyword()
+    title = Keyword()
+
 class Case(BaseDocument):
     '''
     A case contains all the investigative work related to a
@@ -738,58 +793,55 @@ class Case(BaseDocument):
     title = Keyword()
     description = Text()
     severity = Integer()
-    owner = Keyword()
+    owner = Object()
     tlp = Integer()
     # observables
     # events
     tags = Keyword()
-    _status = Keyword() # The UUID of the case status
+    status = Object()
     related_cases = Keyword() # A list of UUIDs related to this case
     closed = Boolean()
     closed_at = Date()
     close_comment = Text()
-    _close_reason = Keyword() # The UUID of the closure reason
-    _case_template = Keyword() # The UUID of the case template
+    close_reason = Object()
+    case_template = Object()
     files = Keyword() # The UUIDs of case files
+    tasks = []
+    events = []
+    observables = []
 
     class Index:
         name = 'reflex-cases'
 
-    @property
-    def status(self):
-        return CaseStatus.get_by_uuid(uuid=self._status)
+    def set_owner(self, uuid):
+        '''
+        Sets the bare minimum information about the
+        owner of the case so the UI can render it
+        '''
 
-    @status.setter
-    def status(self, value):
-        self._status = value
-    
-    @property
-    def close_reason(self):
-        if(self._close_reason):
-            return CloseReason.get_by_uuid(uuid=self._close_reason)
-        else:
-            return None
+        owner = User.get_by_uuid(uuid=uuid)
 
-    @close_reason.setter
-    def close_reason(self, value):
-        self._close_reason = value
+        owner_data = {
+            'username': owner.username,
+            'uuid': owner.uuid
+        }
+        self.owner = owner_data
+        self.save()
 
-    @property
-    def case_template(self):
-        if (self._case_template):
-            return CaseTemplate.get_by_uuid(uuid=self._case_template)
-        else:
-            return None
+    def set_template(self, uuid):
+        '''
+        Sets the case template
+        '''
 
-    @case_template.setter
-    def case_template(self, value):
-        self._case_template = value
+        template = CaseTemplate.get_by_uuid(uuid=uuid)
+        self.case_template = template
+        self.save()
 
     def close(self, comment, reason):
         '''
         Closes a case and sets the time that it was closed
         '''
-        self._close_reason = reason
+        self.close_reason = reason
         self.close_comment = comment
         self.closed_at = datetime.datetime.utcnow()
         self.closed = True
@@ -822,8 +874,8 @@ class CaseTask(BaseDocument):
     title = Keyword()
     order = Integer()
     description = Text()
-    owner = Keyword() # The user that is assigned to this task by default
-    group = Keyword() # The group that is assigned to this task by default
+    owner = Nested() # The user that is assigned to this task by default
+    group = Nested() # The group that is assigned to this task by default
     case = Keyword() # The UUID of the case this task belongs to
     from_template = Boolean() # Indicates if the task came from a template. Default: False
     status = Integer() # 0 = Open, 1 = Started, 2 = Complete
@@ -899,7 +951,6 @@ class CaseTemplate(BaseDocument):
         Searches for a title based on a wildcard
         '''
         s = self.search().query('wildcard', title=s+'*')
-        print(s.to_dict())
         results = s.execute()
         if results:
             return [r for r in results]
