@@ -698,6 +698,7 @@ class CaseComment(BaseDocument):
     case_uuid = Keyword() # The uuid of the case this comment belongs to
     is_closure_comment = Boolean() # Is this comment related to closing the case
     edited = Boolean() # Should be True when the comment is edited, Default: False
+    closure_reason = Object()
 
     class Index:
         name = 'reflex-case-comments'
@@ -802,7 +803,6 @@ class Case(BaseDocument):
     related_cases = Keyword() # A list of UUIDs related to this case
     closed = Boolean()
     closed_at = Date()
-    close_comment = Text()
     close_reason = Object()
     case_template = Object()
     files = Keyword() # The UUIDs of case files
@@ -837,12 +837,11 @@ class Case(BaseDocument):
         self.case_template = template
         self.save()
 
-    def close(self, comment, reason):
+    def close(self, uuid):
         '''
         Closes a case and sets the time that it was closed
         '''
-        self.close_reason = reason
-        self.close_comment = comment
+        self.close_reason = CloseReason.get_by_uuid(uuid=uuid)
         self.closed_at = datetime.datetime.utcnow()
         self.closed = True
         self.save()

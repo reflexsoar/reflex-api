@@ -1004,7 +1004,7 @@ class CaseDetails(Resource):
                 message = None
 
                 # TODO: handle notifications here, asynchronous of course to not block this processing
-                if f in api.payload:
+                if f in api2.payload:
                     if f == 'status_uuid':
                         status = CaseStatus.get_by_uuid(uuid=api2.payload['status_uuid'])
                         
@@ -1015,23 +1015,13 @@ class CaseDetails(Resource):
                         value = status.name
                         f = 'status'
 
-                        # If the case is now set to close, close all the events
-                        # TODO: MIGRATE THIS
-                        #if(status.closed):
-                        #    for event in case.events:
-                        #        event.status = EventStatus.query.filter_by(organization_uuid=current_user.organization.uuid, name='Closed', closed=True).first()
-                        #        event.save()
-                        #    
-                        #    case.closed = True
-                        
-                        # If the case is being re-opened
-                        # TODO: MIGRATE THIS
-                        #if(case.status.closed and not status.closed):
-                        #    for event in case.events:
-                        #        event.status = EventStatus.query.filter_by(organization_uuid=current_user.organization.uuid, name='Open', closed=False).first()
-                        #        event.save()
-                        #        
-                        #    case.closed = False
+                        case.status = status
+                        case.save()
+
+                        if status.closed:
+                            case.close(api2.payload['close_reason_uuid'])
+                        else:
+                            case.reopen()
 
                     elif f == 'severity':
                         value = {1: 'Low', 2: 'Medium', 3: 'High',
@@ -1203,11 +1193,13 @@ class CaseCommentList(Resource):
     def post(self, current_user):
         _tags = []
         ''' Creates a new comment '''
+        if 'closure_reason_uuid' in api2.payload:
+            api2.payload['closure_reason'] = CloseReason.get_by_uuid(api2.payload.pop('closure_reason_uuid'))
         case_comment = CaseComment(**api2.payload)
         case_comment.save()
 
-        #case = Case.get_query.filter_by(uuid=api2.payload['case_uuid']).first()
-        #case.add_history(message="Commented added to case")
+        case = Case.get_by_uuid(uuid=api2.payload['case_uuid'])
+        case.add_history(message="Commented added to case")
         return case_comment
 
 
@@ -1238,7 +1230,7 @@ class CaseCommentDetails(Resource):
         case_comment = CaseComment.get_by_uuid(uuid=uuid)
         if case_comment:
             case_comment.edited = True
-            case_comment.save()
+            case_comment.update(**api2.payload)
             return case_comment
         else:
             ns_case_comment_v2.abort(404, 'Comment not found.')
