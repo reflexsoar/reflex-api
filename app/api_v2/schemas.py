@@ -35,6 +35,11 @@ class OpenTaskCount(fields.Raw):
     def format(self, value):
         return len([a for a in value if a.status != 2])
 
+class FormatTags(fields.Raw):
+
+    def format(self, value):
+        return [{'name': v} for v in value]
+
 mod_auth = Model('AuthModel', {
     'username': fields.String(default='reflex'),
     'password': fields.String(default='reflex')
@@ -237,6 +242,10 @@ mod_user_self = Model('UserSelf', {
 
 mod_tag_list = Model('TagList', {
     'uuid': fields.String,
+    'name': fields.String
+})
+
+mod_tag = Model('Tag', {
     'name': fields.String
 })
 
@@ -633,7 +642,7 @@ mod_case_details = Model('CaseDetails', {
     'title': fields.String,
     'owner': fields.Nested(mod_user_list),
     'description': fields.String,
-    #'tags': fields.List(fields.String),
+    'tags': FormatTags(attribute='tags'),
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'status': fields.Nested(mod_case_status),
@@ -665,6 +674,6 @@ mod_user_brief, mod_role_list, mod_role_create, mod_case_history, mod_comment, m
 mod_case_template_create, mod_case_template_task_create, mod_case_task_create, mod_case_template_task_full,
 mod_case_template_full, mod_close_reason_create, mod_close_reason_list, mod_case_status, mod_case_status_create,
 mod_case_status_list, mod_case_template_brief, mod_case_create, mod_case_list, mod_case_details, mod_case_paged_list,
-mod_user_list]
+mod_user_list, mod_tag_list, mod_tag]
 
 

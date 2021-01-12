@@ -17,7 +17,9 @@ from app.api_v2.models import (
     Case,
     CloseReason,
     CaseStatus,
-    CaseTask
+    CaseTask,
+    Tag,
+    EventStatus
 )
 
 connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','URWsI66IP6qBYj6yr1L7'))
@@ -332,6 +334,24 @@ def create_default_closure_reasons():
         reason = CloseReason(**r)
         reason.save()
 
+
+def create_default_event_status():
+    EventStatus.init()
+
+    statuses = {
+        'New': 'A new event.',
+        'Closed': 'An event that has been closed.',
+        'Open': 'An event is open and being worked in a case.',
+        'Dismissed': 'An event that has been ignored from some reason.'
+    }
+    for k in statuses:
+        status = EventStatus(name=k, description=statuses[k])
+        if k == 'Closed':
+            status.closed = True
+        status.save()
+
+
+
 def initial_settings():
 
     Settings.init()
@@ -361,11 +381,13 @@ def initial_settings():
     settings.save()
 
 # Initialize empty indices
+Tag.init()
 ExpiredToken.init()
 Credential.init()
 Input.init()
 Agent.init()
 ThreatList.init()
+EventStatus.init()
 EventRule.init()
 Event.init()
 CaseComment.init()

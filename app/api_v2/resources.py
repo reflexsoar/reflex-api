@@ -22,7 +22,8 @@ from .models import (
     CaseTemplate,
     Case,
     CaseStatus,
-    CloseReason
+    CloseReason,
+    Tag
 )
 from .utils import token_required, user_has, generate_token
 
@@ -49,6 +50,7 @@ ns_case_comment_v2 = api2.namespace('CaseComment', description='Case Comments', 
 ns_case_history_v2 = api2.namespace('CaseHistory', description='Case history operations', path='/case_history')
 ns_case_template_v2 = api2.namespace('CaseTemplate', description='Case Template operations', path='/case_template')
 ns_close_reason_v2 = api2.namespace('CloseReason', description='Closure reason are used when closing a case and can be customized', path='/close_reason')
+ns_tag_v2 = api2.namespace('Tag', description='Tag operations', path='/tag')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -123,6 +125,18 @@ def create_observables(observables):
 
     return _observables       
 '''
+
+def save_tags(tags):
+    '''
+    Adds tags to a reference index that the UI uses for 
+    suggesting reasonable tags to the user
+    '''
+
+    for tag in tags:
+        _tag = Tag.get_by_name(name=tag)
+        if not _tag:
+            tag = Tag(name=tag)
+            tag.save()        
 
 @ns_auth_v2.route("/login")
 class Login(Resource):
@@ -562,8 +576,10 @@ class EventList(Resource):
         _observables = []
         _tags = []
 
+
         event = Event(**api2.payload)
         event.save()
+        
         return {'message': 'Successfully created the event.'}
 
 
@@ -933,7 +949,7 @@ class CaseList(Resource):
         # Set the default status to New
         case.status = CaseStatus.get_by_name(name="New")
         case.set_owner(owner_uuid)
-        
+               
         # If the user selected a case template, take the template items
         # and copy them over to the case
         if case_template_uuid:
@@ -967,6 +983,9 @@ class CaseList(Resource):
 
         case.save()
 
+        # Save the tags so they can be referenced in the future
+        save_tags(api2.payload['tags'])
+
         case.add_history(message='Case created')
 
         return {'message': 'Successfully created the case.', 'uuid': str(case.uuid)}
@@ -991,7 +1010,7 @@ class CaseDetails(Resource):
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_case_create)
-    @api2.marshal_with(mod_case_list)
+    @api2.marshal_with(mod_case_details)
     @token_required
     @user_has('update_case')
     def put(self, uuid, current_user):
@@ -1345,6 +1364,36 @@ class CaseTemplateDetails(Resource):
         if case_template:
             case_template.delete()
             return {'message': 'Sucessfully deleted case_template.'}
+
+
+@ns_tag_v2.route("")
+class TagList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_tag_list, as_list=True)
+    @token_required
+    def get(self, current_user):
+        ''' Gets a list of tags '''
+        tags = Tag.search().execute()
+        if tags:
+            return [t for t in tags]
+        else:
+            return []
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_tag)
+    @api2.response('409', 'Tag already exists.')
+    @api2.response('200', "Successfully created the tag.")
+    @token_required
+    def post(self, current_user):
+        ''' Creates a new tag '''
+        tag = Tag.get_by_name(name=api2.payload['name'])
+        if not tag:
+            tag = Tag(**api2.payload)
+            tag.create()
+            return {'message': 'Successfully created the tag.'}
+        else:
+            ns_tag.abort(409, 'Tag already exists.')
 
 
 @ns_input_v2.route("")

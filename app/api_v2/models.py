@@ -45,7 +45,6 @@ def escape_special_characters(string):
         string = string.replace(character, '\\'+character)
     return string
 
-
 def _current_user_id_or_none():
     try:
         auth_header = request.headers.get('Authorization')
@@ -518,6 +517,35 @@ class ExpiredToken(BaseDocument):
         name = 'reflex-expired-tokens'
 
 
+class Tag(BaseDocument):
+
+    _name = Keyword()
+
+    class Index():
+        name = 'reflex-tags'
+
+    @property
+    def name(self):
+        return self._name.lower()
+
+    @name.setter
+    def name(self, value):
+        self._name = value.lower()
+        self.save()
+
+    @classmethod
+    def get_by_name(self, name):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search().query('term', _name=name.lower()).execute()
+        if response:
+            document = response[0]
+            return document
+        return response
+
+
 class Observable(InnerDoc):
 
     uuid = Text()
@@ -664,6 +692,16 @@ class EventRule(BaseDocument):
         return super().save(**kwargs)
 
 
+class EventStatus(BaseDocument):
+
+    name = Keyword()
+    description = Text()
+    closed = Boolean()
+
+    class Index():
+        name = 'reflex-event-statuses'
+
+
 class CaseHistory(BaseDocument):
     ''' 
     A case history entry that shows what changed on the case
@@ -709,7 +747,6 @@ class CaseComment(BaseDocument):
         Fetches a document by the uuid field
         '''
         response = self.search().query('match', case_uuid=uuid).execute()
-        print(response)
         if response:
             return [r for r in response]
         return []
@@ -762,11 +799,11 @@ class CloseReason(BaseDocument):
         return response
 
 
-
 class Owner(InnerDoc):
 
     uuid = Keyword()
     username = Keyword()
+
 
 class CloseReasonNested(InnerDoc):
 
@@ -774,16 +811,19 @@ class CloseReasonNested(InnerDoc):
     title = Keyword()
     description = Text()
 
+
 class CaseStatusNested(InnerDoc):
 
     uuid = Keyword()
     name = Keyword()
     closed = Boolean()
 
+
 class CaseTemplateNested(InnerDoc):
 
     uuid = Keyword()
     title = Keyword()
+
 
 class Case(BaseDocument):
     '''
@@ -861,6 +901,7 @@ class Case(BaseDocument):
         '''
         history = CaseHistory(message=message, case=self.uuid)
         history.save()
+
 
 #class CaseTaskNotes()
 
