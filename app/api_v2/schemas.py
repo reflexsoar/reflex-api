@@ -602,6 +602,16 @@ mod_case_template_brief = Model('CaseTemplateBrief', {
     'title': fields.String,
 })
 
+mod_related_case = Model('RelatedCase', {
+    'id': fields.Integer,
+    'uuid': fields.String,
+    'title': fields.String,
+    'event_count': ValueCount(attribute='events'),
+    'observable_count': ObservableCount(attribute='observables'),
+    'owner': fields.Nested(mod_user_list),
+    'status': fields.Nested(mod_case_status)
+})
+
 mod_case_create = Model('CaseCreate', {
     'title': fields.String(required=True),
     'owner_uuid': fields.String,
@@ -663,6 +673,10 @@ mod_case_paged_list = Model('PagedCaseList', {
    'pagination': fields.String()
 })
 
+mod_link_cases = Model('LinkCases', {
+    'cases': fields.List(fields.String)
+})
+
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full, 
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, 
 mod_observable_brief, mod_observable_create, mod_raw_log, mod_permissions, mod_api_key,
@@ -674,6 +688,6 @@ mod_user_brief, mod_role_list, mod_role_create, mod_case_history, mod_comment, m
 mod_case_template_create, mod_case_template_task_create, mod_case_task_create, mod_case_template_task_full,
 mod_case_template_full, mod_close_reason_create, mod_close_reason_list, mod_case_status, mod_case_status_create,
 mod_case_status_list, mod_case_template_brief, mod_case_create, mod_case_list, mod_case_details, mod_case_paged_list,
-mod_user_list, mod_tag_list, mod_tag]
+mod_user_list, mod_tag_list, mod_tag, mod_related_case, mod_link_cases]
 
 

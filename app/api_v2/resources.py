@@ -1154,6 +1154,87 @@ class CaseDetails(Resource):
             return {'message': 'Sucessfully deleted case.'}
 
 
+@ns_case_v2.route('/<uuid>/relate_cases')
+class RelateCases(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_related_case, envelope='related_cases')
+    @api2.response(207, 'Success')
+    @api2.response(404, 'Case not found.')
+    @token_required
+    @user_has('view_cases')
+    def get(self, current_user, uuid):
+        ''' Returns a list of related cases '''
+        case = Case.get_by_uuid(uuid=uuid)
+        _cases = []
+        if case:
+            if case.related_cases and len(case.related_cases) > 0:
+                _cases += [Case.get_by_uuid(uuid=c) for c in case.related_cases]
+            else:
+                _cases = []
+            return _cases
+
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_link_cases)
+    @api2.marshal_with(mod_related_case, envelope='related_cases')
+    @api2.response(207, 'Success')
+    @api2.response(404, 'Case not found.')
+    @token_required
+    @user_has('update_case')
+    def put(self, current_user, uuid):
+
+        case = Case.get_by_uuid(uuid=uuid)
+        if case:
+            if 'cases' in api2.payload:
+                _cases = api2.payload.pop('cases')
+                for c in _cases:
+                    _case = Case.get_by_uuid(uuid=c)
+                    if case.related_cases and _case not in case.related_cases:
+                        case.related_cases.append(_case.uuid)
+                        if _case.related_cases:
+                            _case.related_cases.append(case.uuid)
+                        else:
+                            _case.related_cases = [case.uuid]
+                    else:
+                        case.related_cases = [_case.uuid]
+                        _case.related_cases = [case.uuid]
+                    _case.save()
+                case.save()
+            return [Case.get_by_uuid(uuid=c) for c in case.related_cases]
+        else:
+            return []
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_related_case, envelope='related_cases')
+    @api2.response(207, 'Success')
+    @api2.response(404, 'Case not found.')
+    @token_required
+    @user_has('update_case')
+    def delete(self, current_user, uuid):
+        ''' Unlinks a case or a group of cases '''
+
+        case = Case.get_by_uuid(uuid=uuid)
+        if case:
+            if 'cases' in api2.payload:
+                _cases = api2.payload.pop('cases')
+                if case.related_cases:
+                    case.related_cases = [c for c in case.related_cases if c not in _cases]
+                    case.save()
+                
+                for c in _cases:
+                    _case = Case.get_by_uuid(uuid=c)
+                    if _case.related_cases:
+                        _case.related_cases = [c for c in case.related_cases if c not in [uuid]]
+                        _case.save()
+
+        _cases =  case.related_cases
+        if len(_cases) > 0:
+            return [Case.get_by_uuid(uuid=c) for c in _cases]
+        else:
+            return []
+
+
 case_history_parser = api2.parser()
 case_history_parser.add_argument('case_uuid', type=str, location='args', required=True)
 @ns_case_history_v2.route("")
