@@ -1168,11 +1168,9 @@ class RelateCases(Resource):
         case = Case.get_by_uuid(uuid=uuid)
         _cases = []
         if case:
-            if case.related_cases and len(case.related_cases) > 0:
-                _cases += [Case.get_by_uuid(uuid=c) for c in case.related_cases]
-            else:
-                _cases = []
-            return _cases
+            if case.related_cases:
+                return [c for c in Case.get_related_cases(uuid=uuid)]
+        return []
 
 
     @api2.doc(security="Bearer")
@@ -1185,23 +1183,29 @@ class RelateCases(Resource):
     def put(self, current_user, uuid):
 
         case = Case.get_by_uuid(uuid=uuid)
+        related_cases = Case.get_related_cases(uuid=uuid)
+        cases = []
         if case:
             if 'cases' in api2.payload:
                 _cases = api2.payload.pop('cases')
                 for c in _cases:
                     _case = Case.get_by_uuid(uuid=c)
-                    if case.related_cases and _case not in case.related_cases:
-                        case.related_cases.append(_case.uuid)
-                        if _case.related_cases:
-                            _case.related_cases.append(case.uuid)
+                    if _case:
+
+                        if case.related_cases and _case not in case.related_cases:
+                            case.related_cases.append(_case.uuid)
+                            if _case.related_cases:
+                                _case.related_cases.append(case.uuid)
+                            else:
+                                _case.related_cases = [case.uuid]
                         else:
+                            case.related_cases = [_case.uuid]
                             _case.related_cases = [case.uuid]
-                    else:
-                        case.related_cases = [_case.uuid]
-                        _case.related_cases = [case.uuid]
-                    _case.save()
+                        _case.save()
+                        cases.append(_case)
                 case.save()
-            return [Case.get_by_uuid(uuid=c) for c in case.related_cases]
+                
+            return [c for c in cases+related_cases]
         else:
             return []
 
@@ -1215,6 +1219,7 @@ class RelateCases(Resource):
         ''' Unlinks a case or a group of cases '''
 
         case = Case.get_by_uuid(uuid=uuid)
+        related_cases = Case.get_related_cases(uuid=uuid)
         if case:
             if 'cases' in api2.payload:
                 _cases = api2.payload.pop('cases')
@@ -1228,9 +1233,9 @@ class RelateCases(Resource):
                         _case.related_cases = [c for c in case.related_cases if c not in [uuid]]
                         _case.save()
 
-        _cases =  case.related_cases
-        if len(_cases) > 0:
-            return [Case.get_by_uuid(uuid=c) for c in _cases]
+        cases = [c for c in related_cases if c.uuid not in _cases]
+        if len(cases) > 0:
+            return [c for c in cases]
         else:
             return []
 

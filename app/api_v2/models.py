@@ -894,6 +894,15 @@ class Case(BaseDocument):
         self.close_at = None
         self.save()
 
+    @classmethod
+    def get_related_cases(self, uuid):
+        cases = self.search().query('term', related_cases=uuid).execute()
+        if cases:
+            return [c for c in cases]
+        else:
+            return []
+        return 
+
     def add_history(self, message):
         '''
         Creates a history message and associates it with
