@@ -1067,11 +1067,9 @@ class CaseDetails(Resource):
                         case.add_history(
                             message="**{}** changed to **{}**".format(f.title(), value))
             
-            # if 'tags' in api.payload:
-            #    _tags = parse_tags(api2.payload.pop('tags'), current_user.organization.uuid)
-            #    case.tags = _tags
-            #    case.add_history(message="**Tags** were modified")
-            #    case.save()
+            if 'tags' in api2.payload:
+                save_tags(api2.payload['tags'])
+
             
             """ TODO: MIGRATE THIS
              if 'case_template_uuid' in api.payload:
@@ -1623,6 +1621,7 @@ class AgentGroupList(Resource):
 
     def get(self):
         return []
+
 
 @ns_credential_v2.route('/encrypt')
 class EncryptPassword(Resource):
