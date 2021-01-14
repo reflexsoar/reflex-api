@@ -657,6 +657,7 @@ mod_case_details = Model('CaseDetails', {
     'severity': fields.Integer,
     'status': fields.Nested(mod_case_status),
     'event_count': ValueCount(attribute='events'),
+    'related_cases': ValueCount(attribute='related_cases'),
     'open_tasks': OpenTaskCount(attribute='tasks'),
     'total_tasks': ValueCount(attribute='tasks'),
     'created_at': ISO8601(attribute='created_at'),
