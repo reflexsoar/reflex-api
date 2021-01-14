@@ -1049,17 +1049,21 @@ class CaseDetails(Resource):
                     elif f == 'description':
                         message = '**Description** updated'
 
-                    # TODO: MIGRATE THIS
-                    #elif f == 'owner_uuid':
-                    #    if api2.payload['owner_uuid'] == '':
-                    #        
-                    #        api2.payload['owner_uuid'] = None
-                    #        message = 'Case unassigned'
-                    #    else:
-                    #        owner = User.get_by_uuid(uuid=api2.payload['owner_uuid'])
-                    #        value = owner.username
-                    #        message = 'Case assigned to **{}**'.format(
-                    #            owner.username)
+                    elif f == 'owner':
+                        owner = api2.payload.pop(f)
+                        if owner:
+                            owner = User.get_by_uuid(uuid=owner['uuid'])
+                        
+                            if owner:
+                                message = 'Case assigned to **{}**'.format(owner.username)
+                                api2.payload['owner'] = {'username': owner.username, 'uuid': owner.uuid}
+                            else:
+                                message = 'Case unassigned'
+                                api2.payload['owner'] = {}
+                        else:
+                            message = 'Case unassigned'
+                            api2.payload['owner'] = None
+
 
                     if message:
                         case.add_history(message=message)
