@@ -265,7 +265,8 @@ def create_admin_user():
         'email': 'admin@reflexsoar.com',
         'password': 'reflex',
         'first_name': 'Super',
-        'last_name': 'Admin'
+        'last_name': 'Admin',
+        'deleted': False
     }
 
     user_password = user_content.pop('password')

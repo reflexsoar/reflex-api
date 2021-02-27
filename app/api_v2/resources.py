@@ -252,6 +252,7 @@ class UnlockUser(Resource):
 
 user_parser = api2.parser()
 user_parser.add_argument('username', location='args', required=False)
+user_parser.add_argument('deleted', location='args', required=False, default=False)
 @ns_user_v2.route("")
 class UserList(Resource):
 
@@ -272,7 +273,10 @@ class UserList(Resource):
             else:
                 return []
         else:
-            s = User.search()
+            if args['deleted']:
+                s = User.search()
+            else:
+                s = User.search().query('match', deleted=False)
             response = s.execute()
             [user.load_role() for user in response]
             return [user for user in response]
@@ -298,6 +302,7 @@ class UserList(Resource):
             user_password = api2.payload.pop('password')
             user = User(**api2.payload)
             user.set_password(user_password)
+            user.deleted = False
             user.save()
 
             role = Role.get_by_uuid(uuid=user_role)
@@ -1540,7 +1545,9 @@ class CaseTaskDetails(Resource):
                     if api2.payload['status'] == 1:
 
                         # If set, automatically assign the task to the user starting the task
-                        if task.owner is None and settings.assign_task_on_start:
+                        print(settings.assign_task_on_start)
+                        print(task.owner)
+                        if task.owner == [] and settings.assign_task_on_start:
                             task.start_task(current_user.uuid)
                         else:
                             task.start_task()
