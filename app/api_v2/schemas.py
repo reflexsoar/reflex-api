@@ -301,8 +301,8 @@ mod_event_list = Model('EventList', {
     'severity': fields.Integer,
     #'status': fields.Nested(mod_event_status),
     'source': fields.String,
-    #'tags': fields.List(fields.Nested(mod_tag_list), attribute='_tags'),
-    #'observables': fields.List(fields.Nested(mod_observable_brief), attribute='_observables'),
+    'tags': fields.List(fields.Nested(mod_tag_list), attribute='_tags'),
+    'observables': fields.List(fields.Nested(mod_observable_brief), attribute='_observables'),
     'tags': fields.List(fields.String),
     'observables': fields.List(fields.Nested(mod_observable_brief)),
     'observable_count': ObservableCount(attribute='observables'),
@@ -523,6 +523,22 @@ mod_case_task_create = Model('CaseTaskCreate', {
     'case_uuid': fields.String
 })
 
+mod_case_task_full = Model('CaseTaskList', {
+    'uuid': fields.String,
+    'title': fields.String,
+    'description': fields.String,
+    'order': fields.Integer,
+    'created_at': ISO8601(attribute='created_at'),
+    'updated_at': ISO8601(attribute='updated_at'),
+    'start_date': ISO8601(attribute='start_date'),
+    'finish_date': ISO8601(attribute='finish_data'),
+    #'group': fields.Nested(mod_user_group_list),
+    'owner': fields.Nested(mod_user_list),
+    'case': fields.String,
+    'status': fields.Integer,
+    'from_template': fields.Boolean
+})
+
 mod_case_template_task_create = Model('CaseTemplateTaskCreate', {
     'title': fields.String,
     'order': fields.Integer,
@@ -689,6 +705,6 @@ mod_user_brief, mod_role_list, mod_role_create, mod_case_history, mod_comment, m
 mod_case_template_create, mod_case_template_task_create, mod_case_task_create, mod_case_template_task_full,
 mod_case_template_full, mod_close_reason_create, mod_close_reason_list, mod_case_status, mod_case_status_create,
 mod_case_status_list, mod_case_template_brief, mod_case_create, mod_case_list, mod_case_details, mod_case_paged_list,
-mod_user_list, mod_tag_list, mod_tag, mod_related_case, mod_link_cases]
+mod_user_list, mod_tag_list, mod_tag, mod_related_case, mod_link_cases, mod_case_task_full]
 
 

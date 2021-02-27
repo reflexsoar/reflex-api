@@ -22,7 +22,7 @@ from app.api_v2.models import (
     EventStatus
 )
 
-connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','URWsI66IP6qBYj6yr1L7'))
+connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','GONivaFtwK9JJuwDRkr8'))
 
 
 def check_setup_status():
@@ -394,7 +394,7 @@ CaseComment.init()
 CaseHistory.init()
 CaseTemplate.init()
 Case.init()
-#CaseTask.init()
+CaseTask.init()
 
 admin_id = create_admin_user()
 create_admin_role(admin_id)

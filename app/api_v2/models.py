@@ -846,7 +846,6 @@ class Case(BaseDocument):
     close_reason = Object()
     case_template = Object()
     files = Keyword() # The UUIDs of case files
-    tasks = []
     events = []
     observables = []
 
@@ -911,8 +910,15 @@ class Case(BaseDocument):
         history = CaseHistory(message=message, case=self.uuid)
         history.save()
 
-
-#class CaseTaskNotes()
+    def add_task(self, **task):
+        '''
+        Adds a task to the cases tasks list and adds a history entry
+        '''
+        task = CaseTask(**task, case=self.uuid)
+        task.status = 0
+        task.save()
+        self.add_history('Task **{}** added'.format(task.title))
+        return task
 
 
 class CaseTask(BaseDocument):
@@ -932,7 +938,28 @@ class CaseTask(BaseDocument):
     finish_date = Date()
 
     class Index:
-        name = 'case-tasks'
+        name = 'reflex-case-tasks'
+
+    @classmethod
+    def get_by_case(self, uuid):
+        '''
+        Fetches a document by the uuid field
+        '''
+        response = self.search().query('match', case=uuid).execute()
+        if response:
+            return [r for r in response]
+        return []
+
+    @classmethod
+    def get_by_title(self, title, case_uuid):
+        '''
+        Fetches a task by the title and case uuid
+        '''
+        response = self.search().query('match', case=case_uuid).query('term', title=title).execute()
+        if response:
+            document = response[0]
+            return document
+        return response
 
     def close_task(self):
         '''
@@ -940,14 +967,20 @@ class CaseTask(BaseDocument):
         '''
         self.status = 2
         self.finish_date = datetime.datetime.utcnow()
+        case = Case.get_by_uuid(uuid=self.case)
+        case.add_history('Task **{}** closed'.format(self.title))
         self.save()
 
-    def start_task(self):
+    def start_task(self, owner_uuid=None):
         '''
         Starts the task and gives it a date
         '''
         self.status = 1
         self.start_date = datetime.datetime.utcnow()
+        if owner_uuid:
+            self.set_owner(owner_uuid)
+        case = Case.get_by_uuid(uuid=self.case)
+        case.add_history('Task **{}** started'.format(self.title))
         self.save()
 
     def reopen_task(self):
@@ -956,7 +989,31 @@ class CaseTask(BaseDocument):
         '''
         self.status = 1
         self.finish_date = None
+        case = Case.get_by_uuid(uuid=self.case)
+        case.add_history('Task **{}** reopened'.format(self.title))
         self.save()
+
+    
+    def set_owner(self, owner_uuid):
+        '''
+        Sets the owner of the case by the users uuid
+        '''
+        if owner_uuid:
+            owner = User.get_by_uuid(owner_uuid)
+            if owner:
+                self.owner = {k:owner[k] for k in owner if k in ['uuid','username']}     
+
+
+    def delete(self, **kwargs):
+        '''
+        Deletes a task and appends a history message
+        to the associated parent case
+        '''
+
+        case = Case.get_by_uuid(uuid=self.case)
+        case.add_history('Task **{}** deleted'.format(self.title))
+
+        return super(CaseTask, self).delete(**kwargs)
 
 
 class CaseTemplateTask(InnerDoc):

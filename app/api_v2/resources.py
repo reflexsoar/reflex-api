@@ -23,6 +23,7 @@ from .models import (
     Case,
     CaseStatus,
     CloseReason,
+    CaseTask,
     Tag
 )
 from .utils import token_required, user_has, generate_token
@@ -47,6 +48,7 @@ ns_data_type_v2 = api2.namespace('DataType', description='DataType operations', 
 ns_case_v2 = api2.namespace('Case', description='Case operations', path='/case')
 ns_case_status_v2 = api2.namespace('CaseStatus', description='Case Status operations', path='/case_status')
 ns_case_comment_v2 = api2.namespace('CaseComment', description='Case Comments', path='/case_comment')
+ns_case_task_v2 = api2.namespace('CaseTask', description='Case Tasks', path='/case_task')
 ns_case_history_v2 = api2.namespace('CaseHistory', description='Case history operations', path='/case_history')
 ns_case_template_v2 = api2.namespace('CaseTemplate', description='Case Template operations', path='/case_template')
 ns_close_reason_v2 = api2.namespace('CloseReason', description='Closure reason are used when closing a case and can be customized', path='/close_reason')
@@ -895,7 +897,7 @@ class CaseList(Resource):
 
         if 'case_template_uuid' in api2.payload:
             case_template = CaseTemplate.get_by_uuid(uuid=api2.payload.pop('case_template_uuid'))
-            api2.payload['case_template'] = case_template
+            #api2.payload['case_template'] = case_template
         
         if 'owner_uuid' in api2.payload:
             owner_uuid = api2.payload.pop('owner_uuid')               
@@ -952,8 +954,7 @@ class CaseList(Resource):
                
         # If the user selected a case template, take the template items
         # and copy them over to the case
-        if case_template_uuid:
-            case_template = CaseTemplate.get_by_uuid(uuid=case_template_uuid)
+        if case_template:
 
             # Append the default tags
             for tag in case_template.tags:
@@ -962,19 +963,15 @@ class CaseList(Resource):
                 if tag not in case.tags:
                     case.tags.append(tag)
 
-            # TODO: MIGRATE THIS
             # Append the default tasks
-            # for task in case_template.tasks:
-            #    case_task = CaseTask(title=task.title, description=task.description,
-            #                         order=task.order, owner=task.owner, group=task.group,
-            #                         from_template=True,
-            #                         organization_uuid=current_user.organization.uuid)
-            #    case.tasks.append(case_task)
+            for task in case_template.tasks:
+                case.add_task(title=task.title, description=task.description, order=task.order, from_template=True)
 
             # Set the default severity
-            # case.severity = case_template.severity
-            # case.tlp = case_template.tlp
-            case.case_template = case_template_uuid
+            case.severity = case_template.severity
+            case.tlp = case_template.tlp
+            #case.case_template = {k:case_template_uuid[k]
+            case.save()
 
         # TODO: MIGRATE THIS
         # for event in case.events:
@@ -1452,6 +1449,124 @@ class CaseTemplateDetails(Resource):
         if case_template:
             case_template.delete()
             return {'message': 'Sucessfully deleted case_template.'}
+
+
+case_task_parser = api2.parser()
+case_task_parser.add_argument('case_uuid', type=str, location='args', required=False)
+
+@ns_case_task_v2.route("")
+class CaseTaskList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(case_task_parser)
+    @api2.marshal_with(mod_case_task_full, as_list=True)
+    @token_required
+    @user_has('view_case_tasks')
+    def get(self, current_user):
+        ''' Returns a list of case_task '''
+        args = case_task_parser.parse_args()
+
+        if 'case_uuid' in args:
+            tasks = CaseTask.get_by_case(uuid=args['case_uuid'])
+            if tasks:
+                return [t for t in tasks]
+            else:
+                return []
+        else:
+            ns_case_task_v2.abort(400, 'A case UUID is required.')
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_case_task_create)
+    @api2.marshal_with(mod_case_task_full)
+    @api2.response('409', 'Case Task already exists.')
+    @api2.response('200', "Successfully created the case task.")
+    @token_required
+    @user_has('create_case_task')
+    def post(self, current_user):
+        ''' Creates a new case_task '''
+
+        task = CaseTask.get_by_title(title=api2.payload['title'], case_uuid=api2.payload['case_uuid'])
+        
+        if not task:
+            case_uuid = api2.payload.pop('case_uuid')
+            if 'owner_uuid' in api2.payload:
+                owner = api2.payload.pop('owner_uuid')
+            case = Case.get_by_uuid(uuid=case_uuid)
+            task = case.add_task(**api2.payload)
+            task.set_owner(owner)
+            task.save()
+            
+            return task
+
+        else:
+            ns_case_task_v2.abort(409, 'Case Task already exists')
+
+
+@ns_case_task_v2.route("/<uuid>")
+class CaseTaskDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_case_task_full)
+    @api2.response('200', 'Success')
+    @api2.response('404', 'Case Task not found')
+    @token_required
+    @user_has('view_case_tasks')
+    def get(self, uuid, current_user):
+        ''' Returns information about a case task '''
+        task = CaseTask.get_by_title(title=api2.payload['title'], case_uuid=api2.payload['case_uuid'])
+        if task:
+            return task
+        else:
+            ns_case_task_v2.abort(404, 'Case Task not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_case_task_create)
+    @api2.marshal_with(mod_case_task_full)
+    @token_required
+    @user_has('update_case_task')
+    def put(self, uuid, current_user):
+        ''' Updates information for a case_task '''
+
+        settings = Settings.load()
+        task = CaseTask.get_by_uuid(uuid=uuid)
+
+        if task:
+            if 'name' in api2.payload and CaseTask.get_by_title(title=api2.payload['title'], case_uuid=api2.payload['case_uuid']):
+                ns_case_task_v2.abort(409, 'Case Task name already exists.')
+            else:
+                if 'status' in api2.payload:
+
+                    # Start a task
+                    if api2.payload['status'] == 1:
+
+                        # If set, automatically assign the task to the user starting the task
+                        if task.owner is None and settings.assign_task_on_start:
+                            task.start_task(current_user.uuid)
+                        else:
+                            task.start_task()
+
+                    # Close a task
+                    if api2.payload['status'] == 2:
+                        task.close_task()
+
+                    # Reopen the task if the previous status was closed
+                    if task.status == 2 and api2.payload['status'] == 1:
+                        task.reopen_task()
+            return task
+        else:
+            ns_case_task_v2.abort(404, 'Case Task not found.')
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('delete_case_task')
+    def delete(self, uuid, current_user):
+        ''' Deletes a case_task '''
+
+        task = CaseTask.get_by_uuid(uuid=uuid)
+        if task:
+            task.delete()
+
+            return {'message': 'Sucessfully deleted case task.'}
 
 
 @ns_tag_v2.route("")
