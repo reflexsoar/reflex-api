@@ -404,5 +404,6 @@ create_agent_role()
 create_default_data_types()
 create_default_closure_reasons()
 create_default_case_status()
+create_default_event_status()
 
 initial_settings()

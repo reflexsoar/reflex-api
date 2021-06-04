@@ -2,7 +2,7 @@ import hashlib
 import random
 import datetime
 import base64
-from app.es_models import Client, Event, Observable
+from app.api_v2.models import Client, Event, Observable
 
 client = Client(['https://localhost:9200'], username='elastic', password='URWsI66IP6qBYj6yr1L7', auth_method='http_auth')
 

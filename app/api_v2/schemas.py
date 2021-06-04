@@ -280,6 +280,11 @@ mod_raw_log = Model('RawLog', {
     'source_log': fields.String
 })
 
+mod_event_status = Model('EventStatusString', {
+    'name': fields.String,
+    'closed': fields.Boolean
+})
+
 mod_event_create = Model('EventCreate', {
     'title': fields.String(required=True),
     'reference': fields.String(required=True),
@@ -299,7 +304,7 @@ mod_event_list = Model('EventList', {
     'description': fields.String(required=True),
     'tlp': fields.Integer,
     'severity': fields.Integer,
-    #'status': fields.Nested(mod_event_status),
+    'status': fields.Nested(mod_event_status),
     'source': fields.String,
     'tags': fields.List(fields.Nested(mod_tag_list), attribute='_tags'),
     'observables': fields.List(fields.Nested(mod_observable_brief), attribute='_observables'),
@@ -316,6 +321,33 @@ mod_event_list = Model('EventList', {
     #'dismiss_reason': fields.Nested(mod_close_reason_list)
     'raw_log': fields.Nested(mod_raw_log, attribute='_raw_log')
 })
+
+mod_event_paged_list = Model('PagedEventList', {
+   'events': fields.List(fields.Nested(mod_event_list)),
+   'pagination': fields.String()
+})
+
+mod_event_details = Model('EventDetails', {
+    'uuid': fields.String,
+    'title': fields.String(required=True),
+    'reference': fields.String(required=True),
+    'description': fields.String(required=True),
+    'tlp': fields.Integer,
+    'severity': fields.Integer,
+    'status': fields.Nested(mod_event_status),
+    'source': fields.String,
+    'tags': fields.List(fields.String),
+    'observables': fields.List(fields.Nested(mod_observable_list)),
+    'observable_count': ObservableCount(attribute='observables'),
+    'ioc_count': IOCCount(attribute='observables'),
+    #'dismiss_reason': fields.Nested(mod_close_reason_list),
+    'case_uuid': fields.String,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='updated_at'),
+    'raw_log': fields.String,
+    'signature': fields.String
+})
+
 
 mod_settings = Model('SettingsList', {
     'base_url': fields.String,
@@ -705,6 +737,7 @@ mod_user_brief, mod_role_list, mod_role_create, mod_case_history, mod_comment, m
 mod_case_template_create, mod_case_template_task_create, mod_case_task_create, mod_case_template_task_full,
 mod_case_template_full, mod_close_reason_create, mod_close_reason_list, mod_case_status, mod_case_status_create,
 mod_case_status_list, mod_case_template_brief, mod_case_create, mod_case_list, mod_case_details, mod_case_paged_list,
-mod_user_list, mod_tag_list, mod_tag, mod_related_case, mod_link_cases, mod_case_task_full]
+mod_user_list, mod_tag_list, mod_tag, mod_related_case, mod_link_cases, mod_case_task_full, mod_event_status,
+mod_event_paged_list, mod_event_details]
 
 

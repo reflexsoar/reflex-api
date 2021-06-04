@@ -7,6 +7,7 @@ from .schemas import *
 from .models import (
     Event,
     EventRule,
+    EventStatus,
     Observable,
     User,
     Role,
@@ -562,18 +563,31 @@ event_list_parser.add_argument('sort_desc', type=xinputs.boolean, location='args
 @ns_event_v2.route("")
 class EventList(Resource):
 
-    @api2.marshal_with(mod_event_list, as_list=True)
+    @api2.marshal_with(mod_event_paged_list)
     @api2.expect(event_list_parser)
     def get(self):
         ''' Returns a list of events '''
     
         args = event_list_parser.parse_args()
 
+        events = []
+
         if 'signature' in args and args['signature']:
-            return Event.get_by_signature(signature=args['signature'])
+            events = [e for e in Event.get_by_signature(signature=args['signature'])]
         else:
-            response = Event.search().execute()
-            return [event for event in response]
+            events = [e for e in Event.search()]
+
+        response = {
+            'events': events,
+            'pagination': {
+                'total_results': 0,
+                'pages': 0,
+                'page': 0,
+                'page_size':0
+            }
+        }
+        print(response)
+        return response
     
     @api2.expect(mod_event_create)
     def post(self):
@@ -583,12 +597,24 @@ class EventList(Resource):
         _observables = []
         _tags = []
 
-
         event = Event(**api2.payload)
+        event.status = EventStatus.get_by_name(name="New")
         event.save()
         
         return {'message': 'Successfully created the event.'}
 
+
+@ns_event_v2.route("/<uuid>")
+class EventDetails(Resource):
+   
+    @api2.marshal_with(mod_event_details)
+    def get(self, uuid):
+
+        event = Event.get_by_uuid(uuid)
+        if event:
+            return event
+        else:
+            ns_event_v2.abort(404, 'Event not found.')
 
 @ns_event_rule_v2.route("")
 class EventRuleList(Resource):
@@ -897,6 +923,7 @@ class CaseList(Resource):
         event_observables = []
         case_template_uuid = None
         owner_uuid = None
+        case_template = None
         
         settings = Settings.load()
 

@@ -87,7 +87,8 @@ class BaseDocument(Document):
         '''
         Fetches a document by the uuid field
         '''
-        response = self.search().query('term', uuid=uuid).execute()
+
+        response = self.search().query('term', uuid=uuid).execute()        
         if response:
             document = response[0]
             return document
@@ -565,7 +566,7 @@ class Observable(InnerDoc):
 
 class Event(BaseDocument):
 
-    uuid = Text()
+    uuid = Keyword()
     title = Keyword()
     description = Text()
     reference = Keyword()
@@ -574,7 +575,7 @@ class Event(BaseDocument):
     severity = Integer()
     tags = Keyword()
     observables = Nested(Observable)
-    status = Integer()
+    status = Object()
     signature = Keyword()
     dismissed = Boolean()
     dismiss_reason = Text()
@@ -700,6 +701,18 @@ class EventStatus(BaseDocument):
 
     class Index():
         name = 'reflex-event-statuses'
+
+    @classmethod
+    def get_by_name(self, name):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search().query('term', name=name).execute()
+        if response:
+            status = response[0]
+            return status
+        return response
 
 
 class CaseHistory(BaseDocument):
