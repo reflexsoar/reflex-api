@@ -531,7 +531,7 @@ mod_case_task_full = Model('CaseTaskList', {
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
     'start_date': ISO8601(attribute='start_date'),
-    'finish_date': ISO8601(attribute='finish_data'),
+    'finish_date': ISO8601(attribute='finish_date'),
     #'group': fields.Nested(mod_user_group_list),
     'owner': fields.Nested(mod_user_list),
     'case': fields.String,
