@@ -570,6 +570,7 @@ class Event(BaseDocument):
     title = Keyword()
     description = Text()
     reference = Keyword()
+    case = Keyword()
     source = Text()
     tlp = Integer()
     severity = Integer()
@@ -591,6 +592,14 @@ class Event(BaseDocument):
     def save(self, **kwargs):
         self.hash_event()
         return super().save(**kwargs)
+
+    def set_open(self):
+        self.status = EventStatus.get_by_name(name='Open')
+        self.save()
+
+    def set_case(self, uuid):
+        self.case = uuid
+        self.save()
 
     def hash_event(self, data_types=['host','user','ip','string']):
         '''

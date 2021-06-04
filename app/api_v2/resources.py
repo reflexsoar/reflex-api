@@ -977,12 +977,19 @@ class CaseList(Resource):
                 api.payload['observables'].append(
                     observable_collection[observable][0])
         """
+        
 
         case = Case(**api2.payload)
 
         # Set the default status to New
         case.status = CaseStatus.get_by_name(name="New")
         case.set_owner(owner_uuid)
+
+        if 'events' in api2.payload:
+            for event in api2.payload['events']:
+                e = Event.get_by_uuid(event)
+                e.set_open()
+                e.set_case(uuid=case.uuid)
                
         # If the user selected a case template, take the template items
         # and copy them over to the case
@@ -1006,8 +1013,8 @@ class CaseList(Resource):
             case.save()
 
         # TODO: MIGRATE THIS
-        # for event in case.events:
-        #     event.status = EventStatus.query.filter_by(name='Open', organization_uuid=current_user.organization.uuid).first()
+        #for event in case.events:
+        #    event.status = EventStatus.query.filter_by(name='Open', organization_uuid=current_user.organization.uuid).first()
         #     event.save()
 
         case.save()
