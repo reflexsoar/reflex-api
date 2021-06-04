@@ -9,6 +9,7 @@ from .models import (
     EventRule,
     EventStatus,
     Observable,
+    EventObservable,
     User,
     Role,
     Settings,
@@ -34,25 +35,44 @@ api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
 api2 = Api(api_v2)
 
 # All the API namespaces
-ns_user_v2 = api2.namespace('User', description='User operations', path='/user')
-ns_role_v2 = api2.namespace('Role', description='Role operations', path='/role')
-ns_auth_v2 = api2.namespace('Auth', description='Authentication operations', path='/auth')
-ns_event_v2 = api2.namespace('Event', description='Event operations', path='/event')
-ns_settings_v2 = api2.namespace('Settings', description='Settings operations', path='/settings')
-ns_credential_v2 = api2.namespace('Credential', description='Credential operations', path='/credential')
-ns_input_v2 = api2.namespace('Input', description='Input operations', path='/input')
-ns_agent_v2 = api2.namespace('Agent', description='Agent operations', path='/agent')
-ns_list_v2 = api2.namespace('List', description='Lists API endpoints for managing indicator lists, lists may be string values or regular expressions', path='/list')
-ns_event_rule_v2 = api2.namespace('EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
-ns_agent_group_v2 = api2.namespace('AgentGroup', description='Agent Group operations', path='/agent_group')
-ns_data_type_v2 = api2.namespace('DataType', description='DataType operations', path='/data_type')
-ns_case_v2 = api2.namespace('Case', description='Case operations', path='/case')
-ns_case_status_v2 = api2.namespace('CaseStatus', description='Case Status operations', path='/case_status')
-ns_case_comment_v2 = api2.namespace('CaseComment', description='Case Comments', path='/case_comment')
-ns_case_task_v2 = api2.namespace('CaseTask', description='Case Tasks', path='/case_task')
-ns_case_history_v2 = api2.namespace('CaseHistory', description='Case history operations', path='/case_history')
-ns_case_template_v2 = api2.namespace('CaseTemplate', description='Case Template operations', path='/case_template')
-ns_close_reason_v2 = api2.namespace('CloseReason', description='Closure reason are used when closing a case and can be customized', path='/close_reason')
+ns_user_v2 = api2.namespace(
+    'User', description='User operations', path='/user')
+ns_role_v2 = api2.namespace(
+    'Role', description='Role operations', path='/role')
+ns_auth_v2 = api2.namespace(
+    'Auth', description='Authentication operations', path='/auth')
+ns_event_v2 = api2.namespace(
+    'Event', description='Event operations', path='/event')
+ns_settings_v2 = api2.namespace(
+    'Settings', description='Settings operations', path='/settings')
+ns_credential_v2 = api2.namespace(
+    'Credential', description='Credential operations', path='/credential')
+ns_input_v2 = api2.namespace(
+    'Input', description='Input operations', path='/input')
+ns_agent_v2 = api2.namespace(
+    'Agent', description='Agent operations', path='/agent')
+ns_list_v2 = api2.namespace(
+    'List', description='Lists API endpoints for managing indicator lists, lists may be string values or regular expressions', path='/list')
+ns_event_rule_v2 = api2.namespace(
+    'EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
+ns_agent_group_v2 = api2.namespace(
+    'AgentGroup', description='Agent Group operations', path='/agent_group')
+ns_data_type_v2 = api2.namespace(
+    'DataType', description='DataType operations', path='/data_type')
+ns_case_v2 = api2.namespace(
+    'Case', description='Case operations', path='/case')
+ns_case_status_v2 = api2.namespace(
+    'CaseStatus', description='Case Status operations', path='/case_status')
+ns_case_comment_v2 = api2.namespace(
+    'CaseComment', description='Case Comments', path='/case_comment')
+ns_case_task_v2 = api2.namespace(
+    'CaseTask', description='Case Tasks', path='/case_task')
+ns_case_history_v2 = api2.namespace(
+    'CaseHistory', description='Case history operations', path='/case_history')
+ns_case_template_v2 = api2.namespace(
+    'CaseTemplate', description='Case Template operations', path='/case_template')
+ns_close_reason_v2 = api2.namespace(
+    'CloseReason', description='Closure reason are used when closing a case and can be customized', path='/close_reason')
 ns_tag_v2 = api2.namespace('Tag', description='Tag operations', path='/tag')
 
 # Register all the schemas from flask-restx
@@ -64,7 +84,8 @@ for model in schema_models:
 pager_parser = api2.parser()
 pager_parser.add_argument('page_size', location='args',
                           required=False, type=int, default=25)
-pager_parser.add_argument('page', location='args', required=False, type=int, default=1)
+pager_parser.add_argument('page', location='args',
+                          required=False, type=int, default=1)
 
 '''
 def create_observables(observables):
@@ -129,6 +150,7 @@ def create_observables(observables):
     return _observables       
 '''
 
+
 def save_tags(tags):
     '''
     Adds tags to a reference index that the UI uses for 
@@ -139,11 +161,12 @@ def save_tags(tags):
         _tag = Tag.get_by_name(name=tag)
         if not _tag:
             tag = Tag(name=tag)
-            tag.save()        
+            tag.save()
+
 
 @ns_auth_v2.route("/login")
 class Login(Resource):
-    
+
     @api2.expect(mod_auth)
     @api2.response(200, 'Success', mod_auth_success_token)
     @api2.response(401, 'Incorrect username or password')
@@ -157,7 +180,7 @@ class Login(Resource):
         user = User.get_by_username(api2.payload['username'])
         if not user:
             ns_auth_v2.abort(401, 'Incorrect username or password')
-    
+
         if user.check_password(api2.payload['password']):
 
             # Generate an access token
@@ -173,7 +196,7 @@ class Login(Resource):
             return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
 
         if user.failed_logons == None:
-            user.update(failed_logons= 0)
+            user.update(failed_logons=0)
 
         # TODO: Move this back to a global setting when settings is migrated
         if user.failed_logons >= Settings.load().logon_password_attempts:
@@ -253,7 +276,10 @@ class UnlockUser(Resource):
 
 user_parser = api2.parser()
 user_parser.add_argument('username', location='args', required=False)
-user_parser.add_argument('deleted', location='args', required=False, default=False)
+user_parser.add_argument('deleted', location='args',
+                         required=False, default=False)
+
+
 @ns_user_v2.route("")
 class UserList(Resource):
 
@@ -298,8 +324,7 @@ class UserList(Resource):
             ns_user_v2.abort(409, "User with this e-mail already exists.")
         else:
             user_role = api2.payload.pop('role_uuid')
-            
-            
+
             user_password = api2.payload.pop('password')
             user = User(**api2.payload)
             user.set_password(user_password)
@@ -311,7 +336,7 @@ class UserList(Resource):
 
             user.role = role
 
-            return {'message': 'Successfully created the user.', 'user': user}  
+            return {'message': 'Successfully created the user.', 'user': user}
 
 
 @ns_user_v2.route("/<uuid>")
@@ -355,7 +380,7 @@ class UserDetails(Resource):
                         del api2.payload['email']
                     else:
                         ns_user_v2.abort(409, 'Email already taken.')
-            
+
             if 'password' in api2.payload and not current_user.has_right('reset_user_password'):
                 api2.payload.pop('password')
             if 'password' in api2.payload and current_user.has_right('reset_user_password'):
@@ -376,9 +401,9 @@ class UserDetails(Resource):
                 role = Role.get_by_uuid(uuid=role_uuid)
                 role.add_user_to_role(user_id=user.uuid)
                 user.role = role
-            
+
             user.update(**api2.payload)
-            
+
             return user
         else:
             ns_user_v2.abort(404, 'User not found.')
@@ -389,7 +414,7 @@ class UserDetails(Resource):
     def delete(self, uuid, current_user):
         ''' 
         Deletes a user 
-        
+
         Users are soft deleted, meaning they never get removed from the database.  Instead,
         their deleted attribute is set and they do not show up in the UI.  This is 
         used to preserve database relationships like ownership, comment history.
@@ -490,7 +515,6 @@ class RoleDetails(Resource):
             ns_role_v2.abort(404, 'Role not found.')
 
 
-
 @ns_data_type_v2.route("")
 class DataTypeList(Resource):
 
@@ -547,19 +571,33 @@ class DataTypeDetails(Resource):
 
 
 event_list_parser = api2.parser()
-event_list_parser.add_argument('status', location='args', default=[], type=str, action='split', required=False)
-event_list_parser.add_argument('tags', location='args', default=[], type=str, action='split', required=False)
-event_list_parser.add_argument('observables', location='args', default=[], type=str, action='split', required=False)
+event_list_parser.add_argument('status', location='args', default=[
+], type=str, action='split', required=False)
+event_list_parser.add_argument('tags', location='args', default=[
+], type=str, action='split', required=False)
+event_list_parser.add_argument('observables', location='args', default=[
+], type=str, action='split', required=False)
 event_list_parser.add_argument('signature', location='args', required=False)
-event_list_parser.add_argument('severity', action='split', location='args', required=False)
-event_list_parser.add_argument('grouped', type=xinputs.boolean, location='args', required=False)
-event_list_parser.add_argument('case_uuid', type=str, location='args', required=False)
-event_list_parser.add_argument('search', type=str, action='split', default=[], location='args', required=False)
-event_list_parser.add_argument('title', type=str, location='args', action='split', required=False)
-event_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
-event_list_parser.add_argument('page_size', type=int, location='args', default=10, required=False)
-event_list_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
-event_list_parser.add_argument('sort_desc', type=xinputs.boolean, location='args', default=True, required=False)
+event_list_parser.add_argument(
+    'severity', action='split', location='args', required=False)
+event_list_parser.add_argument(
+    'grouped', type=xinputs.boolean, location='args', required=False)
+event_list_parser.add_argument(
+    'case_uuid', type=str, location='args', required=False)
+event_list_parser.add_argument('search', type=str, action='split', default=[
+], location='args', required=False)
+event_list_parser.add_argument(
+    'title', type=str, location='args', action='split', required=False)
+event_list_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+event_list_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
+event_list_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False)
+event_list_parser.add_argument(
+    'sort_desc', type=xinputs.boolean, location='args', default=True, required=False)
+
+
 @ns_event_v2.route("")
 class EventList(Resource):
 
@@ -567,31 +605,32 @@ class EventList(Resource):
     @api2.expect(event_list_parser)
     def get(self):
         ''' Returns a list of events '''
-    
+
         args = event_list_parser.parse_args()
 
         events = []
 
         if 'signature' in args and args['signature']:
-            events = [e for e in Event.get_by_signature(signature=args['signature'])]
+            events = [e for e in Event.get_by_signature(
+                signature=args['signature'])]
+        elif 'case_uuid' in args and args['case_uuid']:
+            events = [e for e in Event.get_by_case(case=args['case_uuid'])]
         else:
             events = [e for e in Event.search()]
 
         response = {
             'events': events,
             'pagination': {
-                'total_results': 0,
-                'pages': 0,
-                'page': 0,
-                'page_size':0
+                'total_results': len(events),
+                'pages': int(len(events)/args['page_size']),
+                'page': args['page'],
+                'page_size': args['page_size']
             }
         }
-        print(response)
         return response
-    
+
     @api2.expect(mod_event_create)
     def post(self):
-
         ''' Creates a new event '''
 
         _observables = []
@@ -600,13 +639,13 @@ class EventList(Resource):
         event = Event(**api2.payload)
         event.status = EventStatus.get_by_name(name="New")
         event.save()
-        
+
         return {'message': 'Successfully created the event.'}
 
 
 @ns_event_v2.route("/<uuid>")
 class EventDetails(Resource):
-   
+
     @api2.marshal_with(mod_event_details)
     def get(self, uuid):
 
@@ -615,6 +654,7 @@ class EventDetails(Resource):
             return event
         else:
             ns_event_v2.abort(404, 'Event not found.')
+
 
 @ns_event_rule_v2.route("")
 class EventRuleList(Resource):
@@ -682,7 +722,7 @@ class EventRuleDetails(Resource):
     def put(self, uuid, current_user):
         ''' Updates the event rule '''
         event_rule = EventRule.get_by_uuid(uuid=uuid)
-        
+
         if event_rule:
 
             if 'observables' in api2.payload:
@@ -764,7 +804,8 @@ class CaseStatusDetails(Resource):
         if case_status:
             exists = CaseStatus.get_by_name(name=api2.payload['name'])
             if 'name' in api2.payload and exists and exists.uuid != case_status.uuid:
-                ns_case_status_v2.abort(409, 'Case Status name already exists.')
+                ns_case_status_v2.abort(
+                    409, 'Case Status name already exists.')
             else:
                 case_status.update(**api2.payload)
                 return case_status
@@ -810,7 +851,8 @@ class CloseReasonList(Resource):
             close_reason = CloseReason(**api2.payload)
             close_reason.save()
         else:
-            ns_close_reason_v2.abort(409, 'Close Reason with that name already exists.')
+            ns_close_reason_v2.abort(
+                409, 'Close Reason with that name already exists.')
         return {'message': 'Successfully created the Close Reason.'}
 
 
@@ -839,7 +881,8 @@ class CloseReasonDetails(Resource):
         if close_reason:
             exists = CloseReason.get_by_name(title=api2.payload['title'])
             if 'title' in api2.payload and exists and exists.uuid != close_reason.uuid:
-                ns_close_reason_v2.abort(409, 'Close Reason title already exists.')
+                ns_close_reason_v2.abort(
+                    409, 'Close Reason title already exists.')
             else:
                 close_reason.update(**api2.payload)
                 return close_reason
@@ -860,12 +903,20 @@ class CloseReasonDetails(Resource):
 case_parser = pager_parser.copy()
 case_parser.add_argument('title', location='args', required=False, type=str)
 case_parser.add_argument('status', location='args', required=False, type=str)
-case_parser.add_argument('severity', location='args', required=False, action="split", type=str)
-case_parser.add_argument('owner', location='args', required=False, action="split", type=str)
-case_parser.add_argument('tag', location='args', required=False, action="split", type=str)
-case_parser.add_argument('search', location='args', required=False, action="split", type=str)
-case_parser.add_argument('my_tasks', location='args', required=False, type=xinputs.boolean)
-case_parser.add_argument('my_cases', location='args', required=False, type=xinputs.boolean)
+case_parser.add_argument('severity', location='args',
+                         required=False, action="split", type=str)
+case_parser.add_argument('owner', location='args',
+                         required=False, action="split", type=str)
+case_parser.add_argument('tag', location='args',
+                         required=False, action="split", type=str)
+case_parser.add_argument('search', location='args',
+                         required=False, action="split", type=str)
+case_parser.add_argument('my_tasks', location='args',
+                         required=False, type=xinputs.boolean)
+case_parser.add_argument('my_cases', location='args',
+                         required=False, type=xinputs.boolean)
+
+
 @ns_case_v2.route("")
 class CaseList(Resource):
 
@@ -884,31 +935,30 @@ class CaseList(Resource):
             args['page'] = 0
 
         cases = Case.search()
-        
+
         # Apply filters
         if 'status' in args and args['status']:
             cases = cases.filter('match', status__name=args['status'])
 
         if 'severity' in args and args['severity']:
-            cases = cases.filter('terms', severity=args['severity'])          
-        
+            cases = cases.filter('terms', severity=args['severity'])
+
         # Paginate the cases
         cases = cases[args['page']:args['page_size']+args['page']]
 
-        #TODO: REIMPLEMENT PAGINATION
+        # TODO: REIMPLEMENT PAGINATION
 
         response = {
-                'cases': [c for c in cases],
-                'pagination': {
-                    'total_results': 0,
-                    'pages': 0,
-                    'page': 0,
-                    'page_size': 0
-                }
+            'cases': [c for c in cases],
+            'pagination': {
+                'total_results': 0,
+                'pages': 0,
+                'page': 0,
+                'page_size': 0
             }
+        }
 
         return response
-
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_case_create)
@@ -921,18 +971,19 @@ class CaseList(Resource):
 
         _tags = []
         event_observables = []
-        case_template_uuid = None
+        case_observables = []
         owner_uuid = None
         case_template = None
-        
+
         settings = Settings.load()
 
         if 'case_template_uuid' in api2.payload:
-            case_template = CaseTemplate.get_by_uuid(uuid=api2.payload.pop('case_template_uuid'))
+            case_template = CaseTemplate.get_by_uuid(
+                uuid=api2.payload.pop('case_template_uuid'))
             #api2.payload['case_template'] = case_template
-        
+
         if 'owner_uuid' in api2.payload:
-            owner_uuid = api2.payload.pop('owner_uuid')               
+            owner_uuid = api2.payload.pop('owner_uuid')
         else:
             # Automatically assign the case to the creator if they didn't pick an owner
             if settings.assign_case_on_create:
@@ -977,7 +1028,6 @@ class CaseList(Resource):
                 api.payload['observables'].append(
                     observable_collection[observable][0])
         """
-        
 
         case = Case(**api2.payload)
 
@@ -990,7 +1040,16 @@ class CaseList(Resource):
                 e = Event.get_by_uuid(event)
                 e.set_open()
                 e.set_case(uuid=case.uuid)
-               
+
+                case_observables += Event.get_by_uuid(event).observables
+
+        # Deduplicate case observables
+        #print([type(o) for o in case_observables])
+        case_observables = list(set([Observable(
+            tags=o.tags, value=o.value, data_type=o.data_type, ioc=o.ioc, spotted=o.spotted, tlp=o.tlp, case=case.uuid) for o in case_observables]))
+        print(case_observables)
+        case.observables = case_observables
+
         # If the user selected a case template, take the template items
         # and copy them over to the case
         if case_template:
@@ -1004,18 +1063,14 @@ class CaseList(Resource):
 
             # Append the default tasks
             for task in case_template.tasks:
-                case.add_task(title=task.title, description=task.description, order=task.order, from_template=True)
+                case.add_task(title=task.title, description=task.description,
+                              order=task.order, from_template=True)
 
             # Set the default severity
             case.severity = case_template.severity
             case.tlp = case_template.tlp
-            #case.case_template = {k:case_template_uuid[k]
+            # case.case_template = {k:case_template_uuid[k]
             case.save()
-
-        # TODO: MIGRATE THIS
-        #for event in case.events:
-        #    event.status = EventStatus.query.filter_by(name='Open', organization_uuid=current_user.organization.uuid).first()
-        #     event.save()
 
         case.save()
 
@@ -1039,6 +1094,7 @@ class CaseDetails(Resource):
     def get(self, uuid, current_user):
         ''' Returns information about a case '''
         case = Case.get_by_uuid(uuid=uuid)
+
         if case:
             return case
         else:
@@ -1061,10 +1117,11 @@ class CaseDetails(Resource):
                 # TODO: handle notifications here, asynchronous of course to not block this processing
                 if f in api2.payload:
                     if f == 'status_uuid':
-                        status = CaseStatus.get_by_uuid(uuid=api2.payload['status_uuid'])
-                        
+                        status = CaseStatus.get_by_uuid(
+                            uuid=api2.payload['status_uuid'])
+
                         # Remove the closure reason if the new status re-opens the case
-                        if not status.closed: 
+                        if not status.closed:
                             api2.payload['close_reason_uuid'] = None
 
                         value = status.name
@@ -1089,10 +1146,12 @@ class CaseDetails(Resource):
                         owner = api2.payload.pop(f)
                         if owner:
                             owner = User.get_by_uuid(uuid=owner['uuid'])
-                        
+
                             if owner:
-                                message = 'Case assigned to **{}**'.format(owner.username)
-                                api2.payload['owner'] = {'username': owner.username, 'uuid': owner.uuid}
+                                message = 'Case assigned to **{}**'.format(
+                                    owner.username)
+                                api2.payload['owner'] = {
+                                    'username': owner.username, 'uuid': owner.uuid}
                             else:
                                 message = 'Case unassigned'
                                 api2.payload['owner'] = {}
@@ -1100,17 +1159,15 @@ class CaseDetails(Resource):
                             message = 'Case unassigned'
                             api2.payload['owner'] = None
 
-
                     if message:
                         case.add_history(message=message)
                     else:
                         case.add_history(
                             message="**{}** changed to **{}**".format(f.title(), value))
-            
+
             if 'tags' in api2.payload:
                 save_tags(api2.payload['tags'])
 
-            
             """ TODO: MIGRATE THIS
              if 'case_template_uuid' in api.payload:
 
@@ -1183,7 +1240,7 @@ class CaseDetails(Resource):
             # for event in case.events:
             #    event.status = EventStatus.query.filter_by(organization_uuid=current_user.organization.uuid, name='New').first()
             #    event.save()
-            
+
             # TODO: MIGRATE THIS
             # case.events = []
             # case.save()
@@ -1211,7 +1268,6 @@ class RelateCases(Resource):
             if case.related_cases:
                 return [c for c in Case.get_related_cases(uuid=uuid)]
         return []
-
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_link_cases)
@@ -1244,7 +1300,7 @@ class RelateCases(Resource):
                         _case.save()
                         cases.append(_case)
                 case.save()
-                
+
             return [c for c in cases+related_cases]
         else:
             return []
@@ -1264,13 +1320,15 @@ class RelateCases(Resource):
             if 'cases' in api2.payload:
                 _cases = api2.payload.pop('cases')
                 if case.related_cases:
-                    case.related_cases = [c for c in case.related_cases if c not in _cases]
+                    case.related_cases = [
+                        c for c in case.related_cases if c not in _cases]
                     case.save()
-                
+
                 for c in _cases:
                     _case = Case.get_by_uuid(uuid=c)
                     if _case.related_cases:
-                        _case.related_cases = [c for c in case.related_cases if c not in [uuid]]
+                        _case.related_cases = [
+                            c for c in case.related_cases if c not in [uuid]]
                         _case.save()
 
         cases = [c for c in related_cases if c.uuid not in _cases]
@@ -1281,7 +1339,10 @@ class RelateCases(Resource):
 
 
 case_history_parser = api2.parser()
-case_history_parser.add_argument('case_uuid', type=str, location='args', required=True)
+case_history_parser.add_argument(
+    'case_uuid', type=str, location='args', required=True)
+
+
 @ns_case_history_v2.route("")
 class CaseHistoryList(Resource):
 
@@ -1302,10 +1363,13 @@ class CaseHistoryList(Resource):
         else:
             return []
 
-case_comment_parser = api2.parser()
-case_comment_parser.add_argument('case_uuid', type=str, location='args', required=True)
 
-@ns_case_comment_v2.route("")  
+case_comment_parser = api2.parser()
+case_comment_parser.add_argument(
+    'case_uuid', type=str, location='args', required=True)
+
+
+@ns_case_comment_v2.route("")
 class CaseCommentList(Resource):
 
     @api2.doc(security="Bearer")
@@ -1337,7 +1401,8 @@ class CaseCommentList(Resource):
         _tags = []
         ''' Creates a new comment '''
         if 'closure_reason_uuid' in api2.payload:
-            api2.payload['closure_reason'] = CloseReason.get_by_uuid(api2.payload.pop('closure_reason_uuid'))
+            api2.payload['closure_reason'] = CloseReason.get_by_uuid(
+                api2.payload.pop('closure_reason_uuid'))
         case_comment = CaseComment(**api2.payload)
         case_comment.save()
 
@@ -1391,6 +1456,8 @@ class CaseCommentDetails(Resource):
 
 case_template_parser = api2.parser()
 case_template_parser.add_argument('title', location='args', required=False)
+
+
 @ns_case_template_v2.route("")
 class CaseTemplateList(Resource):
 
@@ -1435,10 +1502,10 @@ class CaseTemplateList(Resource):
             case_template.save()
 
             # Set the default status to New
-            #case_template_status = CaseStatus.query.filter_by(
-             #   name="New").first()
+            # case_template_status = CaseStatus.query.filter_by(
+            #   name="New").first()
             #case_template.status = case_template_status
-            #case_template.save()
+            # case_template.save()
 
             return case_template
 
@@ -1472,8 +1539,9 @@ class CaseTemplateDetails(Resource):
             if 'title' in api2.payload:
                 exists = CaseTemplate.get_by_title(title=api2.payload['title'])
                 if exists and exists.uuid != case_template.uuid:
-                    ns_case_template_v2.abort(409, 'A Case Template with that title already exists.')
-            
+                    ns_case_template_v2.abort(
+                        409, 'A Case Template with that title already exists.')
+
             case_template.update(**api2.payload)
             return case_template
         else:
@@ -1491,7 +1559,9 @@ class CaseTemplateDetails(Resource):
 
 
 case_task_parser = api2.parser()
-case_task_parser.add_argument('case_uuid', type=str, location='args', required=False)
+case_task_parser.add_argument(
+    'case_uuid', type=str, location='args', required=False)
+
 
 @ns_case_task_v2.route("")
 class CaseTaskList(Resource):
@@ -1524,8 +1594,9 @@ class CaseTaskList(Resource):
     def post(self, current_user):
         ''' Creates a new case_task '''
 
-        task = CaseTask.get_by_title(title=api2.payload['title'], case_uuid=api2.payload['case_uuid'])
-        
+        task = CaseTask.get_by_title(
+            title=api2.payload['title'], case_uuid=api2.payload['case_uuid'])
+
         if not task:
             case_uuid = api2.payload.pop('case_uuid')
             if 'owner_uuid' in api2.payload:
@@ -1534,7 +1605,7 @@ class CaseTaskList(Resource):
             task = case.add_task(**api2.payload)
             task.set_owner(owner)
             task.save()
-            
+
             return task
 
         else:
@@ -1552,7 +1623,8 @@ class CaseTaskDetails(Resource):
     @user_has('view_case_tasks')
     def get(self, uuid, current_user):
         ''' Returns information about a case task '''
-        task = CaseTask.get_by_title(title=api2.payload['title'], case_uuid=api2.payload['case_uuid'])
+        task = CaseTask.get_by_title(
+            title=api2.payload['title'], case_uuid=api2.payload['case_uuid'])
         if task:
             return task
         else:
@@ -1579,8 +1651,6 @@ class CaseTaskDetails(Resource):
                     if api2.payload['status'] == 1:
 
                         # If set, automatically assign the task to the user starting the task
-                        print(settings.assign_task_on_start)
-                        print(task.owner)
                         if task.owner == [] and settings.assign_task_on_start:
                             task.start_task(current_user.uuid)
                         else:
@@ -1816,7 +1886,7 @@ class AgentHeartbeat(Resource):
             access_token = auth_header.split(' ')[1]
             expired = ExpiredToken(token=access_token)
             expired.save()
-            
+
             ns_agent_v2.abort(400, 'Your heart stopped.')
 
 
@@ -1888,7 +1958,7 @@ class EncryptPassword(Resource):
             credential.save()
             credential.encrypt(pw.encode(
             ), current_app.config['MASTER_PASSWORD'])
-            
+
             return credential
         else:
             ns_credential_v2.abort(409, 'Credential already exists.')
@@ -1961,11 +2031,12 @@ class CredentialDetails(Resource):
                 cred = Credential.get_by_name(api2.payload['name'])
                 if cred:
                     if cred.uuid != uuid:
-                        ns_credential_v2.abort(409, 'Credential name already exists.')
-            
+                        ns_credential_v2.abort(
+                            409, 'Credential name already exists.')
+
             if 'secret' in api2.payload:
                 credential.encrypt(api2.payload.pop('secret').encode(
-                                    ), current_app.config['MASTER_PASSWORD'])
+                ), current_app.config['MASTER_PASSWORD'])
             if len(api2.payload) > 0:
                 credential.update(**api2.payload)
             return credential
@@ -2012,9 +2083,9 @@ class ThreatListList(Resource):
     def post(self, current_user):
         '''
         Creates a new ThreatList 
-        
+
         Supported list types: `values|pattern`
-        
+
         '''
 
         if api2.payload['list_type'] not in ['values', 'pattern']:
@@ -2054,11 +2125,12 @@ class ThreatListDetails(Resource):
         ''' Updates a ThreatList '''
         value_list = ThreatList.get_by_uuid(uuid=uuid)
         if value_list:
-            
+
             if 'name' in api2.payload:
-                l =  ThreatList.get_by_name(name=api2.payload['name'])
+                l = ThreatList.get_by_name(name=api2.payload['name'])
                 if l and l.uuid != uuid:
-                    ns_list_v2.abort(409, 'ThreatList with that name already exists.')
+                    ns_list_v2.abort(
+                        409, 'ThreatList with that name already exists.')
 
             if 'values' in api2.payload:
 
@@ -2072,11 +2144,13 @@ class ThreatListDetails(Resource):
                 if not isinstance(_values, list):
                     _values = _values.split('\n')
 
-                removed_values = [v for v in current_values if v not in _values and v != '']
-                new_values = [v for v in _values if v not in current_values and v != '']
+                removed_values = [
+                    v for v in current_values if v not in _values and v != '']
+                new_values = [
+                    v for v in _values if v not in current_values and v != '']
 
                 # For all values not in the new list
-                # delete them from the database and disassociate them 
+                # delete them from the database and disassociate them
                 # from the list
                 for v in removed_values:
                     value_list.values.remove(v)
@@ -2086,7 +2160,7 @@ class ThreatListDetails(Resource):
                         value_list.values.append(v)
                     else:
                         value_list.values = [v]
-                
+
                 value_list.save()
 
             # Update the list with all other fields
@@ -2129,7 +2203,7 @@ class GlobalSettings(Resource):
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_settings)
     @token_required
-    @user_has('view_settings')    
+    @user_has('view_settings')
     def get(self, current_user):
         ''' Retrieves the global settings for the system '''
         settings = Settings.load()
@@ -2137,13 +2211,14 @@ class GlobalSettings(Resource):
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_settings)
-    @token_required    
+    @token_required
     @user_has('update_settings')
     def put(self, current_user):
 
         if 'agent_pairing_token_valid_minutes' in api2.payload:
             if int(api2.payload['agent_pairing_token_valid_minutes']) > 365:
-                ns_settings_v2.abort(400, 'agent_pairing_token_valid_minutes can not be greated than 365 days.')
+                ns_settings_v2.abort(
+                    400, 'agent_pairing_token_valid_minutes can not be greated than 365 days.')
 
         settings = Settings.load()
         settings.update(**api2.payload)

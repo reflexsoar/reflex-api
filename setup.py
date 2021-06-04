@@ -352,7 +352,6 @@ def create_default_event_status():
         status.save()
 
 
-
 def initial_settings():
 
     Settings.init()
@@ -396,7 +395,6 @@ CaseHistory.init()
 CaseTemplate.init()
 Case.init()
 CaseTask.init()
-
 admin_id = create_admin_user()
 create_admin_role(admin_id)
 create_analyst_role()

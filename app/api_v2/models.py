@@ -40,10 +40,11 @@ def escape_special_characters(string):
     and return false matches
     '''
 
-    characters = ['.',' ']
+    characters = ['.', ' ']
     for character in characters:
         string = string.replace(character, '\\'+character)
     return string
+
 
 def _current_user_id_or_none():
     try:
@@ -52,7 +53,8 @@ def _current_user_id_or_none():
         current_user = None
         if auth_header:
             access_token = auth_header.split(' ')[1]
-            token = jwt.decode(access_token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+            token = jwt.decode(
+                access_token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
             if 'type' in token and token['type'] == 'agent':
                 current_user = None
             elif 'type' in token and token['type'] == 'pairing':
@@ -65,11 +67,12 @@ def _current_user_id_or_none():
                 'username': user.username,
                 'uuid': user.uuid
             }
-        
+
         return current_user
-    
+
     except Exception as e:
         return None
+
 
 class BaseDocument(Document):
     """
@@ -88,12 +91,12 @@ class BaseDocument(Document):
         Fetches a document by the uuid field
         '''
 
-        response = self.search().query('term', uuid=uuid).execute()        
+        response = self.search().query('term', uuid=uuid).execute()
         if response:
             document = response[0]
             return document
         return response
-   
+
     def save(self, **kwargs):
         '''
         Overrides the default Document save() function and adds
@@ -104,8 +107,8 @@ class BaseDocument(Document):
             self.created_at = datetime.datetime.utcnow()
 
         if not self.created_by:
-            self.created_by = _current_user_id_or_none()        
-        
+            self.created_by = _current_user_id_or_none()
+
         if not self.uuid:
             self.uuid = uuid.uuid4()
 
@@ -126,7 +129,7 @@ class BaseDocument(Document):
 
 
 class User(BaseDocument):
-    
+
     email = Text()
     username = Text()
     first_name = Text()
@@ -138,7 +141,7 @@ class User(BaseDocument):
     locked = Boolean()
     #groups = Nested(Group)
     api_key = Text()
-    
+
     class Index:
         name = 'reflex-users'
 
@@ -177,7 +180,6 @@ class User(BaseDocument):
         self.save()
         return {'api_key': self.api_key}
 
-
     def create_access_token(self):
         '''
         Generates an access_token that is presented each time the
@@ -186,7 +188,7 @@ class User(BaseDocument):
 
         _access_token = jwt.encode({
             'uuid': self.uuid,
-            #'organization': self.organization_uuid,
+            # 'organization': self.organization_uuid,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=360),
             'iat': datetime.datetime.utcnow(),
             'type': 'user'
@@ -197,8 +199,8 @@ class User(BaseDocument):
     @property
     def permissions(self):
         return [
-            k for k in self.role.permissions.__dict__ 
-            if k not in ['_sa_instance_state', 'created_at', 'modified_at', 'created_by', 'modified_by', 'uuid', 'id'] 
+            k for k in self.role.permissions.__dict__
+            if k not in ['_sa_instance_state', 'created_at', 'modified_at', 'created_by', 'modified_by', 'uuid', 'id']
             and self.role.permissions.__dict__[k] == True
         ]
 
@@ -222,15 +224,15 @@ class User(BaseDocument):
 
         #user_agent_hash = hashlib.md5(user_agent_string).hexdigest()
 
-        #refresh_token = RefreshToken.query.filter_by(
+        # refresh_token = RefreshToken.query.filter_by(
         #    user_agent_hash=user_agent_hash).first()
 
-        #if not refresh_token:
+        # if not refresh_token:
         #    refresh_token = RefreshToken(
         #        user_uuid=self.uuid, refresh_token=_refresh_token, user_agent_hash=user_agent_hash)
         #    refresh_token.create()
         #    _refresh_token = refresh_token.refresh_token
-        #else:
+        # else:
         #    refresh_token.refresh_token = _refresh_token
         #    db.session.commit()
 
@@ -269,7 +271,8 @@ class User(BaseDocument):
 
     @classmethod
     def get_by_username(self, username):
-        response = self.search().query('match', username=escape_special_characters(username)).execute()
+        response = self.search().query(
+            'match', username=escape_special_characters(username)).execute()
         if response:
             user = response[0]
             return user
@@ -277,7 +280,8 @@ class User(BaseDocument):
 
     @classmethod
     def get_by_email(self, email):
-        response = self.search().query('match', email=escape_special_characters(email)).execute()
+        response = self.search().query(
+            'match', email=escape_special_characters(email)).execute()
         if response:
             user = response[0]
             return user
@@ -323,9 +327,9 @@ class Permission(InnerDoc):
 
     # EVENTS
     add_event = Boolean()  # Allows a user to add an event
-    view_events = Boolean() # Allows a user to view/list events
-    update_event = Boolean() # Allows a user to update an events mutable properties
-    delete_event = Boolean() # Allows a user to delete an event
+    view_events = Boolean()  # Allows a user to view/list events
+    update_event = Boolean()  # Allows a user to update an events mutable properties
+    delete_event = Boolean()  # Allows a user to delete an event
 
     # EVENT RULES
     create_event_rule = Boolean()
@@ -458,8 +462,8 @@ class Permission(InnerDoc):
 
 class Role(BaseDocument):
 
-    name = Keyword() # The name of the role (should be unique)
-    description = Text() # A brief description of the role
+    name = Keyword()  # The name of the role (should be unique)
+    description = Text()  # A brief description of the role
     members = Keyword()  # Contains a list of user IDs
     permissions = Nested(Permission)
 
@@ -547,7 +551,7 @@ class Tag(BaseDocument):
         return response
 
 
-class Observable(InnerDoc):
+class EventObservable(InnerDoc):
 
     uuid = Text()
     tags = Keyword()
@@ -562,6 +566,43 @@ class Observable(InnerDoc):
     def save(self, **kwargs):
         self.uuid = uuid.uuid4()
         return super().save(**kwargs)
+
+    def __eq__(self, other):
+        return self.data_type==other.data_type and self.value==other.value
+
+    def __hash__(self):
+        return hash(('data_type', self.data_type, 'value', self.value))
+
+
+class Observable(InnerDoc):
+
+    uuid = Text()
+    tags = Keyword()
+    data_type = Text()
+    value = Text()
+    spotted = Boolean()
+    ioc = Boolean()
+    safe = Boolean()
+    tlp = Integer()
+    created_at = datetime.datetime.utcnow()
+    case = Keyword()
+
+    class Index():
+        name = 'reflex-observables'
+
+    def save(self, **kwargs):
+        self.uuid = uuid.uuid4()
+        return super().save(**kwargs)
+
+    def set_case(self, uuid):
+        self.case = uuid
+        self.save()
+
+    def __eq__(self, other):
+        return self.data_type==other.data_type and self.value==other.value
+
+    def __hash__(self):
+        return hash(('data_type', self.data_type, 'value', self.value))
 
 
 class Event(BaseDocument):
@@ -586,8 +627,17 @@ class Event(BaseDocument):
     class Index:
         name = 'reflex-events'
 
+    @property
+    def observables(self):
+        return self.event_observables
+
+    @observables.setter
+    def observables(self, value):
+        self.event_observables = value
+        self.save
+
     def add_observable(self, content):
-        self.observables.append(Observable(**content))
+        self.observables.append(EventObservable(**content))
 
     def save(self, **kwargs):
         self.hash_event()
@@ -601,7 +651,7 @@ class Event(BaseDocument):
         self.case = uuid
         self.save()
 
-    def hash_event(self, data_types=['host','user','ip','string']):
+    def hash_event(self, data_types=['host', 'user', 'ip', 'string']):
         '''
         Generates an md5 signature of the event by combining the Events title
         and the observables attached to the event.  The Event signature is used
@@ -619,9 +669,12 @@ class Event(BaseDocument):
 
         for observable in _observables:
             if observable and observable.data_type in sorted(data_types):
-                obs.append({'data_type': observable.data_type.lower(), 'value': observable.value.lower()})
-        obs = [dict(t) for t in {tuple(d.items()) for d in obs}] # Deduplicate the observables
-        obs = sorted(sorted(obs, key = lambda i: i['data_type']), key = lambda i: i['value'])
+                obs.append({'data_type': observable.data_type.lower(),
+                            'value': observable.value.lower()})
+        obs = [dict(t) for t in {tuple(d.items())
+                                 for d in obs}]  # Deduplicate the observables
+        obs = sorted(
+            sorted(obs, key=lambda i: i['data_type']), key=lambda i: i['value'])
         hasher.update(str(obs).encode())
         self.signature = hasher.hexdigest()
         return
@@ -637,7 +690,19 @@ class Event(BaseDocument):
     @classmethod
     def get_by_signature(self, signature):
         response = self.search().query('match', signature=signature).execute()
-        if len(response) > 1:
+        if len(response) >= 1:
+            return [d for d in response]
+        else:
+            return [response]
+
+    @classmethod
+    def get_by_case(self, case):
+        """
+        Returns any event that has a case uuid associated with it that
+        matches the :case: variable
+        """
+        response = self.search().query('term', case=case).execute()
+        if len(response) >= 1:
             return [d for d in response]
         else:
             return [response]
@@ -652,15 +717,16 @@ class EventRule(BaseDocument):
 
     name = Keyword()
     description = Text()
-    event_signature = Keyword() # The title of the event that this was created from
-    rule_signature = Keyword() # A hash of the title + user customized observable values
-    target_case = Keyword() # The target case to merge this into if merge into case is selected
+    event_signature = Keyword()  # The title of the event that this was created from
+    rule_signature = Keyword()  # A hash of the title + user customized observable values
+    # The target case to merge this into if merge into case is selected
+    target_case = Keyword()
     observables = Nested(Observable)
     merge_into_case = Boolean()
     dismiss = Boolean()
-    expire = Boolean() # If not set the rule will never expire, Default: True
-    expire_at = Date() # Computed from the created_at date of the event + a timedelta in days
-    active = Boolean() # Users can override the alarm and disable it out-right
+    expire = Boolean()  # If not set the rule will never expire, Default: True
+    expire_at = Date()  # Computed from the created_at date of the event + a timedelta in days
+    active = Boolean()  # Users can override the alarm and disable it out-right
 
     class Index:
         name = 'reflex-event-rules'
@@ -669,9 +735,12 @@ class EventRule(BaseDocument):
         hasher = hashlib.md5()
         obs = []
         for observable in self.observables:
-            obs.append({'data_type': observable.data_type.lower(), 'value': observable.value.lower()})
-        obs = [dict(t) for t in {tuple(d.items()) for d in obs}] # Deduplicate the observables
-        obs = sorted(sorted(obs, key = lambda i: i['data_type']), key = lambda i: i['value'])        
+            obs.append({'data_type': observable.data_type.lower(),
+                        'value': observable.value.lower()})
+        obs = [dict(t) for t in {tuple(d.items())
+                                 for d in obs}]  # Deduplicate the observables
+        obs = sorted(
+            sorted(obs, key=lambda i: i['data_type']), key=lambda i: i['value'])
         hasher.update(str(obs).encode())
         self.rule_signature = hasher.hexdigest()
         self.save()
@@ -680,13 +749,17 @@ class EventRule(BaseDocument):
     def hash_target_observables(self, target_observables):
         hasher = hashlib.md5()
         obs = []
-        expected_observables = [{'data_type':obs.data_type.lower(), 'value':obs.value.lower()} for obs in self.observables]
+        expected_observables = [{'data_type': obs.data_type.lower(
+        ), 'value': obs.value.lower()} for obs in self.observables]
         for observable in target_observables:
-            obs_dict = {'data_type': observable.data_type.name.lower(), 'value': observable.value.lower()}
+            obs_dict = {'data_type': observable.data_type.name.lower(
+            ), 'value': observable.value.lower()}
             if obs_dict in expected_observables:
                 obs.append(obs_dict)
-        obs = [dict(t) for t in {tuple(d.items()) for d in obs}] # Deduplicate the observables
-        obs = sorted(sorted(obs, key = lambda i: i['data_type']), key = lambda i: i['value'])             
+        obs = [dict(t) for t in {tuple(d.items())
+                                 for d in obs}]  # Deduplicate the observables
+        obs = sorted(
+            sorted(obs, key=lambda i: i['data_type']), key=lambda i: i['value'])
         hasher.update(str(obs).encode())
         return hasher.hexdigest()
 
@@ -696,8 +769,10 @@ class EventRule(BaseDocument):
         '''
         obs = []
         for observable in self.observables:
-            obs.append({'data_type': observable.data_type.lower(), 'value': observable.value.lower()})
-        self.observables = [dict(t) for t in {tuple(d.items()) for d in obs}] # Deduplicate the observables
+            obs.append({'data_type': observable.data_type.lower(),
+                        'value': observable.value.lower()})
+        # Deduplicate the observables
+        self.observables = [dict(t) for t in {tuple(d.items()) for d in obs}]
 
         return super().save(**kwargs)
 
@@ -732,7 +807,7 @@ class CaseHistory(BaseDocument):
     '''
 
     message = Text()
-    case_uuid = Keyword() # The uuid of the case this history belongs to
+    case_uuid = Keyword()  # The uuid of the case this history belongs to
 
     class Index:
         name = 'reflex-case-history'
@@ -755,9 +830,9 @@ class CaseComment(BaseDocument):
     '''
 
     message = Text()
-    case_uuid = Keyword() # The uuid of the case this comment belongs to
-    is_closure_comment = Boolean() # Is this comment related to closing the case
-    edited = Boolean() # Should be True when the comment is edited, Default: False
+    case_uuid = Keyword()  # The uuid of the case this comment belongs to
+    is_closure_comment = Boolean()  # Is this comment related to closing the case
+    edited = Boolean()  # Should be True when the comment is edited, Default: False
     closure_reason = Object()
 
     class Index:
@@ -858,21 +933,26 @@ class Case(BaseDocument):
     severity = Integer()
     owner = Object()
     tlp = Integer()
-    # observables
+    observables = Nested(Observable)
     # events
     tags = Keyword()
     status = Object()
-    related_cases = Keyword() # A list of UUIDs related to this case
+    related_cases = Keyword()  # A list of UUIDs related to this case
     closed = Boolean()
     closed_at = Date()
     close_reason = Object()
     case_template = Object()
-    files = Keyword() # The UUIDs of case files
+    files = Keyword()  # The UUIDs of case files
     events = []
-    observables = []
+    #linked_observables = []
 
     class Index:
         name = 'reflex-cases'
+
+    
+    def add_observable(self, observable):
+        self.linked_observables += [observable]
+        self.save()
 
     def set_owner(self, uuid):
         '''
@@ -922,7 +1002,7 @@ class Case(BaseDocument):
             return [c for c in cases]
         else:
             return []
-        return 
+        return
 
     def add_history(self, message):
         '''
@@ -951,11 +1031,11 @@ class CaseTask(BaseDocument):
     title = Keyword()
     order = Integer()
     description = Text()
-    owner = Nested() # The user that is assigned to this task by default
-    group = Nested() # The group that is assigned to this task by default
-    case = Keyword() # The UUID of the case this task belongs to
-    from_template = Boolean() # Indicates if the task came from a template. Default: False
-    status = Integer() # 0 = Open, 1 = Started, 2 = Complete
+    owner = Nested()  # The user that is assigned to this task by default
+    group = Nested()  # The group that is assigned to this task by default
+    case = Keyword()  # The UUID of the case this task belongs to
+    from_template = Boolean()  # Indicates if the task came from a template. Default: False
+    status = Integer()  # 0 = Open, 1 = Started, 2 = Complete
     start_date = Date()
     finish_date = Date()
 
@@ -977,7 +1057,8 @@ class CaseTask(BaseDocument):
         '''
         Fetches a task by the title and case uuid
         '''
-        response = self.search().query('match', case=case_uuid).query('term', title=title).execute()
+        response = self.search().query('match', case=case_uuid).query(
+            'term', title=title).execute()
         if response:
             document = response[0]
             return document
@@ -1015,7 +1096,6 @@ class CaseTask(BaseDocument):
         case.add_history('Task **{}** reopened'.format(self.title))
         self.save()
 
-    
     def set_owner(self, owner_uuid):
         '''
         Sets the owner of the case by the users uuid
@@ -1023,8 +1103,8 @@ class CaseTask(BaseDocument):
         if owner_uuid:
             owner = User.get_by_uuid(owner_uuid)
             if owner:
-                self.owner = {k:owner[k] for k in owner if k in ['uuid','username']}     
-
+                self.owner = {k: owner[k]
+                              for k in owner if k in ['uuid', 'username']}
 
     def delete(self, **kwargs):
         '''
@@ -1047,11 +1127,11 @@ class CaseTemplateTask(InnerDoc):
     title = Keyword()
     order = Integer()
     description = Text()
-    owner = Keyword() # The user that is assigned to this task by default
-    group = Keyword() # The group that is assigned to this task by default
-    case = Keyword() # The UUID of the case this task belongs to
-    from_template = Boolean() # Indicates if the task came from a template. Default: False
-    status = Integer() # 0 = Open, 1 = Started, 2 = Complete
+    owner = Keyword()  # The user that is assigned to this task by default
+    group = Keyword()  # The group that is assigned to this task by default
+    case = Keyword()  # The UUID of the case this task belongs to
+    from_template = Boolean()  # Indicates if the task came from a template. Default: False
+    status = Integer()  # 0 = Open, 1 = Started, 2 = Complete
     start_date = Date()
     finish_date = Date()
 
@@ -1064,9 +1144,9 @@ class CaseTemplate(BaseDocument):
 
     title = Keyword()
     description = Text()
-    severity = Integer() # The default severity of the case
-    owner = Keyword() # The default owner of the case
-    tlp = Integer() # The default TLP of the case
+    severity = Integer()  # The default severity of the case
+    owner = Keyword()  # The default owner of the case
+    tlp = Integer()  # The default TLP of the case
     tags = Keyword()
     tasks = Nested(CaseTemplateTask)
 
@@ -1107,7 +1187,7 @@ class Credential(BaseDocument):
 
     class Index:
         name = 'reflex-credentials'
-    
+
     def _derive_key(self, secret: bytes, salt: bytes, iterations: int = 100_000) -> bytes:
 
         kdf = PBKDF2HMAC(
@@ -1164,13 +1244,13 @@ class Input(BaseDocument):
     name = Keyword()
     description = Text()
 
-    # Renamed from 'plugin'. 
+    # Renamed from 'plugin'.
     # The name of the ingestor being used e.g. 'elasticsearch' or 'ews'
-    source = Text() 
+    source = Text()
 
-    enabled = Boolean() # Default to False
+    enabled = Boolean()  # Default to False
     config = Object()
-    credential = Text() # The UUID of the credential in use
+    credential = Text()  # The UUID of the credential in use
     tags = Keyword()
     field_mapping = Nested(FieldMap)
 
@@ -1193,9 +1273,9 @@ class Input(BaseDocument):
 class Agent(BaseDocument):
 
     name = Keyword()
-    inputs = Keyword() # A list of UUIDs of which inputs to run
-    roles = Keyword() # A list of roles that the agent belongs to
-    groups = Keyword() # A list of UUIDs that the agent belongs to
+    inputs = Keyword()  # A list of UUIDs of which inputs to run
+    roles = Keyword()  # A list of roles that the agent belongs to
+    groups = Keyword()  # A list of UUIDs that the agent belongs to
     active = Boolean()
     ip_address = Ip()
     last_heartbeat = Date()
@@ -1268,10 +1348,10 @@ class ThreatList(BaseDocument):
 
     name = Keyword()
     description = Text()
-    list_type = Text() # value or pattern
+    list_type = Text()  # value or pattern
     data_type_uuid = Keyword()
-    tag_on_match = Boolean() # Default to False
-    values = Keyword() # A list of values to match on
+    tag_on_match = Boolean()  # Default to False
+    values = Keyword()  # A list of values to match on
 
     class Index:
         name = 'reflex-threat-lists'
@@ -1279,7 +1359,7 @@ class ThreatList(BaseDocument):
     @property
     def data_type(self):
         return DataType.get_by_uuid(uuid=self.data_type_uuid)
-    
+
     @classmethod
     def get_by_name(self, name):
         '''
@@ -1296,27 +1376,28 @@ class ThreatList(BaseDocument):
 class Settings(BaseDocument):
 
     base_url = Text()
-    require_case_templates = Boolean() # Default True
+    require_case_templates = Boolean()  # Default True
     #email_from = Text()
     #email_server = db.Column(db.String(255))
     #email_secret_uuid = db.Column(db.String(255), db.ForeignKey("credential.uuid"))
     #email_secret = db.relationship('Credential')
-    allow_comment_deletion = Boolean() # Default False
-    playbook_action_timeout = Integer() # Default 300
-    playbook_timeout = Integer() # Default 3600
-    logon_password_attempts = Integer() # Default 5
-    api_key_valid_days = Integer() # Default 366 days 
-    agent_pairing_token_valid_minutes = Integer() # Default 15
+    allow_comment_deletion = Boolean()  # Default False
+    playbook_action_timeout = Integer()  # Default 300
+    playbook_timeout = Integer()  # Default 3600
+    logon_password_attempts = Integer()  # Default 5
+    api_key_valid_days = Integer()  # Default 366 days
+    agent_pairing_token_valid_minutes = Integer()  # Default 15
     peristent_pairing_token = Text()
-    require_event_dismiss_comment = Boolean() # Default False
-    allow_event_deletion = Boolean() # Default False
-    require_case_close_comment = Boolean() # Default False 
-    assign_case_on_create = Boolean() # Default True 
-    assign_task_on_start = Boolean() # Default True 
-    allow_comment_editing = Boolean() # Default False
-    events_page_refresh = Integer() # Default 60
-    events_per_page = Integer() # Default 10 
-    data_types = Keyword() # ip,user,host,fqdn,sha1,md5,sha256,imphash,ssdeep,vthash,network,domain,url,mail
+    require_event_dismiss_comment = Boolean()  # Default False
+    allow_event_deletion = Boolean()  # Default False
+    require_case_close_comment = Boolean()  # Default False
+    assign_case_on_create = Boolean()  # Default True
+    assign_task_on_start = Boolean()  # Default True
+    allow_comment_editing = Boolean()  # Default False
+    events_page_refresh = Integer()  # Default 60
+    events_per_page = Integer()  # Default 10
+    # ip,user,host,fqdn,sha1,md5,sha256,imphash,ssdeep,vthash,network,domain,url,mail
+    data_types = Keyword()
 
     class Index:
         name = 'reflex-settings'
@@ -1346,9 +1427,9 @@ class Settings(BaseDocument):
         }, current_app.config['SECRET_KEY'])
 
         if self.peristent_pairing_token != None:
-            expired = ExpiredToken(token = self.peristent_pairing_token)
+            expired = ExpiredToken(token=self.peristent_pairing_token)
             expired.create()
 
-        self.update(peristent_pairing_token = _api_key)
-        
+        self.update(peristent_pairing_token=_api_key)
+
         return {'token': self.peristent_pairing_token}
