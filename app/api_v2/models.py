@@ -949,7 +949,6 @@ class Case(BaseDocument):
     class Index:
         name = 'reflex-cases'
 
-    
     def add_observable(self, observable):
         self.linked_observables += [observable]
         self.save()

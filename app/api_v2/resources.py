@@ -989,15 +989,6 @@ class CaseList(Resource):
             if settings.assign_case_on_create:
                 owner_uuid = current_user.uuid
 
-        # TODO: MIGRATE THIS
-        #  if 'observables' in api.payload:
-        #     observables = api.payload.pop('observables')
-        #    api.payload['observables'] = []
-        #    for uuid in observables:
-        #        observable = Observable.query.filter_by(uuid=uuid, organization_uuid=current_user.organization.uuid).first()
-        #        if observable:
-        #            api.payload['observables'].append(observable)
-
         """ TODO: MIGRATE THIS
         if 'events' in api.payload:
             api.payload['observables'] = []
@@ -1049,6 +1040,7 @@ class CaseList(Resource):
             tags=o.tags, value=o.value, data_type=o.data_type, ioc=o.ioc, spotted=o.spotted, tlp=o.tlp, case=case.uuid) for o in case_observables]))
         print(case_observables)
         case.observables = case_observables
+        print(case.observables)
 
         # If the user selected a case template, take the template items
         # and copy them over to the case
@@ -1250,6 +1242,25 @@ class CaseDetails(Resource):
             case.delete()
             return {'message': 'Sucessfully deleted case.'}
 
+
+@ns_case_v2.route("/<uuid>/observables")
+class CaseObservables(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_observable_list_paged, as_list=True)
+    @api2.response('200', 'Successs')
+    @api2.response('404', 'Case not found')
+    @token_required
+    @user_has('view_cases')
+    def get(self, uuid, current_user):
+        ''' Returns the observables for a case'''
+        case = Case.get_by_uuid(uuid=uuid)
+
+        if case:
+            print(case.observables)
+            return {'observables': case.observables, 'pagination': {}}
+        else:
+            ns_case_v2.abort(404, 'Case not found.')
 
 @ns_case_v2.route('/<uuid>/relate_cases')
 class RelateCases(Resource):
