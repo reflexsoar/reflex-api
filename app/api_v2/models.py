@@ -953,6 +953,13 @@ class Case(BaseDocument):
         self.linked_observables += [observable]
         self.save()
 
+    def get_observable_by_value(self, value):
+        ''' Returns an observable based on its value '''
+        if obs := [o for o in self.observables if o.value == value]:
+            return obs[0]
+        else:
+            return None
+
     def set_owner(self, uuid):
         '''
         Sets the bare minimum information about the

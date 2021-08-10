@@ -259,6 +259,15 @@ mod_observable_create = Model('ObservableCreate', {
     'tags': fields.List(fields.String)
 })
 
+mod_observable_update = Model('ObservableUpdate', {
+    'tags': fields.List(fields.String),
+    'ioc': fields.Boolean,
+    'tlp': fields.Integer,
+    'spotted': fields.Boolean,
+    'safe': fields.Boolean,
+    'data_type': fields.String
+})
+
 mod_observable_list = Model('ObservableList', {
     'tags': fields.List(fields.String),
     'value': fields.String,
@@ -267,7 +276,8 @@ mod_observable_list = Model('ObservableList', {
     'spotted': fields.Boolean,
     'safe': fields.Boolean,
     'data_type': fields.String,
-    'uuid': fields.String
+    'uuid': fields.String,
+    'case': fields.String
 })
 
 mod_observable_list_paged = Model('PagedObservableList', {
@@ -734,7 +744,7 @@ mod_link_cases = Model('LinkCases', {
 
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full, 
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, 
-mod_observable_brief, mod_observable_create, mod_raw_log, mod_permissions, mod_api_key,
+mod_observable_brief, mod_observable_create, mod_observable_update, mod_raw_log, mod_permissions, mod_api_key,
 mod_user_create, mod_user_create_success, mod_settings, mod_persistent_pairing_token,
 mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list, mod_credential_return,
 mod_input_create, mod_input_list, mod_agent_list, mod_agent_create, mod_list_list, mod_list_create,
