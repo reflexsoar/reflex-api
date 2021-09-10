@@ -1038,9 +1038,7 @@ class CaseList(Resource):
         #print([type(o) for o in case_observables])
         case_observables = list(set([Observable(
             tags=o.tags, value=o.value, data_type=o.data_type, ioc=o.ioc, spotted=o.spotted, tlp=o.tlp, case=case.uuid) for o in case_observables]))
-        print(case_observables)
         case.observables = case_observables
-        print(case.observables)
 
         # If the user selected a case template, take the template items
         # and copy them over to the case
@@ -1257,7 +1255,6 @@ class CaseObservables(Resource):
         case = Case.get_by_uuid(uuid=uuid)
 
         if case:
-            print(case.observables)
             return {'observables': case.observables, 'pagination': {}}
         else:
             ns_case_v2.abort(404, 'Case not found.')
