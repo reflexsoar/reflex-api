@@ -1327,6 +1327,7 @@ class CaseAddObservables(Resource):
         if case:
             observables = api2.payload['observables']
             case.add_observables(observables, case.uuid)
+            case.add_history(f"Added {len(observables)} observables")
             return {'observables': case.observables}
         else:
             ns_case_v2.abort(404, 'Case not found.')
@@ -1530,7 +1531,9 @@ class CaseCommentDetails(Resource):
         ''' Deletes a comment '''
         case_comment = CaseComment.get_by_uuid(uuid=uuid)
         if case_comment:
+            case = Case.get_by_uuid(case_comment.case_uuid)
             case_comment.delete()
+            case.add_history("Comment deleted")            
             return {'message': 'Sucessfully deleted comment.'}
 
 
