@@ -14,7 +14,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import InvalidToken
-from elasticsearch import Elasticsearch
+from elasticsearch_dsl.utils import AttrList
 from elasticsearch_dsl import (
     Document,
     InnerDoc,
@@ -949,8 +949,13 @@ class Case(BaseDocument):
     class Index:
         name = 'reflex-cases'
 
-    def add_observable(self, observable):
-        self.linked_observables += [observable]
+    def add_observables(self, observable, case_uuid=None):
+
+        if isinstance(observable, list):
+            [self.observables.append(Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], case=case_uuid)) for o in observable]
+        else:
+            o = observable
+            self.observables.append(Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], case=case_uuid))
         self.save()
 
     def get_observable_by_value(self, value):

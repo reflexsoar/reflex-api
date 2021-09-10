@@ -1314,6 +1314,26 @@ class CaseObservable(Resource):
         return
 
 
+@ns_case_v2.route("/<uuid>/add_observables/_bulk")
+class CaseAddObservables(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.response('200', 'Success')
+    @api2.expect(mod_bulk_add_observables)
+    @api2.marshal_with(mod_case_observables)
+    @token_required
+    @user_has('update_case')
+    def post(self, uuid, current_user):
+        ''' Adds multiple observables to a case '''
+        case = Case.get_by_uuid(uuid=uuid)
+
+        if case:
+            observables = api2.payload['observables']
+            case.add_observables(observables, case.uuid)
+            return {'observables': case.observables}
+        else:
+            ns_case_v2.abort(404, 'Case not found.')
+
 @ns_case_v2.route('/<uuid>/relate_cases')
 class RelateCases(Resource):
 

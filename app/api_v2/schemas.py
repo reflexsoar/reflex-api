@@ -285,6 +285,9 @@ mod_observable_list_paged = Model('PagedObservableList', {
     'pagination': fields.String()
 })
 
+mod_bulk_add_observables = Model('BulkObservables', {
+    'observables': fields.List(fields.Nested(mod_observable_create))
+})
 
 mod_observable_brief = Model('ShortObservableDetails', {
     'uuid': fields.String,
@@ -540,6 +543,10 @@ mod_case_history = Model('CaseHistoryEntry', {
     'created_by': fields.Nested(mod_user_list)
 })
 
+mod_case_observables = Model('CaseObservables', {
+    'observables': fields.List(fields.Nested(mod_observable_list))
+})
+
 mod_case_close_reason = Model('CaseCloseList', {
     'uuid': fields.String,
     'title': fields.String,
@@ -754,6 +761,7 @@ mod_case_template_create, mod_case_template_task_create, mod_case_task_create, m
 mod_case_template_full, mod_close_reason_create, mod_close_reason_list, mod_case_status, mod_case_status_create,
 mod_case_status_list, mod_case_template_brief, mod_case_create, mod_case_list, mod_case_details, mod_case_paged_list,
 mod_user_list, mod_tag_list, mod_tag, mod_related_case, mod_link_cases, mod_case_task_full, mod_event_status,
-mod_event_paged_list, mod_event_details, mod_observable_list, mod_observable_list_paged]
+mod_event_paged_list, mod_event_details, mod_observable_list, mod_observable_list_paged,
+mod_bulk_add_observables, mod_case_observables]
 
 
