@@ -646,20 +646,27 @@ class EventList(Resource):
         else:
             s = Event.search()
             s = s.sort(sort_by)
-            total_events = s.count()
+            
             if len(search_filter) > 0:
                 for a in search_filter:
                     s = s.filter('terms', **{a: search_filter[a]})
+                total_events = s.count()
                 events = [e for e in s[start:end]]
             else:
+                total_events = s.count()
                 events = [e for e in s[start:end]]
+
+        if args['page_size'] < total_events:
+            pages = total_events % args['page_size']
+        else:
+            pages = 0
 
         response = {
             'events': events,
             'test':'OKAY',
             'pagination': {
                 'total_results': total_events,
-                'pages': total_events % args['page_size'],
+                'pages': pages,
                 'page': args['page'],
                 'page_size': args['page_size']
             }
