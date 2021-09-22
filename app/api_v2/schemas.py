@@ -40,6 +40,13 @@ class FormatTags(fields.Raw):
     def format(self, value):
         return [{'name': v} for v in value]
 
+mod_pagination = Model('Pagination', {
+    'total_results': fields.Integer,
+    'pages': fields.Integer,
+    'page_size': fields.Integer,
+    'page': fields.Integer
+})
+
 mod_auth = Model('AuthModel', {
     'username': fields.String(default='reflex'),
     'password': fields.String(default='reflex')
@@ -282,7 +289,7 @@ mod_observable_list = Model('ObservableList', {
 
 mod_observable_list_paged = Model('PagedObservableList', {
     'observables': fields.List(fields.Nested(mod_observable_list)),
-    'pagination': fields.String()
+    'pagination': fields.Nested(mod_pagination)
 })
 
 mod_bulk_add_observables = Model('BulkObservables', {
@@ -343,7 +350,7 @@ mod_event_list = Model('EventList', {
 
 mod_event_paged_list = Model('PagedEventList', {
    'events': fields.List(fields.Nested(mod_event_list)),
-   'pagination': fields.String()
+   'pagination': fields.Nested(mod_pagination)
 })
 
 mod_event_details = Model('EventDetails', {
@@ -742,7 +749,7 @@ mod_case_details = Model('CaseDetails', {
 
 mod_case_paged_list = Model('PagedCaseList', {
    'cases': fields.List(fields.Nested(mod_case_list)),
-   'pagination': fields.String()
+   'pagination': fields.Nested(mod_pagination)
 })
 
 mod_link_cases = Model('LinkCases', {

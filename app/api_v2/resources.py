@@ -2,7 +2,7 @@ import base64
 import datetime
 import asyncio
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
-from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs
+from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs, marshal
 from .schemas import *
 from .models import (
     Event,
@@ -618,6 +618,7 @@ class EventList(Resource):
 
         events = []
         total_events = 0
+        page_size = args['page_size']
 
         search_filter = {}
         for arg in args:
@@ -653,13 +654,12 @@ class EventList(Resource):
             else:
                 events = [e for e in s[start:end]]
 
-        print(start,end)
-
         response = {
             'events': events,
+            'test':'OKAY',
             'pagination': {
                 'total_results': total_events,
-                'pages': int(len(events)/args['page_size']),
+                'pages': total_events % args['page_size'],
                 'page': args['page'],
                 'page_size': args['page_size']
             }

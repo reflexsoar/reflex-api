@@ -495,7 +495,7 @@ mod_related_events = Model('RelatedEvents', {
 
 mod_paged_event_list = Model('PagedEventList', {
     'events': fields.List(fields.Nested(mod_event_list)),
-    'pagination': JSONField()
+    'pagination': JSONField
 })
 
 mod_observable_type = Model('ObservableType', {
