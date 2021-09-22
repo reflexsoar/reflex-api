@@ -608,20 +608,57 @@ class EventList(Resource):
 
         args = event_list_parser.parse_args()
 
+        if args['page'] == 1:
+            start = 0
+            end = args['page']*args['page_size']
+            args['page'] = 0
+        else:
+            start = ((args['page']-1)*args['page_size'])
+            end = args['page_size']*args['page']
+
         events = []
+        total_events = 0
+
+        search_filter = {}
+        for arg in args:
+            if arg in ['status','severity','title','observables']:
+                if args[arg] != '' and args[arg] is not None:
+                    if isinstance(args[arg], list):
+                        if arg == 'observables':
+                            if len(args[arg]) > 0:
+                                search_filter['event_observables.value__keyword'] = args[arg]
+                        else:
+                            if len(args[arg]) > 0 and '' not in args[arg]:
+                                search_filter[arg] = args[arg]
+                    else:
+                        search_filter[arg] = args[arg]
+
+        sort_by = { args['sort_by']: {'order': 'desc'} }
 
         if 'signature' in args and args['signature']:
             events = [e for e in Event.get_by_signature(
                 signature=args['signature'])]
+            total_events = len(events)
         elif 'case_uuid' in args and args['case_uuid']:
             events = [e for e in Event.get_by_case(case=args['case_uuid'])]
+            total_events = len(events)
         else:
-            events = [e for e in Event.search()]
+            s = Event.search()
+            s = s.sort(sort_by)
+            total_events = s.count()
+            if len(search_filter) > 0:
+                for a in search_filter:
+                    s = s.filter('terms', **{a: search_filter[a]})
+                events = [e for e in s[start:end]]
+            else:
+                events = [e for e in s[start:end]]
+
+        print(start,end)
 
         response = {
             'events': events,
             'pagination': {
-                'total_results': len(events),
+                'total_results': total_events,
                 'pages': int(len(events)/args['page_size']),
                 'page': args['page'],
                 'page_size': args['page_size']
@@ -633,12 +670,18 @@ class EventList(Resource):
     def post(self):
         ''' Creates a new event '''
 
-        _observables = []
+        observables = None
         _tags = []
 
+        if 'observables' in api2.payload:
+            observables = api2.payload.pop('observables')
+
         event = Event(**api2.payload)
-        event.status = EventStatus.get_by_name(name="New")
-        event.save()
+
+        if observables:
+            event.add_observable(observables)
+
+        event.set_new()
 
         return {'message': 'Successfully created the event.'}
 

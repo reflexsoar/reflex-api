@@ -86,12 +86,12 @@ class BaseDocument(Document):
     created_by = Nested()
 
     @classmethod
-    def get_by_uuid(self, uuid):
+    def get_by_uuid(self, uuid, *args, **kwargs):
         '''
         Fetches a document by the uuid field
         '''
 
-        response = self.search().query('term', uuid=uuid).execute()
+        response = self.search().query('term', uuid=uuid, **kwargs).execute()
         if response:
             document = response[0]
             return document
@@ -616,7 +616,7 @@ class Event(BaseDocument):
     tlp = Integer()
     severity = Integer()
     tags = Keyword()
-    observables = Nested(Observable)
+    event_observables = Nested(Observable)
     status = Object()
     signature = Keyword()
     dismissed = Boolean()
@@ -637,7 +637,12 @@ class Event(BaseDocument):
         self.save
 
     def add_observable(self, content):
-        self.observables.append(EventObservable(**content))
+        if isinstance(content, list):
+            [self.event_observables.append(EventObservable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'])) for o in content]
+        else:
+            o = content
+            self.event_observables.append(EventObservable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp']))
+        self.save()
 
     def save(self, **kwargs):
         self.hash_event()
@@ -645,6 +650,10 @@ class Event(BaseDocument):
 
     def set_open(self):
         self.status = EventStatus.get_by_name(name='Open')
+        self.save()
+
+    def set_new(self):
+        self.status = EventStatus.get_by_name(name='New')
         self.save()
 
     def set_case(self, uuid):

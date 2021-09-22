@@ -48,6 +48,16 @@ def case_templates():
     {"title":"Phishing Analysis","description":"Use this case template when investigating a Phishing e-mail.","tasks":[{"title":"Fetch original e-mail","description":"Get a copy of the original e-mail so that analysis can be performed on it to determine if it really is a phishing e-mail or not.","group_uuid":null,"owner_uuid":null,"order":"0"},{"title":"Notify users","description":"Send a phishing alert e-mail to all users so they are aware they may have been targeted.  This should buy time until the e-mail is scrubbed from the environment.","group_uuid":null,"owner_uuid":null,"order":"1"},{"title":"Quarantine","description":"Remove the original message from the e-mail environment","group_uuid":null,"owner_uuid":null,"order":"2"},{"title":"Post Mortem","description":"What have we learned from this event that could help in future events?","group_uuid":null,"owner_uuid":null,"order":"3"}],"tlp":2,"severity":2,"tags":["phishing"]}
   ]
 
+def random_title_description():
+  titles = [
+    {'User added to local admins': 'Someone added a normal user to local admins'},
+    {'Suspicious DNS hit': 'A machine made a request for a suspicious DNS record'},
+    {'Local account discovery': 'A machine exhibited enumeration behavior'},
+    {'CVE-2021-40444': 'Remote code execution via malicious document in word'}
+  ]
+
+  return titles[random.randint(0, len(titles)-1)]
+
 def random_severity():
   return random.randint(0,3)
 
@@ -108,10 +118,11 @@ def random_powershell_command():
   return commands[random.randint(0, len(commands)-1)]
 
 def random_event():
+  alert_title = random_title_description()
   alerts = [
     {
-      "title": "User added to Local Administrators",
-      "description": "A users privileges were escalated via addition to Local Administrators",
+      "title": list(alert_title.keys())[0],
+      "description": alert_title[list(alert_title.keys())[0]],
       "reference": reference(),
       "tags": [
         "enumeration",
@@ -155,8 +166,10 @@ for i in range(0,10):
   headers = {
     'Content-Type': 'application/json'
   }
+  event = random_event()
+  print(event)
                                  
-  r = requests.post('http://localhost/api/v2.0/event', data=json.dumps(random_event()),
+  r = requests.post('http://localhost/api/v2.0/event', data=json.dumps(event),
       headers=headers, verify=False)
 #print("Sending {} events...".format(len(events)))
 #bulk(events)
