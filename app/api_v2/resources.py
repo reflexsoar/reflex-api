@@ -554,7 +554,7 @@ class DataTypeDetails(Resource):
         if data_type:
             return data_type
         else:
-            ns_data_type.abort(404, 'Data type not found.')
+            ns_data_type_v2.abort(404, 'Data type not found.')
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_data_type_create)
@@ -568,7 +568,7 @@ class DataTypeDetails(Resource):
             data_type.update(**api2.payload)
             return data_type
         else:
-            ns_data_type.abort(404, 'Data type not found.')
+            ns_data_type_v2.abort(404, 'Data type not found.')
 
 
 event_list_parser = api2.parser()
