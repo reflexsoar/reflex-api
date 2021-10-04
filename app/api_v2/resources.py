@@ -720,6 +720,13 @@ class EventList(Resource):
         if observables:
             event.add_observable(observables)
 
+        event_rule = EventRule.get_by_title(title=event.title)
+        if event_rule:
+            if event.check_event_rule_signature(event_rule.rule_signature):
+                print("SAME SAME!")
+            else:
+                print("NOT SAME")
+
         event.set_new()
         print(event)
 

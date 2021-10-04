@@ -710,6 +710,22 @@ class Event(BaseDocument):
         self.signature = hasher.hexdigest()
         return
 
+    def check_event_rule_signature(self, signature):
+        hasher = hashlib.md5()
+        obs = []
+        for observable in self.observables:
+            obs.append({'data_type': observable.data_type.lower(),
+                        'value': observable.value.lower()})
+        obs = [dict(t) for t in {tuple(d.items())
+                                 for d in obs}]  # Deduplicate the observables
+        obs = sorted(
+            sorted(obs, key=lambda i: i['data_type']), key=lambda i: i['value'])
+        hasher.update(str(obs).encode())
+        if signature == hasher.hexdigest():
+            return True
+        else:
+            return False
+
     @classmethod
     def get_by_reference(self, reference):
         response = self.search().query('match', reference=reference).execute()
@@ -806,6 +822,17 @@ class EventRule(BaseDocument):
         self.observables = [dict(t) for t in {tuple(d.items()) for d in obs}]
 
         return super().save(**kwargs)
+
+    @classmethod
+    def get_by_title(self, title):
+        """
+        Returns an event rule by its event_signature (event title)
+        """
+        response = self.search().query('term', event_signature=title).execute()
+        if len(response) >= 1:
+            return [d for d in response][0]
+        else:
+            return response
 
 
 class CaseHistory(BaseDocument):
