@@ -171,5 +171,10 @@ for i in range(0,10):
                                  
   r = requests.post('http://localhost/api/v2.0/event', data=json.dumps(event),
       headers=headers, verify=False)
+  if i % 2 == 0 :
+    print("SEND AGAIN!")
+    event['reference'] = reference()
+    r = requests.post('http://localhost/api/v2.0/event', data=json.dumps(event),
+      headers=headers, verify=False)
 #print("Sending {} events...".format(len(events)))
 #bulk(events)

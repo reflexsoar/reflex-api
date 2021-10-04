@@ -1,8 +1,9 @@
 import base64
 import datetime
-import asyncio
+import operator
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs, marshal
+from elasticsearch_dsl import A
 from .schemas import *
 from .models import (
     Event,
@@ -656,6 +657,7 @@ class EventList(Resource):
                 for a in search_filter:
                     s = s.filter(search_filter[a]["type"], **{a: search_filter[a]["value"]})
                 total_events = s.count()
+                
                 events = [e for e in s[start:end]]
             else:
                 total_events = s.count()
@@ -665,6 +667,29 @@ class EventList(Resource):
             pages = total_events % args['page_size']
         else:
             pages = 0
+
+        """ Calculate related event counts
+            I couldn't figure out a better way to do this with elasticsearch DSL
+            this may become expensive at some point in the future
+            - BC
+        """
+        for event in events:
+            related_events_count = len([e for e in events if e.signature == event.signature])
+            if related_events_count > 1:
+                event.related_events_count = related_events_count
+            else:
+                event.related_events_count = 0
+
+        # Keep only one copy of an event where signatures are the same
+        # Keep the most recent
+        if 'signature' in args and not args['signature']:
+            events_dedupe = []
+            for event in events:
+                x = list(filter(lambda e: e.signature == event.signature, events))[0]
+                if x not in events_dedupe:
+                    events_dedupe += [x]
+
+            events = events_dedupe
 
         response = {
             'events': events,
