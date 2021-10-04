@@ -602,9 +602,12 @@ event_list_parser.add_argument(
 @ns_event_v2.route("")
 class EventList(Resource):
 
+    @api2.doc(security="Bearer")
     @api2.marshal_with(mod_event_paged_list)
     @api2.expect(event_list_parser)
-    def get(self):
+    @token_required
+    @user_has('view_events')
+    def get(self, current_user):
         ''' Returns a list of events '''
 
         args = event_list_parser.parse_args()
@@ -726,8 +729,11 @@ class EventList(Resource):
 @ns_event_v2.route("/<uuid>")
 class EventDetails(Resource):
 
+    @api2.doc(security="Bearer")
     @api2.marshal_with(mod_event_details)
-    def get(self, uuid):
+    @token_required
+    @user_has('view_events')
+    def get(self, uuid, current_user):
 
         event = Event.get_by_uuid(uuid)
         if event:
@@ -735,6 +741,22 @@ class EventDetails(Resource):
         else:
             ns_event_v2.abort(404, 'Event not found.')
 
+
+@ns_event_v2.route("/<uuid>/new_related_events")
+class EventNewRelatedEvents(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_related_events)
+    @api2.response('200', 'Success')
+    @api2.response('404', 'Event not found')
+    @token_required
+    @user_has('view_events')
+    def get(self, uuid, current_user):
+        ''' Returns the UUIDs of all related events that are Open '''
+        event = Event.get_by_uuid(uuid=uuid)
+        events = Event.get_by_signature(signature=event.signature)
+        related_events = [e.uuid for e in events if e.status.name == 'New']
+        return {"events": related_events}
 
 @ns_event_rule_v2.route("")
 class EventRuleList(Resource):
