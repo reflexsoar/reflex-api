@@ -626,10 +626,13 @@ class EventList(Resource):
                     if isinstance(args[arg], list):
                         if arg == 'observables':
                             if len(args[arg]) > 0:
-                                search_filter['event_observables.value'] = {"value": args[arg], "type":"terms"}
+                                search_filter['event_observables.value__keyword'] = {"value": args[arg], "type":"terms"}
                         elif arg == 'status':
                             if len(args[arg]) > 0 and '' not in args[arg]:
                                 search_filter['status.name__keyword'] = {"value": args[arg], "type":"terms"}
+                        elif arg == 'severity':
+                            if len(args[arg]) > 0 and '' not in args[arg]:
+                                search_filter['severity'] = {"value": args[arg], "type":"terms"}
                         else:
                             if len(args[arg]) > 0 and '' not in args[arg]:
                                 search_filter[arg] = args[arg]
@@ -651,7 +654,6 @@ class EventList(Resource):
             
             if len(search_filter) > 0:
                 for a in search_filter:
-                    print(a, search_filter[a]["type"], search_filter[a]["value"])
                     s = s.filter(search_filter[a]["type"], **{a: search_filter[a]["value"]})
                 total_events = s.count()
                 events = [e for e in s[start:end]]
@@ -691,7 +693,7 @@ class EventList(Resource):
             event.add_observable(observables)
 
         event.set_new()
-        print(event.status.name)
+        print(event)
 
         return {'message': 'Successfully created the event.'}
 

@@ -638,7 +638,7 @@ class Event(BaseDocument):
     tlp = Integer()
     severity = Integer()
     tags = Keyword()
-    event_observables = Object()
+    event_observables = Nested(Observable)
     status = Object()
     signature = Keyword()
     dismissed = Boolean()
