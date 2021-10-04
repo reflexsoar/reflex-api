@@ -720,14 +720,20 @@ class EventList(Resource):
         if observables:
             event.add_observable(observables)
 
+        # Check if there are any event rules for the alarm with this title
         event_rule = EventRule.get_by_title(title=event.title)
         if event_rule:
-            if event.check_event_rule_signature(event_rule.rule_signature):
-                print("SAME SAME!")
-            else:
-                print("NOT SAME")
 
-        event.set_new()
+            # If the event matches the event rules criteria perform the rule actions
+            if event.check_event_rule_signature(event_rule.rule_signature):
+
+                # If the event rule says to dismiss the event
+                if event_rule.dismiss:
+                    event.set_dismissed()
+            else:
+                event.set_new()
+
+        
         print(event)
 
         return {'message': 'Successfully created the event.'}

@@ -678,6 +678,14 @@ class Event(BaseDocument):
         self.status = EventStatus.get_by_name(name='New')
         self.save()
 
+    def set_dismissed(self):
+        self.status = EventStatus.get_by_name(name='Dismissed')
+        self.save()
+
+    def set_closed(self):
+        self.status = EventStatus.get_by_name(name='Closed')
+        self.save()
+
     def set_case(self, uuid):
         self.case = uuid
         self.save()
