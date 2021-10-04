@@ -618,7 +618,6 @@ class EventList(Resource):
 
         events = []
         total_events = 0
-        page_size = args['page_size']
 
         search_filter = {}
         for arg in args:
@@ -627,7 +626,10 @@ class EventList(Resource):
                     if isinstance(args[arg], list):
                         if arg == 'observables':
                             if len(args[arg]) > 0:
-                                search_filter['event_observables.value__keyword'] = args[arg]
+                                search_filter['event_observables.value'] = {"value": args[arg], "type":"terms"}
+                        elif arg == 'status':
+                            if len(args[arg]) > 0 and '' not in args[arg]:
+                                search_filter['status.name__keyword'] = {"value": args[arg], "type":"terms"}
                         else:
                             if len(args[arg]) > 0 and '' not in args[arg]:
                                 search_filter[arg] = args[arg]
@@ -649,7 +651,8 @@ class EventList(Resource):
             
             if len(search_filter) > 0:
                 for a in search_filter:
-                    s = s.filter('terms', **{a: search_filter[a]})
+                    print(a, search_filter[a]["type"], search_filter[a]["value"])
+                    s = s.filter(search_filter[a]["type"], **{a: search_filter[a]["value"]})
                 total_events = s.count()
                 events = [e for e in s[start:end]]
             else:
@@ -663,7 +666,6 @@ class EventList(Resource):
 
         response = {
             'events': events,
-            'test':'OKAY',
             'pagination': {
                 'total_results': total_events,
                 'pages': pages,
@@ -689,6 +691,7 @@ class EventList(Resource):
             event.add_observable(observables)
 
         event.set_new()
+        print(event.status.name)
 
         return {'message': 'Successfully created the event.'}
 
@@ -825,7 +828,7 @@ class CaseStatusList(Resource):
             case_status = CaseStatus(**api2.payload)
             case_status.save()
         else:
-            ns_case_status.abort(409, 'Case Status already exists.')
+            ns_case_status_v2.abort(409, 'Case Status already exists.')
         return {'message': 'Successfully created the Case Status.'}
 
 

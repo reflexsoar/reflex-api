@@ -605,6 +605,28 @@ class Observable(InnerDoc):
         return hash(('data_type', self.data_type, 'value', self.value))
 
 
+class EventStatus(BaseDocument):
+
+    name = Keyword()
+    description = Text()
+    closed = Boolean()
+
+    class Index():
+        name = 'reflex-event-statuses'
+
+    @classmethod
+    def get_by_name(self, name):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search().query('term', name=name).execute()
+        if response:
+            status = response[0]
+            return status
+        return response
+
+
 class Event(BaseDocument):
 
     uuid = Keyword()
@@ -616,7 +638,7 @@ class Event(BaseDocument):
     tlp = Integer()
     severity = Integer()
     tags = Keyword()
-    event_observables = Nested(Observable)
+    event_observables = Object()
     status = Object()
     signature = Keyword()
     dismissed = Boolean()
@@ -784,28 +806,6 @@ class EventRule(BaseDocument):
         self.observables = [dict(t) for t in {tuple(d.items()) for d in obs}]
 
         return super().save(**kwargs)
-
-
-class EventStatus(BaseDocument):
-
-    name = Keyword()
-    description = Text()
-    closed = Boolean()
-
-    class Index():
-        name = 'reflex-event-statuses'
-
-    @classmethod
-    def get_by_name(self, name):
-        '''
-        Fetches a document by the name field
-        Uses a term search on a keyword field for EXACT matching
-        '''
-        response = self.search().query('term', name=name).execute()
-        if response:
-            status = response[0]
-            return status
-        return response
 
 
 class CaseHistory(BaseDocument):
