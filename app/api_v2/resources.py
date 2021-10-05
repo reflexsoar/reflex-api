@@ -626,7 +626,7 @@ class EventList(Resource):
 
         search_filter = {}
         for arg in args:
-            if arg in ['status','severity','title','observables']:
+            if arg in ['status','severity','title','observables','tags']:
                 if args[arg] != '' and args[arg] is not None:
                     if isinstance(args[arg], list):
                         if arg == 'observables':
@@ -638,6 +638,12 @@ class EventList(Resource):
                         elif arg == 'severity':
                             if len(args[arg]) > 0 and '' not in args[arg]:
                                 search_filter['severity'] = {"value": args[arg], "type":"terms"}
+                        elif arg == 'tags':
+                            if len(args[arg]) > 0 and '' not in args[arg]:
+                                search_filter['tags'] = {"value": args[arg], "type":"terms"}
+                        elif arg == 'title':
+                            if len(args[arg]) > 0 and '' not in args[arg]:
+                                search_filter['title'] = {"value": args[arg], "type":"terms"}
                         else:
                             if len(args[arg]) > 0 and '' not in args[arg]:
                                 search_filter[arg] = args[arg]
