@@ -1,4 +1,5 @@
 import base64
+import math
 import datetime
 import operator
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
@@ -645,16 +646,21 @@ class EventList(Resource):
 
         sort_by = { args['sort_by']: {'order': 'desc'} }
 
+        s = Event.search()
+        s = s.sort(sort_by)
+
         if 'signature' in args and args['signature']:
-            events = [e for e in Event.get_by_signature(
-                signature=args['signature'])]
-            total_events = len(events)
+            s = s.filter('term', **{'signature': args['signature']})
+            total_events = s.count()
+            events = [e for e in s[start:end]]
+
         elif 'case_uuid' in args and args['case_uuid']:
-            events = [e for e in Event.get_by_case(case=args['case_uuid'])]
-            total_events = len(events)
+            s = s.filter('match', **{'case_uuid': args['case_uuid']})
+            total_events = s.count()
+            events = [e for e in s[start:end]]
         else:
-            s = Event.search()
-            s = s.sort(sort_by)
+            #s = Event.search()
+            #s = s.sort(sort_by)
             
             if len(search_filter) > 0:
                 for a in search_filter:
@@ -666,8 +672,10 @@ class EventList(Resource):
                 total_events = s.count()
                 events = [e for e in s[start:end]]
 
+        print(total_events)
+
         if args['page_size'] < total_events:
-            pages = total_events % args['page_size']
+            pages = math.ceil(float(total_events / args['page_size']))
         else:
             pages = 0
 
