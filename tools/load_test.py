@@ -50,10 +50,10 @@ def case_templates():
 
 def random_title_description():
   titles = [
-    #{'User added to local admins': 'Someone added a normal user to local admins'},
+    {'User added to local admins': 'Someone added a normal user to local admins'},
     {'Suspicious DNS hit': 'A machine made a request for a suspicious DNS record'},
-    #{'Local account discovery': 'A machine exhibited enumeration behavior'},
-    #{'CVE-2021-40444': 'Remote code execution via malicious document in word'}
+    {'Local account discovery': 'A machine exhibited enumeration behavior'},
+    {'CVE-2021-40444': 'Remote code execution via malicious document in word'}
   ]
 
   return titles[random.randint(0, len(titles)-1)]
@@ -63,13 +63,13 @@ def random_severity():
 
 def random_host_name():
   names = [
-    #'thor',
-    #'sundial',
-    #'hunter',
-    #'bigrig',
-    #'bigbertha',
+    'thor',
+    'sundial',
+    'hunter',
+    'bigrig',
+    'bigbertha',
     'bfg4000',
-    #'brian-pc'
+    'brian-pc'
   ]
 
   return names[random.randint(0, len(names)-1)]
@@ -77,17 +77,17 @@ def random_host_name():
 def random_username():
   users = [
     'brian',
-    #'joe',
-    #'jonathan',
-    #'dave',
-    #'molly',
-    #'stevie',
-    #'justin',
-    #'josh',
-    #'adam',
-    #'matthew',
-    #'administrator',
-    #'system'
+    'joe',
+    'jonathan',
+    'dave',
+    'molly',
+    'stevie',
+    'justin',
+    'josh',
+    'adam',
+    'matthew',
+    'administrator',
+    'system'
   ]
 
   return users[random.randint(0, len(users)-1)]
@@ -162,7 +162,7 @@ def random_event():
 
 
 events = []
-for i in range(0,1):
+for i in range(0,10):
   headers = {
     'Content-Type': 'application/json'
   }
@@ -171,10 +171,10 @@ for i in range(0,1):
                                  
   r = requests.post('http://localhost/api/v2.0/event', data=json.dumps(event),
       headers=headers, verify=False)
-  #if i % 2 == 0 :
-  #  print("SEND AGAIN!")
-  #  event['reference'] = reference()
-  #  r = requests.post('http://localhost/api/v2.0/event', data=json.dumps(event),
-  #    headers=headers, verify=False)
+  if i % 2 == 0 :
+    print("SEND AGAIN!")
+    event['reference'] = reference()
+    r = requests.post('http://localhost/api/v2.0/event', data=json.dumps(event),
+      headers=headers, verify=False)
 #print("Sending {} events...".format(len(events)))
 #bulk(events)

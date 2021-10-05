@@ -679,7 +679,6 @@ class Event(BaseDocument):
                             observable['tags'].append(f'list: {l.name}')
                             self.tags.append(f'list: {l.name}')
 
-            print(content)
             [self.event_observables.append(EventObservable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'])) for o in content]
         else:
             o = content
