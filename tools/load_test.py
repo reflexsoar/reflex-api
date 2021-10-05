@@ -76,8 +76,8 @@ def random_host_name():
 
 def random_username():
   users = [
-    #'brian',
-    'joe',
+    'brian',
+    #'joe',
     #'jonathan',
     #'dave',
     #'molly',

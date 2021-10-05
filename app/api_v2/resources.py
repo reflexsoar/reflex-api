@@ -2284,7 +2284,7 @@ class ThreatListList(Resource):
 
         '''
 
-        if api2.payload['list_type'] not in ['values', 'pattern']:
+        if api2.payload['list_type'] not in ['values', 'patterns']:
             ns_list_v2.abort(400, "Invalid list type.")
 
         if 'values' in api2.payload:
