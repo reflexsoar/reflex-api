@@ -712,6 +712,8 @@ class EventList(Resource):
         observables = None
         _tags = []
 
+        # If the event has an observables pop them off the request payload
+        # so that the Event can be generated using the remaining dictionary values
         if 'observables' in api2.payload:
             observables = api2.payload.pop('observables')
 
@@ -726,15 +728,11 @@ class EventList(Resource):
 
             # If the event matches the event rules criteria perform the rule actions
             if event.check_event_rule_signature(event_rule.rule_signature):
-
                 # If the event rule says to dismiss the event
                 if event_rule.dismiss:
                     event.set_dismissed()
             else:
                 event.set_new()
-
-        
-        print(event)
 
         return {'message': 'Successfully created the event.'}
 

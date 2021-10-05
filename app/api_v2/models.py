@@ -1,5 +1,6 @@
 import ssl
 import json
+import re
 import jwt
 import uuid
 import datetime
@@ -659,10 +660,40 @@ class Event(BaseDocument):
         self.save
 
     def add_observable(self, content):
+        '''
+        Adds an observable to the event and also checks it
+        against threatlists that are defined in the system
+        '''
+
         if isinstance(content, list):
+            for observable in content:
+
+                hit_lists = [] # Define an empty set of matching lists
+
+                # TODO: Move this to a function to reduce calling it twice
+                threat_lists = ThreatList.get_by_data_type(data_type=observable['data_type'])
+                if len(threat_lists) >= 1:
+                    for l in threat_lists:
+                        hits = l.check_value(observable['value'])
+                        if hits > 0:
+                            observable['tags'].append(f'list: {l.name}')
+                            self.tags.append(f'list: {l.name}')
+
+            print(content)
             [self.event_observables.append(EventObservable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'])) for o in content]
         else:
             o = content
+            hit_lists = [] # Define an empty set of matching lists
+
+            # TODO: Move this to a function to reduce calling it twice
+            threat_lists = ThreatList.get_by_data_type(data_type=o['data_type'])
+            if len(threat_lists) >= 1:
+                for l in threat_lists:
+                    hits = l.check_value(o['value'])
+                    if hits > 0:
+                        o['tags'].append(f'list: {l.name}')
+                        self.tags.append(f'list: {l.name}')
+
             self.event_observables.append(EventObservable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp']))
         self.save()
 
@@ -1415,6 +1446,20 @@ class ThreatList(BaseDocument):
     def data_type(self):
         return DataType.get_by_uuid(uuid=self.data_type_uuid)
 
+    def check_value(self, value):
+        '''
+        Checks to see if a value matches a value list or a regular expression
+        based list and returns the number of hits on that list'
+        '''
+        hits = 0
+
+        if self.list_type == 'values':
+            hits = len([v for v in self.values if v.lower() == value.lower()])
+        elif self.list_type == 'patterns':
+            hits = len([v for v in self.values if re.match(v, value) != None])
+
+        return hits
+
     @classmethod
     def get_by_name(self, name):
         '''
@@ -1426,6 +1471,19 @@ class ThreatList(BaseDocument):
             user = response[0]
             return user
         return response
+
+    @classmethod
+    def get_by_data_type(self, data_type):
+        '''
+        Fetches the threat list by the data_type
+        it should be associated with
+        '''
+        dt = DataType.get_by_name(name=data_type)
+        response = self.search().query('term', data_type_uuid=dt.uuid).execute()
+        if response:
+            return [r for r in response]
+        else:
+            return []
 
 
 class Settings(BaseDocument):
