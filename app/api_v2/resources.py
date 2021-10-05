@@ -673,6 +673,7 @@ class EventList(Resource):
                 events = [e for e in s[start:end]]
 
         print(total_events)
+        print(math.ceil(float(total_events / args['page_size'])))
 
         if args['page_size'] < total_events:
             pages = math.ceil(float(total_events / args['page_size']))
