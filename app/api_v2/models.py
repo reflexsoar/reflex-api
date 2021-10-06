@@ -675,7 +675,7 @@ class Event(BaseDocument):
                 if len(threat_lists) >= 1:
                     for l in threat_lists:
                         hits = l.check_value(observable['value'])
-                        if hits > 0:
+                        if hits > 0 and l.tag_on_match:
                             observable['tags'].append(f'list: {l.name}')
                             self.tags.append(f'list: {l.name}')
 
@@ -689,7 +689,7 @@ class Event(BaseDocument):
             if len(threat_lists) >= 1:
                 for l in threat_lists:
                     hits = l.check_value(o['value'])
-                    if hits > 0:
+                    if hits > 0 and l.tag_on_match:
                         o['tags'].append(f'list: {l.name}')
                         self.tags.append(f'list: {l.name}')
 

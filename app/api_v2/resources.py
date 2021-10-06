@@ -666,29 +666,34 @@ class EventList(Resource):
         if 'observables' in api2.payload:
             observables = api2.payload.pop('observables')
 
-        event = Event(**api2.payload)
+        event = Event.get_by_reference(api2.payload['reference'])
 
-        if observables:
-            event.add_observable(observables)
+        if not event:
+            event = Event(**api2.payload)
 
-        # Check if there are any event rules for the alarm with this title
-        event_rules = EventRule.get_by_title(title=event.title)
-        if event_rules:
+            if observables:
+                event.add_observable(observables)
 
-            matched = None            
-            for event_rule in event_rules:
+            # Check if there are any event rules for the alarm with this title
+            event_rules = EventRule.get_by_title(title=event.title)
+            if event_rules:
 
-                # If the event matches the event rules criteria perform the rule actions
-                if event.check_event_rule_signature(event_rule.rule_signature):
-                    # TODO: Add logging for when this fails
-                    matched = event_rule.process(event)
+                matched = None            
+                for event_rule in event_rules:
 
-            if not matched:
+                    # If the event matches the event rules criteria perform the rule actions
+                    if event.check_event_rule_signature(event_rule.rule_signature):
+                        # TODO: Add logging for when this fails
+                        matched = event_rule.process(event)
+
+                if not matched:
+                    event.set_new()
+            else:
                 event.set_new()
-        else:
-            event.set_new()
 
-        return {'message': 'Successfully created the event.'}
+            return {'message': 'Successfully created the event.'}
+        else:
+            return {'message': 'Event already exists'}, 409
 
 
 @ns_event_v2.route('/_bulk')
