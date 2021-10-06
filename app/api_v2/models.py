@@ -668,8 +668,6 @@ class Event(BaseDocument):
         if isinstance(content, list):
             for observable in content:
 
-                hit_lists = [] # Define an empty set of matching lists
-
                 # TODO: Move this to a function to reduce calling it twice
                 threat_lists = ThreatList.get_by_data_type(data_type=observable['data_type'])
                 if len(threat_lists) >= 1:
@@ -682,7 +680,6 @@ class Event(BaseDocument):
             [self.event_observables.append(EventObservable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'])) for o in content]
         else:
             o = content
-            hit_lists = [] # Define an empty set of matching lists
 
             # TODO: Move this to a function to reduce calling it twice
             threat_lists = ThreatList.get_by_data_type(data_type=o['data_type'])
