@@ -695,9 +695,9 @@ class EventList(Resource):
 class CreateBulkEvents(Resource):
 
     @api2.doc(security="Bearer")
+    @api2.expect(mod_event_create_bulk)
     @api2.response('200', 'Sucessfully created events.')
-    @api2.response('207', 'Multi-Status')
-    @api2.marshal_with(mod_event_create_bulk)
+    @api2.response('207', 'Multi-Status')    
     @token_required
     @user_has('add_event')
     def post(self, current_user):
