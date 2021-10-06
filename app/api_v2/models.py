@@ -848,6 +848,23 @@ class EventRule(BaseDocument):
         hasher.update(str(obs).encode())
         return hasher.hexdigest()
 
+    def process(self, event) -> bool:
+        """
+        Process the event based on the settings in the rule
+        """
+        # Check if the should be expired, disable the rule if it expired
+        if self.expire and self.expire_at < datetime.datetime.utcnow():
+            self.active = False
+            self.save()
+            return False
+            
+        else:
+            if self.dismiss:
+                event.set_dismissed()
+                return True
+
+        return False
+
     def save(self, **kwargs):
         '''
         Deduplicate observables
@@ -865,13 +882,22 @@ class EventRule(BaseDocument):
     def get_by_title(self, title):
         """
         Returns an event rule by its event_signature (event title)
+        By default only returns active rules
         """
-        response = self.search().query('term', event_signature=title).execute()
-        if len(response) >= 1:
-            return [d for d in response][0]
-        else:
-            return response
 
+        query = self.search()
+        query = query.filter('term', event_signature=title)
+        
+        response = query.execute()
+        if len(response) >= 1:
+            rule = [r for r in response if hasattr(r, 'active') and r.active]
+        else:
+            if hasattr(response, 'active') and response.active:
+                rule = [response]
+            else:
+                rule = None
+
+        return rule
 
 class CaseHistory(BaseDocument):
     ''' 

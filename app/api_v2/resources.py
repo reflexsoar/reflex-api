@@ -89,69 +89,6 @@ pager_parser.add_argument('page_size', location='args',
 pager_parser.add_argument('page', location='args',
                           required=False, type=int, default=1)
 
-'''
-def create_observables(observables):
-    _observables = []
-    _tags = []
-    for o in observables:
-        if 'tags' in o:
-            tags = o.pop('tags')
-            _tags = parse_tags(tags)
-
-        if len(_tags) > 0:
-            o['tags'] = _tags        
-
-        observable = Observable.get(current_app.elasticsearch, key_field='value', key_value=o['value'])
-        if observable:
-            _observables += [observable.uuid]
-        else:
-            observable = Observable(**o)
-            current_app.elasticsearch.add([observable])
-            _observables += [observable.uuid]
-
-        # TODO: Add threat list matching back in!
-
-         observable_type = DataType.query.filter_by(name=o['dataType'], organization_uuid=organization_uuid).first()
-        if observable_type:
-            intel_lists = List.query.filter_by(organization_uuid=organization_uuid, tag_on_match=True, data_type_uuid=observable_type.uuid).all()
-
-            o['dataType'] = observable_type
-            observable = Observable(organization_uuid=organization_uuid, **o)
-            observable.create()
-            _observables += [observable]
-
-            if len(_tags) > 0:
-                observable.tags += _tags
-                observable.save()
-
-            # Intel list matching, if the value is on a list
-            # put the list name in an array so we can tag the observable
-            list_matches = []
-            for l in intel_lists:
-                hits = 0
-                if l.list_type == 'values':
-                    hits = len([v for v in l.values if v.value.lower() == o['value'].lower()])
-                if l.list_type == 'patterns':
-                    hits = len([v for v in l.values if re.match(v.value, o['value']) != None])
-                if hits > 0:
-                    list_matches.append(l.name.replace(' ','-').lower())
-
-            # Process the tags based on the matched intel lists
-            if len(list_matches) > 0:
-                list_tags = []
-                for m in list_matches:
-                    tag = Tag.query.filter_by(organization_uuid=organization_uuid, name='list:%s' % m).first()
-                    if tag:
-                        list_tags.append(tag)
-                    else:
-                        tag = Tag(organization_uuid=organization_uuid, **{'name':'list:%s' % m, 'color': '#ffffff'})
-                        list_tags.append(tag)
-                observable.tags += list_tags
-                observable.save()
-
-    return _observables       
-'''
-
 
 def save_tags(tags):
     '''
@@ -735,18 +672,101 @@ class EventList(Resource):
             event.add_observable(observables)
 
         # Check if there are any event rules for the alarm with this title
-        event_rule = EventRule.get_by_title(title=event.title)
-        if event_rule:
+        event_rules = EventRule.get_by_title(title=event.title)
+        if event_rules:
 
-            # If the event matches the event rules criteria perform the rule actions
-            if event.check_event_rule_signature(event_rule.rule_signature):
-                # If the event rule says to dismiss the event
-                if event_rule.dismiss:
-                    event.set_dismissed()
-            else:
+            matched = None            
+            for event_rule in event_rules:
+
+                # If the event matches the event rules criteria perform the rule actions
+                if event.check_event_rule_signature(event_rule.rule_signature):
+                    # TODO: Add logging for when this fails
+                    matched = event_rule.process(event)
+
+            if not matched:
                 event.set_new()
+        else:
+            event.set_new()
 
         return {'message': 'Successfully created the event.'}
+
+
+@ns_event_v2.route('/_bulk')
+class CreateBulkEvents(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.response('200', 'Sucessfully created events.')
+    @api2.response('207', 'Multi-Status')
+    @api2.marshal_with(mod_event_create_bulk)
+    @token_required
+    @user_has('add_event')
+    def post(self, current_user):
+        '''
+        Creates Events in bulk 
+        TODO: Add multi-processing to increase throughput or perform in a background task
+        '''
+        response = {
+            'results': [],
+            'success': True
+        }
+
+        # Start clocking the bulk process
+        start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
+
+        events = api2.payload['events']
+        for item in events:
+
+            event = Event.get_by_reference(item['reference'])
+
+            if not event:
+
+                observables = None
+
+                # Start clocking event creation
+                start_event_process_dt = datetime.datetime.utcnow().timestamp()
+
+                if 'observables' in item:
+                    observables = item.pop('observables')
+
+                event = Event(**item)
+
+                if observables:
+                    event.add_observable(observables)
+
+                # Check if there are any event rules for the alarm with this title
+                event_rules = EventRule.get_by_title(title=event.title)
+                if event_rules:
+
+                    matched = None                    
+                    for event_rule in event_rules:
+
+                        # If the event matches the event rules criteria perform the rule actions
+                        if event.check_event_rule_signature(event_rule.rule_signature):
+                            # TODO: Add logging for when this fails
+                            matched = event_rule.process(event)
+
+                    if not matched:
+                        event.set_new()
+                else:
+                    event.set_new()
+
+                # Stop clocking the event and compute the time the event took to create
+                end_event_process_dt = datetime.datetime.utcnow().timestamp()
+                event_process_time = end_event_process_dt - start_event_process_dt
+
+                response['results'].append(
+                    {'reference': item['reference'], 'status': 200, 'message': 'Event successfully created.', 'process_time': event_process_time})
+            else:
+                response['results'].append(
+                    {'reference': item['reference'], 'status': 409, 'message': 'Event already exists.', 'process_time': '0'})
+                response['success'] = False
+
+        # Stop clocking the bulk process and compute the time taken
+        end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
+        total_process_time = end_bulk_process_dt - start_bulk_process_dt
+        response['process_time'] = total_process_time
+
+        return response, 207
 
 
 @ns_event_v2.route("/<uuid>")
@@ -819,6 +839,7 @@ class EventRuleList(Resource):
 
         event_rule = EventRule(**api2.payload)
         event_rule.hash_observables()
+        event_rule.active = True
         event_rule.save()
 
         return {'message': 'Successfully created event rule.', 'uuid': str(event_rule.uuid)}
