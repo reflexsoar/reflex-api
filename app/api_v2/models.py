@@ -604,10 +604,9 @@ class Observable(BaseDocument):
 
     def toggle_ioc(self):
         if self.ioc:
-            self.ioc = False
+            self.update(ioc=False, refresh=True)
         else:
-            self.ioc = True
-        self.save()
+            self.update(ioc=True, refresh=True)
 
     def add_event_uuid(self, uuid):
         '''
@@ -684,7 +683,7 @@ class Observable(BaseDocument):
         Fetches the observable based on the case and the value
         '''
         s = self.search()
-        s = s.filter('term', value=value)
+        s = s.filter('match', value=value)
         s = s.filter('match', case=uuid)
         response = s.execute()
         if response:
@@ -1176,13 +1175,13 @@ class Case(BaseDocument):
             for o in observable:
                 _observable = Observable.get_by_case_and_value(self.uuid, o['value'])
                 if not _observable:
-                    _observable = Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], case=case_uuid)
+                    _observable = Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], safe=o['safe'], case=case_uuid)
                     _observable.save()
         else:
             o = observable
             _observable = Observable.get_by_case_uuid(self.uuid, o['value'])
             if not _observable:
-                _observable = Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], case=case_uuid)
+                _observable = Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], safe=o['safe'], case=case_uuid)
                 _observable.save()
 
     def get_observable_by_value(self, value):

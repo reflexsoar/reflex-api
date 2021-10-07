@@ -1417,13 +1417,12 @@ class CaseObservable(Resource):
         observable = Observable.get_by_case_and_value(uuid, value)
 
         if observable:
-            for k in api2.payload:
-                setattr(observable, k, api2.payload[k])
-            observable.save()
-
+            
             # Can not flag an observable as safe if it is also flagged as an ioc
             if observable.ioc and (observable.ioc == observable.safe):
                 ns_case_v2.abort(400, 'An observable can not be safe if it is an ioc.')
+
+            observable.update(**api2.payload, refresh=True)
 
             return observable
         else:
@@ -1909,7 +1908,7 @@ class TagList(Resource):
             tag.create()
             return {'message': 'Successfully created the tag.'}
         else:
-            ns_tag.abort(409, 'Tag already exists.')
+            ns_tag_v2.abort(409, 'Tag already exists.')
 
 
 @ns_input_v2.route("")
