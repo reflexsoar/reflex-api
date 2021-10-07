@@ -1471,7 +1471,6 @@ class RelateCases(Resource):
     def get(self, current_user, uuid):
         ''' Returns a list of related cases '''
         case = Case.get_by_uuid(uuid=uuid)
-        _cases = []
         if case:
             if case.related_cases:
                 return [c for c in Case.get_related_cases(uuid=uuid)]

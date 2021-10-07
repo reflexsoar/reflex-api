@@ -1027,18 +1027,6 @@ class EventRule(BaseDocument):
 
         return False
 
-    def save(self, **kwargs):
-        '''
-        Deduplicate observables
-        '''
-        obs = []
-        for observable in self.observables:
-            obs.append({'data_type': observable.data_type.lower(),
-                        'value': observable.value.lower()})
-        # Deduplicate the observables
-        self.observables = [dict(t) for t in {tuple(d.items()) for d in obs}]
-
-        return super().save(**kwargs)
 
     @classmethod
     def get_by_title(self, title):
