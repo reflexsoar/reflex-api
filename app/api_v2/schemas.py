@@ -719,7 +719,7 @@ mod_case_list = Model('CaseList', {
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'status': fields.Nested(mod_case_status),
-    #'event_count': ValueCount(attribute='events'),
+    'event_count': ValueCount(attribute='events'),
     #'open_tasks': OpenTaskCount(attribute='tasks'),
     #'total_tasks': ValueCount(attribute='tasks'),
     'created_at': ISO8601(attribute='created_at'),

@@ -1137,37 +1137,6 @@ class CaseList(Resource):
             if settings.assign_case_on_create:
                 owner_uuid = current_user.uuid
 
-        """ TODO: MIGRATE THIS
-        if 'events' in api.payload:
-            api.payload['observables'] = []
-            events = api.payload.pop('events')
-            api.payload['events'] = []
-            observable_collection = {}
-
-            # Pull all the observables out of the events
-            # so they can be added to the case
-            for uuid in events:
-                event = Event.query.filter_by(uuid=uuid, organization_uuid=current_user.organization.uuid).first()
-                if event:
-                    api.payload['events'].append(event)
-                if event.observables:
-                    for observable in event.observables:
-                        if observable.value in observable_collection:
-                            observable_collection[observable.value].append(
-                                observable)
-                        else:
-                            observable_collection[observable.value] = [
-                                observable]
-
-            # Sort and pull out the most recent observable in the group
-            # of observables
-            for observable in observable_collection:
-                observable_collection[observable] = sorted(
-                    observable_collection[observable], key=lambda x: x.created_at, reverse=True)
-                api.payload['observables'].append(
-                    observable_collection[observable][0])
-        """
-
         case = Case(**api2.payload)
 
         # Set the default status to New
@@ -1183,7 +1152,6 @@ class CaseList(Resource):
                 case_observables += Event.get_by_uuid(event).observables
 
         # Deduplicate case observables
-        #print([type(o) for o in case_observables])
         case_observables = list(set([Observable(
             tags=o.tags, value=o.value, data_type=o.data_type, ioc=o.ioc, spotted=o.spotted, tlp=o.tlp, case=case.uuid) for o in case_observables]))
         case.observables = case_observables

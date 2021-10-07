@@ -802,7 +802,7 @@ class EventRule(BaseDocument):
     event_signature = Keyword()  # The title of the event that this was created from
     rule_signature = Keyword()  # A hash of the title + user customized observable values
     # The target case to merge this into if merge into case is selected
-    target_case = Keyword()
+    target_case_uuid = Keyword()
     observables = Nested(Observable)
     merge_into_case = Boolean()
     dismiss = Boolean()
@@ -859,6 +859,12 @@ class EventRule(BaseDocument):
             if self.dismiss:
                 event.set_dismissed()
                 return True
+            elif self.merge_into_case:
+                event.set_open()
+                event.set_case(self.target_case_uuid)
+                case = Case.get_by_uuid(self.target_case_uuid)
+                case.add_event(event)
+                return True                
 
         return False
 
@@ -1040,7 +1046,7 @@ class Case(BaseDocument):
     close_reason = Object()
     case_template = Object()
     files = Keyword()  # The UUIDs of case files
-    events = []
+    events = Keyword()
     #linked_observables = []
 
     class Index:
@@ -1129,6 +1135,18 @@ class Case(BaseDocument):
         task.save()
         self.add_history('Task **{}** added'.format(task.title))
         return task
+
+    def add_event(self, event):
+        '''
+        Adds an event or list of events to the case
+        '''
+        if isinstance(event, list):
+            self.events.append([e.uuid for e in event])
+        else:
+            self.events.append(event.uuid)
+        self.save()
+        return True
+        
 
 
 class CaseTask(BaseDocument):
