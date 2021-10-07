@@ -602,6 +602,13 @@ class ObservableTest(BaseDocument):
         self.case = uuid
         self.save()
 
+    def toggle_ioc(self):
+        if self.ioc:
+            self.ioc = False
+        else:
+            self.ioc = True
+        self.save()
+
     def add_event_uuid(self, uuid):
         '''
         Adds an event UUID to an observable for future lookup
@@ -669,7 +676,21 @@ class ObservableTest(BaseDocument):
         if response:
             return response
         else:
-            return []
+            return None
+
+    @classmethod
+    def get_by_case_and_value(self, uuid, value):
+        '''
+        Fetches the observable based on the case and the value
+        '''
+        s = self.search()
+        s = s.filter('term', value=value)
+        s = s.filter('match', case=uuid)
+        response = s.execute()
+        if response:
+            return response[0]
+        else:
+            return None
 
     def __eq__(self, other):
         return self.data_type==other.data_type and self.value==other.value

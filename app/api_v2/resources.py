@@ -1413,28 +1413,21 @@ class CaseObservable(Resource):
     @user_has('update_case')
     def put(self, uuid, value, current_user):
         ''' Updates a cases observable '''
-        case = Case.get_by_uuid(uuid=uuid)
-        if case:
 
-            observable = case.get_observable_by_value(value=value)
-            if observable:
+        observable = ObservableTest.get_by_case_and_value(uuid, value)
 
-                # Update all the attributes in the payload
-                for k in api2.payload:
-                    setattr(observable, k, api2.payload[k])
-                
-                # Can not flag an observable as safe if it is also flagged as an ioc
-                if observable.ioc and (observable.ioc == observable.safe):
-                    ns_case_v2.abort(400, 'An observable can not be safe if it is an ioc.')
+        if observable:
+            for k in api2.payload:
+                setattr(observable, k, api2.payload[k])
+            observable.save()
 
-                # Save the case
-                case.save()
-                return observable
-            else:
-                ns_case_v2.abort(404, 'Observable not found.')
+            # Can not flag an observable as safe if it is also flagged as an ioc
+            if observable.ioc and (observable.ioc == observable.safe):
+                ns_case_v2.abort(400, 'An observable can not be safe if it is an ioc.')
+
+            return observable
         else:
-            ns_case_v2.abort(404, 'Case not found.')
-        return
+            return ns_case_v2.abort(404, 'Observable not found.')
 
 
 @ns_case_v2.route("/<uuid>/add_observables/_bulk")
