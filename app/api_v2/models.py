@@ -586,7 +586,8 @@ class Observable(BaseDocument):
     safe = Boolean()
     tlp = Integer()
     events = Keyword() # A list of event UUIDs this Observable belongs to
-    cases = Keyword() # A list of cases this Observable belongs to
+    case = Keyword() # The case the observable belongs to
+    rule = Keyword() # The rule the Observable belongs to
 
     class Index():
         name = 'reflex-observables-test'
@@ -600,6 +601,10 @@ class Observable(BaseDocument):
 
     def set_case(self, uuid):
         self.case = uuid
+        self.save()
+
+    def set_rule(self, uuid):
+        self.rule = uuid
         self.save()
 
     def toggle_ioc(self):
@@ -910,7 +915,7 @@ class EventRule(BaseDocument):
     rule_signature = Keyword()  # A hash of the title + user customized observable values
     # The target case to merge this into if merge into case is selected
     target_case_uuid = Keyword()
-    observables = Nested(Observable)
+    #observables = Nested(Observable)
     merge_into_case = Boolean()
     dismiss = Boolean()
     expire = Boolean()  # If not set the rule will never expire, Default: True
@@ -920,10 +925,27 @@ class EventRule(BaseDocument):
     class Index:
         name = 'reflex-event-rules'
 
-    def hash_observables(self):
+    def add_observable(self, content):
+        '''
+        Adds an observable to the event and also checks it
+        against threatlists that are defined in the system
+        '''
+
+        added_observables = []
+        for o in content:
+
+            observable = Observable(**o)
+
+            observable.set_rule(self.uuid)
+            observable.save()
+            added_observables.append(observable)
+
+        return added_observables
+
+    def hash_observables(self, observables=[]):
         hasher = hashlib.md5()
         obs = []
-        for observable in self.observables:
+        for observable in observables:
             obs.append({'data_type': observable.data_type.lower(),
                         'value': observable.value.lower()})
         obs = [dict(t) for t in {tuple(d.items())
@@ -1162,7 +1184,10 @@ class Case(BaseDocument):
     @property
     def observables(self):
         observables = Observable.get_by_case_uuid(self.uuid)
-        return [r for r in observables]
+        if observables:
+            return [r for r in observables]
+        else:
+            return []
 
     @observables.setter
     def observables(self, value):

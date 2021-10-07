@@ -847,8 +847,20 @@ class EventRuleList(Resource):
             else:
                 ns_event_rule_v2.abort(400, 'Missing expire_days field.')
 
+        
+        observables = None
+        added_observables = []
+
+        if 'observables' in api2.payload:
+            observables = api2.payload.pop('observables')
+
         event_rule = EventRule(**api2.payload)
-        event_rule.hash_observables()
+        event_rule.save()
+
+        if observables:
+            added_observables = event_rule.add_observable(observables)
+
+        event_rule.hash_observables(observables=added_observables)
         event_rule.active = True
         event_rule.save()
 
@@ -1383,7 +1395,7 @@ class CaseObservables(Resource):
         if observables:
             return {'observables': observables, 'pagination': {}}
         else:
-            ns_case_v2.abort(404, 'Observables not found.')
+            return {'observables': [], 'pagination': {}}
 
 @ns_case_v2.route("/<uuid>/observables/<value>")
 class CaseObservable(Resource):
@@ -1417,7 +1429,7 @@ class CaseObservable(Resource):
         observable = Observable.get_by_case_and_value(uuid, value)
 
         if observable:
-            
+
             # Can not flag an observable as safe if it is also flagged as an ioc
             if observable.ioc and (observable.ioc == observable.safe):
                 ns_case_v2.abort(400, 'An observable can not be safe if it is an ioc.')
