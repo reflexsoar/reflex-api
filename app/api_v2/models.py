@@ -1229,6 +1229,7 @@ class Case(BaseDocument):
                 _observable = Observable.get_by_case_and_value(self.uuid, o['value'])
                 if not _observable:
                     _observable = Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], safe=o['safe'], case=case_uuid)
+                    _observable.check_threat_list()
                     _observable.enrich()
                     _observable.save()
                 print(_observable)
@@ -1237,6 +1238,7 @@ class Case(BaseDocument):
             _observable = Observable.get_by_case_uuid(self.uuid, o['value'])
             if not _observable:
                 _observable = Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], safe=o['safe'], case=case_uuid)
+                _observable.check_threat_list()
                 _observable.enrich()
                 _observable.save()
 
