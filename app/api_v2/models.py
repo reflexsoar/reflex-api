@@ -619,6 +619,7 @@ class ObservableTest(BaseDocument):
                 self.tags.append(tag)
         else:
             self.tags = [tag]
+        self.save()
 
     def check_threat_list(self):
         '''
@@ -627,9 +628,10 @@ class ObservableTest(BaseDocument):
         '''
         theat_lists = ThreatList.get_by_data_type(self.data_type)
         for l in theat_lists:
-            hits = l.check_value(self.value)
+            hits = l.check_value(self.value)           
             if hits > 0:
                 if l.tag_on_match:
+                    print("TAG!")
                     self.add_tag("list: {}".format(l.name))
 
 

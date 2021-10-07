@@ -670,6 +670,8 @@ class EventList(Resource):
             event = Event(**api2.payload)
             event.save()
 
+            added_observables = []
+
             if observables:
                 added_observables = event.add_observable(observables)
 
@@ -727,6 +729,7 @@ class CreateBulkEvents(Resource):
             if not event:
 
                 observables = None
+                added_observables = []
 
                 # Start clocking event creation
                 start_event_process_dt = datetime.datetime.utcnow().timestamp()
@@ -735,9 +738,12 @@ class CreateBulkEvents(Resource):
                     observables = item.pop('observables')
 
                 event = Event(**item)
+                event.save()
 
                 if observables:
-                    event.add_observable(observables)
+                    added_observables = event.add_observable(observables)
+
+                event.hash_event(observables=added_observables)
 
                 # Check if there are any event rules for the alarm with this title
                 event_rules = EventRule.get_by_title(title=event.title)
@@ -747,7 +753,7 @@ class CreateBulkEvents(Resource):
                     for event_rule in event_rules:
 
                         # If the event matches the event rules criteria perform the rule actions
-                        if event.check_event_rule_signature(event_rule.rule_signature):
+                        if event.check_event_rule_signature(event_rule.rule_signature, observables=added_observables):
                             # TODO: Add logging for when this fails
                             matched = event_rule.process(event)
 
