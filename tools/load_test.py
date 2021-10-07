@@ -152,6 +152,17 @@ def random_event():
           "tags": [
             "source-user", "corporate-user"
           ]
+        },
+        {
+          "value": "S-1-5-21-1004336348-1177238915-682023330-512",
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "sid",
+          "tags": [
+            "source-user", "corporate-user"
+          ]
         }
       ],
       "raw_log": "something something dark side"

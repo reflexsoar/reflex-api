@@ -297,7 +297,9 @@ def create_default_data_types():
         {'name': 'command', 'description': 'A command that was executed'},
         {'name': 'url', 'description': 'An address to a universal resource', 'regex': r'/(http|https)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/'},
         {'name': 'imphash', 'description': 'A hash of a binaries import table'},
-        {'name': 'process', 'description': 'A process that was launched on a machine', r'regex':'^([A-Z]?[:\\\/]).*(\.\w{3,})?$'}
+        {'name': 'process', 'description': 'A process that was launched on a machine', 'regex':r'^([A-Z]?[:\\\/]).*(\.\w{3,})?$'},
+        {'name': 'sid', 'description': 'A Microsoft Security Identifier', 'regex':r'^S(\-\d{1,10}){4,7}$'},
+        {'name': 'mac', 'description': 'The hardware address of a network adapter, MAC address', 'regex': r'([A-Za-z0-9]{2}\:?){6}'}
     ]
     for d in data_types:
         data_type = DataType(**d)
@@ -375,7 +377,7 @@ def initial_settings():
         'allow_comment_editing': False,
         'events_page_refresh': 60,
         'events_per_page': 10,
-        'data_types': ['ip','user','host','fqdn','sha1','md5','sha256','imphash','ssdeep','vthash','network','domain','url','mail']
+        'data_types': ['ip','user','host','fqdn','sha1','md5','sha256','imphash','ssdeep','vthash','network','domain','url','mail','sid','mac']
     }
 
     settings = Settings(**settings_content)

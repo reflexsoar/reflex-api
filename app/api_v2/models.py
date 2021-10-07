@@ -580,7 +580,7 @@ class Observable(BaseDocument):
     uuid = Text()
     tags = Keyword()
     data_type = Text()
-    value = Text()
+    value = Keyword()
     spotted = Boolean()
     ioc = Boolean()
     safe = Boolean()
@@ -612,6 +612,32 @@ class Observable(BaseDocument):
             self.update(ioc=False, refresh=True)
         else:
             self.update(ioc=True, refresh=True)
+
+
+    def enrich(self):
+        '''
+        Enriches the observable with some static information
+        based on industry known information
+        '''
+
+        # Well known SIDs for Microsoft Domains
+        ends_width = {
+            '502': 'krbtgt',
+            '512': 'Domain Admin',
+            '513': 'Domain Users',
+            '514': 'Domain Guests',
+            '515': 'Domain Computers',
+            '516': 'Domain Controllers',
+            '517': 'Cert Publishers',
+            '518': 'Schema Admins'
+        }
+
+        if self.data_type == 'sid':
+            for k in ends_width:
+                if self.value.endswith(k):
+                    self.add_tag(ends_width[k])
+
+        self.save()
 
     def add_event_uuid(self, uuid):
         '''
@@ -688,6 +714,9 @@ class Observable(BaseDocument):
         Fetches the observable based on the case and the value
         '''
         s = self.search()
+        #if any(c in value for c in ['-','@']):        
+        #    s = s.filter('term', value__keyword=value)
+        #else:
         s = s.filter('match', value=value)
         s = s.filter('match', case=uuid)
         response = s.execute()
@@ -803,6 +832,7 @@ class Event(BaseDocument):
 
             observable.add_event_uuid(self.uuid)
             observable.check_threat_list()
+            observable.enrich()
             observable.save()
             added_observables.append(observable)
 
@@ -1165,8 +1195,6 @@ class Case(BaseDocument):
     severity = Integer()
     owner = Object()
     tlp = Integer()
-    #case_observables = Nested(Observable)
-    # events
     tags = Keyword()
     status = Object()
     related_cases = Keyword()  # A list of UUIDs related to this case
@@ -1176,7 +1204,6 @@ class Case(BaseDocument):
     case_template = Object()
     files = Keyword()  # The UUIDs of case files
     events = Keyword()
-    #linked_observables = []
 
     class Index:
         name = 'reflex-cases'
@@ -1195,18 +1222,25 @@ class Case(BaseDocument):
         self.save
 
     def add_observables(self, observable, case_uuid=None):
+        '''
+        Adds an observable to the case by adding it to the observables index
+        and linking the case
+        '''
 
         if isinstance(observable, list):
             for o in observable:
                 _observable = Observable.get_by_case_and_value(self.uuid, o['value'])
                 if not _observable:
                     _observable = Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], safe=o['safe'], case=case_uuid)
+                    _observable.enrich()
                     _observable.save()
+                print(_observable)
         else:
             o = observable
             _observable = Observable.get_by_case_uuid(self.uuid, o['value'])
             if not _observable:
                 _observable = Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], safe=o['safe'], case=case_uuid)
+                _observable.enrich()
                 _observable.save()
 
     def get_observable_by_value(self, value):

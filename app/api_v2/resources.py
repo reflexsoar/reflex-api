@@ -1175,8 +1175,6 @@ class CaseList(Resource):
             tags=o.tags, value=o.value, data_type=o.data_type, ioc=o.ioc, spotted=o.spotted, tlp=o.tlp, case=case.uuid) for o in case_observables]))
         [o.save() for o in case_observables]
 
-        #case.observables = case_observables
-
         # If the user selected a case template, take the template items
         # and copy them over to the case
         if case_template:
@@ -1196,7 +1194,6 @@ class CaseList(Resource):
             # Set the default severity
             case.severity = case_template.severity
             case.tlp = case_template.tlp
-            # case.case_template = {k:case_template_uuid[k]
             case.save()
 
         case.save()
@@ -1389,13 +1386,13 @@ class CaseObservables(Resource):
     @user_has('view_cases')
     def get(self, uuid, current_user):
         ''' Returns the observables for a case'''
-        #case = Case.get_by_uuid(uuid=uuid)
         observables = Observable.get_by_case_uuid(uuid)
 
-        if observables:
-            return {'observables': observables, 'pagination': {}}
-        else:
-            return {'observables': [], 'pagination': {}}
+        if not observables:
+            observables = []
+
+        return {'observables': observables, 'pagination': {}}
+
 
 @ns_case_v2.route("/<uuid>/observables/<value>")
 class CaseObservable(Resource):
