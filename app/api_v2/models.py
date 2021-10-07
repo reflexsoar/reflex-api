@@ -590,6 +590,9 @@ class ObservableTest(BaseDocument):
 
     class Index():
         name = 'reflex-observables-test'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     def save(self, **kwargs):
         self.uuid = uuid.uuid4()
@@ -608,7 +611,6 @@ class ObservableTest(BaseDocument):
                 self.events.append(uuid)
         else:
             self.events = [uuid]
-        self.save()
 
     def add_tag(self, tag):
         '''
@@ -619,7 +621,6 @@ class ObservableTest(BaseDocument):
                 self.tags.append(tag)
         else:
             self.tags = [tag]
-        self.save()
 
     def check_threat_list(self):
         '''
@@ -633,19 +634,20 @@ class ObservableTest(BaseDocument):
                 if l.tag_on_match:
                     print("TAG!")
                     self.add_tag("list: {}".format(l.name))
+        self.save()
 
 
     @classmethod
     def get_by_value(self, value):
         '''
         Fetches a document by the value field
-        Uses a term search on a keyword field for EXACT matching
         '''
         response = self.search().query('term', value=value).execute()
         if response:
-            status = response[0]
-            return status
-        return response
+            if len(response) >=1:
+                return response[0]
+        else:
+            return None
 
     @classmethod
     def get_by_event_uuid(self, uuid):
@@ -653,6 +655,17 @@ class ObservableTest(BaseDocument):
         Fetches the observable based on the related event
         '''
         response = self.search().query('term', events=uuid).execute()
+        if response:
+            return response
+        else:
+            return []
+
+    @classmethod
+    def get_by_case_uuid(self, uuid):
+        '''
+        Fetches the observable based on the related case
+        '''
+        response = self.search().query('match', case=uuid).execute()
         if response:
             return response
         else:
@@ -744,7 +757,6 @@ class Event(BaseDocument):
     def observables(self):
         observables = ObservableTest.get_by_event_uuid(self.uuid)
         return [r for r in observables]
-        #return self.event_observables
 
     @observables.setter
     def observables(self, value):
@@ -759,52 +771,15 @@ class Event(BaseDocument):
 
         added_observables = []
         for o in content:
-            observable = ObservableTest.get_by_value(o['value'])
 
-            if not observable:
-                observable = ObservableTest(**o)
+            observable = ObservableTest(**o)
 
             observable.add_event_uuid(self.uuid)
             observable.check_threat_list()
+            observable.save()
             added_observables.append(observable)
 
         return added_observables
-
-        ''' POSSIBLY DEPRECATED CODE 
-        
-        if isinstance(content, list):
-            for observable in content:
-
-                # TODO: Move this to a function to reduce calling it twice
-                threat_lists = ThreatList.get_by_data_type(data_type=observable['data_type'])
-                if len(threat_lists) >= 1:
-                    for l in threat_lists:
-                        hits = l.check_value(observable['value'])
-                        if hits > 0 and l.tag_on_match:
-                            observable['tags'].append(f'list: {l.name}')
-                            self.tags.append(f'list: {l.name}')
-
-            [self.event_observables.append(EventObservable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'])) for o in content]
-        else:
-            o = content
-
-            # TODO: Move this to a function to reduce calling it twice
-            threat_lists = ThreatList.get_by_data_type(data_type=o['data_type'])
-            if len(threat_lists) >= 1:
-                for l in threat_lists:
-                    hits = l.check_value(o['value'])
-                    if hits > 0 and l.tag_on_match:
-                        o['tags'].append(f'list: {l.name}')
-                        self.tags.append(f'list: {l.name}')
-
-            self.event_observables.append(EventObservable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp']))
-        self.save()
-        '''
-
-    #def save(self, **kwargs):
-    #    self.uuid = uuid.uuid4()
-    #    self.hash_event()
-    #    return super().save(**kwargs)
 
     def set_open(self):
         self.status = EventStatus.get_by_name(name='Open')
@@ -1146,7 +1121,7 @@ class Case(BaseDocument):
     severity = Integer()
     owner = Object()
     tlp = Integer()
-    observables = Nested(Observable)
+    case_observables = Nested(Observable)
     # events
     tags = Keyword()
     status = Object()
@@ -1161,6 +1136,16 @@ class Case(BaseDocument):
 
     class Index:
         name = 'reflex-cases'
+
+    @property
+    def observables(self):
+        observables = ObservableTest.get_by_case_uuid(self.uuid)
+        return [r for r in observables]
+
+    @observables.setter
+    def observables(self, value):
+        self.case_observables = value
+        self.save
 
     def add_observables(self, observable, case_uuid=None):
 

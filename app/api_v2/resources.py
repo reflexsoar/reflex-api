@@ -656,8 +656,8 @@ class EventList(Resource):
     def post(self):
         ''' Creates a new event '''
 
-        observables = None
-        _tags = []
+        observables = []
+        added_observables = []
 
         # If the event has an observables pop them off the request payload
         # so that the Event can be generated using the remaining dictionary values
@@ -669,8 +669,6 @@ class EventList(Resource):
         if not event:
             event = Event(**api2.payload)
             event.save()
-
-            added_observables = []
 
             if observables:
                 added_observables = event.add_observable(observables)
@@ -728,7 +726,7 @@ class CreateBulkEvents(Resource):
 
             if not event:
 
-                observables = None
+                observables = []
                 added_observables = []
 
                 # Start clocking event creation
@@ -1138,7 +1136,6 @@ class CaseList(Resource):
         if 'case_template_uuid' in api2.payload:
             case_template = CaseTemplate.get_by_uuid(
                 uuid=api2.payload.pop('case_template_uuid'))
-            #api2.payload['case_template'] = case_template
 
         if 'owner_uuid' in api2.payload:
             owner_uuid = api2.payload.pop('owner_uuid')
@@ -1159,12 +1156,14 @@ class CaseList(Resource):
                 e.set_open()
                 e.set_case(uuid=case.uuid)
 
-                case_observables += Event.get_by_uuid(event).observables
+                case_observables += ObservableTest.get_by_event_uuid(event)
 
         # Deduplicate case observables
-        case_observables = list(set([Observable(
+        case_observables = list(set([ObservableTest(
             tags=o.tags, value=o.value, data_type=o.data_type, ioc=o.ioc, spotted=o.spotted, tlp=o.tlp, case=case.uuid) for o in case_observables]))
-        case.observables = case_observables
+        [o.save() for o in case_observables]
+
+        #case.observables = case_observables
 
         # If the user selected a case template, take the template items
         # and copy them over to the case
@@ -1378,12 +1377,13 @@ class CaseObservables(Resource):
     @user_has('view_cases')
     def get(self, uuid, current_user):
         ''' Returns the observables for a case'''
-        case = Case.get_by_uuid(uuid=uuid)
+        #case = Case.get_by_uuid(uuid=uuid)
+        observables = ObservableTest.get_by_case_uuid(uuid)
 
-        if case:
-            return {'observables': case.observables, 'pagination': {}}
+        if observables:
+            return {'observables': observables, 'pagination': {}}
         else:
-            ns_case_v2.abort(404, 'Case not found.')
+            ns_case_v2.abort(404, 'Observables not found.')
 
 @ns_case_v2.route("/<uuid>/observables/<value>")
 class CaseObservable(Resource):
