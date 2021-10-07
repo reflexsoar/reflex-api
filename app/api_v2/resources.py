@@ -12,6 +12,7 @@ from .models import (
     EventStatus,
     Observable,
     EventObservable,
+    ObservableTest,
     User,
     Role,
     Settings,
@@ -667,9 +668,12 @@ class EventList(Resource):
 
         if not event:
             event = Event(**api2.payload)
+            event.save()
 
             if observables:
-                event.add_observable(observables)
+                added_observables = event.add_observable(observables)
+
+            event.hash_event(observables=added_observables)
 
             # Check if there are any event rules for the alarm with this title
             event_rules = EventRule.get_by_title(title=event.title)
@@ -679,7 +683,7 @@ class EventList(Resource):
                 for event_rule in event_rules:
 
                     # If the event matches the event rules criteria perform the rule actions
-                    if event.check_event_rule_signature(event_rule.rule_signature):
+                    if event.check_event_rule_signature(event_rule.rule_signature, observables=added_observables):
                         # TODO: Add logging for when this fails
                         matched = event_rule.process(event)
 

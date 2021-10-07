@@ -575,6 +575,94 @@ class EventObservable(InnerDoc):
         return hash(('data_type', self.data_type, 'value', self.value))
 
 
+class ObservableTest(BaseDocument):
+
+    uuid = Text()
+    tags = Keyword()
+    data_type = Text()
+    value = Text()
+    spotted = Boolean()
+    ioc = Boolean()
+    safe = Boolean()
+    tlp = Integer()
+    events = Keyword() # A list of event UUIDs this Observable belongs to
+    cases = Keyword() # A list of cases this Observable belongs to
+
+    class Index():
+        name = 'reflex-observables-test'
+
+    def save(self, **kwargs):
+        self.uuid = uuid.uuid4()
+        return super().save(**kwargs)
+
+    def set_case(self, uuid):
+        self.case = uuid
+        self.save()
+
+    def add_event_uuid(self, uuid):
+        '''
+        Adds an event UUID to an observable for future lookup
+        '''
+        if self.events:
+            if uuid not in self.events:
+                self.events.append(uuid)
+        else:
+            self.events = [uuid]
+        self.save()
+
+    def add_tag(self, tag):
+        '''
+        Adds a tag to the observable
+        '''
+        if self.tags:
+            if tag not in self.tags:
+                self.tags.append(tag)
+        else:
+            self.tags = [tag]
+
+    def check_threat_list(self):
+        '''
+        Checks the value of the observable against all threat
+        lists for this type
+        '''
+        theat_lists = ThreatList.get_by_data_type(self.data_type)
+        for l in theat_lists:
+            hits = l.check_value(self.value)
+            if hits > 0:
+                if l.tag_on_match:
+                    self.add_tag("list: {}".format(l.name))
+
+
+    @classmethod
+    def get_by_value(self, value):
+        '''
+        Fetches a document by the value field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search().query('term', value=value).execute()
+        if response:
+            status = response[0]
+            return status
+        return response
+
+    @classmethod
+    def get_by_event_uuid(self, uuid):
+        '''
+        Fetches the observable based on the related event
+        '''
+        response = self.search().query('term', events=uuid).execute()
+        if response:
+            return response
+        else:
+            return []
+
+    def __eq__(self, other):
+        return self.data_type==other.data_type and self.value==other.value
+
+    def __hash__(self):
+        return hash(('data_type', self.data_type, 'value', self.value))
+
+
 class Observable(InnerDoc):
 
     uuid = Text()
@@ -652,7 +740,9 @@ class Event(BaseDocument):
 
     @property
     def observables(self):
-        return self.event_observables
+        observables = ObservableTest.get_by_event_uuid(self.uuid)
+        return [r for r in observables]
+        #return self.event_observables
 
     @observables.setter
     def observables(self, value):
@@ -665,6 +755,21 @@ class Event(BaseDocument):
         against threatlists that are defined in the system
         '''
 
+        added_observables = []
+        for o in content:
+            observable = ObservableTest.get_by_value(o['value'])
+
+            if not observable:
+                observable = ObservableTest(**o)
+
+            observable.add_event_uuid(self.uuid)
+            observable.check_threat_list()
+            added_observables.append(observable)
+
+        return added_observables
+
+        ''' POSSIBLY DEPRECATED CODE 
+        
         if isinstance(content, list):
             for observable in content:
 
@@ -692,10 +797,12 @@ class Event(BaseDocument):
 
             self.event_observables.append(EventObservable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp']))
         self.save()
+        '''
 
-    def save(self, **kwargs):
-        self.hash_event()
-        return super().save(**kwargs)
+    #def save(self, **kwargs):
+    #    self.uuid = uuid.uuid4()
+    #    self.hash_event()
+    #    return super().save(**kwargs)
 
     def set_open(self):
         self.status = EventStatus.get_by_name(name='Open')
@@ -717,7 +824,7 @@ class Event(BaseDocument):
         self.case = uuid
         self.save()
 
-    def hash_event(self, data_types=['host', 'user', 'ip', 'string']):
+    def hash_event(self, data_types=['host', 'user', 'ip', 'string'], observables=[]):
         '''
         Generates an md5 signature of the event by combining the Events title
         and the observables attached to the event.  The Event signature is used
@@ -730,7 +837,7 @@ class Event(BaseDocument):
         hasher = hashlib.md5()
         hasher.update(self.title.encode())
 
-        for observable in self.observables:
+        for observable in observables:
             _observables += [observable if observable.data_type in data_types else None]
 
         for observable in _observables:
@@ -745,10 +852,11 @@ class Event(BaseDocument):
         self.signature = hasher.hexdigest()
         return
 
-    def check_event_rule_signature(self, signature):
+    def check_event_rule_signature(self, signature, observables=[]):
         hasher = hashlib.md5()
         obs = []
-        for observable in self.observables:
+
+        for observable in observables:
             obs.append({'data_type': observable.data_type.lower(),
                         'value': observable.value.lower()})
         obs = [dict(t) for t in {tuple(d.items())

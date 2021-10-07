@@ -1,6 +1,8 @@
+from app.models import Observable
 import json
 from flask import current_app
 from flask_restx import Model, fields
+from .models import ObservableTest
 
 class ObservableCount(fields.Raw):
     ''' Returns the number of observables '''
