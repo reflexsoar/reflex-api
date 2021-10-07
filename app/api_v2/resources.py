@@ -585,7 +585,7 @@ class EventList(Resource):
                             if len(args[arg]) > 0 and '' not in args[arg]:
                                 search_filter[arg] = args[arg]
                     else:
-                        search_filter[arg] = args[arg]
+                        search_filter[arg] = args[arg]                   
 
         sort_by = { args['sort_by']: {'order': 'desc'} }
 
@@ -598,13 +598,10 @@ class EventList(Resource):
             events = [e for e in s[start:end]]
 
         elif 'case_uuid' in args and args['case_uuid']:
-            s = s.filter('match', **{'case_uuid': args['case_uuid']})
+            s = s.filter('match', **{'case': args['case_uuid']})
             total_events = s.count()
             events = [e for e in s[start:end]]
-        else:
-            #s = Event.search()
-            #s = s.sort(sort_by)
-            
+        else:            
             if len(search_filter) > 0:
                 for a in search_filter:
                     s = s.filter(search_filter[a]["type"], **{a: search_filter[a]["value"]})
