@@ -951,6 +951,7 @@ class EventRule(BaseDocument):
     expire = Boolean()  # If not set the rule will never expire, Default: True
     expire_at = Date()  # Computed from the created_at date of the event + a timedelta in days
     active = Boolean()  # Users can override the alarm and disable it out-right
+    hit_count = Integer()
 
     class Index:
         name = 'reflex-event-rules'
@@ -1015,6 +1016,14 @@ class EventRule(BaseDocument):
             return False
             
         else:
+
+            # Increment the hit count
+            if self.hit_count:
+                self.hit_count += 1
+            else:
+                self.hit_count = 1
+            self.save()
+
             if self.dismiss:
                 event.set_dismissed()
                 return True
