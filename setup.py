@@ -19,7 +19,8 @@ from app.api_v2.models import (
     CaseStatus,
     CaseTask,
     Tag,
-    EventStatus
+    EventStatus,
+    Observable
 )
 
 connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','GONivaFtwK9JJuwDRkr8'))
@@ -395,6 +396,7 @@ CaseHistory.init()
 CaseTemplate.init()
 Case.init()
 CaseTask.init()
+Observable.init()
 admin_id = create_admin_user()
 create_admin_role(admin_id)
 create_analyst_role()

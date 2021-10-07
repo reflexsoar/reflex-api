@@ -8,8 +8,8 @@ import requests
 host = 'http://localhost'
 
 def auth():
-    response = requests.post('{}/api/v1.0/auth/login'.format(host),
-                             data=json.dumps({'username':'admin@reflexsoar.com', 'password':'test22'}),
+    response = requests.post('{}/api/v2.0/auth/login'.format(host),
+                             data=json.dumps({'username':'admin', 'password':'reflex'}),
                              headers={'Content-Type': 'application/json'}, verify=False)
     if response.status_code == 200:
         token = response.json()['access_token']
@@ -167,14 +167,11 @@ for i in range(0,10):
     'Content-Type': 'application/json'
   }
   event = random_event()
-  print(event)
+  events.append(event)
                                  
-  r = requests.post('http://localhost/api/v2.0/event', data=json.dumps(event),
-      headers=headers, verify=False)
   if i % 2 == 0 :
-    print("SEND AGAIN!")
     event['reference'] = reference()
-    r = requests.post('http://localhost/api/v2.0/event', data=json.dumps(event),
-      headers=headers, verify=False)
-#print("Sending {} events...".format(len(events)))
-#bulk(events)
+    events.append(event)
+
+print("Sending {} events...".format(len(events)))
+bulk(events)

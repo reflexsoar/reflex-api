@@ -575,7 +575,7 @@ class EventObservable(InnerDoc):
         return hash(('data_type', self.data_type, 'value', self.value))
 
 
-class ObservableTest(BaseDocument):
+class Observable(BaseDocument):
 
     uuid = Text()
     tags = Keyword()
@@ -698,7 +698,8 @@ class ObservableTest(BaseDocument):
     def __hash__(self):
         return hash(('data_type', self.data_type, 'value', self.value))
 
-
+"""
+OLD OBSERVBALE CLASS
 class Observable(InnerDoc):
 
     uuid = Text()
@@ -728,6 +729,7 @@ class Observable(InnerDoc):
 
     def __hash__(self):
         return hash(('data_type', self.data_type, 'value', self.value))
+"""
 
 
 class EventStatus(BaseDocument):
@@ -763,7 +765,7 @@ class Event(BaseDocument):
     tlp = Integer()
     severity = Integer()
     tags = Keyword()
-    event_observables = Nested(Observable)
+    #event_observables = Nested(Observable)
     status = Object()
     signature = Keyword()
     dismissed = Boolean()
@@ -776,7 +778,7 @@ class Event(BaseDocument):
 
     @property
     def observables(self):
-        observables = ObservableTest.get_by_event_uuid(self.uuid)
+        observables = Observable.get_by_event_uuid(self.uuid)
         return [r for r in observables]
 
     @observables.setter
@@ -793,7 +795,7 @@ class Event(BaseDocument):
         added_observables = []
         for o in content:
 
-            observable = ObservableTest(**o)
+            observable = Observable(**o)
 
             observable.add_event_uuid(self.uuid)
             observable.check_threat_list()
@@ -1142,7 +1144,7 @@ class Case(BaseDocument):
     severity = Integer()
     owner = Object()
     tlp = Integer()
-    case_observables = Nested(Observable)
+    #case_observables = Nested(Observable)
     # events
     tags = Keyword()
     status = Object()
@@ -1160,7 +1162,7 @@ class Case(BaseDocument):
 
     @property
     def observables(self):
-        observables = ObservableTest.get_by_case_uuid(self.uuid)
+        observables = Observable.get_by_case_uuid(self.uuid)
         return [r for r in observables]
 
     @observables.setter
@@ -1171,11 +1173,17 @@ class Case(BaseDocument):
     def add_observables(self, observable, case_uuid=None):
 
         if isinstance(observable, list):
-            [self.observables.append(Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], case=case_uuid)) for o in observable]
+            for o in observable:
+                _observable = Observable.get_by_case_and_value(self.uuid, o['value'])
+                if not _observable:
+                    _observable = Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], case=case_uuid)
+                    _observable.save()
         else:
             o = observable
-            self.observables.append(Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], case=case_uuid))
-        self.save()
+            _observable = Observable.get_by_case_uuid(self.uuid, o['value'])
+            if not _observable:
+                _observable = Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], case=case_uuid)
+                _observable.save()
 
     def get_observable_by_value(self, value):
         ''' Returns an observable based on its value '''

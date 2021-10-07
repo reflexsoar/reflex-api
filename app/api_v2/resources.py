@@ -12,7 +12,7 @@ from .models import (
     EventStatus,
     Observable,
     EventObservable,
-    ObservableTest,
+    Observable,
     User,
     Role,
     Settings,
@@ -1156,10 +1156,10 @@ class CaseList(Resource):
                 e.set_open()
                 e.set_case(uuid=case.uuid)
 
-                case_observables += ObservableTest.get_by_event_uuid(event)
+                case_observables += Observable.get_by_event_uuid(event)
 
         # Deduplicate case observables
-        case_observables = list(set([ObservableTest(
+        case_observables = list(set([Observable(
             tags=o.tags, value=o.value, data_type=o.data_type, ioc=o.ioc, spotted=o.spotted, tlp=o.tlp, case=case.uuid) for o in case_observables]))
         [o.save() for o in case_observables]
 
@@ -1378,7 +1378,7 @@ class CaseObservables(Resource):
     def get(self, uuid, current_user):
         ''' Returns the observables for a case'''
         #case = Case.get_by_uuid(uuid=uuid)
-        observables = ObservableTest.get_by_case_uuid(uuid)
+        observables = Observable.get_by_case_uuid(uuid)
 
         if observables:
             return {'observables': observables, 'pagination': {}}
@@ -1414,7 +1414,7 @@ class CaseObservable(Resource):
     def put(self, uuid, value, current_user):
         ''' Updates a cases observable '''
 
-        observable = ObservableTest.get_by_case_and_value(uuid, value)
+        observable = Observable.get_by_case_and_value(uuid, value)
 
         if observable:
             for k in api2.payload:
