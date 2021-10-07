@@ -1099,6 +1099,12 @@ class Case(BaseDocument):
         self.close_reason = CloseReason.get_by_uuid(uuid=uuid)
         self.closed_at = datetime.datetime.utcnow()
         self.closed = True
+
+        # Close all the related events
+        for e in self.events:
+            event = Event.get_by_uuid(e)
+            event.set_closed()
+
         self.save()
 
     def reopen(self):
@@ -1107,6 +1113,12 @@ class Case(BaseDocument):
         '''
         self.closed = False
         self.close_at = None
+
+        # Reopen all the related events
+        for e in self.events:
+            event = Event.get_by_uuid(e)
+            event.set_open()
+
         self.save()
 
     @classmethod
