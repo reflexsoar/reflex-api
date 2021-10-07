@@ -463,7 +463,9 @@ class DataTypeList(Resource):
     @token_required
     def get(self, current_user):
         ''' Gets a list of all the data types '''
-        data_types = DataType.search().execute()
+        data_types = DataType.search()
+        data_types = data_types[0:data_types.count()]
+        data_types = data_types.execute()
         if data_types:
             return [d for d in data_types]
         else:
