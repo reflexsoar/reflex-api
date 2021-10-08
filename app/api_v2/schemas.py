@@ -612,6 +612,12 @@ mod_case_task_create = Model('CaseTaskCreate', {
     'case_uuid': fields.String
 })
 
+mod_case_task_note_details = Model('CaseTaskNoteDetails', {
+    'note': fields.String,
+    'created_by': fields.Nested(mod_user_list),
+    'created_at': ISO8601(attribute='created_at')
+})
+
 mod_case_task_full = Model('CaseTaskList', {
     'uuid': fields.String,
     'title': fields.String,
@@ -625,7 +631,8 @@ mod_case_task_full = Model('CaseTaskList', {
     'owner': fields.Nested(mod_user_list),
     'case': fields.String,
     'status': fields.Integer,
-    'from_template': fields.Boolean
+    'from_template': fields.Boolean,
+    'notes': fields.Nested(mod_case_task_note_details, attribute='_notes')
 })
 
 mod_case_task_note_create = Model('CreateTaskNote', {

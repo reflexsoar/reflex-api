@@ -1352,6 +1352,17 @@ class TaskNote(BaseDocument):
     class Index:
         name = 'reflex-case-task-notes'
 
+    @classmethod
+    def get_by_task_uuid(self, uuid):
+        '''
+        Fetches a note by the associated task UUID
+        '''
+        response = self.search().query('match', task=uuid).execute()
+        if response:
+            return [r for r in response]
+        else:
+            return []        
+
 
 class CaseTask(BaseDocument):
     '''
@@ -1372,6 +1383,17 @@ class CaseTask(BaseDocument):
 
     class Index:
         name = 'reflex-case-tasks'
+
+    @property
+    def _notes(self):
+        notes = TaskNote.get_by_task_uuid(self.uuid)
+        print(notes)
+        return notes
+
+    @_notes.setter
+    def observables(self, value):
+        self.notes.append(value)
+        self.save()
 
     @classmethod
     def get_by_case(self, uuid):

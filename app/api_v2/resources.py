@@ -1834,17 +1834,20 @@ class CaseTaskNote(Resource):
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_case_task_note_create)
-    @api2.marshal_with(mod_case_task_note)
+    @api2.marshal_with(mod_case_task_note_details)
     @api2.response('200', 'Success')
     @token_required
     @user_has('update_case_task')
     def post(self, uuid, current_user):
         ''' Creates a new note on a specified task'''
 
+        print(uuid)
         task = CaseTask.get_by_uuid(uuid)
+        print(task)
         if task:
             note = task.add_note(note=api2.payload['note'])
-        return note
+            return note
+        return {}
 
 
 @ns_case_task_v2.route("/<uuid>")
