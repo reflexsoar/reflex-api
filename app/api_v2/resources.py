@@ -80,6 +80,7 @@ ns_case_template_v2 = api2.namespace(
 ns_close_reason_v2 = api2.namespace(
     'CloseReason', description='Closure reason are used when closing a case and can be customized', path='/close_reason')
 ns_tag_v2 = api2.namespace('Tag', description='Tag operations', path='/tag')
+ns_dashboard_v2 = api2.namespace('Dashboard', description='API endpoints that drive dashboard display', path='/dashboard')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -554,112 +555,109 @@ class EventList(Resource):
     def get(self, current_user):
         ''' Returns a list of events '''
 
-        with cProfile.Profile() as profile:
-            args = event_list_parser.parse_args()
+        args = event_list_parser.parse_args()
 
-            if args['page'] == 1:
-                start = 0
-                end = args['page']*args['page_size']
-                args['page'] = 0
-            else:
-                start = ((args['page']-1)*args['page_size'])
-                end = args['page_size']*args['page']
+        if args['page'] == 1:
+            start = 0
+            end = args['page']*args['page_size']
+            args['page'] = 0
+        else:
+            start = ((args['page']-1)*args['page_size'])
+            end = args['page_size']*args['page']
 
-            events = []
-            total_events = 0
+        events = []
+        total_events = 0
 
-            search_filter = {}
-            for arg in args:
-                if arg in ['status','severity','title','observables','tags']:
-                    if args[arg] != '' and args[arg] is not None:
-                        if isinstance(args[arg], list):
-                            if arg == 'observables':
-                                if len(args[arg]) > 0:
-                                    search_filter['event_observables.value__keyword'] = {"value": args[arg], "type":"terms"}
-                            elif arg == 'status':
-                                if len(args[arg]) > 0 and '' not in args[arg]:
-                                    search_filter['status.name__keyword'] = {"value": args[arg], "type":"terms"}
-                            elif arg == 'severity':
-                                if len(args[arg]) > 0 and '' not in args[arg]:
-                                    search_filter['severity'] = {"value": args[arg], "type":"terms"}
-                            elif arg == 'tags':
-                                if len(args[arg]) > 0 and '' not in args[arg]:
-                                    search_filter['tags'] = {"value": args[arg], "type":"terms"}
-                            elif arg == 'title':
-                                if len(args[arg]) > 0 and '' not in args[arg]:
-                                    search_filter['title'] = {"value": args[arg], "type":"terms"}
-                            else:
-                                if len(args[arg]) > 0 and '' not in args[arg]:
-                                    search_filter[arg] = args[arg]
+        search_filter = {}
+        for arg in args:
+            if arg in ['status','severity','title','observables','tags']:
+                if args[arg] != '' and args[arg] is not None:
+                    if isinstance(args[arg], list):
+                        if arg == 'observables':
+                            if len(args[arg]) > 0:
+                                search_filter['event_observables.value__keyword'] = {"value": args[arg], "type":"terms"}
+                        elif arg == 'status':
+                            if len(args[arg]) > 0 and '' not in args[arg]:
+                                search_filter['status.name__keyword'] = {"value": args[arg], "type":"terms"}
+                        elif arg == 'severity':
+                            if len(args[arg]) > 0 and '' not in args[arg]:
+                                search_filter['severity'] = {"value": args[arg], "type":"terms"}
+                        elif arg == 'tags':
+                            if len(args[arg]) > 0 and '' not in args[arg]:
+                                search_filter['tags'] = {"value": args[arg], "type":"terms"}
+                        elif arg == 'title':
+                            if len(args[arg]) > 0 and '' not in args[arg]:
+                                search_filter['title'] = {"value": args[arg], "type":"terms"}
                         else:
-                            search_filter[arg] = args[arg]                   
+                            if len(args[arg]) > 0 and '' not in args[arg]:
+                                search_filter[arg] = args[arg]
+                    else:
+                        search_filter[arg] = args[arg]                   
 
-            sort_by = { args['sort_by']: {'order': 'desc'} }
+        sort_by = { args['sort_by']: {'order': 'desc'} }
 
-            s = Event.search()
-            s = s.sort(sort_by)
+        s = Event.search()
+        s = s.sort(sort_by)
 
-            if 'signature' in args and args['signature']:
-                s = s.filter('term', **{'signature': args['signature']})
+        if 'signature' in args and args['signature']:
+            s = s.filter('term', **{'signature': args['signature']})
+            total_events = s.count()
+            events = [e for e in s[start:end]]
+
+        elif 'case_uuid' in args and args['case_uuid']:
+            s = s.filter('match', **{'case': args['case_uuid']})
+            total_events = s.count()
+            events = [e for e in s[start:end]]
+        else:            
+            if len(search_filter) > 0:
+                for a in search_filter:
+                    s = s.filter(search_filter[a]["type"], **{a: search_filter[a]["value"]})
                 total_events = s.count()
+                
                 events = [e for e in s[start:end]]
-
-            elif 'case_uuid' in args and args['case_uuid']:
-                s = s.filter('match', **{'case': args['case_uuid']})
-                total_events = s.count()
-                events = [e for e in s[start:end]]
-            else:            
-                if len(search_filter) > 0:
-                    for a in search_filter:
-                        s = s.filter(search_filter[a]["type"], **{a: search_filter[a]["value"]})
-                    total_events = s.count()
-                    
-                    events = [e for e in s[start:end]]
-                else:
-                    total_events = s.count()
-                    events = [e for e in s[start:end]]
-
-            if args['page_size'] < total_events:
-                pages = math.ceil(float(total_events / args['page_size']))
             else:
-                pages = 0
+                total_events = s.count()
+                events = [e for e in s[start:end]]
 
-            """ Calculate related event counts
-                I couldn't figure out a better way to do this with elasticsearch DSL
-                this may become expensive at some point in the future
-                - BC
-            """
+        if args['page_size'] < total_events:
+            pages = math.ceil(float(total_events / args['page_size']))
+        else:
+            pages = 0
+
+        """ Calculate related event counts
+            I couldn't figure out a better way to do this with elasticsearch DSL
+            this may become expensive at some point in the future
+            - BC
+        """
+        for event in events:
+            related_events_count = len([e for e in events if e.signature == event.signature])
+            if related_events_count > 1:
+                event.related_events_count = related_events_count
+            else:
+                event.related_events_count = 0
+
+        # Keep only one copy of an event where signatures are the same
+        # Keep the most recent
+        if 'signature' in args and not args['signature']:
+            events_dedupe = []
             for event in events:
-                related_events_count = len([e for e in events if e.signature == event.signature])
-                if related_events_count > 1:
-                    event.related_events_count = related_events_count
-                else:
-                    event.related_events_count = 0
+                x = list(filter(lambda e: e.signature == event.signature, events))[0]
+                if x not in events_dedupe:
+                    events_dedupe += [x]
 
-            # Keep only one copy of an event where signatures are the same
-            # Keep the most recent
-            if 'signature' in args and not args['signature']:
-                events_dedupe = []
-                for event in events:
-                    x = list(filter(lambda e: e.signature == event.signature, events))[0]
-                    if x not in events_dedupe:
-                        events_dedupe += [x]
+            events = events_dedupe
 
-                events = events_dedupe
-
-            response = {
-                'events': events,
-                'pagination': {
-                    'total_results': total_events,
-                    'pages': pages,
-                    'page': args['page'],
-                    'page_size': args['page_size']
-                }
+        response = {
+            'events': events,
+            'pagination': {
+                'total_results': total_events,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
             }
-            ps = pstats.Stats(profile)
-            ps.sort_stats('calls','cumtime')
-            ps.print_stats(15)
-            return response
+        }
+
+        return response
 
     @api2.expect(mod_event_create)
     def post(self):
@@ -1841,9 +1839,8 @@ class CaseTaskNote(Resource):
     def post(self, uuid, current_user):
         ''' Creates a new note on a specified task'''
 
-        print(uuid)
         task = CaseTask.get_by_uuid(uuid)
-        print(task)
+        
         if task:
             note = task.add_note(note=api2.payload['note'])
             return note
@@ -2542,3 +2539,29 @@ class PersistentPairingToken(Resource):
         ''' Returns a new API key for the user making the request '''
         settings = Settings.load()
         return settings.generate_persistent_pairing_token()
+
+
+@ns_dashboard_v2.route("")
+class DashboardMetrics(Resource):
+
+    @api2.doc(security="Bearer")
+    @token_required
+    def get(self, current_user):
+
+        cases = Case.search()
+        open_cases = cases.filter('match', status__name='New')
+        closed_cases = cases.filter('match', status__closed='true')
+
+        events = Event.search()
+        new_events = events.filter('term', **{'status.name__keyword': 'New'})
+        events_sorted = events.sort('created_at')
+        last_event = [e for e in events_sorted[0:1]][0]
+
+        return {
+            'total_cases': cases.count(),
+            'open_cases': open_cases.count(),
+            'closed_cases': closed_cases.count(),
+            'total_events': events.count(),
+            'new_events': new_events.count(),
+            'time_since_last_event': last_event.created_at.isoformat()+"Z"
+        }
