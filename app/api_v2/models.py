@@ -265,7 +265,7 @@ class User(BaseDocument):
         if role:
             role = role[0]
 
-        if getattr(role.permissions, permission):
+        if hasattr(role.permissions, permission) and getattr(role.permissions, permission):
             return True
         else:
             return False
@@ -361,7 +361,7 @@ class Permission(InnerDoc):
     pair_agent = Boolean()
 
     # Agent Group Permissions
-    create_agent_group = Boolean()
+    add_agent_group = Boolean()
     view_agent_groups = Boolean()
     update_agent_group = Boolean()
     delete_agent_group = Boolean()
@@ -1634,6 +1634,20 @@ class AgentGroup(BaseDocument):
 
     name = Keyword()
     description = Text()
+    agents = Keyword()
+
+    class Index:
+        name = 'reflex-agent-groups'
+
+    def add_agent(self, uuid):
+        '''
+        Adds an agent to to the group
+        '''
+        if self.agents:
+            self.agents.append(uuid)
+        else:
+            self.agents = [uuid]
+        self.save()
 
 
 class DataType(BaseDocument):

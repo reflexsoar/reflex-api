@@ -99,7 +99,7 @@ mod_permissions = Model('Permissions', {
     'update_agent': fields.Boolean,
     'delete_agent': fields.Boolean,
     'pair_agent': fields.Boolean,
-    'create_agent_group': fields.Boolean,
+    'add_agent_group': fields.Boolean,
     'view_agent_groups': fields.Boolean,
     'update_agent_group': fields.Boolean,
     'delete_agent_group': fields.Boolean,
@@ -489,6 +489,23 @@ mod_agent_list = Model('AgentList', {
     'last_heartbeat': ISO8601(attribute='last_heartbeat')
 })
 
+mod_agent_group_list = Model('AgentGroupList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String
+})
+
+mod_paged_agent_group_list = Model('PagedAgentGroupList', {
+    'groups': fields.List(fields.Nested(mod_agent_group_list)),
+    'pagination': fields.Nested(mod_pagination)
+})
+
+mod_agent_group_create = Model('AgentGroupList', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String
+})
+
 mod_data_type_list = Model('DataTypeList', {
     'uuid': fields.String,
     'name': fields.String,
@@ -779,6 +796,7 @@ mod_case_template_full, mod_close_reason_create, mod_close_reason_list, mod_case
 mod_case_status_list, mod_case_template_brief, mod_case_create, mod_case_list, mod_case_details, mod_case_paged_list,
 mod_user_list, mod_tag_list, mod_tag, mod_related_case, mod_link_cases, mod_case_task_full, mod_event_status,
 mod_event_paged_list, mod_event_details, mod_observable_list, mod_observable_list_paged,
-mod_bulk_add_observables, mod_case_observables, mod_related_events, mod_pagination, mod_event_create_bulk]
+mod_bulk_add_observables, mod_case_observables, mod_related_events, mod_pagination, mod_event_create_bulk,
+mod_agent_group_list, mod_paged_agent_group_list, mod_agent_group_create]
 
 

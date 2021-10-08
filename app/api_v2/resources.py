@@ -31,7 +31,8 @@ from .models import (
     CaseStatus,
     CloseReason,
     CaseTask,
-    Tag
+    Tag,
+    AgentGroup
 )
 from .utils import token_required, user_has, generate_token
 
@@ -2148,12 +2149,78 @@ class AgentDetails(Resource):
         else:
             ns_agent_v2.abort(404, 'Agent not found.')
 
+@ns_agent_group_v2.route("/<uuid>")
+class AgentGroupDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_agent_group_list)
+    @token_required
+    @user_has('view_agent_groups')
+    def get(self, uuid, current_user):
+
+        group = AgentGroup.get_by_uuid(uuid)
+        if group:
+            return group
+        else:
+            ns_agent_group_v2.abort(404, 'Agent Group not found.')
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_agent_group_create)
+    @api2.marshal_with(mod_agent_group_list)
+    @token_required
+    @user_has('update_agent_group')
+    def put(self, uuid, current_user):
+
+        group = AgentGroup.get_by_uuid(uuid)
+
+        if group:
+            group.update(**api2.payload, refresh=True)
+        
+        return group
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('delete_agent_group')
+    def delete(self, uuid, current_user):
+
+        group = AgentGroup.get_by_uuid(uuid)
+        group.delete()
+        return {'message': f'Successfully deleted Agent Group {group.name}'}, 200
+
 
 @ns_agent_group_v2.route("")
 class AgentGroupList(Resource):
 
-    def get(self):
-        return []
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_paged_agent_group_list)
+    @token_required
+    @user_has('view_agent_groups')
+    def get(self, current_user):
+        groups = AgentGroup.search()
+        total_groups = groups.count()
+        groups = groups.execute()
+        if groups:
+            groups = [g for g in groups]
+        else:
+            groups = []
+        return {'groups': groups, 'pagination': {'total_results': total_groups}}
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_agent_group_create)
+    @api2.marshal_with(mod_agent_group_list)
+    @api2.response('200', 'Successfully created agent group.')
+    @api2.response('409', 'Agent group already exists.')
+    @token_required
+    @user_has('add_agent_group')
+    def post(self, current_user):
+        '''
+        Creates a new agent group that can be used to assign 
+        certain stack features to specific agents
+        '''
+        print(api2.payload)
+        group = AgentGroup(**api2.payload)
+        group.save()
+        return group
 
 
 @ns_credential_v2.route('/encrypt')
