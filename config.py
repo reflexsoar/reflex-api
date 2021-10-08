@@ -23,7 +23,7 @@ class Config(object):
     CELERY_BROKER_URL = 'redis://localhost:6379'
 
     # ELASTICSEARCH CONFIGURATION
-    ELASTICSEARCH_URL = ['127.0.0.1:9200']
+    ELASTICSEARCH_URL = ['localhost:9200']
     ELASTICSEARCH_AUTH_SCHEMA = "http"
     ELASTICSEARCH_SCHEME = 'https'
     ELASTICSEARCH_CA = ''

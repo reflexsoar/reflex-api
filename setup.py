@@ -20,7 +20,9 @@ from app.api_v2.models import (
     CaseTask,
     Tag,
     EventStatus,
-    Observable
+    Observable,
+    AgentGroup,
+    TaskNote
 )
 
 connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','GONivaFtwK9JJuwDRkr8'))
@@ -31,8 +33,10 @@ def check_setup_status():
     Checks to see if setup has already been run by looking for the 
     Reflex indices in the Elasticsearch cluster
     '''
-    raise NotImplementedError
-
+    settings = Settings.search().execute()
+    if settings:
+        print("Setup has already been run.")
+        exit(1)
 
 def create_admin_role(admin_id):
 
@@ -141,7 +145,11 @@ def create_admin_role(admin_id):
         'delete_case_files': True,
         "create_close_reason": True,
         "update_close_reason": True,
-        "delete_close_reason": True
+        "delete_close_reason": True,
+        "add_agent_group": True,
+        "view_agent_groups": True,
+        "update_agent_group": True,
+        "delete_agent_group": True
     }
 
     role_contents = {
@@ -394,6 +402,7 @@ def initial_settings():
     settings.save()
 
 # Initialize empty indices
+check_setup_status()
 Tag.init()
 ExpiredToken.init()
 Credential.init()
@@ -409,6 +418,8 @@ CaseHistory.init()
 Case.init()
 CaseTask.init()
 Observable.init()
+AgentGroup.init()
+TaskNote.init()
 admin_id = create_admin_user()
 create_admin_role(admin_id)
 create_analyst_role()
