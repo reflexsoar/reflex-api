@@ -299,7 +299,7 @@ def create_default_data_types():
         {'name': 'imphash', 'description': 'A hash of a binaries import table'},
         {'name': 'process', 'description': 'A process that was launched on a machine', 'regex':r'^([A-Z]?[:\\\/]).*(\.\w{3,})?$'},
         {'name': 'sid', 'description': 'A Microsoft Security Identifier', 'regex':r'^S(\-\d{1,10}){4,7}$'},
-        {'name': 'mac', 'description': 'The hardware address of a network adapter, MAC address', 'regex': r'([A-Za-z0-9]{2}\:?){6}'}
+        {'name': 'mac', 'description': 'The hardware address of a network adapter, MAC address', 'regex': r'^([A-Za-z0-9]{2}\:?\-?){6}$'}
     ]
     for d in data_types:
         data_type = DataType(**d)
@@ -354,6 +354,16 @@ def create_default_event_status():
             status.closed = True
         status.save()
 
+def create_default_case_templates():
+    CaseTemplate.init()
+
+    templates = [
+        {"title":"Phishing Analysis","description":"Use this case template when investigating a Phishing e-mail.","tasks":[{"title":"Fetch original e-mail","description":"Get a copy of the original e-mail so that analysis can be performed on it to determine if it really is a phishing e-mail or not.","group_uuid":None,"owner_uuid":None,"order":"0"},{"title":"Notify users","description":"Send a phishing alert e-mail to all users so they are aware they may have been targeted.  This should buy time until the e-mail is scrubbed from the environment.","group_uuid":None,"owner_uuid":None,"order":"1"},{"title":"Quarantine","description":"Remove the original message from the e-mail environment","group_uuid":None,"owner_uuid":None,"order":"2"},{"title":"Post Mortem","description":"What have we learned from this event that could help in future events?","group_uuid":None,"owner_uuid":None,"order":"3"}],"tlp":2,"severity":2,"tags":["phishing"]}
+    ]
+
+    for t in templates:
+        template = CaseTemplate(**t)
+        template.save()
 
 def initial_settings():
 
@@ -395,7 +405,7 @@ EventRule.init()
 Event.init()
 CaseComment.init()
 CaseHistory.init()
-CaseTemplate.init()
+#CaseTemplate.init()
 Case.init()
 CaseTask.init()
 Observable.init()
@@ -407,5 +417,6 @@ create_default_data_types()
 create_default_closure_reasons()
 create_default_case_status()
 create_default_event_status()
+create_default_case_templates()
 
 initial_settings()

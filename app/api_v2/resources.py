@@ -2,6 +2,8 @@ import base64
 import math
 import datetime
 import operator
+import cProfile
+import pstats
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs, marshal
 from elasticsearch_dsl import A
@@ -551,108 +553,112 @@ class EventList(Resource):
     def get(self, current_user):
         ''' Returns a list of events '''
 
-        args = event_list_parser.parse_args()
+        with cProfile.Profile() as profile:
+            args = event_list_parser.parse_args()
 
-        if args['page'] == 1:
-            start = 0
-            end = args['page']*args['page_size']
-            args['page'] = 0
-        else:
-            start = ((args['page']-1)*args['page_size'])
-            end = args['page_size']*args['page']
+            if args['page'] == 1:
+                start = 0
+                end = args['page']*args['page_size']
+                args['page'] = 0
+            else:
+                start = ((args['page']-1)*args['page_size'])
+                end = args['page_size']*args['page']
 
-        events = []
-        total_events = 0
+            events = []
+            total_events = 0
 
-        search_filter = {}
-        for arg in args:
-            if arg in ['status','severity','title','observables','tags']:
-                if args[arg] != '' and args[arg] is not None:
-                    if isinstance(args[arg], list):
-                        if arg == 'observables':
-                            if len(args[arg]) > 0:
-                                search_filter['event_observables.value__keyword'] = {"value": args[arg], "type":"terms"}
-                        elif arg == 'status':
-                            if len(args[arg]) > 0 and '' not in args[arg]:
-                                search_filter['status.name__keyword'] = {"value": args[arg], "type":"terms"}
-                        elif arg == 'severity':
-                            if len(args[arg]) > 0 and '' not in args[arg]:
-                                search_filter['severity'] = {"value": args[arg], "type":"terms"}
-                        elif arg == 'tags':
-                            if len(args[arg]) > 0 and '' not in args[arg]:
-                                search_filter['tags'] = {"value": args[arg], "type":"terms"}
-                        elif arg == 'title':
-                            if len(args[arg]) > 0 and '' not in args[arg]:
-                                search_filter['title'] = {"value": args[arg], "type":"terms"}
+            search_filter = {}
+            for arg in args:
+                if arg in ['status','severity','title','observables','tags']:
+                    if args[arg] != '' and args[arg] is not None:
+                        if isinstance(args[arg], list):
+                            if arg == 'observables':
+                                if len(args[arg]) > 0:
+                                    search_filter['event_observables.value__keyword'] = {"value": args[arg], "type":"terms"}
+                            elif arg == 'status':
+                                if len(args[arg]) > 0 and '' not in args[arg]:
+                                    search_filter['status.name__keyword'] = {"value": args[arg], "type":"terms"}
+                            elif arg == 'severity':
+                                if len(args[arg]) > 0 and '' not in args[arg]:
+                                    search_filter['severity'] = {"value": args[arg], "type":"terms"}
+                            elif arg == 'tags':
+                                if len(args[arg]) > 0 and '' not in args[arg]:
+                                    search_filter['tags'] = {"value": args[arg], "type":"terms"}
+                            elif arg == 'title':
+                                if len(args[arg]) > 0 and '' not in args[arg]:
+                                    search_filter['title'] = {"value": args[arg], "type":"terms"}
+                            else:
+                                if len(args[arg]) > 0 and '' not in args[arg]:
+                                    search_filter[arg] = args[arg]
                         else:
-                            if len(args[arg]) > 0 and '' not in args[arg]:
-                                search_filter[arg] = args[arg]
-                    else:
-                        search_filter[arg] = args[arg]                   
+                            search_filter[arg] = args[arg]                   
 
-        sort_by = { args['sort_by']: {'order': 'desc'} }
+            sort_by = { args['sort_by']: {'order': 'desc'} }
 
-        s = Event.search()
-        s = s.sort(sort_by)
+            s = Event.search()
+            s = s.sort(sort_by)
 
-        if 'signature' in args and args['signature']:
-            s = s.filter('term', **{'signature': args['signature']})
-            total_events = s.count()
-            events = [e for e in s[start:end]]
-
-        elif 'case_uuid' in args and args['case_uuid']:
-            s = s.filter('match', **{'case': args['case_uuid']})
-            total_events = s.count()
-            events = [e for e in s[start:end]]
-        else:            
-            if len(search_filter) > 0:
-                for a in search_filter:
-                    s = s.filter(search_filter[a]["type"], **{a: search_filter[a]["value"]})
-                total_events = s.count()
-                
-                events = [e for e in s[start:end]]
-            else:
+            if 'signature' in args and args['signature']:
+                s = s.filter('term', **{'signature': args['signature']})
                 total_events = s.count()
                 events = [e for e in s[start:end]]
 
-        if args['page_size'] < total_events:
-            pages = math.ceil(float(total_events / args['page_size']))
-        else:
-            pages = 0
+            elif 'case_uuid' in args and args['case_uuid']:
+                s = s.filter('match', **{'case': args['case_uuid']})
+                total_events = s.count()
+                events = [e for e in s[start:end]]
+            else:            
+                if len(search_filter) > 0:
+                    for a in search_filter:
+                        s = s.filter(search_filter[a]["type"], **{a: search_filter[a]["value"]})
+                    total_events = s.count()
+                    
+                    events = [e for e in s[start:end]]
+                else:
+                    total_events = s.count()
+                    events = [e for e in s[start:end]]
 
-        """ Calculate related event counts
-            I couldn't figure out a better way to do this with elasticsearch DSL
-            this may become expensive at some point in the future
-            - BC
-        """
-        for event in events:
-            related_events_count = len([e for e in events if e.signature == event.signature])
-            if related_events_count > 1:
-                event.related_events_count = related_events_count
+            if args['page_size'] < total_events:
+                pages = math.ceil(float(total_events / args['page_size']))
             else:
-                event.related_events_count = 0
+                pages = 0
 
-        # Keep only one copy of an event where signatures are the same
-        # Keep the most recent
-        if 'signature' in args and not args['signature']:
-            events_dedupe = []
+            """ Calculate related event counts
+                I couldn't figure out a better way to do this with elasticsearch DSL
+                this may become expensive at some point in the future
+                - BC
+            """
             for event in events:
-                x = list(filter(lambda e: e.signature == event.signature, events))[0]
-                if x not in events_dedupe:
-                    events_dedupe += [x]
+                related_events_count = len([e for e in events if e.signature == event.signature])
+                if related_events_count > 1:
+                    event.related_events_count = related_events_count
+                else:
+                    event.related_events_count = 0
 
-            events = events_dedupe
+            # Keep only one copy of an event where signatures are the same
+            # Keep the most recent
+            if 'signature' in args and not args['signature']:
+                events_dedupe = []
+                for event in events:
+                    x = list(filter(lambda e: e.signature == event.signature, events))[0]
+                    if x not in events_dedupe:
+                        events_dedupe += [x]
 
-        response = {
-            'events': events,
-            'pagination': {
-                'total_results': total_events,
-                'pages': pages,
-                'page': args['page'],
-                'page_size': args['page_size']
+                events = events_dedupe
+
+            response = {
+                'events': events,
+                'pagination': {
+                    'total_results': total_events,
+                    'pages': pages,
+                    'page': args['page'],
+                    'page_size': args['page_size']
+                }
             }
-        }
-        return response
+            ps = pstats.Stats(profile)
+            ps.sort_stats('calls','cumtime')
+            ps.print_stats(15)
+            return response
 
     @api2.expect(mod_event_create)
     def post(self):
