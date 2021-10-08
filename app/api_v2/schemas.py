@@ -628,6 +628,14 @@ mod_case_task_full = Model('CaseTaskList', {
     'from_template': fields.Boolean
 })
 
+mod_case_task_note_create = Model('CreateTaskNote', {
+    'note': fields.String
+})
+
+mod_case_task_note = Model('CaseTaskNote', {
+    'note': fields.String
+})
+
 mod_case_template_task_create = Model('CaseTemplateTaskCreate', {
     'title': fields.String,
     'order': fields.Integer,
@@ -797,6 +805,6 @@ mod_case_status_list, mod_case_template_brief, mod_case_create, mod_case_list, m
 mod_user_list, mod_tag_list, mod_tag, mod_related_case, mod_link_cases, mod_case_task_full, mod_event_status,
 mod_event_paged_list, mod_event_details, mod_observable_list, mod_observable_list_paged,
 mod_bulk_add_observables, mod_case_observables, mod_related_events, mod_pagination, mod_event_create_bulk,
-mod_agent_group_list, mod_paged_agent_group_list, mod_agent_group_create]
+mod_agent_group_list, mod_paged_agent_group_list, mod_agent_group_create, mod_case_task_note, mod_case_task_note_create]
 
 

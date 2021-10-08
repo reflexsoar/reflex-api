@@ -1341,6 +1341,17 @@ class Case(BaseDocument):
         return True
         
 
+class TaskNote(BaseDocument):
+    '''
+    A note on a case task
+    '''
+
+    note = Text()
+    task = Keyword() # The UUID of the associated task
+
+    class Index:
+        name = 'reflex-case-task-notes'
+
 
 class CaseTask(BaseDocument):
     '''
@@ -1357,6 +1368,7 @@ class CaseTask(BaseDocument):
     status = Integer()  # 0 = Open, 1 = Started, 2 = Complete
     start_date = Date()
     finish_date = Date()
+    notes = Keyword()
 
     class Index:
         name = 'reflex-case-tasks'
@@ -1424,6 +1436,20 @@ class CaseTask(BaseDocument):
             if owner:
                 self.owner = {k: owner[k]
                               for k in owner if k in ['uuid', 'username']}
+
+    def add_note(self, note):
+        '''
+        Adds a note to this task
+        '''
+        if note:
+            note = TaskNote(note=note, task=self.uuid)
+            note.save()
+            if self.notes:
+                self.notes.append(note.uuid)
+            else:
+                self.notes = [note.uuid]
+        self.save()
+        return note
 
     def delete(self, **kwargs):
         '''

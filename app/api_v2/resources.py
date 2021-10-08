@@ -1829,6 +1829,23 @@ class CaseTaskList(Resource):
         else:
             ns_case_task_v2.abort(409, 'Case Task already exists')
 
+@ns_case_task_v2.route("/<uuid>/add_note")
+class CaseTaskNote(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_case_task_note_create)
+    @api2.marshal_with(mod_case_task_note)
+    @api2.response('200', 'Success')
+    @token_required
+    @user_has('update_case_task')
+    def post(self, uuid, current_user):
+        ''' Creates a new note on a specified task'''
+
+        task = CaseTask.get_by_uuid(uuid)
+        if task:
+            note = task.add_note(note=api2.payload['note'])
+        return note
+
 
 @ns_case_task_v2.route("/<uuid>")
 class CaseTaskDetails(Resource):
@@ -2148,6 +2165,7 @@ class AgentDetails(Resource):
             return agent
         else:
             ns_agent_v2.abort(404, 'Agent not found.')
+
 
 @ns_agent_group_v2.route("/<uuid>")
 class AgentGroupDetails(Resource):
