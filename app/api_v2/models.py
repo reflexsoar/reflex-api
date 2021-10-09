@@ -644,24 +644,24 @@ class Observable(BaseDocument):
             '550': 'Print Operators',
             '551': 'Backup Operators',
             '552': 'Replicators',
-            '554': 'Builtin\Pre-Windows 2000 Compatible Access',
-            '555': 'Builtin\Remote Desktop Users',
-            '556': 'Builtin\Network Configuration Operators',
-            '557': 'Builtin\Incoming Forest Trust Builders',
-            '558': 'Builtin\Performance Monitor Users',
-            '559': 'Builtin\Performance Log Users',
-            '560': 'Builtin\Windows Authorization Access Group',
-            '561': 'Builtin\Terminal Server License Servers',
-            '562': 'Builtin\Distributed COM Users',
-            '569': 'Builtin\Cryptographic Operators',
-            '573': 'Builtin\Event Log Readers'
-            '574': 'Builtin\Certificate Service DCOM Access',
-            '575': 'Builtin\RDS Remote Access Servers',
-            '576': 'Builtin\RDS Endpoint Servers',
-            '577': 'Builtin\RDS Management Servers',
-            '578': 'Builtin\Hyper-V Administrators',
-            '579': 'Builtin\Access Control Assistance Operators',
-            '580': 'Builtin\Remote Management Users'
+            '554': 'Builtin\\Pre-Windows 2000 Compatible Access',
+            '555': 'Builtin\\Remote Desktop Users',
+            '556': 'Builtin\\Network Configuration Operators',
+            '557': 'Builtin\\Incoming Forest Trust Builders',
+            '558': 'Builtin\\Performance Monitor Users',
+            '559': 'Builtin\\Performance Log Users',
+            '560': 'Builtin\\Windows Authorization Access Group',
+            '561': 'Builtin\\Terminal Server License Servers',
+            '562': 'Builtin\\Distributed COM Users',
+            '569': 'Builtin\\Cryptographic Operators',
+            '573': 'Builtin\\Event Log Readers',
+            '574': 'Builtin\\Certificate Service DCOM Access',
+            '575': 'Builtin\\RDS Remote Access Servers',
+            '576': 'Builtin\\RDS Endpoint Servers',
+            '577': 'Builtin\\RDS Management Servers',
+            '578': 'Builtin\\Hyper-V Administrators',
+            '579': 'Builtin\\Access Control Assistance Operators',
+            '580': 'Builtin\\Remote Management Users'
         }
 
         equals = {
@@ -729,12 +729,15 @@ class Observable(BaseDocument):
         '''
         Fetches a document by the value field
         '''
-        response = self.search().query('term', value=value).execute()
-        if response:
-            if len(response) >=1:
-                return response[0]
+        if isinstance(value, list):
+            response = self.search().query('terms', value=value).execute()
+            if response:
+                return [r for r in response]
         else:
-            return None
+            response = self.search().query('term', value=value).execute()
+            if response:
+                return response[0]
+        return None
 
     @classmethod
     def get_by_event_uuid(self, uuid):

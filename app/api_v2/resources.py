@@ -1,9 +1,7 @@
 import base64
 import math
 import datetime
-import operator
-import cProfile
-import pstats
+import itertools
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs, marshal
 from elasticsearch_dsl import A
@@ -567,6 +565,7 @@ class EventList(Resource):
 
         events = []
         total_events = 0
+        event_uuids = [] # Used for selecting events based on their UUID
 
         search_filter = {}
         for arg in args:
@@ -575,7 +574,8 @@ class EventList(Resource):
                     if isinstance(args[arg], list):
                         if arg == 'observables':
                             if len(args[arg]) > 0:
-                                search_filter['event_observables.value__keyword'] = {"value": args[arg], "type":"terms"}
+                                observables = Observable.get_by_value(args[arg])
+                                event_uuids=list(itertools.chain.from_iterable([o.events for o in observables if o.events is not None]))
                         elif arg == 'status':
                             if len(args[arg]) > 0 and '' not in args[arg]:
                                 search_filter['status.name__keyword'] = {"value": args[arg], "type":"terms"}
@@ -598,6 +598,9 @@ class EventList(Resource):
 
         s = Event.search()
         s = s.sort(sort_by)
+
+        if len(event_uuids) > 0:
+            s = s.filter('terms', **{'uuid': event_uuids})
 
         if 'signature' in args and args['signature']:
             s = s.filter('term', **{'signature': args['signature']})

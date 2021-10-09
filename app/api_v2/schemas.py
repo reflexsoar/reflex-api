@@ -301,7 +301,8 @@ mod_bulk_add_observables = Model('BulkObservables', {
 mod_observable_brief = Model('ShortObservableDetails', {
     'uuid': fields.String,
     'value': fields.String,
-    'data_type': fields.String
+    'data_type': fields.String,
+    'tags': fields.List(fields.String)
 })
 
 mod_raw_log = Model('RawLog', {
