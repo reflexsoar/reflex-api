@@ -23,16 +23,16 @@ class Config(object):
     CELERY_BROKER_URL = 'redis://localhost:6379'
 
     # ELASTICSEARCH CONFIGURATION
-    ELASTICSEARCH_URL = ['localhost:9200']
+    ELASTICSEARCH_URL = ['es01:9200']
     ELASTICSEARCH_AUTH_SCHEMA = "http"
     ELASTICSEARCH_SCHEME = 'https'
     ELASTICSEARCH_CA = ''
     ELASTICSEARCH_CERT_VERIFY = "none"
 
 class ProductionConfig(Config):
+    ENV = 'production'
     DEBUG = False
-    RESTPLUS_MASK_SWAGGER = False
-    
+    RESTPLUS_MASK_SWAGGER = False    
 
 class DevelopmentConfig(Config):
     DEBUG = True
@@ -43,8 +43,7 @@ class TestingConfig(Config):
     TESTING = True
     DEBUG = False
     PRESERVE_CONTEXT_ON_EXCEPTION = False
-    WTF_CSRF_ENABLED = False
-    
+    WTF_CSRF_ENABLED = False    
 
 app_config = {
 	'development': DevelopmentConfig,
