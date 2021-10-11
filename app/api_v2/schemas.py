@@ -482,7 +482,7 @@ mod_agent_create = Model('AgentCreate', {
 mod_agent_list = Model('AgentList', {
     'uuid': fields.String,
     'name': fields.String,
-    'inputs': fields.List(fields.String),
+    'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
     'roles': fields.List(fields.String),
     'groups': fields.List(fields.String),
     'active': fields.Boolean,

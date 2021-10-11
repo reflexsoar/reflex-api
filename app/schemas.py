@@ -564,7 +564,7 @@ mod_agent_create = Model('AgentCreate', {
 mod_agent_list = Model('AgentList', {
     'uuid': fields.String,
     'name': fields.String,
-    'inputs': fields.List(fields.Nested(mod_input_list)),
+    'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
     'roles': fields.List(fields.Nested(mod_agent_role_list)),
     'groups': fields.List(fields.Nested(mod_agent_group_list)),
     'active': fields.Boolean,

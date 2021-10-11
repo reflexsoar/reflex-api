@@ -92,11 +92,16 @@ class BaseDocument(Document):
         Fetches a document by the uuid field
         '''
 
-        response = self.search().query('term', uuid=uuid, **kwargs).execute()
-        if response:
-            document = response[0]
-            return document
-        return response
+        documents = None
+        if uuid is not None:
+            if isinstance(uuid, list) or isinstance(uuid, AttrList):
+                response = self.search().query('terms', uuid=uuid, **kwargs).execute()
+                documents = [r for r in response]
+            else:
+                response = self.search().query('term', uuid=uuid, **kwargs).execute()
+                documents = response[0]
+            return documents
+        return []
 
     def save(self, **kwargs):
         '''
@@ -719,7 +724,6 @@ class Observable(BaseDocument):
             hits = l.check_value(self.value)           
             if hits > 0:
                 if l.tag_on_match:
-                    print("TAG!")
                     self.add_tag("list: {}".format(l.name))
         self.save()
 
@@ -1285,7 +1289,6 @@ class Case(BaseDocument):
                     _observable.check_threat_list()
                     _observable.enrich()
                     _observable.save()
-                print(_observable)
         else:
             o = observable
             _observable = Observable.get_by_case_uuid(self.uuid, o['value'])
@@ -1440,7 +1443,6 @@ class CaseTask(BaseDocument):
     @property
     def _notes(self):
         notes = TaskNote.get_by_task_uuid(self.uuid)
-        print(notes)
         return notes
 
     @_notes.setter
@@ -1702,6 +1704,11 @@ class Agent(BaseDocument):
 
     class Index:
         name = 'reflex-agents'
+
+    @property
+    def _inputs(self):
+        inputs = Input.get_by_uuid(uuid=self.inputs)
+        return [i for i in inputs]
 
     def has_right(self, permission):
         '''

@@ -23,16 +23,17 @@ class Config(object):
     CELERY_BROKER_URL = 'redis://localhost:6379'
 
     # ELASTICSEARCH CONFIGURATION
-    ELASTICSEARCH_URL = ['es01:9200']
-    ELASTICSEARCH_AUTH_SCHEMA = "http"
-    ELASTICSEARCH_SCHEME = 'https'
-    ELASTICSEARCH_CA = ''
-    ELASTICSEARCH_CERT_VERIFY = "none"
+    
+    ELASTICSEARCH_URL = os.getenv('REFLEX_ES_URL') if os.getenv('REFLEX_ES_URL') else ['localhost:9200']
+    ELASTICSEARCH_AUTH_SCHEMA = os.getenv('REFLEX_ES_AUTH_SCHEMA') if os.getenv('REFLEX_ES_AUTH_SCHEMA') else "http"
+    ELASTICSEARCH_SCHEME = os.getenv('REFLEX_ES_SCHEME') if os.getenv('REFLEX_ES_SCHEME') else "https"
+    ELASTICSEARCH_CA = os.getenv('REFLEX_ES_CA') if os.getenv('REFLEX_ES_CA') else ""
+    ELASTICSEARCH_CERT_VERIFY = os.getenv('REFLEX_ES_CERT_VERIFY') if os.getenv('REFLEX_ES_CERT_VERIFY') else "none"
 
 class ProductionConfig(Config):
     ENV = 'production'
     DEBUG = False
-    RESTPLUS_MASK_SWAGGER = False    
+    RESTPLUS_MASK_SWAGGER = True    
 
 class DevelopmentConfig(Config):
     DEBUG = True
