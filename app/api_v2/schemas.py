@@ -1,3 +1,4 @@
+from app.schemas import JSONField
 from app.models import Observable
 import json
 from flask import current_app
@@ -454,8 +455,8 @@ mod_input_list = Model('InputList', {
     'enabled': fields.Boolean,
     'credential': fields.String,
     'tags': fields.List(fields.String),
-    'config': fields.String,
-    'field_mapping': fields.String,
+    'config': JSONField(attribute="_config"),
+    'field_mapping': JSONField(attribute="_field_mapping"),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at')
 })
