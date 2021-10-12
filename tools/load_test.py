@@ -27,7 +27,7 @@ def bulk(events):
             'Content-Type': 'application/json',
             'Authorization': 'Bearer '+token
         }
-        response = requests.post('{}/api/v2.0/event/_bulk_test'.format(host),
+        response = requests.post('{}/api/v2.0/event/_bulk'.format(host),
                                  data=json.dumps({"events": events}),
                                  headers=headers, verify=False)
         if response.status_code == 200:
@@ -176,7 +176,7 @@ def random_event():
 
 while True:
   events = []
-  for i in range(0,1000):
+  for i in range(0,50):
     headers = {
       'Content-Type': 'application/json'
     }
@@ -189,4 +189,4 @@ while True:
 
   print("Sending {} events...".format(len(events)))
   bulk(events)
-  time.sleep(60)
+  time.sleep(5)

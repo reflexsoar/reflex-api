@@ -773,7 +773,6 @@ class BulkEventsTest(Resource):
                             event.set_new()
                     else:
                         event.set_new()
-                print(event)
         
         start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
         if 'events' in api2.payload and len(api2.payload['events']) > 0:
@@ -2662,7 +2661,7 @@ class DashboardMetrics(Resource):
 
         events = Event.search()
         new_events = events.filter('term', **{'status.name__keyword': 'New'})
-        events_sorted = events.sort('created_at')
+        events_sorted = events.sort('-created_at')
         last_event = [e for e in events_sorted[0:1]][0]
 
         return {
