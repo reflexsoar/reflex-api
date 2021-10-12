@@ -337,11 +337,11 @@ mod_event_list = Model('EventList', {
     'status': fields.Nested(mod_event_status),
     'source': fields.String,
     'tags': fields.List(fields.Nested(mod_tag_list), attribute='_tags'),
-    'observables': fields.List(fields.Nested(mod_observable_brief), attribute='_observables'),
+    #'observables': fields.List(fields.Nested(mod_observable_brief), attribute='_observables'),
     'tags': fields.List(fields.String),
-    'observables': fields.List(fields.Nested(mod_observable_brief)),
-    'observable_count': ObservableCount(attribute='observables'),
-    'ioc_count': IOCCount(attribute='observables'),
+    #'observables': fields.List(fields.Nested(mod_observable_brief)),
+    #'observable_count': ObservableCount(attribute='observables'),
+    #'ioc_count': IOCCount(attribute='observables'),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
     'case': fields.String,
@@ -354,6 +354,7 @@ mod_event_list = Model('EventList', {
 
 mod_event_paged_list = Model('PagedEventList', {
    'events': fields.List(fields.Nested(mod_event_list)),
+   'observables': JSONField,
    'pagination': fields.Nested(mod_pagination)
 })
 

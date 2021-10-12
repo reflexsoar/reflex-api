@@ -744,15 +744,32 @@ class Observable(BaseDocument):
         return None
 
     @classmethod
-    def get_by_event_uuid(self, uuid):
+    def get_by_event_uuid(self, uuid, all_docs=True):
         '''
         Fetches the observable based on the related event
         '''
-        response = self.search().query('term', events=uuid).execute()
-        if response:
-            return response
-        else:
-            return []
+
+        documents = []
+        # TODO: Deduplicate this code
+        if uuid is not None:
+            if isinstance(uuid, list) or isinstance(uuid, AttrList):
+                response = self.search().query('terms', events=uuid)
+                if all_docs:
+                    response = response[0:response.count()]
+                    response.execute()
+                else:
+                    response.execute()
+                documents = [r for r in response]
+            else:
+                response = self.search().query('term', events=uuid).execute()
+                if all_docs:
+                    response = response[0:response.count()]
+                    response.execute()
+                else:
+                    response.execute()
+                documents = response
+
+        return documents
 
     @classmethod
     def get_by_case_uuid(self, uuid):

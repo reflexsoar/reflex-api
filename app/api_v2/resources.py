@@ -650,8 +650,15 @@ class EventList(Resource):
 
             events = events_dedupe
 
+        event_uuids = [e.uuid for e in events]
+        observables = Observable.get_by_event_uuid(uuid=event_uuids)
+        event_to_observables = {}
+        for event in events:
+            event_to_observables[event.uuid] = [o.to_dict() for o in observables if event.uuid in o.events]
+
         response = {
             'events': events,
+            'observables': json.loads(json.dumps(event_to_observables, default=str)),
             'pagination': {
                 'total_results': total_events,
                 'pages': pages,
@@ -2238,7 +2245,6 @@ class AgentGroupList(Resource):
         Creates a new agent group that can be used to assign 
         certain stack features to specific agents
         '''
-        print(api2.payload)
         group = AgentGroup(**api2.payload)
         group.save()
         return group
