@@ -2,6 +2,8 @@ import base64
 import math
 import datetime
 import itertools
+from queue import Queue
+import threading
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs, marshal
 from elasticsearch_dsl import A
@@ -30,7 +32,9 @@ from .models import (
     CloseReason,
     CaseTask,
     Tag,
-    AgentGroup
+    AgentGroup,
+    PluginConfig,
+    Plugin
 )
 from .utils import token_required, user_has, generate_token
 
@@ -79,6 +83,7 @@ ns_close_reason_v2 = api2.namespace(
     'CloseReason', description='Closure reason are used when closing a case and can be customized', path='/close_reason')
 ns_tag_v2 = api2.namespace('Tag', description='Tag operations', path='/tag')
 ns_dashboard_v2 = api2.namespace('Dashboard', description='API endpoints that drive dashboard display', path='/dashboard')
+ns_plugins_v2 = api2.namespace('Plugin', description='Plugin operations', path='/plugin')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -715,6 +720,77 @@ class EventList(Resource):
 
 
 @ns_event_v2.route('/_bulk')
+class BulkEventsTest(Resource):
+
+    # TODO: This needs some serious love but it should work let's test it
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_event_create_bulk)
+    @token_required
+    @user_has('add_event')
+    def post(self, current_user):
+        event_queue = Queue()
+
+        workers = []
+
+        def process_event(queue):
+            while not queue.empty():
+                raw_event = queue.get()
+                event = Event.get_by_reference(raw_event['reference'])
+
+                if not event:
+
+                    observables = []
+                    added_observables = []
+
+                    # Start clocking event creation
+                    start_event_process_dt = datetime.datetime.utcnow().timestamp()
+
+                    if 'observables' in raw_event:
+                        observables = raw_event.pop('observables')
+
+                    event = Event(**raw_event)
+                    event.save()
+
+                    if observables:
+                        added_observables = event.add_observable(observables)
+
+                    event.hash_event(observables=added_observables)
+
+                    # Check if there are any event rules for the alarm with this title
+                    event_rules = EventRule.get_by_title(title=event.title)
+                    if event_rules:
+
+                        matched = None                    
+                        for event_rule in event_rules:
+
+                            # If the event matches the event rules criteria perform the rule actions
+                            if event.check_event_rule_signature(event_rule.rule_signature, observables=added_observables):
+                                # TODO: Add logging for when this fails
+                                matched = event_rule.process(event)
+
+                        if not matched:
+                            event.set_new()
+                    else:
+                        event.set_new()
+                print(event)
+        
+        start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
+        if 'events' in api2.payload and len(api2.payload['events']) > 0:
+            [event_queue.put(e) for e in api2.payload['events']]
+
+        for i in range(0,10):
+            p = threading.Thread(target=process_event, daemon=True, args=(event_queue,))
+            workers.append(p)
+        [t.start() for t in workers]
+
+        end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
+        total_process_time = end_bulk_process_dt - start_bulk_process_dt
+
+        return total_process_time
+
+
+@ns_event_v2.route('/_bulk_old')
 class CreateBulkEvents(Resource):
 
     @api2.doc(security="Bearer")
@@ -2506,6 +2582,29 @@ class ThreatListDetails(Resource):
             return value_list
         else:
             ns_list_v2.abort(404, 'ThreatList not found.')
+
+
+@ns_plugins_v2.route("")
+class PluginList(Resource):
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('view_plugins')
+    def get(self, current_user):
+        ''' Retrieves a list of plugins'''
+        return {}
+
+
+@ns_plugins_v2.route("/upload")
+class PluginUpload(Resource):
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('create_plugin')
+    def post(self, current_user):
+        ''' Adds a new plugin to the system'''
+        print(api2.payload)
+        return {}
 
 
 @ns_settings_v2.route("")

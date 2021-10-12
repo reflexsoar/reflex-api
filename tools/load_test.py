@@ -4,6 +4,7 @@ import datetime
 import hashlib
 import base64
 import requests
+import time
 
 host = 'http://localhost'
 
@@ -26,7 +27,7 @@ def bulk(events):
             'Content-Type': 'application/json',
             'Authorization': 'Bearer '+token
         }
-        response = requests.post('{}/api/v2.0/event/_bulk'.format(host),
+        response = requests.post('{}/api/v2.0/event/_bulk_test'.format(host),
                                  data=json.dumps({"events": events}),
                                  headers=headers, verify=False)
         if response.status_code == 200:
@@ -45,7 +46,7 @@ def reference():
 def case_templates():
   
   templates = [
-    {"title":"Phishing Analysis","description":"Use this case template when investigating a Phishing e-mail.","tasks":[{"title":"Fetch original e-mail","description":"Get a copy of the original e-mail so that analysis can be performed on it to determine if it really is a phishing e-mail or not.","group_uuid":null,"owner_uuid":null,"order":"0"},{"title":"Notify users","description":"Send a phishing alert e-mail to all users so they are aware they may have been targeted.  This should buy time until the e-mail is scrubbed from the environment.","group_uuid":null,"owner_uuid":null,"order":"1"},{"title":"Quarantine","description":"Remove the original message from the e-mail environment","group_uuid":null,"owner_uuid":null,"order":"2"},{"title":"Post Mortem","description":"What have we learned from this event that could help in future events?","group_uuid":null,"owner_uuid":null,"order":"3"}],"tlp":2,"severity":2,"tags":["phishing"]}
+    {"title":"Phishing Analysis","description":"Use this case template when investigating a Phishing e-mail.","tasks":[{"title":"Fetch original e-mail","description":"Get a copy of the original e-mail so that analysis can be performed on it to determine if it really is a phishing e-mail or not.","group_uuid":None,"owner_uuid":None,"order":"0"},{"title":"Notify users","description":"Send a phishing alert e-mail to all users so they are aware they may have been targeted.  This should buy time until the e-mail is scrubbed from the environment.","group_uuid":None,"owner_uuid":None,"order":"1"},{"title":"Quarantine","description":"Remove the original message from the e-mail environment","group_uuid":None,"owner_uuid":None,"order":"2"},{"title":"Post Mortem","description":"What have we learned from this event that could help in future events?","group_uuid":None,"owner_uuid":None,"order":"3"}],"tlp":2,"severity":2,"tags":["phishing"]}
   ]
 
 def random_title_description():
@@ -172,17 +173,20 @@ def random_event():
   return alerts[random.randint(0, len(alerts)-1)]
 
 
-events = []
-for i in range(0,10):
-  headers = {
-    'Content-Type': 'application/json'
-  }
-  event = random_event()
-  events.append(event)
-                                 
-  if i % 2 == 0 :
-    event['reference'] = reference()
-    events.append(event)
 
-print("Sending {} events...".format(len(events)))
-bulk(events)
+while True:
+  events = []
+  for i in range(0,1000):
+    headers = {
+      'Content-Type': 'application/json'
+    }
+    event = random_event()
+    events.append(event)
+                                  
+    #if i % 2 == 0 :
+    #  event['reference'] = reference()
+    #  events.append(event)
+
+  print("Sending {} events...".format(len(events)))
+  bulk(events)
+  time.sleep(60)

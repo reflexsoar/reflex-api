@@ -22,7 +22,9 @@ from app.api_v2.models import (
     EventStatus,
     Observable,
     AgentGroup,
-    TaskNote
+    TaskNote,
+    Plugin,
+    PluginConfig
 )
 
 connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','GONivaFtwK9JJuwDRkr8'))
@@ -420,6 +422,8 @@ CaseTask.init()
 Observable.init()
 AgentGroup.init()
 TaskNote.init()
+Plugin.init()
+PluginConfig.init()
 admin_id = create_admin_user()
 create_admin_role(admin_id)
 create_analyst_role()
