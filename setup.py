@@ -27,8 +27,13 @@ from app.api_v2.models import (
     PluginConfig,
     EventLog
 )
+import os
 
-connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','GONivaFtwK9JJuwDRkr8'))
+ES_URL = os.getenv('REFLEX_ES_URL') if os.getenv('REFLEX_ES_URL') else ['localhost:9200']
+ES_USERNAME = os.getenv('REFLEX_ES_USERNAME') if os.getenv('REFLEX_ES_USERNAME') else 'admin'
+ES_PASSWORD = os.getenv('REFLEX_ES_PASSWORD') if os.getenv('REFLEX_ES_PASSWORD') else 'admin'
+
+connections.create_connection(hosts=ES_URL, use_ssl=True, verify_certs=False, http_auth=(ES_USERNAME,ES_PASSWORD))
 
 
 def check_setup_status():
