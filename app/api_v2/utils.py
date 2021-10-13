@@ -23,6 +23,26 @@ def generate_token(uuid, duration=10, token_type='agent'):
     return _access_token
 
 
+def ip_approved(f):
+    '''
+    Returns 401 Unauthorized if the requestor 
+    is not in the approved IP list
+    '''
+
+    def wrapper(*args, **kwargs):
+
+        ip_list = ['127.0.0.1']
+        source_ip = request.remote_addr
+        if source_ip not in ip_list:
+            abort(401, "Unauthorized")
+        else:
+            return f(*args, **kwargs)
+    
+    wrapper.__doc__ = f.__doc__
+    wrapper.__name__ = f.__name__
+    return wrapper        
+
+
 def token_required(f):
     # Token Wrapper
 
