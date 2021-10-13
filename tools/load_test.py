@@ -176,7 +176,7 @@ def random_event():
 
 while True:
   events = []
-  for i in range(0,50):
+  for i in range(0,1):
     headers = {
       'Content-Type': 'application/json'
     }

@@ -628,9 +628,6 @@ class Observable(BaseDocument):
 
         # TODO: Move this to a constants file
         # Well known SIDs for Microsoft Domains
-        
-
-        
         if self.data_type == 'sid':
             for k in MS_SID_ENDS_WITH:
                 if self.value.endswith(k):
@@ -718,15 +715,16 @@ class Observable(BaseDocument):
                     response.execute()
                 else:
                     response.execute()
-                documents = [r for r in response]
+                documents = [r for r in response] if response else []
             else:
-                response = self.search().query('term', events=uuid).execute()
+                print('Single event')
+                response = self.search().query('term', events=uuid)
                 if all_docs:
                     response = response[0:response.count()]
                     response.execute()
                 else:
                     response.execute()
-                documents = response
+                documents = [r for r in response] if response else []
 
         return documents
 
@@ -1061,9 +1059,33 @@ class EventRule(BaseDocument):
                 event.set_dismissed()
                 return True
             elif self.merge_into_case:
+
+                # Set the event open and link it to the case
                 event.set_open()
                 event.set_case(self.target_case_uuid)
+
+                # Fetch the case and add the observables
+                # from the event
                 case = Case.get_by_uuid(self.target_case_uuid)
+                event_observables = Observable.get_by_event_uuid(event.uuid)
+                print("Event:",event.uuid, event_observables)
+                case_observables = Observable.get_by_case_uuid(self.target_case_uuid)
+                print("Case:", case_observables)
+                new_observables = None
+                if case_observables:
+                    new_observables = [o for o in event_observables if o.value not in [o.value for o in case_observables]]
+                    print(new_observables)
+                else:
+                    new_observables = [o for o in event_observables]
+                    print(new_observables)
+
+                new_observables =[Observable(
+                    tags=o.tags, value=o.value, data_type=o.data_type, ioc=o.ioc, spotted=o.spotted, tlp=o.tlp, case=case.uuid) for o in new_observables]
+
+                if new_observables:
+                    [o.save() for o in new_observables]
+
+                # Add the event to the case
                 case.add_event(event)
                 return True                
 
