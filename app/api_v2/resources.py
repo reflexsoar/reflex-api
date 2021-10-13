@@ -909,8 +909,19 @@ class EventDetails(Resource):
         '''
         Updates an event
         '''
-        print(api2.payload)
-        return {}
+        if 'dismiss_reason_uuid' in api2.payload:
+            reason = CloseReason.get_by_uuid(uuid=api2.payload['dismiss_reason_uuid'])
+            event = Event.get_by_uuid(uuid=uuid)
+
+            comment = None
+            if 'dismiss_comment' in api2.payload and api2.payload['dismiss_comment'] != '':
+                comment = api2.payload['dismiss_comment']
+            
+            event.set_dismissed(reason, comment=comment)
+            print(current_user)
+            return {'message':'Successfully dismissed event'}, 200
+        else:
+            return {}
 
 
 @ns_event_v2.route("/<uuid>/new_related_events")

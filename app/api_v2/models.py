@@ -717,7 +717,6 @@ class Observable(BaseDocument):
                     response.execute()
                 documents = [r for r in response] if response else []
             else:
-                print('Single event')
                 response = self.search().query('term', events=uuid)
                 if all_docs:
                     response = response[0:response.count()]
@@ -835,6 +834,7 @@ class Event(BaseDocument):
     dismissed = Boolean()
     dismiss_reason = Text()
     dismiss_comment = Text()
+    dismissed_by = Object()
     raw_log = Text()
 
     class Index:
@@ -877,8 +877,12 @@ class Event(BaseDocument):
         self.status = EventStatus.get_by_name(name='New')
         self.save()
 
-    def set_dismissed(self):
+    def set_dismissed(self, reason, comment=None):
         self.status = EventStatus.get_by_name(name='Dismissed')
+        if comment:
+            self.dismiss_comment = comment
+            self.dismiss_reason = reason.title
+            self.dismissed_by = _current_user_id_or_none()
         self.save()
 
     def set_closed(self):

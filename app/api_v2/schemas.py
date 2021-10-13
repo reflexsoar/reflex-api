@@ -5,6 +5,14 @@ from flask import current_app
 from flask_restx import Model, fields
 from .models import Observable
 
+class ExtractValue(fields.Raw):
+    ''' Extracts a single value from a nested object'''
+    def format(self, value, field):
+        if hasattr(value, field):
+            return getattr(value, field)
+        else:
+            return value
+
 class ObservableCount(fields.Raw):
     ''' Returns the number of observables '''
 
@@ -384,7 +392,9 @@ mod_event_details = Model('EventDetails', {
     'created_at': ISO8601(attribute='created_at'),
     'modified_at': ISO8601(attribute='updated_at'),
     'raw_log': fields.String,
-    'signature': fields.String
+    'signature': fields.String,
+    'dismiss_reason': fields.String,
+    'dismiss_comment': fields.String
 })
 
 
