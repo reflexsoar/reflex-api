@@ -35,16 +35,18 @@ ES_PASSWORD = os.getenv('REFLEX_ES_PASSWORD') if os.getenv('REFLEX_ES_PASSWORD')
 
 connections.create_connection(hosts=ES_URL, use_ssl=True, verify_certs=False, http_auth=(ES_USERNAME,ES_PASSWORD))
 
-
 def check_setup_status():
     '''
     Checks to see if setup has already been run by looking for the 
     Reflex indices in the Elasticsearch cluster
     '''
-    settings = Settings.search().execute()
-    if settings:
-        print("Setup has already been run.")
-        exit(1)
+    try:
+        settings = Settings.search().execute()
+        if settings:
+            print("Setup has already been run.")
+            exit(1)
+    except Exception as e:
+        print("Setup not run, running now...")
 
 def create_admin_role(admin_id):
 
