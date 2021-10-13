@@ -38,7 +38,7 @@ from .models import (
     Plugin,
     EventLog
 )
-from .utils import token_required, user_has, generate_token
+from .utils import ip_approved, token_required, user_has, generate_token
 
 # Instantiate a new API object
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
@@ -86,6 +86,7 @@ ns_close_reason_v2 = api2.namespace(
 ns_tag_v2 = api2.namespace('Tag', description='Tag operations', path='/tag')
 ns_dashboard_v2 = api2.namespace('Dashboard', description='API endpoints that drive dashboard display', path='/dashboard')
 ns_plugins_v2 = api2.namespace('Plugin', description='Plugin operations', path='/plugin')
+ns_audit_log_v2 = api2.namespace('AuditLog', description='Reflex audit logs', path='/audit_log')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -142,16 +143,22 @@ class Login(Resource):
             # Update the users failed_logons and last_logon entries
             user.update(failed_logons=0, last_logon=datetime.datetime.utcnow())
 
+            log = EventLog(event_type="Authentication", message=f"source_user={user.username}, source_ip={request.remote_addr}, status=Success, sub_message=Succesful Authentication")
+            log.save()
+
             return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
 
         if user.failed_logons == None:
             user.update(failed_logons=0)
 
-        # TODO: Move this back to a global setting when settings is migrated
         if user.failed_logons >= Settings.load().logon_password_attempts:
             user.update(locked=True)
+            log = EventLog(event_type="Authentication", message=f"source_user={user.username}, source_ip={request.remote_addr}, status=Success, sub_message=Account Locked")
+            log.save()
         else:
             user.update(failed_logons=user.failed_logons+1)
+            log = EventLog(event_type="Authentication", message=f"source_user={user.username}, source_ip={request.remote_addr}, status=Failed, sub_message=Bad Username or Password")
+            log.save()
 
         ns_auth_v2.abort(401, 'Incorrect username or password')
 
@@ -2643,6 +2650,41 @@ class PluginUpload(Resource):
         return {}
 
 
+@ns_audit_log_v2.route("")
+class AuditLogsList(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_audit_log_paged_list)
+    @ip_approved
+    @token_required    
+    @user_has('view_settings')
+    def get(self, current_user):
+        ''' Returns a paginated collection of audit logs'''
+
+        page_size = 25
+        page = 0
+        logs = EventLog.search()
+        total_logs = logs.count()
+        total_pages = total_logs/page_size
+
+        start = page*page_size
+        end = start+page_size
+        
+        logs = logs.sort('-created_at')
+        logs = logs[start:end]
+        logs = [l for l in logs]
+
+        return {
+            'logs': logs,
+            'pagination': {
+                'page': page,
+                'page_size': page_size,
+                'total_results': total_logs,
+                'pages': total_pages
+            }
+        }
+
+
 @ns_settings_v2.route("")
 class GlobalSettings(Resource):
 
@@ -2666,6 +2708,9 @@ class GlobalSettings(Resource):
                 ns_settings_v2.abort(
                     400, 'agent_pairing_token_valid_minutes can not be greated than 365 days.')
 
+        if 'approved_ips' in api2.payload:
+            api2.payload['approved_ips'] = api2.payload['approved_ips'].split('\n')
+             
         settings = Settings.load()
         settings.update(**api2.payload)
 

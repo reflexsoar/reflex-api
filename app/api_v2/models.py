@@ -1939,6 +1939,8 @@ class Settings(BaseDocument):
     events_per_page = Integer()  # Default 10
     # ip,user,host,fqdn,sha1,md5,sha256,imphash,ssdeep,vthash,network,domain,url,mail
     data_types = Keyword()
+    require_approved_ips = Boolean()
+    approved_ips = Keyword()
 
     class Index:
         name = 'reflex-settings'

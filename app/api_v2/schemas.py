@@ -419,7 +419,9 @@ mod_settings = Model('SettingsList', {
     'allow_comment_editing': fields.Boolean,
     'events_page_refresh': fields.Integer,
     'events_per_page': fields.Integer,
-    'data_types': fields.List(fields.String)
+    'data_types': fields.List(fields.String),
+    'require_approved_ips': fields.Boolean,
+    'approved_ips': AsNewLineDelimited()
 })
 
 mod_persistent_pairing_token = Model('PeristentPairingToken', {
@@ -811,6 +813,17 @@ mod_link_cases = Model('LinkCases', {
     'cases': fields.List(fields.String)
 })
 
+mod_audit_log = Model('AuditLog', {
+    'created_at': ISO8601(),
+    'event_type': fields.String,
+    'message': fields.String
+})
+
+mod_audit_log_paged_list = Model('AuditLogPagedList', {
+    'logs': fields.List(fields.Nested(mod_audit_log)),
+    'pagination': fields.Nested(mod_pagination)
+})
+
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full, 
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, 
 mod_observable_brief, mod_observable_create, mod_observable_update, mod_raw_log, mod_permissions, mod_api_key,
@@ -826,6 +839,6 @@ mod_user_list, mod_tag_list, mod_tag, mod_related_case, mod_link_cases, mod_case
 mod_event_paged_list, mod_event_details, mod_observable_list, mod_observable_list_paged,
 mod_bulk_add_observables, mod_case_observables, mod_related_events, mod_pagination, mod_event_create_bulk,
 mod_agent_group_list, mod_paged_agent_group_list, mod_agent_group_create, mod_case_task_note, mod_case_task_note_create,
-mod_case_task_note_details]
+mod_case_task_note_details, mod_audit_log, mod_audit_log_paged_list]
 
 

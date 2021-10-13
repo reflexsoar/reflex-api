@@ -405,6 +405,7 @@ def initial_settings():
         'allow_comment_editing': False,
         'events_page_refresh': 60,
         'events_per_page': 10,
+        'require_approved_ips': False,
         'data_types': ['ip','user','host','fqdn','sha1','md5','sha256','imphash','ssdeep','vthash','network','domain','url','mail','sid','mac']
     }
 

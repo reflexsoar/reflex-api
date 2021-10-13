@@ -6,7 +6,7 @@ import logging
 
 from flask import request, current_app, abort
 from sqlalchemy.orm import joinedload, subqueryload, load_only
-from .models import User, ExpiredToken
+from .models import User, ExpiredToken, Settings
 
 
 def generate_token(uuid, duration=10, token_type='agent'):
@@ -31,12 +31,22 @@ def ip_approved(f):
 
     def wrapper(*args, **kwargs):
 
-        ip_list = ['127.0.0.1']
-        source_ip = request.remote_addr
-        if source_ip not in ip_list:
-            abort(401, "Unauthorized")
-        else:
-            return f(*args, **kwargs)
+        settings = Settings.load()
+
+        if hasattr(settings, 'require_approved_ips') and settings.require_approved_ips:
+
+            print("REQUIRE IT!")
+
+            ip_list = ['69.7.235.50']
+            if request.headers.getlist('X-Forwarded-For'):
+                source_ip = request.headers.getlist('X-Forwarded-For')[0]
+            else:
+                source_ip = request.remote_addr
+            if source_ip not in ip_list:
+                abort(401, "Unauthorized")
+
+        return f(*args, **kwargs)
+        
     
     wrapper.__doc__ = f.__doc__
     wrapper.__name__ = f.__name__
