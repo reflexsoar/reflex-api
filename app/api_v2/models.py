@@ -1368,7 +1368,10 @@ class Case(BaseDocument):
         if isinstance(event, list):
             self.events.append([e.uuid for e in event])
         else:
-            self.events.append(event.uuid)
+            if self.events:
+                self.events.append(event.uuid)
+            else:
+                self.events = [event.uuid]
         self.save()
         return True
         
@@ -1874,6 +1877,15 @@ class PluginConfig(BaseDocument):
 
     class Index():
         name = 'reflex-plugin-configs'
+
+
+class EventLog(BaseDocument):
+
+    event_type = Text()
+    message = Text()
+
+    class Index():
+        name = 'reflex-audit-logs'
 
 
 class Settings(BaseDocument):

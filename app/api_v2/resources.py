@@ -4,6 +4,7 @@ import datetime
 import itertools
 from queue import Queue
 import threading
+import uuid
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs, marshal
 from elasticsearch_dsl import A
@@ -34,7 +35,8 @@ from .models import (
     Tag,
     AgentGroup,
     PluginConfig,
-    Plugin
+    Plugin,
+    EventLog
 )
 from .utils import token_required, user_has, generate_token
 
@@ -720,7 +722,7 @@ class EventList(Resource):
 
 
 @ns_event_v2.route('/_bulk')
-class BulkEventsTest(Resource):
+class CreateBulkEvents(Resource):
 
     # TODO: This needs some serious love but it should work let's test it
 
@@ -733,7 +735,9 @@ class BulkEventsTest(Resource):
 
         workers = []
 
-        def process_event(queue):
+        request_id = str(uuid.uuid4())
+
+        def process_event(queue, request_id):
             while not queue.empty():
                 raw_event = queue.get()
                 event = Event.get_by_reference(raw_event['reference'])
@@ -773,24 +777,36 @@ class BulkEventsTest(Resource):
                             event.set_new()
                     else:
                         event.set_new()
+
+                    end_event_process_dt = datetime.datetime.utcnow().timestamp()
+                    event_process_time = end_event_process_dt - start_event_process_dt
+                    log = EventLog(event_type="Bulk Event Insert", message=f"request_id={request_id}, event_reference={event.reference}, time_taken={event_process_time}, status=Success, event_id:{event.uuid}")
+                    log.save()
+                else:
+                    log = EventLog(event_type="Bulk Event Insert", message=f"request_id={request_id}, event_reference={event.reference}, time_taken=0, status=Already Exists")
+                    log.save()
+
         
         start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
         if 'events' in api2.payload and len(api2.payload['events']) > 0:
             [event_queue.put(e) for e in api2.payload['events']]
 
         for i in range(0,10):
-            p = threading.Thread(target=process_event, daemon=True, args=(event_queue,))
+            p = threading.Thread(target=process_event, daemon=True, args=(event_queue,request_id))
             workers.append(p)
         [t.start() for t in workers]
+
+        log = EventLog(event_type="Bulk Event Insert", message=f"{request_id} submitted successfully.")
+        log.save()
 
         end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
         total_process_time = end_bulk_process_dt - start_bulk_process_dt
 
-        return total_process_time
+        return {"request_id": request_id, "response_time": total_process_time}
 
 
 @ns_event_v2.route('/_bulk_old')
-class CreateBulkEvents(Resource):
+class CreateBulkEventsOld(Resource):
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_event_create_bulk)
@@ -885,6 +901,16 @@ class EventDetails(Resource):
             return event
         else:
             ns_event_v2.abort(404, 'Event not found.')
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('update_event')
+    def put(self, uuid, current_user):
+        '''
+        Updates an event
+        '''
+        print(api2.payload)
+        return {}
 
 
 @ns_event_v2.route("/<uuid>/new_related_events")

@@ -24,7 +24,8 @@ from app.api_v2.models import (
     AgentGroup,
     TaskNote,
     Plugin,
-    PluginConfig
+    PluginConfig,
+    EventLog
 )
 
 connections.create_connection(hosts=['localhost:9200'], use_ssl=True, verify_certs=False, http_auth=('elastic','GONivaFtwK9JJuwDRkr8'))
@@ -424,6 +425,7 @@ AgentGroup.init()
 TaskNote.init()
 Plugin.init()
 PluginConfig.init()
+EventLog.init()
 admin_id = create_admin_user()
 create_admin_role(admin_id)
 create_analyst_role()
