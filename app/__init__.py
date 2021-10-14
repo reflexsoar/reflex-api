@@ -54,13 +54,17 @@ def create_app(environment='development'):
     elastic_connection = {
         'hosts': app.config['ELASTICSEARCH_URL'],
         'verify_certs': app.config['ELASTICSEARCH_CERT_VERIFY'],
-        'use_ssl': True if app.config['ELASTICSEARCH_SCHEME'] == 'https' else False
+        'use_ssl': True if app.config['ELASTICSEARCH_SCHEME'] == 'https' else False,
+        'ssl_show_warn': app.config['ELASTICSEARCH_SHOW_SSL_WARN']
     }
     if app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'http':
         elastic_connection['http_auth'] = (app.config['ELASTICSEARCH_USERNAME'],app.config['ELASTICSEARCH_PASSWORD'])
 
     elif app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'api':
         elastic_connection['api_key'] = (app.config['ELASTICSEARCH_USERNAME'],app.config['ELASTICSEARCH_PASSWORD'])
+
+    if app.config['ELASTICSEARCH_CA']:
+        elastic_connection['ca_certs'] = app.config['ELASTICSEARCH_CA']
 
     connections.create_connection(**elastic_connection)
 
