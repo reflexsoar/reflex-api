@@ -26,8 +26,8 @@ class Config(object):
     ELASTICSEARCH_AUTH_SCHEMA = os.getenv('REFLEX_ES_AUTH_SCHEMA') if os.getenv('REFLEX_ES_AUTH_SCHEMA') else "http"
     ELASTICSEARCH_SCHEME = os.getenv('REFLEX_ES_SCHEME') if os.getenv('REFLEX_ES_SCHEME') else "https"
     ELASTICSEARCH_CA = os.getenv('REFLEX_ES_CA') if os.getenv('REFLEX_ES_CA') else None
-    ELASTICSEARCH_CERT_VERIFY = os.getenv('REFLEX_ES_CERT_VERIFY') if os.getenv('REFLEX_ES_CERT_VERIFY') else False
-    ELASTICSEARCH_SHOW_SSL_WARN = os.getenv('REFLEX_ES_SHOW_SSL_WARN') if os.getenv('REFLEX_ES_SHOW_SSL_WARN') else False
+    ELASTICSEARCH_CERT_VERIFY = True if os.getenv('REFLEX_ES_CERT_VERIFY') else False
+    ELASTICSEARCH_SHOW_SSL_WARN = True if os.getenv('REFLEX_ES_SHOW_SSL_WARN') else False
 
 class ProductionConfig(Config):
     ENV = 'production'

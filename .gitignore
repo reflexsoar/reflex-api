@@ -8,6 +8,7 @@ app/plugins/*
 app/uploads/case_files/*
 app/uploads/file_observables/*
 tmp
+ca.crt
 
 ### Flask ###
 instance/*

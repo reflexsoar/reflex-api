@@ -66,6 +66,8 @@ def create_app(environment='development'):
     if app.config['ELASTICSEARCH_CA']:
         elastic_connection['ca_certs'] = app.config['ELASTICSEARCH_CA']
 
+    print(elastic_connection)
+
     connections.create_connection(**elastic_connection)
 
     return app
