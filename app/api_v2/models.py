@@ -626,7 +626,6 @@ class Observable(BaseDocument):
         based on industry known information
         '''
 
-        # TODO: Move this to a constants file
         # Well known SIDs for Microsoft Domains
         if self.data_type == 'sid':
             for k in MS_SID_ENDS_WITH:

@@ -29,6 +29,8 @@ class Config(object):
     ELASTICSEARCH_CERT_VERIFY = True if os.getenv('REFLEX_ES_CERT_VERIFY') else False  # This can equal any value, as long as it is set True
     ELASTICSEARCH_SHOW_SSL_WARN = True if os.getenv('REFLEX_ES_SHOW_SSL_WARN') else False # This can equal any value, as long as it is set True
 
+    LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
+
 class ProductionConfig(Config):
     ENV = 'production'
     DEBUG = False

@@ -824,7 +824,6 @@ class CreateBulkEventsOld(Resource):
     def post(self, current_user):
         '''
         Creates Events in bulk 
-        TODO: Add multi-processing to increase throughput or perform in a background task
         '''
         response = {
             'results': [],
@@ -1538,7 +1537,7 @@ class CaseObservable(Resource):
     @api2.response('404', 'Observable not found')
     @api2.marshal_with(mod_observable_list)
     @token_required
-    @user_has('update_case') # TODO: Make this update_case_observables
+    @user_has('view_cases')
     def get(self, uuid, value, current_user):
         ''' Returns the information about a single observable '''
         case = Case.get_by_uuid(uuid=uuid)
