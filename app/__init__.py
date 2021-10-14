@@ -51,8 +51,17 @@ def create_app(environment='development'):
 
     from app.api_v2.models import connections
 
-    # TODO: Configure this to use API_KEY authentication
-    # TODO: Configure this to support CA files and Certificate verification
-    connections.create_connection(hosts=app.config['ELASTICSEARCH_URL'], http_auth=(app.config['ELASTICSEARCH_USERNAME'], app.config['ELASTICSEARCH_PASSWORD']), verify_certs=False, use_ssl=True)
+    elastic_connection = {
+        'hosts': app.config['ELASTICSEARCH_URL'],
+        'verify_certs': app.config['ELASTICSEARCH_CERT_VERIFY'],
+        'use_ssl': True if app.config['ELASTICSEARCH_SCHEME'] == 'https' else False
+    }
+    if app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'http':
+        elastic_connection['http_auth'] = (app.config['ELASTICSEARCH_USERNAME'],app.config['ELASTICSEARCH_PASSWORD'])
+
+    elif app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'api':
+        elastic_connection['api_key'] = (app.config['ELASTICSEARCH_USERNAME'],app.config['ELASTICSEARCH_PASSWORD'])
+
+    connections.create_connection(**elastic_connection)
 
     return app

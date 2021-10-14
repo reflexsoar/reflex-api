@@ -7,6 +7,8 @@ COPY Pipfile.lock /
 COPY config.py /
 COPY app /app
 
+ENV FLASK_CONFIG="production"
+
 WORKDIR /
 RUN mkdir instance
 

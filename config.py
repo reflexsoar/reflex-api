@@ -7,28 +7,26 @@ class Config(object):
     SECURITY_TRACKABLE = True
     
     API_TITLE = 'Reflex SOAR'
-    API_VERSION = '1.0'
+    API_VERSION = '2.0'
     API_DESCRIPTION = 'A Security Orchestration and Automation Platform'
     WTF_CSRF_ENABLED = False
     PERMISSIONS_DISABLED = False
 
-    PLUGIN_DIRECTORY = 'plugins/'
+    PLUGIN_DIRECTORY = os.getenv('REFLEX_PLUGINS_DIR') if os.getenv('REFLEX_PLUGINS_DIR') else 'plugins/'
     PLUGIN_EXTENSIONS = ['zip']
 
-    CASE_FILES_DIRECTORY = 'uploads/case_files/'
+    CASE_FILES_DIRECTORY = os.getenv('REFLEX_CASE_FILES_DIR') if os.getenv('REFLEX_CASE_FILES_DIR') else 'uploads/case_files/'
     CASE_FILE_EXTENSIONS = ['txt','doc','docx','zip','xls','xlsx','json','csv']
-    MAX_FILE_SIZE = "51200" # Megabytes
-    FILE_OBSERVABLES_DIRECTORY = 'uploads/file_observables/'
-
-    CELERY_BROKER_URL = 'redis://localhost:6379'
+    MAX_FILE_SIZE = os.getenv('REFLEX_MAX_UPLOAD_SIZE') if os.getenv('REFLEX_MAX_UPLOAD_SIZE') else "51200" # Megabytes
+    FILE_OBSERVABLES_DIRECTORY = os.getenv('REFLEX_OBSERVABLE_FILES_DIR') if os.getenv('REFLEX_OBSERVABLE_FILES_DIR') else 'uploads/file_observables/' 
+    FILE_OBSERVABLE_PASSWORD = os.getenv('REFLEX_OBSERVABLE_FILES_PASSWORD') if os.getenv('REFLEX_OBSERVABLE_FILES_PASSWORD') else 'infected'
 
     # ELASTICSEARCH CONFIGURATION
-    
     ELASTICSEARCH_URL = os.getenv('REFLEX_ES_URL') if os.getenv('REFLEX_ES_URL') else ['localhost:9200']
     ELASTICSEARCH_AUTH_SCHEMA = os.getenv('REFLEX_ES_AUTH_SCHEMA') if os.getenv('REFLEX_ES_AUTH_SCHEMA') else "http"
     ELASTICSEARCH_SCHEME = os.getenv('REFLEX_ES_SCHEME') if os.getenv('REFLEX_ES_SCHEME') else "https"
     ELASTICSEARCH_CA = os.getenv('REFLEX_ES_CA') if os.getenv('REFLEX_ES_CA') else ""
-    ELASTICSEARCH_CERT_VERIFY = os.getenv('REFLEX_ES_CERT_VERIFY') if os.getenv('REFLEX_ES_CERT_VERIFY') else "none"
+    ELASTICSEARCH_CERT_VERIFY = os.getenv('REFLEX_ES_CERT_VERIFY') if os.getenv('REFLEX_ES_CERT_VERIFY') else False
 
 class ProductionConfig(Config):
     ENV = 'production'
