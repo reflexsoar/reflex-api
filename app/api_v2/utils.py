@@ -3,6 +3,7 @@ import base64
 import datetime
 import smtplib
 import logging
+import ipaddress
 
 from flask import request, current_app, abort
 from sqlalchemy.orm import joinedload, subqueryload, load_only
@@ -35,14 +36,26 @@ def ip_approved(f):
 
         if hasattr(settings, 'require_approved_ips') and settings.require_approved_ips:
 
-            print("REQUIRE IT!")
-
-            ip_list = ['69.7.235.50']
+            ip_list = settings.approved_ips
             if request.headers.getlist('X-Forwarded-For'):
                 source_ip = request.headers.getlist('X-Forwarded-For')[0]
             else:
                 source_ip = request.remote_addr
-            if source_ip not in ip_list:
+
+            source_ip = ipaddress.ip_address(source_ip)
+
+            approved = False
+
+            for ip in ip_list:
+                if '/' in ip:
+                    network = ipaddress.ip_network(ip)
+                    if source_ip in network:
+                        approved = True
+                else:
+                    ip = ipaddress.ip_address(ip)
+                    if source_ip == ip:
+                        approved = True
+            if not approved:
                 abort(401, "Unauthorized")
 
         return f(*args, **kwargs)
