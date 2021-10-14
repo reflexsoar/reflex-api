@@ -57,16 +57,17 @@ def create_app(environment='development'):
         'use_ssl': True if app.config['ELASTICSEARCH_SCHEME'] == 'https' else False,
         'ssl_show_warn': app.config['ELASTICSEARCH_SHOW_SSL_WARN']
     }
+
+    username = app.config['ELASTICSEARCH_USERNAME'] if 'ELASTICSEARCH_USERNAME' in app.config else os.getenv('REFLEX_ES_USERNAME') if os.getenv('REFLEX_ES_USERNAME') else "elastic"
+    password = app.config['ELASTICSEARCH_PASSWORD'] if 'ELASTICSEARCH_PASSWORD' in app.config else os.getenv('REFLEX_ES_PASSWORD') if os.getenv('REFLEX_ES_PASSWORD') else "password"
     if app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'http':
-        elastic_connection['http_auth'] = (app.config['ELASTICSEARCH_USERNAME'],app.config['ELASTICSEARCH_PASSWORD'])
+        elastic_connection['http_auth'] = (username,password)
 
     elif app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'api':
-        elastic_connection['api_key'] = (app.config['ELASTICSEARCH_USERNAME'],app.config['ELASTICSEARCH_PASSWORD'])
+        elastic_connection['api_key'] = (username,password)
 
     if app.config['ELASTICSEARCH_CA']:
         elastic_connection['ca_certs'] = app.config['ELASTICSEARCH_CA']
-
-    print(elastic_connection)
 
     connections.create_connection(**elastic_connection)
 
