@@ -58,9 +58,12 @@ class ThreatListPoller(object):
 
             do_poll = False
 
-            if l.last_polled:
+            if l.last_polled is not None:
                 time_since = datetime.datetime.utcnow() - l.last_polled
-                if time_since.total_seconds() > l.poll_interval:
+                minutes_since = time_since.total_seconds()/60
+                print(minutes_since, l.poll_interval)
+                if minutes_since > l.poll_interval:
+                    print("DO EET")
                     do_poll = True
             else:
                 do_poll = True
