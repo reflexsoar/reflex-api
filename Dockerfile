@@ -8,6 +8,8 @@ COPY config.py /
 COPY app /app
 
 ENV FLASK_CONFIG="production"
+ENV GUNICORN_WORKERS=8
+ENV GUNICORN_THREADS=2
 
 WORKDIR /
 RUN mkdir instance
@@ -17,4 +19,4 @@ RUN pip install pipenv
 RUN pipenv install --dev
 #RUN pipenv run python setup.py
 #RUN pipenv run python manage.py run
-RUN pipenv run gunicorn 'app:create_app("production")' --preload -b 0.0.0.0:80 --workers=$(nproc --all) --threads=2 --worker-class=gthread
+CMD ["pipenv", "run", "gunicorn", "app:create_app('production')", "--preload", "-b 0.0.0.0:80", "--workers=$GUNICORN_WORKERS", "--threads=$GUNICORN_THREADS", "--worker-class=gthread"]
