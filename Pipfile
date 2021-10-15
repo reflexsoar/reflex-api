@@ -28,6 +28,7 @@ flask-caching = "*"
 sqlakeyset = "*"
 elasticsearch-dsl = "*"
 apscheduler = "*"
+flask-sqlalchemy = "*"
 
 [requires]
 python_version = "3.8"
