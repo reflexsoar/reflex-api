@@ -893,6 +893,33 @@ class CreateBulkEventsOld(Resource):
         return response, 207
 
 
+@ns_event_v2.route("/bulk_dismiss")
+class EventBulkUpdate(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_event_bulk_dismiss)
+    @api2.marshal_with(mod_event_details, as_list=True)
+    @token_required
+    @user_has('update_event')
+    def put(self, current_user):
+        ''' Dismiss multiple events at the same time '''
+
+        if 'dismiss_reason_uuid' in api2.payload:
+            reason = CloseReason.get_by_uuid(uuid=api2.payload['dismiss_reason_uuid'])
+        else:
+            ns_event_v2.abort(400, 'A dismiss reason is required.')
+
+        if 'events' in api2.payload:
+
+            comment = api2.payload['dismiss_comment'] if api2.payload['dismiss_comment'] != "" else None
+
+            events = Event.get_by_uuid(uuid=api2.payload['events'])
+            print(events)
+            [event.set_dismissed(reason=reason, comment=comment) for event in events]
+
+        return []
+
+
 @ns_event_v2.route("/<uuid>")
 class EventDetails(Resource):
 

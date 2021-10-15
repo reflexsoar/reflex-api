@@ -1,5 +1,3 @@
-import ssl
-import json
 import re
 import jwt
 import uuid
@@ -9,7 +7,6 @@ import hashlib
 import secrets
 import base64
 from flask import current_app, request
-from collections import namedtuple
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -26,15 +23,13 @@ from elasticsearch_dsl import (
     Boolean,
     Nested,
     Ip,
-    Object,
-    connections
+    Object
 )
 from json import JSONEncoder
 from app import FLASK_BCRYPT
 from .constants import MS_SID_ENDS_WITH, MS_SID_EQUALS
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 
 def escape_special_characters(string):
     ''' 

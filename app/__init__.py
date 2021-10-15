@@ -9,6 +9,7 @@ from flask_cors import CORS
 from flask_mail import Mail
 from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
+from elasticsearch_dsl import connections
 
 from config import app_config
 
@@ -30,16 +31,15 @@ def create_app(environment='development'):
 
     authorizations = {"Bearer": {"type": "apiKey", "in": "header", "name":"Authorization"}}
 
-    def print_date_time():
-        print(datetime.utcnow())
+    #def print_date_time():
+    #    print(datetime.utcnow())
 
-
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(func=print_date_time, trigger="interval", seconds=60)
-    scheduler.start()
+    #scheduler = BackgroundScheduler()
+    #scheduler.add_job(func=print_date_time, trigger="interval", seconds=60)
+    #scheduler.start()
 
     # Shut down the scheduler when exiting the app
-    atexit.register(lambda: scheduler.shutdown())
+    #atexit.register(lambda: scheduler.shutdown())
 
     from app.resources import api
     from app.api_v2.resources import api2
@@ -61,8 +61,6 @@ def create_app(environment='development'):
     app.register_blueprint(api_v2)
 
     FLASK_BCRYPT.init_app(app)
-
-    from app.api_v2.models import connections
 
     elastic_connection = {
         'hosts': app.config['ELASTICSEARCH_URL'],
