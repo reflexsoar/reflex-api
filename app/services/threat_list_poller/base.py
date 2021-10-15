@@ -34,6 +34,8 @@ class ThreatListPoller(object):
     def refresh_lists(self):
         lists = ThreatList.search()
         lists = lists.filter('exists', field='url')
+        lists = lists.filter('exists', field='active')
+        lists = lists.filter('match', active=True)
         lists = lists.execute()
         if lists:
             self.threat_lists = [l for l in lists]

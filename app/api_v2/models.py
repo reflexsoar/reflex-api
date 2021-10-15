@@ -664,10 +664,11 @@ class Observable(BaseDocument):
         '''
         theat_lists = ThreatList.get_by_data_type(self.data_type)
         for l in theat_lists:
-            hits = l.check_value(self.value)           
-            if hits > 0:
-                if l.tag_on_match:
-                    self.add_tag("list: {}".format(l.name))
+            if l.active:
+                hits = l.check_value(self.value)           
+                if hits > 0:
+                    if l.tag_on_match:
+                        self.add_tag("list: {}".format(l.name))
         self.save()
 
 

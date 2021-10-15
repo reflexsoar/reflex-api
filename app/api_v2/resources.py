@@ -2543,6 +2543,8 @@ class ThreatListList(Resource):
 
         '''
 
+        print(api2.payload)
+
         if api2.payload['list_type'] not in ['values', 'patterns']:
             ns_list_v2.abort(400, "Invalid list type.")
 

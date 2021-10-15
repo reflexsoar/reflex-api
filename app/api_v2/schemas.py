@@ -38,7 +38,10 @@ class ISO8601(fields.Raw):
 class AsNewLineDelimited(fields.Raw):
     ''' Returns an array as a string delimited by new line characters '''
     def format(self, value):
-        return '\n'.join([v for v in value])
+        if len(value) > 0:
+            return '\n'.join([v for v in value])
+        else:
+            return ''
 
 class OpenTaskCount(fields.Raw):
     ''' Returns a count of open tasks '''
@@ -552,6 +555,7 @@ mod_list_list = Model('ListView', {
     'last_polled': ISO8601(attribute='last_polled'),
     'values': AsNewLineDelimited(attribute='values'),
     #'values_list': fields.List(fields.String, attribute='values'),
+    'active': fields.Boolean,
     'value_count': ValueCount(attribute='values'),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at')
