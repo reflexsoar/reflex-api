@@ -65,7 +65,7 @@ def create_app(environment='development'):
     elastic_connection = {
         'hosts': app.config['ELASTICSEARCH_URL'],
         'verify_certs': app.config['ELASTICSEARCH_CERT_VERIFY'],
-        'use_ssl': True if app.config['ELASTICSEARCH_SCHEME'] == 'https' else False,
+        'use_ssl': app.config['ELASTICSEARCH_SCHEME'],
         'ssl_show_warn': app.config['ELASTICSEARCH_SHOW_SSL_WARN']
     }
 
@@ -79,6 +79,8 @@ def create_app(environment='development'):
 
     if app.config['ELASTICSEARCH_CA']:
         elastic_connection['ca_certs'] = app.config['ELASTICSEARCH_CA']
+
+    print(elastic_connection)
 
     connections.create_connection(**elastic_connection)
 
