@@ -27,6 +27,7 @@ cffi = "*"
 flask-caching = "*"
 sqlakeyset = "*"
 elasticsearch-dsl = "*"
+apscheduler = "*"
 
 [requires]
 python_version = "3.8"

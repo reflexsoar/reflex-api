@@ -1,14 +1,16 @@
 import os
 import ssl
-from elasticsearch import Elasticsearch
+import atexit
+from datetime import datetime
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_mail import Mail
 from flask_caching import Cache
-from config import app_config
+from apscheduler.schedulers.background import BackgroundScheduler
 
+from config import app_config
 
 FLASK_BCRYPT = Bcrypt()
 db = SQLAlchemy()
@@ -27,6 +29,17 @@ def create_app(environment='development'):
     cache.init_app(app)
 
     authorizations = {"Bearer": {"type": "apiKey", "in": "header", "name":"Authorization"}}
+
+    def print_date_time():
+        print(datetime.utcnow())
+
+
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(func=print_date_time, trigger="interval", seconds=60)
+    scheduler.start()
+
+    # Shut down the scheduler when exiting the app
+    atexit.register(lambda: scheduler.shutdown())
 
     from app.resources import api
     from app.api_v2.resources import api2
