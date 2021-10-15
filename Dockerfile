@@ -17,4 +17,4 @@ RUN pip install pipenv
 RUN pipenv install --dev
 #RUN pipenv run python setup.py
 #RUN pipenv run python manage.py run
-RUN pipenv run gunicorn app:create_app("production") --preload -b 0.0.0.0:80 --workers=$(nproc --all) --threads=2 --worker-class=gthread
+RUN pipenv run gunicorn 'app:create_app("production")' --preload -b 0.0.0.0:80 --workers=$(nproc --all) --threads=2 --worker-class=gthread
