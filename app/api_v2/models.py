@@ -25,9 +25,11 @@ from elasticsearch_dsl import (
     Ip,
     Object
 )
-from json import JSONEncoder
-from app import FLASK_BCRYPT
+
 from .constants import MS_SID_ENDS_WITH, MS_SID_EQUALS
+from flask_bcrypt import Bcrypt
+
+FLASK_BCRYPT = Bcrypt()
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -41,7 +43,6 @@ def escape_special_characters(string):
     for character in characters:
         string = string.replace(character, '\\'+character)
     return string
-
 
 def _current_user_id_or_none():
     try:
@@ -95,7 +96,10 @@ class BaseDocument(Document):
                 documents = [r for r in response]
             else:
                 response = self.search().query('term', uuid=uuid, **kwargs).execute()
-                documents = response[0]
+                if response:
+                    documents = response[0]
+                else:
+                    documents = None
             return documents
         return []
 
@@ -1805,13 +1809,21 @@ class ThreatList(BaseDocument):
     data_type_uuid = Keyword()
     tag_on_match = Boolean()  # Default to False
     values = Keyword()  # A list of values to match on
+    url = Text() # A url to pull threat information from
+    poll_interval = Integer() # How often to pull from this list
+    last_polled = Date() # The time that the list was last fetched
+    active = Boolean()
 
     class Index:
         name = 'reflex-threat-lists'
 
     @property
     def data_type(self):
-        return DataType.get_by_uuid(uuid=self.data_type_uuid)
+        data_type = DataType.get_by_uuid(uuid=self.data_type_uuid)
+        if data_type:
+            return data_type
+        else:
+            return []
 
     def check_value(self, value):
         '''
@@ -1826,6 +1838,17 @@ class ThreatList(BaseDocument):
             hits = len([v for v in self.values if re.match(v, value) != None])
 
         return hits
+
+    def set_values(self, values: list = [], from_poll=False):
+        '''
+        Sets the values of the threat list from a list of values
+        '''
+        if len(values) > 0:
+            self.values = values
+        
+        if from_poll:
+            self.last_polled = datetime.datetime.utcnow()
+        self.save()
 
     @classmethod
     def get_by_name(self, name):

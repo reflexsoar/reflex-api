@@ -29,6 +29,7 @@ sqlakeyset = "*"
 elasticsearch-dsl = "*"
 apscheduler = "*"
 flask-sqlalchemy = "*"
+requests = "*"
 
 [requires]
 python_version = "3.8"

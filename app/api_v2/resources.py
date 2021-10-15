@@ -914,7 +914,6 @@ class EventBulkUpdate(Resource):
             comment = api2.payload['dismiss_comment'] if api2.payload['dismiss_comment'] != "" else None
 
             events = Event.get_by_uuid(uuid=api2.payload['events'])
-            print(events)
             [event.set_dismissed(reason=reason, comment=comment) for event in events]
 
         return []
@@ -2591,14 +2590,19 @@ class ThreatListDetails(Resource):
             if 'values' in api2.payload:
 
                 # Get the current values in the list
-                current_values = [v for v in value_list.values]
+                if value_list.values:
+                    current_values = [v for v in value_list.values]
+                else:
+                    current_values = []
 
                 # Determine what the new values should be, current, new or removed
                 _values = api2.payload.pop('values')
 
                 # Detect if the user sent it as a list or a \n delimited string
-                if not isinstance(_values, list):
+                if _values and not isinstance(_values, list):
                     _values = _values.split('\n')
+                else:
+                    _values = []
 
                 removed_values = [
                     v for v in current_values if v not in _values and v != '']
@@ -2616,6 +2620,9 @@ class ThreatListDetails(Resource):
                         value_list.values.append(v)
                     else:
                         value_list.values = [v]
+
+                # Dedupe
+                value_list.values = list(set(value_list.values))
 
                 value_list.save()
 

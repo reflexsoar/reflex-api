@@ -547,8 +547,11 @@ mod_list_list = Model('ListView', {
     'list_type': fields.String,
     'tag_on_match': fields.Boolean,
     'data_type': fields.Nested(mod_data_type_list),
+    'url': fields.String,
+    'poll_interval': fields.Integer,
+    'last_polled': ISO8601(attribute='last_polled'),
     'values': AsNewLineDelimited(attribute='values'),
-    'values_list': fields.List(fields.String, attribute='values'),
+    #'values_list': fields.List(fields.String, attribute='values'),
     'value_count': ValueCount(attribute='values'),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at')

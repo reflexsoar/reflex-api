@@ -1,8 +1,10 @@
 import os
 import ssl
 import atexit
+import logging
 from datetime import datetime
 from flask import Flask
+from app.services.threat_list_poller.base import ThreatListPoller
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -18,6 +20,7 @@ db = SQLAlchemy()
 cors = CORS()
 mail = Mail()
 cache = Cache(config={'CACHE_TYPE': 'simple'})
+scheduler = BackgroundScheduler()
 
 def create_app(environment='development'):
 
@@ -31,29 +34,31 @@ def create_app(environment='development'):
 
     authorizations = {"Bearer": {"type": "apiKey", "in": "header", "name":"Authorization"}}
 
-    #def print_date_time():
-    #    print(datetime.utcnow())
-
-    #scheduler = BackgroundScheduler()
-    #scheduler.add_job(func=print_date_time, trigger="interval", seconds=60)
-    #scheduler.start()
+    if not app.config['THREAT_POLLER_DISABLED']:
+        threat_list_poller = ThreatListPoller(app, log_level=app.config['THREAT_POLLER_LOG_LEVEL'])
+        scheduler.add_job(func=threat_list_poller.run, trigger="interval", seconds=app.config['THREAT_POLLER_INTERVAL'])
+    scheduler.start()
 
     # Shut down the scheduler when exiting the app
-    #atexit.register(lambda: scheduler.shutdown())
+    atexit.register(lambda: scheduler.shutdown())
 
     from app.resources import api
-    from app.api_v2.resources import api2
+    
     api.authorizations = authorizations
     api.title = app.config['API_TITLE']
     api.version = app.config['API_VERSION']
     api.description = app.config['API_DESCRIPTION']
     api.default_mediatype='application/json'
     
+    from app.api_v2.resources import api2
     api2.authorizations = authorizations
     api2.title = app.config['API_TITLE']
     api2.version = app.config['API_VERSION']
     api2.description = app.config['API_DESCRIPTION']
     api2.default_mediatype='application/json'
+
+    from app.api_v2.models import FLASK_BCRYPT as FLASK_V2_BCRYPT
+    FLASK_V2_BCRYPT.init_app(app)
 
     from app.resources import api_v1
     from app.api_v2.resources import api_v2
@@ -79,8 +84,6 @@ def create_app(environment='development'):
 
     if app.config['ELASTICSEARCH_CA']:
         elastic_connection['ca_certs'] = app.config['ELASTICSEARCH_CA']
-
-    print(elastic_connection)
 
     connections.create_connection(**elastic_connection)
 
