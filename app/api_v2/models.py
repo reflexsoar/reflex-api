@@ -1319,6 +1319,7 @@ class Case(BaseDocument):
             'uuid': owner.uuid
         }
         self.owner = owner_data
+        self.add_history('Owner changed to **{}**'.format(owner_data['username']))
         self.save()
 
     def set_template(self, uuid):

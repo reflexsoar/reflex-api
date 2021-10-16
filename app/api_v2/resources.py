@@ -1775,7 +1775,7 @@ class CaseCommentList(Resource):
         case_comment.save()
 
         case = Case.get_by_uuid(uuid=api2.payload['case_uuid'])
-        case.add_history(message="Commented added to case")
+        case.add_history(message="Comment added to case")
         return case_comment
 
 
