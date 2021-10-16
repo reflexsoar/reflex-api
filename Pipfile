@@ -6,7 +6,7 @@ verify_ssl = true
 [dev-packages]
 coverage = "*"
 coverage-badge = "*"
-elasticsearch = "*"
+elasticsearch = "7.10.0"
 python-dotenv = "*"
 bandit = "*"
 
@@ -26,7 +26,7 @@ flask-mail = "*"
 cffi = "*"
 flask-caching = "*"
 sqlakeyset = "*"
-elasticsearch-dsl = "*"
+elasticsearch-dsl = "7.4.0"
 apscheduler = "*"
 flask-sqlalchemy = "*"
 requests = "*"
