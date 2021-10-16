@@ -6,7 +6,7 @@ verify_ssl = true
 [dev-packages]
 coverage = "*"
 coverage-badge = "*"
-elasticsearch = "7.10.0"
+elasticsearch = "*"
 python-dotenv = "*"
 bandit = "*"
 
@@ -26,13 +26,13 @@ flask-mail = "*"
 cffi = "*"
 flask-caching = "*"
 sqlakeyset = "*"
-elasticsearch = "7.10.0"
-elasticsearch-dsl = "7.4.0"
+elasticsearch = "*"
+elasticsearch-dsl = "*"
 apscheduler = "*"
 flask-sqlalchemy = "*"
 requests = "*"
 opensearch-py = "*"
-opensearch-dsl = {git = "https://github.com/opensearch-project/opensearch-dsl-py"}
+opensearch-dsl = {git = "https://github.com/opensearch-project/opensearch-dsl-py.git"}
 
 [requires]
 python_version = "3.8"
