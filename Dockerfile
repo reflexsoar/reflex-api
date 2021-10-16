@@ -17,5 +17,7 @@ RUN mkdir instance
 RUN pip install --upgrade pip
 RUN pip install pipenv
 RUN pipenv install --dev
+RUN pipenv uninstall elasticsearch
+RUN pipenv install elasticsearch==7.10.0
 
 CMD ["pipenv", "run", "gunicorn", "app:create_app('production')", "--preload", "-b 0.0.0.0:80", "--workers=$GUNICORN_WORKERS", "--threads=$GUNICORN_THREADS", "--worker-class=gthread"]
