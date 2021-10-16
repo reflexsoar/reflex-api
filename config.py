@@ -34,6 +34,9 @@ class Config(object):
     THREAT_POLLER_DISABLED = True if os.getenv('REFLEX_DISABLE_THREAT_POLLER') else False
     THREAT_POLLER_LOG_LEVEL = os.getenv('REFLEX_THREAT_POLLER_LOG_LEVEL') if os.getenv('REFLEX_THREAT_POLLER_LOG_LEVEL') else 'ERROR'
 
+    # EVENT INGEST CONFIGURATION
+    EVENT_PROCESSING_THREADS = os.getenv('REFLEX_EVENT_PROCESSING_THREADS') if os.getenv('REFLEX_EVENT_PROCESSING_THREADS') else 5
+
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
 
 class ProductionConfig(Config):

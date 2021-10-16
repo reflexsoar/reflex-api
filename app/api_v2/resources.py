@@ -798,7 +798,7 @@ class CreateBulkEvents(Resource):
         if 'events' in api2.payload and len(api2.payload['events']) > 0:
             [event_queue.put(e) for e in api2.payload['events']]
 
-        for i in range(0,10):
+        for i in range(0,app.config['EVENT_PROCESSING_THREADS']):
             p = threading.Thread(target=process_event, daemon=True, args=(event_queue,request_id))
             workers.append(p)
         [t.start() for t in workers]
