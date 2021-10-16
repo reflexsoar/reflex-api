@@ -1724,7 +1724,7 @@ class CaseHistoryList(Resource):
 
         args = case_history_parser.parse_args()
 
-        history = CaseHistory.get_by_case(uuid=args['case_uuid'])
+        history = CaseHistory.get_by_case(uuid=args['case_uuid'], sort_by="-created_at")
 
         if history:
             return [h for h in history]

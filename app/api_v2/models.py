@@ -1130,11 +1130,13 @@ class CaseHistory(BaseDocument):
         name = 'reflex-case-history'
 
     @classmethod
-    def get_by_case(self, uuid):
+    def get_by_case(self, uuid, sort_by="-created_at"):
         '''
         Fetches a document by the uuid field
         '''
-        response = self.search().query('match', case=uuid).execute()
+        response = self.search().query('match', case=uuid)
+        response = response.sort(sort_by)
+        response = response.execute()
         if response:
             return [r for r in response]
         return []
