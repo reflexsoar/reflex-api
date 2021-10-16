@@ -1339,9 +1339,10 @@ class Case(BaseDocument):
         self.closed = True
 
         # Close all the related events
-        for e in self.events:
-            event = Event.get_by_uuid(e)
-            event.set_closed()
+        if self.events:
+            for e in self.events:
+                event = Event.get_by_uuid(e)
+                event.set_closed()
 
         self.save()
 
