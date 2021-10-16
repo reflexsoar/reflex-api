@@ -1354,9 +1354,10 @@ class Case(BaseDocument):
         self.close_at = None
 
         # Reopen all the related events
-        for e in self.events:
-            event = Event.get_by_uuid(e)
-            event.set_open()
+        if self.events:
+            for e in self.events:
+                event = Event.get_by_uuid(e)
+                event.set_open()
 
         self.save()
 
