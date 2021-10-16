@@ -7,7 +7,6 @@ import threading
 import uuid
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs, marshal
-from elasticsearch_dsl import A
 from .schemas import *
 from .models import (
     Event,
@@ -1620,7 +1619,8 @@ class CaseAddObservables(Resource):
             observables = api2.payload['observables']
             case.add_observables(observables, case.uuid)
             case.add_history(f"Added {len(observables)} observables")
-            return {'observables': case.observables}
+            
+            return {'observables': [o for o in observables]}
         else:
             ns_case_v2.abort(404, 'Case not found.')
 

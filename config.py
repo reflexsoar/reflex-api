@@ -28,6 +28,7 @@ class Config(object):
     ELASTICSEARCH_CA = os.getenv('REFLEX_ES_CA') if os.getenv('REFLEX_ES_CA') else None
     ELASTICSEARCH_CERT_VERIFY = True if os.getenv('REFLEX_ES_CERT_VERIFY') else False  # This can equal any value, as long as it is set True
     ELASTICSEARCH_SHOW_SSL_WARN = True if os.getenv('REFLEX_ES_SHOW_SSL_WARN') else False # This can equal any value, as long as it is set True
+    ELASTIC_DISTRO = os.getenv('REFLEX_ES_DISTRO') if os.getenv('REFLEX_ES_DISTRO') else 'elastic'
 
     # THREAT POLLER CONFIGURATION
     THREAT_POLLER_INTERVAL = int(os.getenv('REFLEX_THREAT_LIST_POLLER_INTERVAL')) if os.getenv('REFLEX_THREAT_LIST_POLLER_INTERVAL') else 60

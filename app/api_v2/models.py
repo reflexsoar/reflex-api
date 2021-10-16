@@ -1,3 +1,4 @@
+import os
 import re
 import jwt
 import uuid
@@ -12,19 +13,40 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import InvalidToken
-from elasticsearch_dsl.utils import AttrList
-from elasticsearch_dsl import (
-    Document,
-    InnerDoc,
-    Date,
-    Integer,
-    Keyword,
-    Text,
-    Boolean,
-    Nested,
-    Ip,
-    Object
-)
+
+
+# Elastic or Opensearch
+if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
+    from opensearch_dsl.utils import AttrList
+    from opensearch_dsl import (
+        Document,
+        InnerDoc,
+        Date,
+        Integer,
+        Keyword,
+        Text,
+        Boolean,
+        Nested,
+        Ip,
+        Object
+    )
+else:
+    from elasticsearch_dsl.utils import AttrList
+    from elasticsearch_dsl import (
+        Document,
+        InnerDoc,
+        Date,
+        Integer,
+        Keyword,
+        Text,
+        Boolean,
+        Nested,
+        Ip,
+        Object
+    )
+
+
+
 
 from .constants import MS_SID_ENDS_WITH, MS_SID_EQUALS
 from flask_bcrypt import Bcrypt

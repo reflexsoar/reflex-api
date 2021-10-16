@@ -11,7 +11,12 @@ from flask_cors import CORS
 from flask_mail import Mail
 from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
-from elasticsearch_dsl import connections
+
+# Elastic or Opensearch
+if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
+    from opensearch_dsl import connections
+else:
+    from elasticsearch_dsl import connections
 
 from config import app_config
 

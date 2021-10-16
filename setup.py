@@ -1,4 +1,9 @@
-from elasticsearch_dsl import connections
+import os
+if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
+    from opensearch_dsl import connections
+else:
+    from elasticsearch_dsl import connections
+
 from app.api_v2.models import (
     User,
     ExpiredToken,

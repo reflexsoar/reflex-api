@@ -31,6 +31,8 @@ elasticsearch-dsl = "7.4.0"
 apscheduler = "*"
 flask-sqlalchemy = "*"
 requests = "*"
+opensearch-py = "*"
+opensearch-dsl = {git = "https://github.com/opensearch-project/opensearch-dsl-py"}
 
 [requires]
 python_version = "3.8"
