@@ -15,7 +15,6 @@ class ExtractValue(fields.Raw):
 
 class ObservableCount(fields.Raw):
     ''' Returns the number of observables '''
-
     def format(self, value):
         return len(value)
 
@@ -783,6 +782,7 @@ mod_case_list = Model('CaseList', {
     'status': fields.Nested(mod_case_status),
     'event_count': ValueCount(attribute='events'),
     #'open_tasks': OpenTaskCount(attribute='tasks'),
+    #'open_tasks': fields.Integer,
     #'total_tasks': ValueCount(attribute='tasks'),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
@@ -806,8 +806,10 @@ mod_case_details = Model('CaseDetails', {
     'status': fields.Nested(mod_case_status),
     'event_count': ValueCount(attribute='events'),
     'related_cases': ValueCount(attribute='related_cases'),
-    'open_tasks': OpenTaskCount(attribute='tasks'),
-    'total_tasks': ValueCount(attribute='tasks'),
+    #'open_tasks': OpenTaskCount(attribute='tasks'),
+    'open_tasks': fields.Integer,
+    #'total_tasks': ValueCount(attribute='tasks'),
+    'total_tasks': fields.Integer,
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
     'created_by': fields.Nested(mod_user_list),

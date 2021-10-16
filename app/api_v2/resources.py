@@ -1380,6 +1380,10 @@ class CaseDetails(Resource):
         ''' Returns information about a case '''
         case = Case.get_by_uuid(uuid=uuid)
 
+        tasks = CaseTask.get_by_case(uuid=uuid)
+        case.total_tasks = len(tasks)
+        case.open_tasks = len([t for t in tasks if t.status == 0])
+
         if case:
             return case
         else:
@@ -1948,7 +1952,7 @@ class CaseTaskList(Resource):
         if 'case_uuid' in args:
             tasks = CaseTask.get_by_case(uuid=args['case_uuid'])
             if tasks:
-                return [t for t in tasks]
+                return [t for t in sorted(tasks, key = lambda t: t.order)]
             else:
                 return []
         else:

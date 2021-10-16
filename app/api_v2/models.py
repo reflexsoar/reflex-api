@@ -1261,6 +1261,8 @@ class Case(BaseDocument):
     case_template = Object()
     files = Keyword()  # The UUIDs of case files
     events = Keyword()
+    _open_tasks = 0
+    _total_tasks = 0
 
     class Index:
         name = 'reflex-cases'
@@ -1277,6 +1279,14 @@ class Case(BaseDocument):
     def observables(self, value):
         self.case_observables = value
         self.save
+
+    @property
+    def open_tasks(self):
+        return self._open_tasks
+
+    @open_tasks.setter
+    def open_tasks(self, value):
+        self._open_tasks = value
 
     def add_observables(self, observable, case_uuid=None):
         '''
