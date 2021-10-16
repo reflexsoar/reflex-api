@@ -2779,7 +2779,8 @@ class DashboardMetrics(Resource):
         events = Event.search()
         new_events = events.filter('term', **{'status.name__keyword': 'New'})
         events_sorted = events.sort('-created_at')
-        last_event = [e for e in events_sorted[0:1]][0]
+        if events_sorted.count() > 0:
+            last_event = [e for e in events_sorted[0:1]][0]
 
         return {
             'total_cases': cases.count(),
