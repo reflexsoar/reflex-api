@@ -42,10 +42,13 @@ def create_app(environment='development'):
     if not app.config['THREAT_POLLER_DISABLED']:
         threat_list_poller = ThreatListPoller(app, log_level=app.config['THREAT_POLLER_LOG_LEVEL'])
         scheduler.add_job(func=threat_list_poller.run, trigger="interval", seconds=app.config['THREAT_POLLER_INTERVAL'])
-    scheduler.start()
+    
+    if not app.config['SCHEDULER_DISABLED']:
+        scheduler.start()
 
     # Shut down the scheduler when exiting the app
-    atexit.register(lambda: scheduler.shutdown())
+    if not app.config['SCHEDULER_DISABLED']:
+        atexit.register(lambda: scheduler.shutdown())
 
     from app.resources import api
     

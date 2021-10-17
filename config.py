@@ -38,6 +38,9 @@ class Config(object):
     # EVENT INGEST CONFIGURATION
     EVENT_PROCESSING_THREADS = os.getenv('REFLEX_EVENT_PROCESSING_THREADS') if os.getenv('REFLEX_EVENT_PROCESSING_THREADS') else 5
 
+    # SCHEDULER CONFIG
+    SCHEDULER_DISABLED = bool(os.getenv('REFLEX_DISABLE_SCHEDULER')) if os.getenv('REFLEX_DISABLE_SCHEDULER') else False
+
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
 
 class ProductionConfig(Config):

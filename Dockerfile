@@ -1,15 +1,14 @@
 FROM python:3.8.1-slim-buster
 
-COPY manage.py /
 COPY setup.py /
 COPY Pipfile /
 COPY Pipfile.lock /
 COPY config.py /
 COPY app /app
 
-ENV FLASK_CONFIG="production"
 ENV GUNICORN_WORKERS=8
 ENV GUNICORN_THREADS=2
+ENV REFLEX_API_PORT=80
 
 WORKDIR /
 RUN apt-get update \
@@ -18,7 +17,5 @@ RUN apt-get update \
 && pip install --upgrade pip \
 && pip install pipenv \
 && pipenv install
-#pipenv uninstall elasticsearch
-#RUN pipenv install elasticsearch==7.10.0
 
-CMD ["pipenv", "run", "gunicorn", "app:create_app('production')", "--preload", "-b 0.0.0.0:80", "--workers=$GUNICORN_WORKERS", "--threads=$GUNICORN_THREADS", "--worker-class=gthread"]
+CMD ["pipenv", "run", "gunicorn", "app:create_app('production')", "--preload", "-b 0.0.0.0:$REFLEX_API_PORT", "--workers=$GUNICORN_WORKERS", "--threads=$GUNICORN_THREADS", "--worker-class=gthread"]

@@ -1,13 +1,13 @@
 from base_test import BaseTest, API_VERSION
 
-class AuthenticationTests(BaseTest):
+class EventTests(BaseTest):
 
     def test_event_list(self):
 
         rv = self.login()
         rv = self.client.get('/api/'+API_VERSION+'/event', headers=self.auth_headers(rv))
         self.assertEqual(rv.status_code, 200)
-        self.assertGreater(len(rv.json['events']), 1)
+        self.assertGreaterEqual(len(rv.json['events']), 1)
 
     def test_event_details(self):
 
