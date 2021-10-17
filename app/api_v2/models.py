@@ -1,21 +1,20 @@
 import os
 import re
-import jwt
 import uuid
 import datetime
-import urllib3
 import hashlib
 import secrets
 import base64
+import urllib3
+import jwt
 from flask import current_app, request
+from flask_bcrypt import Bcrypt
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import InvalidToken
-
-
-# Elastic or Opensearch
+from .constants import MS_SID_ENDS_WITH, MS_SID_EQUALS
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
     from opensearch_dsl.utils import AttrList
     from opensearch_dsl import (
@@ -47,16 +46,12 @@ else:
 
 
 
-
-from .constants import MS_SID_ENDS_WITH, MS_SID_EQUALS
-from flask_bcrypt import Bcrypt
-
 FLASK_BCRYPT = Bcrypt()
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def escape_special_characters(string):
-    ''' 
+    '''
     Escapes characters in Elasticsearch that might wedge a search
     and return false matches
     '''
@@ -90,7 +85,7 @@ def _current_user_id_or_none():
 
         return current_user
 
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -106,16 +101,16 @@ class BaseDocument(Document):
     created_by = Nested()
 
     @classmethod
-    def get_by_uuid(self, uuid, *args, **kwargs):
+    def get_by_uuid(self, uuid, **kwargs):
         '''
         Fetches a document by the uuid field
         '''
 
         documents = None
         if uuid is not None:
-            if isinstance(uuid, list) or isinstance(uuid, AttrList):
+            if isinstance(uuid, (AttrList, list)):
                 response = self.search().query('terms', uuid=uuid, **kwargs).execute()
-                documents = [r for r in response]
+                documents = list(response)
             else:
                 response = self.search().query('term', uuid=uuid, **kwargs).execute()
                 if response:
@@ -142,21 +137,24 @@ class BaseDocument(Document):
 
         self.updated_at = datetime.datetime.utcnow()
         self.updated_by = _current_user_id_or_none()
-        return super(BaseDocument, self).save(**kwargs)
+        return super().save(**kwargs)
 
     def update(self, **kwargs):
         '''
-        Overrides the default Document update() function and 
-        adds an update to updated_at each time the document 
-        is saved 
+        Overrides the default Document update() function and
+        adds an update to updated_at each time the document
+        is saved
         '''
 
         self.updated_at = datetime.datetime.utcnow()
         self.updated_by = _current_user_id_or_none()
-        return super(BaseDocument, self).update(**kwargs)
+        return super().update(**kwargs)
 
 
 class User(BaseDocument):
+    '''
+    A User of the Reflex system
+    '''
 
     email = Text()
     username = Text()
@@ -170,7 +168,8 @@ class User(BaseDocument):
     #groups = Nested(Group)
     api_key = Text()
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-users'
 
     def set_password(self, password):
@@ -188,8 +187,8 @@ class User(BaseDocument):
         Generates a long living API key, which the user can use to make
         API calls without having to authenticate using username/password
 
-        The API Key should only be presented once and will be added to the 
-        expired token table 
+        The API Key should only be presented once and will be added to the
+        expired token table
         '''
 
         _api_key = jwt.encode({
@@ -199,7 +198,7 @@ class User(BaseDocument):
             'type': 'api'
         }, current_app.config['SECRET_KEY'])
 
-        if self.api_key != None:
+        if self.api_key is not None:
             expired_token = ExpiredToken(token=self.api_key)
             expired_token.save()
             self.api_key = _api_key
@@ -228,7 +227,15 @@ class User(BaseDocument):
     def permissions(self):
         return [
             k for k in self.role.permissions.__dict__
-            if k not in ['_sa_instance_state', 'created_at', 'modified_at', 'created_by', 'modified_by', 'uuid', 'id']
+            if k not in [
+                '_sa_instance_state',
+                'created_at',
+                'modified_at',
+                'created_by',
+                'modified_by',
+                'uuid',
+                'id'
+            ]
             and self.role.permissions.__dict__[k] == True
         ]
 
@@ -268,14 +275,14 @@ class User(BaseDocument):
 
     def check_password(self, password):
         '''
-        Tries to validate the users password against the 
+        Tries to validate the users password against the
         local authentication database
         '''
 
         return FLASK_BCRYPT.check_password_hash(self.password_hash, password)
 
     def ldap_login(self, password):
-        ''' 
+        '''
         If configured in the organizations settings
         will attempt to log the user in via LDAP
         '''
@@ -284,7 +291,7 @@ class User(BaseDocument):
 
     def has_right(self, permission):
         '''
-        Checks to see if the user has the proper 
+        Checks to see if the user has the proper
         permissions to perform an API action
         '''
 
@@ -329,6 +336,10 @@ class User(BaseDocument):
 
 
 class Permission(InnerDoc):
+    '''
+    Defines what permissions are available in the system for a 
+    specified role
+    '''
 
     # User Permissions
     add_user = Boolean()
@@ -489,13 +500,19 @@ class Permission(InnerDoc):
 
 
 class Role(BaseDocument):
+    '''
+    A role in the Reflex system defines what a user can do
+    They could be an administrator, an analyst, or a custom role
+    that can only perform certain actions
+    '''
 
     name = Keyword()  # The name of the role (should be unique)
     description = Text()  # A brief description of the role
     members = Keyword()  # Contains a list of user IDs
     permissions = Nested(Permission)
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-user-roles'
 
     def add_user_to_role(self, user_id):
@@ -543,18 +560,27 @@ class Role(BaseDocument):
 
 
 class ExpiredToken(BaseDocument):
+    '''
+    An expired JWT token that prevents users from reusing them
+    '''
 
     token = Keyword()
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-expired-tokens'
 
 
 class Tag(BaseDocument):
+    '''
+    Tags make it easy for analysts to quickly identify
+    actionable information without looking things up
+    '''
 
     _name = Keyword()
 
-    class Index():
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-tags'
 
     @property
@@ -603,6 +629,10 @@ class EventObservable(InnerDoc):
 
 
 class Observable(BaseDocument):
+    '''
+    An observable is an artifact on an event that is of importance
+    to an analyst. An observable could be an IP, domain, email, fqdn, etc.
+    '''
 
     uuid = Text()
     tags = Keyword()
@@ -616,25 +646,38 @@ class Observable(BaseDocument):
     case = Keyword() # The case the observable belongs to
     rule = Keyword() # The rule the Observable belongs to
 
-    class Index():
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-observables-test'
         settings = {
             'refresh_interval': '1s'
         }
 
     def save(self, **kwargs):
+        '''
+        Saves the observable and assigns it a UUID
+        '''
         self.uuid = uuid.uuid4()
         return super().save(**kwargs)
 
     def set_case(self, uuid):
+        '''
+        Assigns the observable to a case
+        '''
         self.case = uuid
         self.save()
 
     def set_rule(self, uuid):
+        '''
+        Assigns the event rule the observable belongs to
+        '''
         self.rule = uuid
         self.save()
 
     def toggle_ioc(self):
+        '''
+        Toggles if the observables is an indicator of compromise
+        '''
         if self.ioc:
             self.update(ioc=False, refresh=True)
         else:
@@ -687,10 +730,10 @@ class Observable(BaseDocument):
         theat_lists = ThreatList.get_by_data_type(self.data_type)
         for l in theat_lists:
             if l.active:
-                hits = l.check_value(self.value)           
+                hits = l.check_value(self.value)
                 if hits > 0:
                     if l.tag_on_match:
-                        self.add_tag("list: {}".format(l.name))
+                        self.add_tag(f"list: {l.name}")
         self.save()
 
 
@@ -765,7 +808,7 @@ class Observable(BaseDocument):
         Fetches the observable based on the case and the value
         '''
         s = self.search()
-        #if any(c in value for c in ['-','@']):        
+        #if any(c in value for c in ['-','@']):
         #    s = s.filter('term', value__keyword=value)
         #else:
         s = s.filter('match', value=value)
@@ -782,47 +825,18 @@ class Observable(BaseDocument):
     def __hash__(self):
         return hash(('data_type', self.data_type, 'value', self.value))
 
-"""
-OLD OBSERVBALE CLASS
-class Observable(InnerDoc):
-
-    uuid = Text()
-    tags = Keyword()
-    data_type = Text()
-    value = Text()
-    spotted = Boolean()
-    ioc = Boolean()
-    safe = Boolean()
-    tlp = Integer()
-    created_at = datetime.datetime.utcnow()
-    case = Keyword()
-
-    class Index():
-        name = 'reflex-observables'
-
-    def save(self, **kwargs):
-        self.uuid = uuid.uuid4()
-        return super().save(**kwargs)
-
-    def set_case(self, uuid):
-        self.case = uuid
-        self.save()
-
-    def __eq__(self, other):
-        return self.data_type==other.data_type and self.value==other.value
-
-    def __hash__(self):
-        return hash(('data_type', self.data_type, 'value', self.value))
-"""
-
 
 class EventStatus(BaseDocument):
+    '''
+    The status of an Event
+    '''
 
     name = Keyword()
     description = Text()
     closed = Boolean()
 
-    class Index():
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-event-statuses'
 
     @classmethod
@@ -839,6 +853,10 @@ class EventStatus(BaseDocument):
 
 
 class Event(BaseDocument):
+    '''
+    An event in reflex is anything sourced by an agent input that
+    is actionable in the system by an analyst.
+    '''
 
     uuid = Keyword()
     title = Keyword()
@@ -858,16 +876,23 @@ class Event(BaseDocument):
     dismissed_by = Object()
     raw_log = Text()
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-events'
 
     @property
     def observables(self):
+        '''
+        Event observables
+        '''
         observables = Observable.get_by_event_uuid(self.uuid)
         return [r for r in observables]
 
     @observables.setter
     def observables(self, value):
+        '''
+        Event observables
+        '''
         self.event_observables = value
         self.save
 
@@ -891,14 +916,25 @@ class Event(BaseDocument):
         return added_observables
 
     def set_open(self):
+        '''
+        Sets an event as open, this is a working state
+        where the event is actively being worked by an
+        analyst in a case
+        '''
         self.status = EventStatus.get_by_name(name='Open')
         self.save()
 
     def set_new(self):
+        '''
+        Sets the event as new
+        '''
         self.status = EventStatus.get_by_name(name='New')
         self.save()
 
     def set_dismissed(self, reason, comment=None):
+        '''
+        Sets the event as dismissed
+        '''
         self.status = EventStatus.get_by_name(name='Dismissed')
         if comment:
             self.dismiss_comment = comment
@@ -907,10 +943,16 @@ class Event(BaseDocument):
         self.save()
 
     def set_closed(self):
+        '''
+        Sets the event as closed
+        '''
         self.status = EventStatus.get_by_name(name='Closed')
         self.save()
 
     def set_case(self, uuid):
+        '''
+        Assigns a case to the event
+        '''
         self.case = uuid
         self.save()
 
@@ -943,6 +985,9 @@ class Event(BaseDocument):
         return
 
     def check_event_rule_signature(self, signature, observables=[]):
+        '''
+        Checks to see if the Event matches an event rules signature
+        '''
         hasher = hashlib.md5()
         obs = []
 
@@ -956,11 +1001,13 @@ class Event(BaseDocument):
         hasher.update(str(obs).encode())
         if signature == hasher.hexdigest():
             return True
-        else:
-            return False
+        return False
 
     @classmethod
     def get_by_reference(self, reference):
+        '''
+        Fetches an event by its source reference value
+        '''
         response = self.search().query('match', reference=reference).execute()
         if response:
             document = response[0]
@@ -969,6 +1016,9 @@ class Event(BaseDocument):
 
     @classmethod
     def get_by_signature(self, signature):
+        '''
+        Fetches an event by its calculated signature
+        '''
         response = self.search().query('match', signature=signature).execute()
         if len(response) >= 1:
             return [d for d in response]
@@ -1009,7 +1059,8 @@ class EventRule(BaseDocument):
     active = Boolean()  # Users can override the alarm and disable it out-right
     hit_count = Integer()
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-event-rules'
 
     def add_observable(self, content):
@@ -1019,9 +1070,9 @@ class EventRule(BaseDocument):
         '''
 
         added_observables = []
-        for o in content:
+        for _ in content:
 
-            observable = Observable(**o)
+            observable = Observable(**_)
 
             observable.set_rule(self.uuid)
             observable.save()
@@ -1029,7 +1080,11 @@ class EventRule(BaseDocument):
 
         return added_observables
 
-    def hash_observables(self, observables=[]):
+    def hash_observables(self, observables: list):
+        '''
+        Creates an MD5 hash of all the observables on an event
+        so that they can be compared to the events signature set
+        '''
         hasher = hashlib.md5()
         obs = []
         for observable in observables:
@@ -1042,9 +1097,12 @@ class EventRule(BaseDocument):
         hasher.update(str(obs).encode())
         self.rule_signature = hasher.hexdigest()
         self.save()
-        return
 
     def hash_target_observables(self, target_observables):
+        '''
+        Creates an MD5 hash of all the observables on an event
+        so that they can be compared to the events signature set
+        '''
         hasher = hashlib.md5()
         obs = []
         expected_observables = [{'data_type': obs.data_type.lower(
@@ -1070,7 +1128,7 @@ class EventRule(BaseDocument):
             self.active = False
             self.save()
             return False
-            
+
         else:
 
             # Increment the hit count
@@ -1105,14 +1163,21 @@ class EventRule(BaseDocument):
                     print(new_observables)
 
                 new_observables =[Observable(
-                    tags=o.tags, value=o.value, data_type=o.data_type, ioc=o.ioc, spotted=o.spotted, tlp=o.tlp, case=case.uuid) for o in new_observables]
+                        tags=o.tags,
+                        value=o.value,
+                        data_type=o.data_type,
+                        ioc=o.ioc,
+                        spotted=o.spotted,
+                        tlp=o.tlp,
+                        case=case.uuid
+                    ) for o in new_observables]
 
                 if new_observables:
-                    [o.save() for o in new_observables]
+                    _ = [o.save() for o in new_observables]
 
                 # Add the event to the case
                 case.add_event(event)
-                return True                
+                return True
 
         return False
 
@@ -1126,7 +1191,7 @@ class EventRule(BaseDocument):
 
         query = self.search()
         query = query.filter('term', event_signature=title)
-        
+
         response = query.execute()
         if len(response) >= 1:
             rule = [r for r in response if hasattr(r, 'active') and r.active]
@@ -1139,7 +1204,7 @@ class EventRule(BaseDocument):
         return rule
 
 class CaseHistory(BaseDocument):
-    ''' 
+    '''
     A case history entry that shows what changed on the case
     the message should be stored in markdown format
     so that it can be processed by the UI
@@ -1148,7 +1213,8 @@ class CaseHistory(BaseDocument):
     message = Text()
     case_uuid = Keyword()  # The uuid of the case this history belongs to
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-case-history'
 
     @classmethod
@@ -1176,7 +1242,8 @@ class CaseComment(BaseDocument):
     edited = Boolean()  # Should be True when the comment is edited, Default: False
     closure_reason = Object()
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-case-comments'
 
     @classmethod
@@ -1191,12 +1258,16 @@ class CaseComment(BaseDocument):
 
 
 class CaseStatus(BaseDocument):
+    '''
+    The status of a case, e.g. New, Closed, In Progress, etc.
+    '''
 
     name = Keyword()
     description = Text()
     closed = Boolean()
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-case-statuses'
 
     @classmethod
@@ -1221,7 +1292,8 @@ class CloseReason(BaseDocument):
     title = Keyword()
     description = Text()
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-close-reasons'
 
     @classmethod
@@ -1238,6 +1310,9 @@ class CloseReason(BaseDocument):
 
 
 class Owner(InnerDoc):
+    '''
+    The owner of an object
+    '''
 
     uuid = Keyword()
     username = Keyword()
@@ -1286,16 +1361,16 @@ class Case(BaseDocument):
     _open_tasks = 0
     _total_tasks = 0
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-cases'
 
     @property
     def observables(self):
         observables = Observable.get_by_case_uuid(self.uuid)
         if observables:
-            return [r for r in observables]
-        else:
-            return []
+            return list(observables)
+        return []
 
     @observables.setter
     def observables(self, value):
@@ -1317,18 +1392,34 @@ class Case(BaseDocument):
         '''
 
         if isinstance(observable, list):
-            for o in observable:
-                _observable = Observable.get_by_case_and_value(self.uuid, o['value'])
+            for obs in observable:
+                _observable = Observable.get_by_case_and_value(self.uuid, obs['value'])
                 if not _observable:
-                    _observable = Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], safe=o['safe'], case=case_uuid)
+                    _observable = Observable(tags=obs['tags'],
+                        value=obs['value'],
+                        data_type=obs['data_type'],
+                        ioc=obs['ioc'],
+                        spotted=obs['spotted'],
+                        tlp=obs['tlp'],
+                        safe=obs['safe'],
+                        case=case_uuid
+                    )
                     _observable.check_threat_list()
                     _observable.enrich()
                     _observable.save()
         else:
-            o = observable
-            _observable = Observable.get_by_case_uuid(self.uuid, o['value'])
+            obs = observable
+            _observable = Observable.get_by_case_uuid(self.uuid, obs['value'])
             if not _observable:
-                _observable = Observable(tags=o['tags'], value=o['value'], data_type=o['data_type'], ioc=o['ioc'], spotted=o['spotted'], tlp=o['tlp'], safe=o['safe'], case=case_uuid)
+                _observable = Observable(tags=obs['tags'],
+                    value=obs['value'],
+                    data_type=obs['data_type'],
+                    ioc=obs['ioc'],
+                    spotted=obs['spotted'],
+                    tlp=obs['tlp'],
+                    safe=obs['safe'],
+                    case=case_uuid
+                )
                 _observable.check_threat_list()
                 _observable.enrich()
                 _observable.save()
@@ -1337,8 +1428,7 @@ class Case(BaseDocument):
         ''' Returns an observable based on its value '''
         if obs := [o for o in self.observables if o.value == value]:
             return obs[0]
-        else:
-            return None
+        return None
 
     def set_owner(self, uuid):
         '''
@@ -1353,7 +1443,8 @@ class Case(BaseDocument):
             'uuid': owner.uuid
         }
         self.owner = owner_data
-        self.add_history('Owner changed to **{}**'.format(owner_data['username']))
+        username = owner_data['username']
+        self.add_history(f'Owner changed to **{username}**')
         self.save()
 
     def set_template(self, uuid):
@@ -1375,8 +1466,8 @@ class Case(BaseDocument):
 
         # Close all the related events
         if self.events:
-            for e in self.events:
-                event = Event.get_by_uuid(e)
+            for _ in self.events:
+                event = Event.get_by_uuid(_)
                 event.set_closed()
 
         self.save()
@@ -1386,12 +1477,12 @@ class Case(BaseDocument):
         Reopens a case
         '''
         self.closed = False
-        self.close_at = None
+        self.closed_at = None
 
         # Reopen all the related events
         if self.events:
-            for e in self.events:
-                event = Event.get_by_uuid(e)
+            for _ in self.events:
+                event = Event.get_by_uuid(_)
                 event.set_open()
 
         self.save()
@@ -1400,10 +1491,8 @@ class Case(BaseDocument):
     def get_related_cases(self, uuid):
         cases = self.search().query('term', related_cases=uuid).execute()
         if cases:
-            return [c for c in cases]
-        else:
-            return []
-        return
+            return list(cases)
+        return []
 
     def add_history(self, message):
         '''
@@ -1420,7 +1509,7 @@ class Case(BaseDocument):
         task = CaseTask(**task, case=self.uuid)
         task.status = 0
         task.save()
-        self.add_history('Task **{}** added'.format(task.title))
+        self.add_history(f'Task **{task.title}** added')
         return task
 
     def add_event(self, event):
@@ -1436,7 +1525,7 @@ class Case(BaseDocument):
                 self.events = [event.uuid]
         self.save()
         return True
-        
+
 
 class TaskNote(BaseDocument):
     '''
@@ -1446,7 +1535,8 @@ class TaskNote(BaseDocument):
     note = Text()
     task = Keyword() # The UUID of the associated task
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-case-task-notes'
 
     @classmethod
@@ -1456,9 +1546,8 @@ class TaskNote(BaseDocument):
         '''
         response = self.search().query('match', task=uuid).execute()
         if response:
-            return [r for r in response]
-        else:
-            return []        
+            return list(response)
+        return []
 
 
 class CaseTask(BaseDocument):
@@ -1478,7 +1567,8 @@ class CaseTask(BaseDocument):
     finish_date = Date()
     notes = Keyword()
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-case-tasks'
 
     @property
@@ -1520,7 +1610,7 @@ class CaseTask(BaseDocument):
         self.status = 2
         self.finish_date = datetime.datetime.utcnow()
         case = Case.get_by_uuid(uuid=self.case)
-        case.add_history('Task **{}** closed'.format(self.title))
+        case.add_history(f'Task **{self.title}** closed')
         self.save()
 
     def start_task(self, owner_uuid=None):
@@ -1532,7 +1622,7 @@ class CaseTask(BaseDocument):
         if owner_uuid:
             self.set_owner(owner_uuid)
         case = Case.get_by_uuid(uuid=self.case)
-        case.add_history('Task **{}** started'.format(self.title))
+        case.add_history(f'Task **{self.title}** started')
         self.save()
 
     def reopen_task(self):
@@ -1542,7 +1632,7 @@ class CaseTask(BaseDocument):
         self.status = 1
         self.finish_date = None
         case = Case.get_by_uuid(uuid=self.case)
-        case.add_history('Task **{}** reopened'.format(self.title))
+        case.add_history(f'Task **{self.title}** reopened')
         self.save()
 
     def set_owner(self, owner_uuid):
@@ -1576,7 +1666,7 @@ class CaseTask(BaseDocument):
         '''
 
         case = Case.get_by_uuid(uuid=self.case)
-        case.add_history('Task **{}** deleted'.format(self.title))
+        case.add_history(f'Task **{self.title}** deleted')
 
         return super(CaseTask, self).delete(**kwargs)
 
@@ -1613,7 +1703,8 @@ class CaseTemplate(BaseDocument):
     tags = Keyword()
     tasks = Nested(CaseTemplateTask)
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-case-templates'
 
     @classmethod
@@ -1642,13 +1733,19 @@ class CaseTemplate(BaseDocument):
 
 
 class Credential(BaseDocument):
+    '''
+    Credentials are used to interact with external systems that
+    require authentication.  These items are stored with encryption
+    and only decrypted on demand when an agent needs to use them.
+    '''
 
     name = Keyword()
     description = Text()
     username = Text()
     secret = Text()
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-credentials'
 
     def _derive_key(self, secret: bytes, salt: bytes, iterations: int = 100_000) -> bytes:
@@ -1695,6 +1792,10 @@ class Credential(BaseDocument):
 
 
 class FieldMap(InnerDoc):
+    '''
+    FieldMaps tell the agent what source field in the input to map to a
+    Reflex field
+    '''
 
     field = Keyword()
     data_type = Text()
@@ -1703,6 +1804,11 @@ class FieldMap(InnerDoc):
 
 
 class Input(BaseDocument):
+    '''
+    An input defines where an Agent should fetch information.
+    Example the agent should pull information from a specific Elasticsearch
+    index
+    '''
 
     name = Keyword()
     description = Text()
@@ -1716,7 +1822,8 @@ class Input(BaseDocument):
     tags = Keyword()
     field_mapping = Nested(FieldMap)
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-inputs'
 
     @property
@@ -1747,6 +1854,10 @@ class Input(BaseDocument):
 
 
 class Agent(BaseDocument):
+    '''
+    A Reflex agent performs plugin actions, polls external sources
+    for input data, and performs some Reflex system tasks
+    '''
 
     name = Keyword()
     inputs = Keyword()  # A list of UUIDs of which inputs to run
@@ -1756,17 +1867,18 @@ class Agent(BaseDocument):
     ip_address = Ip()
     last_heartbeat = Date()
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-agents'
 
     @property
     def _inputs(self):
         inputs = Input.get_by_uuid(uuid=self.inputs)
-        return [i for i in inputs]
+        return list(inputs)
 
     def has_right(self, permission):
         '''
-        Checks to see if the user has the proper 
+        Checks to see if the user has the proper
         permissions to perform an API action
         '''
 
@@ -1774,10 +1886,7 @@ class Agent(BaseDocument):
         if role:
             role = role[0]
 
-        if getattr(role.permissions, permission):
-            return True
-        else:
-            return False
+        return bool(getattr(role.permissions, permission))
 
     @classmethod
     def get_by_name(self, name):
@@ -1793,12 +1902,18 @@ class Agent(BaseDocument):
 
 
 class AgentGroup(BaseDocument):
+    '''
+    Agent Groups allows the system configure many agents
+    by applying configuration settings to the group after which
+    the agents will inherit the group config
+    '''
 
     name = Keyword()
     description = Text()
     agents = Keyword()
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-agent-groups'
 
     def add_agent(self, uuid):
@@ -1813,12 +1928,17 @@ class AgentGroup(BaseDocument):
 
 
 class DataType(BaseDocument):
+    '''
+    A DataType is really the type of observable e.g. an IP address
+    or a domain name, url, hostname, user, etc.
+    '''
 
     name = Keyword()
     description = Text()
     regex = Text()
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-data-types'
 
     @classmethod
@@ -1840,6 +1960,11 @@ class DataTypeBrief(InnerDoc):
 
 
 class ThreatList(BaseDocument):
+    '''
+    A threat list contains observable values that are used to
+    tag tag observables on ingest.  Threat lists can contain
+    values from external sources via URL polling
+    '''
 
     name = Keyword()
     description = Text()
@@ -1852,7 +1977,8 @@ class ThreatList(BaseDocument):
     last_polled = Date() # The time that the list was last fetched
     active = Boolean()
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-threat-lists'
 
     @property
@@ -1860,8 +1986,7 @@ class ThreatList(BaseDocument):
         data_type = DataType.get_by_uuid(uuid=self.data_type_uuid)
         if data_type:
             return data_type
-        else:
-            return []
+        return []
 
     def check_value(self, value):
         '''
@@ -1873,17 +1998,17 @@ class ThreatList(BaseDocument):
         if self.list_type == 'values':
             hits = len([v for v in self.values if v.lower() == value.lower()])
         elif self.list_type == 'patterns':
-            hits = len([v for v in self.values if re.match(v, value) != None])
+            hits = len([v for v in self.values if re.match(v, value) is not None])
 
         return hits
 
-    def set_values(self, values: list = [], from_poll=False):
+    def set_values(self, values: list, from_poll=False):
         '''
         Sets the values of the threat list from a list of values
         '''
         if len(values) > 0:
             self.values = values
-        
+
         if from_poll:
             self.last_polled = datetime.datetime.utcnow()
         self.save()
@@ -1906,15 +2031,18 @@ class ThreatList(BaseDocument):
         Fetches the threat list by the data_type
         it should be associated with
         '''
-        dt = DataType.get_by_name(name=data_type)
-        response = self.search().query('term', data_type_uuid=dt.uuid).execute()
+        data_type = DataType.get_by_name(name=data_type)
+        response = self.search().query('term', data_type_uuid=data_type.uuid).execute()
         if response:
-            return [r for r in response]
-        else:
-            return []
+            return list(response)
+        return []
 
 
 class Plugin(BaseDocument):
+    '''
+    Plugins are used to interact with external systems and extend
+    the functionality of reflex
+    '''
 
     name = Text()
     description = Text()
@@ -1925,7 +2053,8 @@ class Plugin(BaseDocument):
     file_hash = Text()
     configs = Keyword()
 
-    class Index():
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-plugins'
 
     @property
@@ -1936,9 +2065,8 @@ class Plugin(BaseDocument):
         '''
         if self.configs:
             return len(self.configs)
-        else:
-            return 0
-    
+        return 0
+
     def add_config(self, config):
         '''
         Adds a reference to a configuration item
@@ -1951,25 +2079,38 @@ class Plugin(BaseDocument):
 
 
 class PluginConfig(BaseDocument):
+    '''
+    Each Plugin can have multiple configurations
+    A PluginConfig contains each unique configuration for a plugin
+    '''
 
     name = Text()
     description = Text()
     config = Object()
 
-    class Index():
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-plugin-configs'
 
 
 class EventLog(BaseDocument):
+    '''
+    EventLog messages that are used for auditing system activity
+    '''
 
     event_type = Text()
     message = Text()
 
-    class Index():
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-audit-logs'
 
 
 class Settings(BaseDocument):
+    '''
+    Master settings for the application and how certain areas of 
+    the application behave
+    '''
 
     base_url = Text()
     require_case_templates = Boolean()  # Default True
@@ -1997,12 +2138,13 @@ class Settings(BaseDocument):
     require_approved_ips = Boolean()
     approved_ips = Keyword()
 
-    class Index:
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
         name = 'reflex-settings'
 
     @classmethod
     def load(self):
-        ''' 
+        '''
         Loads the settings, there should only be one entry
         in the index so execute should only return one entry, if for some
         reason there are more than one settings documents, return the most recent
@@ -2010,8 +2152,7 @@ class Settings(BaseDocument):
         settings = self.search().execute()
         if settings:
             return settings[0]
-        else:
-            return None
+        return None
 
     def generate_persistent_pairing_token(self):
         '''
@@ -2024,7 +2165,7 @@ class Settings(BaseDocument):
             'type': 'pairing'
         }, current_app.config['SECRET_KEY'])
 
-        if self.peristent_pairing_token != None:
+        if self.peristent_pairing_token is not None:
             expired = ExpiredToken(token=self.peristent_pairing_token)
             expired.create()
 

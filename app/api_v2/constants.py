@@ -1,3 +1,9 @@
+"""
+./app/api_v2/constants.py
+
+Contains constant values that are referenced in the API
+"""
+
 # Used to translate SIDS in to human readible format via tags
 MS_SID_ENDS_WITH = ends_with = {
     '500': 'Administrator',

@@ -34,7 +34,5 @@ if __name__ == "__main__":
         COV.html_report(directory=covdir)
 
     if result.wasSuccessful():
-        print("YEE")
         if not args.no_coverage:
-            print("YEE")
             os.system('coverage-badge -f -o coverage.svg')
