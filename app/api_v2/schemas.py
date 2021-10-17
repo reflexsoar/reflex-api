@@ -1,17 +1,11 @@
-from app.schemas import JSONField
-from app.models import Observable
-import json
-from flask import current_app
-from flask_restx import Model, fields
-from .models import Observable
+"""
+./app/api_v2/schemas.py
 
-class ExtractValue(fields.Raw):
-    ''' Extracts a single value from a nested object'''
-    def format(self, value, field):
-        if hasattr(value, field):
-            return getattr(value, field)
-        else:
-            return value
+Contains all marshal schemas for API responses and inputs
+"""
+
+from flask_restx import Model, fields
+from app.schemas import JSONField
 
 class ObservableCount(fields.Raw):
     ''' Returns the number of observables '''
@@ -19,6 +13,7 @@ class ObservableCount(fields.Raw):
         return len(value)
 
 class ValueCount(fields.Raw):
+    ''' Returns the number of values in a list'''
     def format(self, value):
         return len(value)
 
@@ -26,7 +21,7 @@ class IOCCount(fields.Raw):
     ''' Returns the number of observables that are IOC '''
 
     def format(self, value):
-        iocs = [o for o in value if 'ioc' in o and o['ioc'] == True]
+        iocs = [o for o in value if 'ioc' in o and o['ioc'] is True]
         return len(iocs)
 
 class ISO8601(fields.Raw):
@@ -38,9 +33,8 @@ class AsNewLineDelimited(fields.Raw):
     ''' Returns an array as a string delimited by new line characters '''
     def format(self, value):
         if len(value) > 0:
-            return '\n'.join([v for v in value])
-        else:
-            return ''
+            return '\n'.join(list(value))
+        return ''
 
 class OpenTaskCount(fields.Raw):
     ''' Returns a count of open tasks '''
@@ -49,6 +43,7 @@ class OpenTaskCount(fields.Raw):
         return len([a for a in value if a.status != 2])
 
 class FormatTags(fields.Raw):
+    ''' Returns tags in a specific format for the API response'''
 
     def format(self, value):
         return [{'name': v} for v in value]
@@ -346,7 +341,7 @@ mod_event_list = Model('EventList', {
     'severity': fields.Integer,
     'status': fields.Nested(mod_event_status),
     'source': fields.String,
-    'tags': fields.List(fields.Nested(mod_tag_list), attribute='_tags'),
+    #'tags': fields.List(fields.Nested(mod_tag_list), attribute='_tags'),
     #'observables': fields.List(fields.Nested(mod_observable_brief), attribute='_observables'),
     'tags': fields.List(fields.String),
     #'observables': fields.List(fields.Nested(mod_observable_brief)),
@@ -578,7 +573,7 @@ mod_event_rule_create = Model('CreateEventRule', {
     'dismiss': fields.Boolean,
     'expire': fields.Boolean,
     'expire_days': fields.Integer,
-    'active': fields.Boolean    
+    'active': fields.Boolean
 })
 
 mod_event_rule_list = Model('EventRuleList', {
@@ -839,21 +834,22 @@ mod_audit_log_paged_list = Model('AuditLogPagedList', {
     'pagination': fields.Nested(mod_pagination)
 })
 
-schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full, 
-mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create, 
-mod_observable_brief, mod_observable_create, mod_observable_update, mod_raw_log, mod_permissions, mod_api_key,
-mod_user_create, mod_user_create_success, mod_settings, mod_persistent_pairing_token,
-mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list, mod_credential_return,
-mod_input_create, mod_input_list, mod_agent_list, mod_agent_create, mod_list_list, mod_list_create,
-mod_event_rule_create, mod_event_rule_list, mod_data_type_list, mod_data_type_create, mod_user_role_no_perms,
-mod_user_brief, mod_role_list, mod_role_create, mod_case_history, mod_comment, mod_comment_create, mod_case_close_reason,
-mod_case_template_create, mod_case_template_task_create, mod_case_task_create, mod_case_template_task_full,
-mod_case_template_full, mod_close_reason_create, mod_close_reason_list, mod_case_status, mod_case_status_create,
-mod_case_status_list, mod_case_template_brief, mod_case_create, mod_case_list, mod_case_details, mod_case_paged_list,
-mod_user_list, mod_tag_list, mod_tag, mod_related_case, mod_link_cases, mod_case_task_full, mod_event_status,
-mod_event_paged_list, mod_event_details, mod_observable_list, mod_observable_list_paged,
-mod_bulk_add_observables, mod_case_observables, mod_related_events, mod_pagination, mod_event_create_bulk,
-mod_agent_group_list, mod_paged_agent_group_list, mod_agent_group_create, mod_case_task_note, mod_case_task_note_create,
-mod_case_task_note_details, mod_audit_log, mod_audit_log_paged_list, mod_event_bulk_dismiss]
-
-
+schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full,
+mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create,
+mod_observable_brief, mod_observable_create, mod_observable_update, mod_raw_log, mod_permissions,
+mod_api_key,mod_user_create, mod_user_create_success, mod_settings, mod_persistent_pairing_token,
+mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list,
+mod_credential_return, mod_input_create, mod_input_list, mod_agent_list, mod_agent_create,
+mod_list_list, mod_list_create, mod_event_rule_create, mod_event_rule_list, mod_data_type_list,
+mod_data_type_create, mod_user_role_no_perms, mod_user_brief, mod_role_list, mod_role_create,
+mod_case_history, mod_comment, mod_comment_create, mod_case_close_reason, mod_case_template_create,
+mod_case_template_task_create, mod_case_task_create, mod_case_template_task_full,
+mod_case_template_full, mod_close_reason_create, mod_close_reason_list, mod_case_status,
+mod_case_status_create, mod_case_status_list, mod_case_template_brief, mod_case_create,
+mod_case_list, mod_case_details, mod_case_paged_list, mod_user_list, mod_tag_list, mod_tag,
+mod_related_case, mod_link_cases, mod_case_task_full, mod_event_status, mod_event_paged_list,
+mod_event_details, mod_observable_list, mod_observable_list_paged, mod_bulk_add_observables,
+mod_case_observables, mod_related_events, mod_pagination, mod_event_create_bulk,
+mod_agent_group_list, mod_paged_agent_group_list, mod_agent_group_create, mod_case_task_note,
+mod_case_task_note_create, mod_case_task_note_details, mod_audit_log, mod_audit_log_paged_list,
+mod_event_bulk_dismiss]
