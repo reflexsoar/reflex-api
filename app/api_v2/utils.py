@@ -6,7 +6,25 @@ import logging
 import ipaddress
 
 from flask import request, current_app, abort
-from .models import User, ExpiredToken, Settings, Agent
+from .models import EventLog, User, ExpiredToken, Settings, Agent
+
+
+def log_event(event_type, *args, **kwargs):
+    '''
+    Handles logging to the Reflex log database as well
+    as to file handler streams and console handler streams
+    TODO: Add file handler stream
+    TODO: Add console handler stream
+    '''
+
+    raw_event = {
+        'event_type': event_type
+    }
+
+    raw_event.update(kwargs)
+
+    log = EventLog(**raw_event)
+    log.save()
 
 
 def generate_token(uuid, duration=10, token_type='agent'):

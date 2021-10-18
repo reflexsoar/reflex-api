@@ -56,7 +56,7 @@ mod_pagination = Model('Pagination', {
 })
 
 mod_auth = Model('AuthModel', {
-    'username': fields.String(default='reflex'),
+    'username': fields.String(default='admin'),
     'password': fields.String(default='reflex')
 })
 
@@ -826,7 +826,11 @@ mod_link_cases = Model('LinkCases', {
 mod_audit_log = Model('AuditLog', {
     'created_at': ISO8601(),
     'event_type': fields.String,
-    'message': fields.String
+    'message': fields.String,
+    'source_user': fields.String,
+    'status': fields.String,
+    'event_reference': fields.String,
+    'time_taken': fields.String
 })
 
 mod_audit_log_paged_list = Model('AuditLogPagedList', {

@@ -27,7 +27,8 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
         Boolean,
         Nested,
         Ip,
-        Object
+        Object,
+        Float
     )
 else:
     from elasticsearch_dsl.utils import AttrList
@@ -41,7 +42,8 @@ else:
         Boolean,
         Nested,
         Ip,
-        Object
+        Object,
+        Float
     )
 
 
@@ -295,14 +297,15 @@ class User(BaseDocument):
         permissions to perform an API action
         '''
 
-        role = Role.search().query('match', members=self.uuid).execute()
+        role = Role.search().query('term', members=self.uuid).execute()
         if role:
             role = role[0]
-
+            
         if hasattr(role.permissions, permission) and getattr(role.permissions, permission):
             return True
         else:
             return False
+        
 
     @classmethod
     def get_by_username(self, username):
@@ -1151,16 +1154,12 @@ class EventRule(BaseDocument):
                 # from the event
                 case = Case.get_by_uuid(self.target_case_uuid)
                 event_observables = Observable.get_by_event_uuid(event.uuid)
-                print("Event:",event.uuid, event_observables)
                 case_observables = Observable.get_by_case_uuid(self.target_case_uuid)
-                print("Case:", case_observables)
                 new_observables = None
                 if case_observables:
                     new_observables = [o for o in event_observables if o.value not in [o.value for o in case_observables]]
-                    print(new_observables)
                 else:
                     new_observables = [o for o in event_observables]
-                    print(new_observables)
 
                 new_observables =[Observable(
                         tags=o.tags,
@@ -2099,6 +2098,11 @@ class EventLog(BaseDocument):
     '''
 
     event_type = Text()
+    source_user = Keyword()
+    source_ip = Ip()
+    status = Keyword()
+    event_reference = Keyword()
+    time_taken = Float()
     message = Text()
 
     class Index: # pylint: disable=too-few-public-methods

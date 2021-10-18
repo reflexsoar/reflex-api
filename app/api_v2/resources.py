@@ -36,9 +36,10 @@ from .models import (
     AgentGroup,
     PluginConfig,
     Plugin,
-    EventLog
+    EventLog,
+    _current_user_id_or_none
 )
-from .utils import ip_approved, token_required, user_has, generate_token
+from .utils import ip_approved, token_required, user_has, generate_token, log_event
 
 # Instantiate a new API object
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
@@ -143,8 +144,8 @@ class Login(Resource):
             # Update the users failed_logons and last_logon entries
             user.update(failed_logons=0, last_logon=datetime.datetime.utcnow())
 
-            log = EventLog(event_type="Authentication", message=f"source_user={user.username}, source_ip={request.remote_addr}, status=Success, sub_message=Succesful Authentication")
-            log.save()
+            
+            log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Successful Authentication.", status="Success")
 
             return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
 
@@ -153,12 +154,10 @@ class Login(Resource):
 
         if user.failed_logons >= Settings.load().logon_password_attempts:
             user.update(locked=True)
-            log = EventLog(event_type="Authentication", message=f"source_user={user.username}, source_ip={request.remote_addr}, status=Success, sub_message=Account Locked")
-            log.save()
+            log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Account Locked.", status="Failed")
         else:
             user.update(failed_logons=user.failed_logons+1)
-            log = EventLog(event_type="Authentication", message=f"source_user={user.username}, source_ip={request.remote_addr}, status=Failed, sub_message=Bad Username or Password")
-            log.save()
+            log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Bad username or password.", status="Failed")
 
         ns_auth_v2.abort(401, 'Incorrect username or password')
 
@@ -225,6 +224,7 @@ class UnlockUser(Resource):
         user = User.get_by_uuid(uuid)
         if user:
             user.unlock()
+            log_event(event_type="User Management", message=f"{user.username} unlocked", source_user='', status="Success")
             return user
         else:
             ns_user_v2.abort(404, 'User not found.')
@@ -345,18 +345,15 @@ class UserDetails(Resource):
                 user.save()
 
             # Update the users role if a role update is triggered
-            if 'role_uuid' in api2.payload:
+            if 'role_uuid' in api2.payload and api2.payload['role_uuid'] is not None:
 
                 # Remove them from their old role
-                role = Role.get_by_member(uuid=user.uuid)
-                if role:
-                    role.remove_user_from_role(user_id=user.uuid)
-
-                # Add them to their new role
-                role_uuid = api2.payload.pop('role_uuid')
-                role = Role.get_by_uuid(uuid=role_uuid)
-                role.add_user_to_role(user_id=user.uuid)
-                user.role = role
+                old_role = Role.get_by_member(uuid=user.uuid)
+                new_role = Role.get_by_uuid(uuid=api2.payload['role_uuid'])
+                if old_role != new_role:
+                    new_role.add_user_to_role(user_id=user.uuid)                    
+                    old_role.remove_user_from_role(user_id=user.uuid)
+                    return user
 
             user.update(**api2.payload)
 
@@ -787,27 +784,24 @@ class CreateBulkEvents(Resource):
 
                     end_event_process_dt = datetime.datetime.utcnow().timestamp()
                     event_process_time = end_event_process_dt - start_event_process_dt
-                    log = EventLog(event_type="Bulk Event Insert", message=f"request_id={request_id}, event_reference={event.reference}, time_taken={event_process_time}, status=Success, event_id:{event.uuid}")
-                    log.save()
+                    log_event(event_type='Bulk Event Insert', request_id=request_id, event_reference=event.reference, time_taken=event_process_time, status="Success", message="Event Inserted.", event_id=event.uuid)
                 else:
-                    log = EventLog(event_type="Bulk Event Insert", message=f"request_id={request_id}, event_reference={event.reference}, time_taken=0, status=Already Exists")
-                    log.save()
+                    log_event(event_type='Bulk Event Insert', request_id=request_id, event_reference=event.reference, time_taken=0, status="Failed", message="Event Already Exists.")
 
         
         start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
         if 'events' in api2.payload and len(api2.payload['events']) > 0:
             [event_queue.put(e) for e in api2.payload['events']]
 
-        for i in range(0,app.config['EVENT_PROCESSING_THREADS']):
+        for i in range(0,current_app.config['EVENT_PROCESSING_THREADS']):
             p = threading.Thread(target=process_event, daemon=True, args=(event_queue,request_id))
             workers.append(p)
         [t.start() for t in workers]
 
-        log = EventLog(event_type="Bulk Event Insert", message=f"{request_id} submitted successfully.")
-        log.save()
-
         end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
         total_process_time = end_bulk_process_dt - start_bulk_process_dt
+
+        log_event(event_type="Bulk Event Insert", request_id=request_id, time_taken=total_process_time, status="Success", message="Bulk request finished.")
 
         return {"request_id": request_id, "response_time": total_process_time}
 
@@ -2689,21 +2683,47 @@ class PluginUpload(Resource):
         print(api2.payload)
         return {}
 
+audit_list_parser = api2.parser()
+audit_list_parser.add_argument(
+    'event_type', action='split', location='args', required=False)
+audit_list_parser.add_argument(
+    'status', action='split', location='args', required=False)
+audit_list_parser.add_argument(
+    'source_user', action='split', location='args', required=False)
+audit_list_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+audit_list_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
+audit_list_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False)
 
 @ns_audit_log_v2.route("")
 class AuditLogsList(Resource):
 
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_audit_log_paged_list)
+    @api2.expect(audit_list_parser)
     @ip_approved
     @token_required    
     @user_has('view_settings')
     def get(self, current_user):
         ''' Returns a paginated collection of audit logs'''
 
+        args = audit_list_parser.parse_args()
+
         page_size = 25
-        page = 0
+        page = args.page - 1
         logs = EventLog.search()
+
+        if args.status:
+            logs = logs.filter('terms', status=args.status)
+
+        if args.event_type:
+            logs = logs.filter('terms', event_type=args.event_type)
+
+        if args.source_user:
+            logs = logs.filter('terms', source_user=args.source_user)
+
         total_logs = logs.count()
         total_pages = total_logs/page_size
 
