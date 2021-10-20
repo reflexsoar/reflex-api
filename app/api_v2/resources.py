@@ -614,22 +614,22 @@ class EventList(Resource):
         if 'signature' in args and args['signature']:
             s = s.filter('term', **{'signature': args['signature']})
             total_events = s.count()
-            events = [e for e in s[start:end]]
+            #events = [e for e in s[start:end]]
 
-        elif 'case_uuid' in args and args['case_uuid']:
+        if 'case_uuid' in args and args['case_uuid']:
             s = s.filter('match', **{'case': args['case_uuid']})
             total_events = s.count()
+            #events = [e for e in s[start:end]]
+
+        if len(search_filter) > 0:
+            for a in search_filter:
+                s = s.filter(search_filter[a]["type"], **{a: search_filter[a]["value"]})
+            total_events = s.count()
+            
             events = [e for e in s[start:end]]
-        else:            
-            if len(search_filter) > 0:
-                for a in search_filter:
-                    s = s.filter(search_filter[a]["type"], **{a: search_filter[a]["value"]})
-                total_events = s.count()
-                
-                events = [e for e in s[start:end]]
-            else:
-                total_events = s.count()
-                events = [e for e in s[start:end]]
+        else:
+            total_events = s.count()
+            events = [e for e in s[start:end]]
 
         if args['page_size'] < total_events:
             pages = math.ceil(float(total_events / args['page_size']))

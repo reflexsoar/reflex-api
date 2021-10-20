@@ -1,3 +1,9 @@
+"""Reflex Models Module
+
+This module contains all the data models for documents used by the Reflex system and stored
+in the Elasticsearch or Opensearch backend.
+"""
+
 import os
 
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
