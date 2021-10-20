@@ -1146,35 +1146,8 @@ class EventRule(BaseDocument):
                 return True
             elif self.merge_into_case:
 
-                # Set the event open and link it to the case
-                event.set_open()
-                event.set_case(self.target_case_uuid)
-
-                # Fetch the case and add the observables
-                # from the event
-                case = Case.get_by_uuid(self.target_case_uuid)
-                event_observables = Observable.get_by_event_uuid(event.uuid)
-                case_observables = Observable.get_by_case_uuid(self.target_case_uuid)
-                new_observables = None
-                if case_observables:
-                    new_observables = [o for o in event_observables if o.value not in [o.value for o in case_observables]]
-                else:
-                    new_observables = [o for o in event_observables]
-
-                new_observables =[Observable(
-                        tags=o.tags,
-                        value=o.value,
-                        data_type=o.data_type,
-                        ioc=o.ioc,
-                        spotted=o.spotted,
-                        tlp=o.tlp,
-                        case=case.uuid
-                    ) for o in new_observables]
-
-                if new_observables:
-                    _ = [o.save() for o in new_observables]
-
                 # Add the event to the case
+                case = Case.get_by_uuid(self.target_case_uuid)                                
                 case.add_event(event)
                 return True
 
@@ -1511,18 +1484,82 @@ class Case(BaseDocument):
         self.add_history(f'Task **{task.title}** added')
         return task
 
-    def add_event(self, event):
+    def add_event(self, events):
+        '''Adds an event or list of events to the case
+
+        Parameter:
+            events (Event): A list of events or a single event
         '''
-        Adds an event or list of events to the case
+
+        # If dealing with many events
+        if isinstance(events, list):
+            for event in events:
+                event.set_open()
+                event.set_case(self.uuid)
+                self.process_event_observables(event)
+                if self.events:
+                    self.events.append(event.uuid)
+                else:
+                    self.events = [event.uuid]
+        else:
+            events.set_open()
+            events.set_case(self.uuid)
+            self.process_event_observables(events)
+            if self.events:
+                self.events.append(events.uuid)
+            else:
+                self.events = [events.uuid]
+        self.save()
+        return True
+
+    def process_event_observables(self, event):
+        '''Takes in an event and processes the observables associated
+        with the event by adding them to the case
+        
+        Parameters:
+            event (Event): The event to pull observables for
+        '''
+
+        event_observables = Observable.get_by_event_uuid(event.uuid)
+        case_observables = Observable.get_by_case_uuid(self.uuid)
+        new_observables = None
+        if case_observables:
+            new_observables = [o for o in event_observables if o.value not in [o.value for o in case_observables]]
+        else:
+            new_observables = [o for o in event_observables]
+
+        new_observables =[Observable(
+                tags=o.tags,
+                value=o.value,
+                data_type=o.data_type,
+                ioc=o.ioc,
+                spotted=o.spotted,
+                tlp=o.tlp,
+                case=self.uuid
+            ) for o in new_observables]
+
+        if new_observables:
+            _ = [o.save() for o in new_observables]
+
+
+    def remove_event(self, event: Event) -> bool:
+        '''Removes an event from the case
+        If this event is the last event with certain observables
+        those observables are removed as well.
+        
+        Parameters:
+            event (Event): The event to be removed
+
+        Return:
+            bool: True (Success) or False (Fail)
         '''
         if isinstance(event, list):
-            self.events.append([e.uuid for e in event])
+            self.events.remove([e.uuid for e in event])
         else:
-            if self.events:
-                self.events.append(event.uuid)
-            else:
-                self.events = [event.uuid]
+            self.events.remove(event.uuid)
+
         self.save()
+
         return True
 
 

@@ -932,9 +932,13 @@ class EventDetails(Resource):
     @token_required
     @user_has('update_event')
     def put(self, uuid, current_user):
+        '''Updates an event
+
+        Parameters:
+            uuid (str): The unique identifier of the Event
+            current_user (User): The current user making the API request
         '''
-        Updates an event
-        '''
+
         if 'dismiss_reason_uuid' in api2.payload:
             reason = CloseReason.get_by_uuid(uuid=api2.payload['dismiss_reason_uuid'])
             event = Event.get_by_uuid(uuid=uuid)
@@ -944,11 +948,44 @@ class EventDetails(Resource):
                 comment = api2.payload['dismiss_comment']
             
             event.set_dismissed(reason, comment=comment)
-            print(current_user)
             return {'message':'Successfully dismissed event'}, 200
         else:
             return {}
 
+"""
+@ns_event_v2.route("/<uuid>/update_case")
+class EventUpdateCase(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_event_update_case)
+    @api2.response('200', 'Success')
+    @token_required
+    @user_has('update_event')
+    def put(self, uuid, current_user):
+
+        if 'action' in api2.payload:
+            action = api2.payload.pop('action')
+
+            if action in ['remove','transfer']:
+
+                event = Event.get_by_uuid()
+
+                if action == 'remove':
+                    
+                    event.remove_from_case()
+
+                if action == 'transfer':
+                    if 'target_case_uuid' in api2.payload:
+                        event.set_case()
+                    else:
+                        ns_event_v2(400, 'Missing target case details.')
+            
+                print('a')
+            else:
+                ns_event_v2.abort(400, 'Missing or invalid action.')
+        else:
+            ns_event_v2.abort(400, 'Missing or invalid action.')
+"""
 
 @ns_event_v2.route("/<uuid>/new_related_events")
 class EventNewRelatedEvents(Resource):
@@ -1532,6 +1569,34 @@ class CaseDetails(Resource):
 
             case.delete()
             return {'message': 'Sucessfully deleted case.'}
+
+
+@ns_case_v2.route("/<uuid>/add_events")
+class AddEventsToCase(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_add_events_to_case)
+    @api2.marshal_with(mod_add_events_response)
+    @api2.response(207, 'Success')
+    @api2.response(404, 'Case not found.')
+    @token_required
+    @user_has('update_case')
+    def put(self, uuid, current_user):
+        '''Merges an event or events in to a case
+        
+        Parameters:
+            uuid (str): The UUID of the case
+        
+        Return:
+            dict: JSON response containing event details
+        '''
+
+        case = Case.get_by_uuid(uuid=uuid)
+        events = Event.get_by_uuid(uuid=api2.payload['events'])
+        if events:
+            case.add_event(list(events))
+            return "YARP"
+        return "NARP"
 
 
 @ns_case_v2.route("/<uuid>/observables")

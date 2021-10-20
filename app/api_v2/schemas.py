@@ -538,6 +538,20 @@ mod_data_type_create = Model('CreateDataType', {
     'description': fields.String
 })
 
+mod_add_events_to_case = Model('AddEventsToCase', {
+    'events': fields.List(fields.String)
+})
+
+mod_response_message = Model('ResponseMessage', {
+    'message': fields.String
+})
+
+mod_add_events_response = Model('AddEventsToCaseResponse', {
+    'results': fields.List(fields.Nested(mod_response_message)),
+    'success': fields.Boolean,
+    #'case': fields.Nested(mod_case_full)
+})
+
 mod_list_list = Model('ListView', {
     'uuid': fields.String,
     'name': fields.String,
@@ -856,4 +870,4 @@ mod_event_details, mod_observable_list, mod_observable_list_paged, mod_bulk_add_
 mod_case_observables, mod_related_events, mod_pagination, mod_event_create_bulk,
 mod_agent_group_list, mod_paged_agent_group_list, mod_agent_group_create, mod_case_task_note,
 mod_case_task_note_create, mod_case_task_note_details, mod_audit_log, mod_audit_log_paged_list,
-mod_event_bulk_dismiss]
+mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_events_response]
