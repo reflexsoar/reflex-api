@@ -1263,19 +1263,15 @@ class CloseReasonDetails(Resource):
 case_parser = pager_parser.copy()
 case_parser.add_argument('title', location='args', required=False, type=str)
 case_parser.add_argument('status', location='args', required=False, type=str)
-case_parser.add_argument('severity', location='args',
-                         required=False, action="split", type=str)
-case_parser.add_argument('owner', location='args',
-                         required=False, action="split", type=str)
-case_parser.add_argument('tag', location='args',
-                         required=False, action="split", type=str)
-case_parser.add_argument('search', location='args',
-                         required=False, action="split", type=str)
-case_parser.add_argument('my_tasks', location='args',
-                         required=False, type=xinputs.boolean)
-case_parser.add_argument('my_cases', location='args',
-                         required=False, type=xinputs.boolean)
-
+case_parser.add_argument('severity', location='args', required=False, action="split", type=str)
+case_parser.add_argument('owner', location='args', required=False, action="split", type=str)
+case_parser.add_argument('tag', location='args', required=False, action="split", type=str)
+case_parser.add_argument('search', location='args', required=False, action="split", type=str)
+case_parser.add_argument('my_tasks', location='args', required=False, type=xinputs.boolean)
+case_parser.add_argument('my_cases', location='args', required=False, type=xinputs.boolean)
+case_parser.add_argument('page', type=int, location='args', default=1, required=False)
+case_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
+case_parser.add_argument('page_size', type=int, location='args', default=25, required=False)
 
 @ns_case_v2.route("")
 class CaseList(Resource):
@@ -1290,14 +1286,9 @@ class CaseList(Resource):
 
         args = case_parser.parse_args()
 
-        # TODO: REIMPLIMENT ALL THE FILTERING LOGIC
-        if args['page'] == 1:
-            args['page'] = 0
-
         cases = Case.search()
 
         # Apply filters
-
         if 'title' in args and args['title']:
             cases = cases.filter('term', title=args['title'])
 
@@ -1308,17 +1299,21 @@ class CaseList(Resource):
             cases = cases.filter('terms', severity=args['severity'])
 
         # Paginate the cases
-        cases = cases[args['page']:args['page_size']+args['page']]
+        page = args.page - 1
+        total_cases = cases.count()
+        pages = total_cases/args.page_size
 
-        # TODO: REIMPLEMENT PAGINATION
+        start = page*args.page_size
+        end = args.page*args.page_size
+        cases = cases[start:end]
 
         response = {
             'cases': [c for c in cases],
             'pagination': {
-                'total_results': 0,
-                'pages': 0,
-                'page': 0,
-                'page_size': 0
+                'total_results': total_cases,
+                'pages': pages,
+                'page': page+1,
+                'page_size': args.page_size
             }
         }
 
