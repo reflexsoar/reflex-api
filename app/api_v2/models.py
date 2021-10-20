@@ -2097,7 +2097,7 @@ class EventLog(BaseDocument):
     EventLog messages that are used for auditing system activity
     '''
 
-    event_type = Text()
+    event_type = Keyword()
     source_user = Keyword()
     source_ip = Ip()
     status = Keyword()

@@ -224,7 +224,7 @@ class UnlockUser(Resource):
         user = User.get_by_uuid(uuid)
         if user:
             user.unlock()
-            log_event(event_type="User Management", message=f"{user.username} unlocked", source_user='', status="Success")
+            log_event(event_type="User Management", message=f"User {user.username} was unlocked.", source_user=current_user.username, status="Success")
             return user
         else:
             ns_user_v2.abort(404, 'User not found.')
@@ -2693,8 +2693,6 @@ audit_list_parser.add_argument(
 audit_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 audit_list_parser.add_argument(
-    'page_size', type=int, location='args', default=10, required=False)
-audit_list_parser.add_argument(
     'sort_by', type=str, location='args', default='created_at', required=False)
 
 @ns_audit_log_v2.route("")
@@ -2716,10 +2714,11 @@ class AuditLogsList(Resource):
         logs = EventLog.search()
 
         if args.status:
-            logs = logs.filter('terms', status=args.status)
+            status = [s.lower() for s in args.status]
+            logs = logs.filter('terms', status=status)
 
         if args.event_type:
-            logs = logs.filter('terms', event_type=args.event_type)
+            logs = logs.filter('terms', event_type__keyword=args.event_type)
 
         if args.source_user:
             logs = logs.filter('terms', source_user=args.source_user)
@@ -2737,7 +2736,7 @@ class AuditLogsList(Resource):
         return {
             'logs': logs,
             'pagination': {
-                'page': page,
+                'page': page+1,
                 'page_size': page_size,
                 'total_results': total_logs,
                 'pages': total_pages
