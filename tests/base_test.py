@@ -2,8 +2,8 @@ import json
 import unittest
 from flask.testing import FlaskClient
 
-from app import create_app, db
-from app.models import *
+from app import create_app
+#from app.api_v2.model import *
 
 API_VERSION = 'v2.0'
 

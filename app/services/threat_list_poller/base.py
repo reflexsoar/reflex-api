@@ -1,4 +1,4 @@
-from ...api_v2.models import ThreatList
+from ...api_v2.model import ThreatList
 import logging
 import requests
 import datetime

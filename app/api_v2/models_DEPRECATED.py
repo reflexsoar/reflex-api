@@ -46,8 +46,6 @@ else:
         Float
     )
 
-
-
 FLASK_BCRYPT = Bcrypt()
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -89,7 +87,6 @@ def _current_user_id_or_none():
 
     except Exception:
         return None
-
 
 class BaseDocument(Document):
     """

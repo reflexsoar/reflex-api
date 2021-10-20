@@ -9,12 +9,10 @@ import json
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs, marshal
 from .schemas import *
-from .models import (
+from .model import (
     Event,
     EventRule,
-    EventStatus,
     Observable,
-    EventObservable,
     Observable,
     User,
     Role,
@@ -37,8 +35,8 @@ from .models import (
     PluginConfig,
     Plugin,
     EventLog,
-    _current_user_id_or_none
 )
+
 from .utils import ip_approved, token_required, user_has, generate_token, log_event
 
 # Instantiate a new API object

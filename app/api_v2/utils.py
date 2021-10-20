@@ -6,7 +6,7 @@ import logging
 import ipaddress
 
 from flask import request, current_app, abort
-from .models import EventLog, User, ExpiredToken, Settings, Agent
+from .model import EventLog, User, ExpiredToken, Settings, Agent
 
 
 def log_event(event_type, *args, **kwargs):

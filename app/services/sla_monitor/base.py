@@ -1,4 +1,4 @@
-from ...api_v2.models import Case, Settings
+from ...api_v2.model import Case, Settings
 
 class SLAMonitor(object):
     '''

@@ -65,7 +65,7 @@ def create_app(environment='development'):
     api2.description = app.config['API_DESCRIPTION']
     api2.default_mediatype='application/json'
 
-    from app.api_v2.models import FLASK_BCRYPT as FLASK_V2_BCRYPT
+    from app.api_v2.model.user import FLASK_BCRYPT as FLASK_V2_BCRYPT
     FLASK_V2_BCRYPT.init_app(app)
 
     from app.resources import api_v1
