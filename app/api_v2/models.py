@@ -1524,7 +1524,11 @@ class Case(BaseDocument):
         case_observables = Observable.get_by_case_uuid(self.uuid)
         new_observables = None
         if case_observables:
-            new_observables = [o for o in event_observables if o.value not in [o.value for o in case_observables]]
+            new_observables = [
+                o for o in event_observables if o.value not in [
+                    o.value for o in case_observables
+                ]
+            ]
         else:
             new_observables = [o for o in event_observables]
 

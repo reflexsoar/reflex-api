@@ -1297,6 +1297,10 @@ class CaseList(Resource):
         cases = Case.search()
 
         # Apply filters
+
+        if 'title' in args and args['title']:
+            cases = cases.filter('term', title=args['title'])
+
         if 'status' in args and args['status']:
             cases = cases.filter('match', status__name=args['status'])
 
