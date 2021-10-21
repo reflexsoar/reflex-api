@@ -1,8 +1,8 @@
 import datetime
 import hashlib
+from . import case as c
 from . import (
     base,
-    case,
     Keyword,
     Text,
     Boolean,
@@ -157,10 +157,7 @@ class Event(base.BaseDocument):
         hasher.update(self.title.encode())
 
         for observable in observables:
-            _observables += [observable if observable.data_type in data_types else None]
-
-        for observable in _observables:
-            if observable and observable.data_type in sorted(data_types):
+            if observable.data_type in sorted(data_types):
                 obs.append({'data_type': observable.data_type.lower(),
                             'value': observable.value.lower()})
         obs = [dict(t) for t in {tuple(d.items())
@@ -326,12 +323,13 @@ class EventRule(base.BaseDocument):
             self.save()
 
             if self.dismiss:
-                event.set_dismissed()
+                reason = c.CloseReason.get_by_name(title='Other')
+                event.set_dismissed(reason=reason)
                 return True
             elif self.merge_into_case:
 
                 # Add the event to the case
-                case = case.Case.get_by_uuid(self.target_case_uuid)                                
+                case = c.Case.get_by_uuid(self.target_case_uuid)                                
                 case.add_event(event)
                 return True
 

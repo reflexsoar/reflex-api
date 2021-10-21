@@ -38,7 +38,7 @@ class EventTests(BaseTest):
 
     def test_create_events_bulk(self):
 
-        event_details = [{
+        event_details = { 'events': [{
             "title": "API Test Event A",
             "reference": f"api-test-a-{datetime.datetime.utcnow().timestamp()}",
             "description": "A test from the API via BULK",
@@ -86,7 +86,7 @@ class EventTests(BaseTest):
                 }
             ],
             "raw_log": "Something something dark side"
-        }]
+        }]}
 
         rv = self.client.post(self.api_base_url+'event/_bulk', data=json.dumps(event_details), headers=self.auth_header)
         self.assertEqual(rv.status_code, 200)
@@ -97,6 +97,35 @@ class EventTests(BaseTest):
         rv = self.client.get('/api/'+API_VERSION+'/event', headers=self.auth_headers(rv))
         self.assertEqual(rv.status_code, 200)
         self.assertGreaterEqual(len(rv.json['events']), 1)
+
+
+    def test_event_dismiss(self):
+
+        rv = self.client.get(self.api_base_url+'event?title=API Test Event B', headers=self.auth_header)
+        self.assertEqual(rv.status_code, 200)
+        event = next((event for event in rv.json['events'] if event['title'] == 'API Test Event B'))
+        
+
+        rv = self.client.get(self.api_base_url+'close_reason', headers=self.auth_header)
+        self.assertEqual(rv.status_code, 200)
+        reason = next((reason['uuid'] for reason in rv.json if reason['title'] == 'False positive'))
+
+        # With comment
+        payload = {
+            'dismiss_reason_uuid': reason,
+            'dismiss_comment': 'Closed via Unit Testing'
+        }
+
+        rv = self.client.put(self.api_base_url+f'event/{event["uuid"]}', data=json.dumps(payload), headers=self.auth_header)
+        self.assertEqual(rv.status_code, 200)
+
+        # Without comment
+        payload = {
+            'dismiss_reason_uuid': reason
+        }
+
+        rv = self.client.put(self.api_base_url+f'event/{event["uuid"]}', data=json.dumps(payload), headers=self.auth_header)
+        self.assertEqual(rv.status_code, 200)
 
     def test_event_details(self):
 
