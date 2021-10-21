@@ -230,7 +230,7 @@ class UnlockUser(Resource):
 
 user_parser = api2.parser()
 user_parser.add_argument('username', location='args', required=False)
-user_parser.add_argument('deleted', location='args',
+user_parser.add_argument('deleted', type=xinputs.boolean, location='args',
                          required=False, default=False)
 
 
@@ -258,6 +258,8 @@ class UserList(Resource):
                 s = User.search()
             else:
                 s = User.search().query('match', deleted=False)
+
+            s = s[0:s.count()]
             response = s.execute()
             [user.load_role() for user in response]
             return [user for user in response]
@@ -353,7 +355,8 @@ class UserDetails(Resource):
                     old_role.remove_user_from_role(user_id=user.uuid)
                     return user
 
-            user.update(**api2.payload)
+            if len(api2.payload) > 0:
+                user.update(**api2.payload)
 
             return user
         else:
