@@ -15,10 +15,14 @@ class RESTClient(FlaskClient):
 
 class BaseTest(unittest.TestCase):
 
+    auth_header = {}
+    api_base_url = f'/api/{API_VERSION}/'
+
     def setUp(self):
         self.app = create_app('development')
         self.app.test_client_class = RESTClient
         self.client = self.app.test_client()
+        self.login()
 
     def login(self, username='admin', password='reflex'):
 
@@ -26,7 +30,10 @@ class BaseTest(unittest.TestCase):
             'username': username,
             'password': password
         }
-        return self.client.post('/api/'+API_VERSION+'/auth/login', data=json.dumps(body))
+        rv = self.client.post('/api/'+API_VERSION+'/auth/login', data=json.dumps(body))
+        if rv.status_code == 200:
+            self.auth_header = {'Authorization': f'Bearer {rv.json["access_token"]}'}
+        return rv
 
     def logout(self, headers):
         return self.client.get('/api/'+API_VERSION+'/auth/logout', headers=headers)

@@ -61,7 +61,7 @@ ns_input_v2 = api2.namespace(
 ns_agent_v2 = api2.namespace(
     'Agent', description='Agent operations', path='/agent')
 ns_list_v2 = api2.namespace(
-    'List', description='Lists API endpoints for managing indicator lists, lists may be string values or regular expressions', path='/list')
+    'List', description='Lists API endpoints for managing indicator lists, lists may be string values or regular expressions', path='/list', validate=True)
 ns_event_rule_v2 = api2.namespace(
     'EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
 ns_agent_group_v2 = api2.namespace(
@@ -2593,7 +2593,7 @@ class ThreatListList(Resource):
             return []
 
     @api2.doc(security="Bearer")
-    @api2.expect(mod_list_create)
+    @api2.expect(mod_list_create, validate=True)
     @api2.marshal_with(mod_list_list)
     @api2.response('409', 'ThreatList already exists.')
     @api2.response('200', "Successfully created the list.")
@@ -2606,8 +2606,6 @@ class ThreatListList(Resource):
         Supported list types: `values|pattern`
 
         '''
-
-        print(api2.payload)
 
         if api2.payload['list_type'] not in ['values', 'patterns']:
             ns_list_v2.abort(400, "Invalid list type.")
@@ -2623,6 +2621,9 @@ class ThreatListList(Resource):
                 values.append(value)
 
             api2.payload['values'] = values
+
+        if 'data_type_uuid' in api2.payload and DataType.get_by_uuid(api2.payload['data_type_uuid']) is None:
+            ns_list_v2.abort(400, "Invalid data type")
 
         value_list = ThreatList.get_by_name(name=api2.payload['name'])
 
@@ -2868,6 +2869,7 @@ class DashboardMetrics(Resource):
         events = Event.search()
         new_events = events.filter('term', **{'status.name__keyword': 'New'})
         events_sorted = events.sort('-created_at')
+        last_event = None
         if events_sorted.count() > 0:
             last_event = [e for e in events_sorted[0:1]][0]
 
@@ -2877,5 +2879,5 @@ class DashboardMetrics(Resource):
             'closed_cases': closed_cases.count(),
             'total_events': events.count(),
             'new_events': new_events.count(),
-            'time_since_last_event': last_event.created_at.isoformat()+"Z"
+            'time_since_last_event': last_event.created_at.isoformat()+"Z" if last_event else "Never"
         }

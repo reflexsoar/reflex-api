@@ -570,10 +570,10 @@ mod_list_list = Model('ListView', {
 })
 
 mod_list_create = Model('ListCreate', {
-    'name': fields.String,
-    'list_type': fields.String,
+    'name': fields.String(required=True),
+    'list_type': fields.String(required=True),
     'tag_on_match': fields.Boolean,
-    'data_type': fields.String,
+    'data_type_uuid': fields.String(required=True),
     'values': fields.String
 })
 
