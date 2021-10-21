@@ -11,7 +11,7 @@ class ThreatListTests(BaseTest):
         dt_uuid = next((dt['uuid'] for dt in rv.json if dt['name'] == 'domain'))
 
         threat_list = {
-            "name": "Test List 2",
+            "name": f"Test List {datetime.datetime.utcnow().timestamp()}",
             "list_type": "values",
             "tag_on_match": False,
             "data_type_uuid": dt_uuid,

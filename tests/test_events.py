@@ -1,7 +1,96 @@
+import datetime
+import json
 from base_test import BaseTest, API_VERSION
 
 class EventTests(BaseTest):
 
+    def test_create_event(self):
+
+        event_details = {
+            "title": "API Test Event",
+            "reference": f"api-test-{datetime.datetime.utcnow().timestamp()}",
+            "description": "A test from the API",
+            "tags": [
+                "api-test"
+            ],
+            "tlp": 1,
+            "severity": 2,
+            "source": "unittests",
+            "observables": [
+                {
+                "value": "tester",
+                "ioc": False,
+                "tlp": 0,
+                "spotted": False,
+                "safe": True,
+                "data_type": "user",
+                "tags": [
+                    "test-user"
+                ]
+                }
+            ],
+            "raw_log": "Something something dark side"
+        }
+
+        rv = self.client.post(self.api_base_url+'event', data=json.dumps(event_details), headers=self.auth_header)
+        self.assertEqual(rv.status_code, 200)
+
+
+    def test_create_events_bulk(self):
+
+        event_details = [{
+            "title": "API Test Event A",
+            "reference": f"api-test-a-{datetime.datetime.utcnow().timestamp()}",
+            "description": "A test from the API via BULK",
+            "tags": [
+                "api-test"
+            ],
+            "tlp": 1,
+            "severity": 2,
+            "source": "unittests",
+            "observables": [
+                {
+                "value": "tester",
+                "ioc": False,
+                "tlp": 0,
+                "spotted": False,
+                "safe": True,
+                "data_type": "user",
+                "tags": [
+                    "test-user"
+                ]
+                }
+            ],
+            "raw_log": "Something something dark side"
+        },{
+            "title": "API Test Event B",
+            "reference": f"api-test-b-{datetime.datetime.utcnow().timestamp()}",
+            "description": "A test from the API via BULK",
+            "tags": [
+                "api-test"
+            ],
+            "tlp": 1,
+            "severity": 2,
+            "source": "unittests",
+            "observables": [
+                {
+                "value": "tester",
+                "ioc": False,
+                "tlp": 0,
+                "spotted": False,
+                "safe": True,
+                "data_type": "user",
+                "tags": [
+                    "test-user"
+                ]
+                }
+            ],
+            "raw_log": "Something something dark side"
+        }]
+
+        rv = self.client.post(self.api_base_url+'event/_bulk', data=json.dumps(event_details), headers=self.auth_header)
+        self.assertEqual(rv.status_code, 200)
+    
     def test_event_list(self):
 
         rv = self.login()
