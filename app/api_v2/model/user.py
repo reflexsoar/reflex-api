@@ -1,5 +1,10 @@
-import jwt
+'''/app/api_v2/model/user.py
+
+Contains all the models related to users of the system
+'''
+
 import datetime
+import jwt
 from flask import current_app
 from flask_bcrypt import Bcrypt
 
@@ -47,6 +52,7 @@ class User(base.BaseDocument):
 
         self.password_hash = FLASK_BCRYPT.generate_password_hash(
             password).decode('utf-8')
+        self.save()
 
     def generate_api_key(self):
         '''
@@ -102,7 +108,7 @@ class User(base.BaseDocument):
                 'uuid',
                 'id'
             ]
-            and self.role.permissions.__dict__[k] == True
+            and self.role.permissions.__dict__[k] is True
         ]
 
     def create_password_reset_token(self):
@@ -164,17 +170,15 @@ class User(base.BaseDocument):
         role = Role.search().query('term', members=self.uuid).execute()
         if role:
             role = role[0]
-            
+
         if hasattr(role.permissions, permission) and getattr(role.permissions, permission):
             return True
-        else:
-            return False
-        
+        return False
 
     @classmethod
     def get_by_username(self, username):
         response = self.search().query(
-            'match', username=utils.escape_special_characters(username)).execute()
+            'match', username=username).execute()
         if response:
             user = response[0]
             return user
@@ -204,7 +208,7 @@ class User(base.BaseDocument):
 
 class Permission(InnerDoc):
     '''
-    Defines what permissions are available in the system for a 
+    Defines what permissions are available in the system for a
     specified role
     '''
 
