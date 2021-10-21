@@ -22,7 +22,7 @@ if __name__ == "__main__":
     if not args.no_coverage:
         COV.start()
 
-    tests = unittest.TestLoader().discover('tests', pattern='test_{}.py'.format(args.test))
+    tests = unittest.TestLoader().discover('tests', pattern=f'test_{args.test}.py')
     result = unittest.TextTestRunner(verbosity=2).run(tests)
 
     if not args.no_coverage:
