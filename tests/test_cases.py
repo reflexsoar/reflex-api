@@ -31,13 +31,25 @@ class CaseTests(BaseTest):
         self.assertEqual(rv.status_code, 200)
 
     # Test listing cases
-
     def test_case_listing(self):
 
         rv = self.client.get(self.api_base_url+'case', headers=self.auth_header)
         self.assertEqual(rv.status_code, 200)
         cases = rv.json['cases']
         self.assertGreaterEqual(len(cases), 1)
+
+    # Test case details
+    def test_z_case_viewing_case_details(self):
+
+        time.sleep(0.5)
+
+        rv = self.client.get(self.api_base_url+f'case?title=Test%20Case%20{self.case_suffix}', headers=self.auth_header)
+        cases = rv.json['cases']
+        case = next((case['uuid'] for case in cases if case['title'] == f'Test Case {self.case_suffix}'))
+
+        rv = self.client.get(self.api_base_url+f'case/{case}', headers=self.auth_header)
+        self.assertEqual(rv.status_code, 200)
+        self.assertEqual(rv.json['title'], f"Test Case {self.case_suffix}")
 
     # Test paging cases
 
@@ -135,7 +147,7 @@ class CaseTests(BaseTest):
         self.assertEqual(rv.status_code, 200)
         self.assertEqual(len(rv.json), 0)
     
-    # Test creating a case task
+    # Test creating a case task 
 
     # Test commenting on a case task
 
