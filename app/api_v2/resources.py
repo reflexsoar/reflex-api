@@ -1856,7 +1856,7 @@ class CaseCommentList(Resource):
             api2.payload['closure_reason'] = CloseReason.get_by_uuid(
                 api2.payload.pop('closure_reason_uuid'))
 
-        case = Case.Case.get_by_uuid(uuid=api2.payload['case_uuid'])
+        case = Case.get_by_uuid(uuid=api2.payload['case_uuid'])
         if case:
             case_comment = CaseComment(**api2.payload)
             case_comment.save()
@@ -1930,7 +1930,7 @@ class CaseTemplateList(Resource):
         case_templates = None
 
         if args['title']:
-            case_templates = CaseTemplate.title_search(s=args['title'])
+            case_templates = CaseTemplate.title_search(search=args['title'])
         else:
             case_templates = CaseTemplate.search().execute()
         if case_templates:

@@ -37,7 +37,7 @@ class CaseHistory(base.BaseDocument):
         response = response.sort(sort_by)
         response = response.execute()
         if response:
-            return [r for r in response]
+            return list(response)
         return []
 
 
@@ -64,7 +64,7 @@ class CaseComment(base.BaseDocument):
         '''
         response = self.search().query('match', case_uuid=uuid).execute()
         if response:
-            return [r for r in response]
+            return list(response)
         return []
 
 
@@ -89,8 +89,8 @@ class CaseStatus(base.BaseDocument):
         '''
         response = self.search().query('term', name=name).execute()
         if response:
-            user = response[0]
-            return user
+            usr = response[0]
+            return usr
         return response
 
 
@@ -156,7 +156,7 @@ class CaseTask(base.BaseDocument):
         '''
         response = self.search().query('match', case=uuid).execute()
         if response:
-            return [r for r in response]
+            return list(response)
         return []
 
     @classmethod
@@ -236,7 +236,7 @@ class CaseTask(base.BaseDocument):
         case = Case.get_by_uuid(uuid=self.case)
         case.add_history(f'Task **{self.title}** deleted')
 
-        return super(CaseTask, self).delete(**kwargs)
+        return super().delete(**kwargs)
 
 
 class CloseReason(base.BaseDocument):
@@ -260,8 +260,8 @@ class CloseReason(base.BaseDocument):
         '''
         response = self.search().query('term', title=title).execute()
         if response:
-            user = response[0]
-            return user
+            usr = response[0]
+            return usr
         return response
 
 
@@ -396,8 +396,8 @@ class Case(base.BaseDocument):
         # Close all the related events
         if self.events:
             for _ in self.events:
-                event = event.Event.get_by_uuid(_)
-                event.set_closed()
+                evt = event.Event.get_by_uuid(_)
+                evt.set_closed()
 
         self.save()
 
@@ -411,8 +411,8 @@ class Case(base.BaseDocument):
         # Reopen all the related events
         if self.events:
             for _ in self.events:
-                event = event.Event.get_by_uuid(_)
-                event.set_open()
+                evt = event.Event.get_by_uuid(_)
+                evt.set_open()
 
         self.save()
 
@@ -450,14 +450,14 @@ class Case(base.BaseDocument):
 
         # If dealing with many events
         if isinstance(events, list):
-            for event in events:
-                event.set_open()
-                event.set_case(self.uuid)
-                self.process_event_observables(event)
+            for evt in events:
+                evt.set_open()
+                evt.set_case(self.uuid)
+                self.process_event_observables(evt)
                 if self.events:
-                    self.events.append(event.uuid)
+                    self.events.append(evt.uuid)
                 else:
-                    self.events = [event.uuid]
+                    self.events = [evt.uuid]
         else:
             events.set_open()
             events.set_case(self.uuid)
@@ -469,15 +469,15 @@ class Case(base.BaseDocument):
         self.save()
         return True
 
-    def process_event_observables(self, event):
+    def process_event_observables(self, evt):
         '''Takes in an event and processes the observables associated
         with the event by adding them to the case
-        
+
         Parameters:
             event (Event): The event to pull observables for
         '''
 
-        event_observables = system.Observable.get_by_event_uuid(event.uuid)
+        event_observables = system.Observable.get_by_event_uuid(evt.uuid)
         case_observables = system.Observable.get_by_case_uuid(self.uuid)
         new_observables = None
         if case_observables:
@@ -487,7 +487,7 @@ class Case(base.BaseDocument):
                 ]
             ]
         else:
-            new_observables = [o for o in event_observables]
+            new_observables = list(event_observables)
 
         new_observables =[system.Observable(
                 tags=o.tags,
@@ -503,21 +503,21 @@ class Case(base.BaseDocument):
             _ = [o.save() for o in new_observables]
 
 
-    def remove_event(self, event):
+    def remove_event(self, evt):
         '''Removes an event from the case
         If this event is the last event with certain observables
         those observables are removed as well.
-        
+
         Parameters:
             event (Event): The event to be removed
 
         Return:
             bool: True (Success) or False (Fail)
         '''
-        if isinstance(event, list):
-            self.events.remove([e.uuid for e in event])
+        if isinstance(evt, list):
+            self.events.remove([e.uuid for e in evt])
         else:
-            self.events.remove(event.uuid)
+            self.events.remove(evt.uuid)
 
         self.save()
 
@@ -562,16 +562,15 @@ class CaseTemplate(base.BaseDocument):
         name = 'reflex-case-templates'
 
     @classmethod
-    def title_search(self, s):
+    def title_search(self, search):
         '''
         Searches for a title based on a wildcard
         '''
-        s = self.search().query('wildcard', title=s+'*')
-        results = s.execute()
+        search = self.search().query('wildcard', title=search+'*')
+        results = search.execute()
         if results:
-            return [r for r in results]
-        else:
-            return []
+            return list(results)
+        return []
 
     @classmethod
     def get_by_title(self, title):

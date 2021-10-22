@@ -76,6 +76,8 @@ class CaseTests(BaseTest):
         cases = rv.json['cases']
         case = next((case['uuid'] for case in cases if case['title'] == f'Test Case {self.case_suffix}'))
 
+
+        """ Test creating a comment missing the comment """
         comment_bad_payload = {
             'case_uuid': case
         }
@@ -83,6 +85,7 @@ class CaseTests(BaseTest):
         rv = self.client.post(self.api_base_url+'case_comment', data=json.dumps(comment_bad_payload), headers=self.auth_header)
         self.assertEqual(rv.status_code, 400)
 
+        """ Test creating a comment without the case associated """
         comment_bad_payload = {
             'message': 'test'
         }
@@ -102,6 +105,35 @@ class CaseTests(BaseTest):
         self.assertEqual(comment_details['created_by']['username'], 'Admin')
         self.assertEqual(comment_details['message'], 'Test comment')
 
+        time.sleep(1)
+
+        """ List the comments to make sure it made it """
+        rv = self.client.get(self.api_base_url+f'case_comment?case_uuid={case}', headers=self.auth_header)
+        comments = rv.json
+        self.assertEqual(rv.status_code, 200)
+        self.assertGreaterEqual(len(comments), 1)
+
+        """ Try to fetch comments for a case that doens't exist """
+        rv = self.client.get(self.api_base_url+f'case_comment?case_uuid=foobar', headers=self.auth_header)
+        comments = rv.json
+        self.assertEqual(rv.status_code, 200)
+        self.assertEqual(len(comments), 0)
+    
+    # Test fetching case history
+    def test_list_case_history(self):
+
+        rv = self.client.get(self.api_base_url+f'case?title=Test%20Case%20{self.case_suffix}', headers=self.auth_header)
+        cases = rv.json['cases']
+        case = next((case['uuid'] for case in cases if case['title'] == f'Test Case {self.case_suffix}'))
+
+        rv = self.client.get(self.api_base_url+f'case_history?case_uuid={case}', headers=self.auth_header)
+        self.assertEqual(rv.status_code, 200)
+        self.assertGreaterEqual(len(rv.json), 0)
+
+        """ Test fetching history for a case that doesn't exist """
+        rv = self.client.get(self.api_base_url+f'case_history?case_uuid=foobar', headers=self.auth_header)
+        self.assertEqual(rv.status_code, 200)
+        self.assertEqual(len(rv.json), 0)
     
     # Test creating a case task
 
