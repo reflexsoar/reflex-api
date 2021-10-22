@@ -1855,11 +1855,14 @@ class CaseCommentList(Resource):
         if 'closure_reason_uuid' in api2.payload:
             api2.payload['closure_reason'] = CloseReason.get_by_uuid(
                 api2.payload.pop('closure_reason_uuid'))
-        case_comment = CaseComment(**api2.payload)
-        case_comment.save()
 
-        case = Case.get_by_uuid(uuid=api2.payload['case_uuid'])
-        case.add_history(message="Comment added to case")
+        case = Case.Case.get_by_uuid(uuid=api2.payload['case_uuid'])
+        if case:
+            case_comment = CaseComment(**api2.payload)
+            case_comment.save()
+            case.add_history(message="Comment added to case")
+        else:
+            ns_case_comment_v2.abort(404, 'Case not found.')        
         return case_comment
 
 
