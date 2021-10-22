@@ -1416,6 +1416,8 @@ class CaseDetails(Resource):
             if tasks:
                 case.total_tasks = len(tasks)
                 case.open_tasks = len([t for t in tasks if t.status == 0])
+            else:
+                case.total_tasks = 0
             return case
         else:
             ns_case_v2.abort(404, 'Case not found.')
