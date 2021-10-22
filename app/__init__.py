@@ -21,7 +21,7 @@ else:
 from config import app_config
 
 FLASK_BCRYPT = Bcrypt()
-db = SQLAlchemy()
+#db = SQLAlchemy()
 cors = CORS()
 mail = Mail()
 cache = Cache(config={'CACHE_TYPE': 'simple'})
@@ -50,13 +50,13 @@ def create_app(environment='development'):
     if not app.config['SCHEDULER_DISABLED']:
         atexit.register(lambda: scheduler.shutdown())
 
-    from app.resources import api
+    #from app.resources import api
     
-    api.authorizations = authorizations
-    api.title = app.config['API_TITLE']
-    api.version = app.config['API_VERSION']
-    api.description = app.config['API_DESCRIPTION']
-    api.default_mediatype='application/json'
+    #api.authorizations = authorizations
+    #api.title = app.config['API_TITLE']
+    #api.version = app.config['API_VERSION']
+    #api.description = app.config['API_DESCRIPTION']
+    #api.default_mediatype='application/json'
     
     from app.api_v2.resources import api2
     api2.authorizations = authorizations
@@ -68,9 +68,9 @@ def create_app(environment='development'):
     from app.api_v2.model.user import FLASK_BCRYPT as FLASK_V2_BCRYPT
     FLASK_V2_BCRYPT.init_app(app)
 
-    from app.resources import api_v1
+    #from app.resources import api_v1
     from app.api_v2.resources import api_v2
-    app.register_blueprint(api_v1)
+    #app.register_blueprint(api_v1)
     app.register_blueprint(api_v2)
 
     FLASK_BCRYPT.init_app(app)

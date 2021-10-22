@@ -1409,13 +1409,13 @@ class CaseDetails(Resource):
     @user_has('view_cases')
     def get(self, uuid, current_user):
         ''' Returns information about a case '''
-        case = Case.get_by_uuid(uuid=uuid)
-
-        tasks = CaseTask.get_by_case(uuid=uuid)
-        case.total_tasks = len(tasks)
-        case.open_tasks = len([t for t in tasks if t.status == 0])
+        case = Case.get_by_uuid(uuid=uuid)           
 
         if case:
+            tasks = CaseTask.get_by_case(uuid=uuid)
+            if tasks:
+                case.total_tasks = len(tasks)
+                case.open_tasks = len([t for t in tasks if t.status == 0])
             return case
         else:
             ns_case_v2.abort(404, 'Case not found.')

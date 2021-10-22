@@ -5,8 +5,10 @@ Contains all marshal schemas for API responses and inputs
 """
 
 from flask_restx import Model, fields
-from app.schemas import JSONField
 
+class JSONField(fields.Raw):
+    def format(self, value):
+        return value
 class ObservableCount(fields.Raw):
     ''' Returns the number of observables '''
     def format(self, value):
