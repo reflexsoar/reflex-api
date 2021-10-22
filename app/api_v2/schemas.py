@@ -640,8 +640,8 @@ mod_comment = Model('CommentDetails', {
 })
 
 mod_comment_create = Model('CommentCreate', {
-    'case_uuid': fields.String,
-    'message': fields.String
+    'case_uuid': fields.String(required=True),
+    'message': fields.String(required=True)
 })
 
 mod_case_task_create = Model('CaseTaskCreate', {

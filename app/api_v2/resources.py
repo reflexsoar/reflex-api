@@ -1844,7 +1844,7 @@ class CaseCommentList(Resource):
             ns_case_comment_v2.abort(400, 'A case UUID is required.')
 
     @api2.doc(security="Bearer")
-    @api2.expect(mod_comment_create)
+    @api2.expect(mod_comment_create, validate=True)
     @api2.response(200, 'AMAZING', mod_comment)
     @api2.marshal_with(mod_comment)
     @token_required

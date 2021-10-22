@@ -70,19 +70,37 @@ class CaseTests(BaseTest):
     # Test creating a case comment
     def test_create_case_comment(self):
 
+        time.sleep(0.5)
+
         rv = self.client.get(self.api_base_url+f'case?title=Test%20Case%20{self.case_suffix}', headers=self.auth_header)
         cases = rv.json['cases']
         case = next((case['uuid'] for case in cases if case['title'] == f'Test Case {self.case_suffix}'))
 
+        comment_bad_payload = {
+            'case_uuid': case
+        }
+
+        rv = self.client.post(self.api_base_url+'case_comment', data=json.dumps(comment_bad_payload), headers=self.auth_header)
+        self.assertEqual(rv.status_code, 400)
+
+        comment_bad_payload = {
+            'message': 'test'
+        }
+
+        rv = self.client.post(self.api_base_url+'case_comment', data=json.dumps(comment_bad_payload), headers=self.auth_header)
+        self.assertEqual(rv.status_code, 400)
+
         comment_payload = {
             'case_uuid': case,
-            'comment': 'Test comment'
+            'message': 'Test comment'
         }
-        print(comment_payload)
         
         rv = self.client.post(self.api_base_url+'case_comment', data=json.dumps(comment_payload), headers=self.auth_header)
         self.assertEqual(rv.status_code, 200)
-        print(rv.json)
+        
+        comment_details = rv.json
+        self.assertEqual(comment_details['created_by']['username'], 'Admin')
+        self.assertEqual(comment_details['message'], 'Test comment')
 
     
     # Test creating a case task
