@@ -778,10 +778,11 @@ mod_case_create = Model('CaseCreate', {
     'owner_uuid': fields.String,
     'description': fields.String(required=True),
     'tags': fields.List(fields.String),
-    'tlp': fields.Integer,
-    'severity': fields.Integer,
+    'tlp': fields.Integer(required=True),
+    'severity': fields.Integer(required=True),
     'observables': fields.List(fields.String),
-    'events': fields.List(fields.String)
+    'events': fields.List(fields.String),
+    'case_template_uuid': fields.String
 })
 
 mod_case_list = Model('CaseList', {

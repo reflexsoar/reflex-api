@@ -366,13 +366,14 @@ class Case(base.BaseDocument):
 
         owner = user.User.get_by_uuid(uuid=uuid)
 
-        owner_data = {
-            'username': owner.username,
-            'uuid': owner.uuid
-        }
-        self.owner = owner_data
-        username = owner_data['username']
-        self.add_history(f'Owner changed to **{username}**')
+        if owner:
+            owner_data = {
+                'username': owner.username,
+                'uuid': owner.uuid
+            }
+            self.owner = owner_data
+            username = owner_data['username']
+            self.add_history(f'Owner changed to **{username}**')
         self.save()
 
     def set_template(self, uuid):

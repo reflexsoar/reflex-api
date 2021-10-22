@@ -1289,6 +1289,8 @@ class CaseList(Resource):
 
         cases = Case.search()
 
+        cases = cases.sort('-created_at')
+
         # Apply filters
         if 'title' in args and args['title']:
             cases = cases.filter('term', title=args['title'])
@@ -1302,7 +1304,7 @@ class CaseList(Resource):
         # Paginate the cases
         page = args.page - 1
         total_cases = cases.count()
-        pages = total_cases/args.page_size
+        pages = math.ceil(float(total_cases / args.page_size))
 
         start = page*args.page_size
         end = args.page*args.page_size
@@ -1347,6 +1349,22 @@ class CaseList(Resource):
             # Automatically assign the case to the creator if they didn't pick an owner
             if settings.assign_case_on_create:
                 owner_uuid = current_user.uuid
+
+        # Set a minimum tlp
+        if api2.payload['tlp'] < 1:
+            api2.payload['tlp'] = 1
+
+        # Set a maximum tlp
+        if api2.payload['tlp'] > 4:
+            api2.payload['tlp'] = 4
+
+        # Set a minimum severity
+        if api2.payload['severity'] < 1:
+            api2.payload['severity'] = 1
+
+        # Set a maximum severity
+        if api2.payload['severity'] > 4:
+            api2.payload['severity'] = 4
 
         case = Case(**api2.payload)
 
