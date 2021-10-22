@@ -1,7 +1,7 @@
 import jwt
 from flask import request, current_app
 
-from . import user
+from . import user as u
 
 def escape_special_characters(string):
     '''
@@ -30,7 +30,7 @@ def _current_user_id_or_none():
             else:
                 current_user = token['uuid']
         if current_user:
-            user = user.User.get_by_uuid(uuid=current_user)
+            user = u.User.get_by_uuid(uuid=current_user)
             current_user = {
                 'username': user.username,
                 'uuid': user.uuid
