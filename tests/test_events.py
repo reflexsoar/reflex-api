@@ -83,6 +83,17 @@ class EventTests(BaseTest):
                 "tags": [
                     "test-user"
                 ]
+                },
+                {
+                "value": "google.com",
+                "ioc": False,
+                "tlp": 0,
+                "spotted": False,
+                "safe": True,
+                "data_type": "domain",
+                "tags": [
+                    "test-user"
+                ]
                 }
             ],
             "raw_log": "Something something dark side"

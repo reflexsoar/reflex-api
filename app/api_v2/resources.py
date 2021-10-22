@@ -2600,15 +2600,40 @@ class ThreatListList(Resource):
     @token_required
     @user_has('add_list')
     def post(self, current_user):
-        '''
-        Creates a new ThreatList 
+        '''Creates a new ThreatList
+        
+        A threat list is what the system uses to determine if an observable
+        is malicious or suspicious in nature.  ThreatLists can be consumed
+        via target URLs or manually entered in to the system, or added to
+        via the API. 
 
         Supported list types: `values|pattern`
 
+        When `url` is populated the `values` field will be ignored.
+
         '''
+
+        value_list = ThreatList.get_by_name(name=api2.payload['name'])
+
+        if value_list:
+            ns_list_v2.abort(409, "ThreatList already exists.")
 
         if api2.payload['list_type'] not in ['values', 'patterns']:
             ns_list_v2.abort(400, "Invalid list type.")
+
+        # Remove any values entered by the user as they also want to pull
+        # from a URL and the URL will overwrite their additions
+        if 'url' in api2.payload:
+            del api2.payload['values']
+
+            # The polling interval must exist in the URL field exists
+            if 'polling_interval' not in api2.payload or api2.payload['polling_interval'] is None:
+                ns_list_v2.abort(400, 'Missing polling_interval')
+
+            # Don't let the user define an insanely fast polling interval
+            if api2.payload['polling_interval'] < 60:
+                ns_list_v2.abort(400, 'Invalid polling interval, must be greater than or equal to 60')
+
 
         if 'values' in api2.payload:
             _values = api2.payload.pop('values')
@@ -2625,14 +2650,9 @@ class ThreatListList(Resource):
         if 'data_type_uuid' in api2.payload and DataType.get_by_uuid(api2.payload['data_type_uuid']) is None:
             ns_list_v2.abort(400, "Invalid data type")
 
-        value_list = ThreatList.get_by_name(name=api2.payload['name'])
-
-        if not value_list:
-            value_list = ThreatList(**api2.payload)
-            value_list.save()
-            return value_list
-        else:
-            ns_list_v2.abort(409, "ThreatList already exists.")
+        value_list = ThreatList(**api2.payload)
+        value_list.save()
+        return value_list            
 
 
 @ns_list_v2.route("/<uuid>")
@@ -2780,11 +2800,10 @@ class AuditLogsList(Resource):
         logs = EventLog.search()
 
         if args.status:
-            status = [s.lower() for s in args.status]
-            logs = logs.filter('terms', status=status)
+            logs = logs.filter('terms', status=args.status)
 
         if args.event_type:
-            logs = logs.filter('terms', event_type__keyword=args.event_type)
+            logs = logs.filter('terms', event_type=args.event_type)
 
         if args.source_user:
             logs = logs.filter('terms', source_user=args.source_user)

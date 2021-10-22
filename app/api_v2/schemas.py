@@ -570,11 +570,14 @@ mod_list_list = Model('ListView', {
 })
 
 mod_list_create = Model('ListCreate', {
-    'name': fields.String(required=True),
-    'list_type': fields.String(required=True),
-    'tag_on_match': fields.Boolean,
+    'name': fields.String(required=True, example='SpamHaus eDROP'),
+    'list_type': fields.String(required=True, example='values'),
+    'tag_on_match': fields.Boolean(example=False),
     'data_type_uuid': fields.String(required=True),
-    'values': fields.String
+    'values': fields.String(example='127.0.0.1\n4.4.4.4\n1.1.1.1'),
+    'polling_interval': fields.Integer(example=3600),
+    'url': fields.Url(description='A URL to pull threat data from', example='https://www.spamhaus.org/drop/edrop.txt'),
+    'active': fields.Boolean(example=True)
 })
 
 mod_event_rule_create = Model('CreateEventRule', {

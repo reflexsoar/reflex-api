@@ -68,6 +68,7 @@ class Tag(base.BaseDocument):
             return document
         return response
 
+
 class DataType(base.BaseDocument):
     '''
     A DataType is really the type of observable e.g. an IP address
