@@ -34,15 +34,7 @@ class ISO8601(fields.Raw):
 class AsNewLineDelimited(fields.Raw):
     ''' Returns an array as a string delimited by new line characters '''
     def format(self, value):
-        if len(value) > 0:
-            return '\n'.join(list(value))
-        return ''
-
-class OpenTaskCount(fields.Raw):
-    ''' Returns a count of open tasks '''
-
-    def format(self, value):
-        return len([a for a in value if a.status != 2])
+        return '\n'.join(list(value))
 
 class FormatTags(fields.Raw):
     ''' Returns tags in a specific format for the API response'''
@@ -434,10 +426,10 @@ mod_persistent_pairing_token = Model('PeristentPairingToken', {
 })
 
 mod_credential_create = Model('CredentialCreate', {
-    'username': fields.String,
-    'secret': fields.String,
-    'name': fields.String,
-    'description': fields.String
+    'username': fields.String(required=True),
+    'secret': fields.String(required=True),
+    'name': fields.String(required=True),
+    'description': fields.String(required=True)
 })
 
 mod_credential_update = Model('CredentialUpdate', {
@@ -796,7 +788,6 @@ mod_case_list = Model('CaseList', {
     'severity': fields.Integer,
     'status': fields.Nested(mod_case_status),
     'event_count': ValueCount(attribute='events'),
-    #'open_tasks': OpenTaskCount(attribute='tasks'),
     #'open_tasks': fields.Integer,
     #'total_tasks': ValueCount(attribute='tasks'),
     'created_at': ISO8601(attribute='created_at'),
@@ -821,7 +812,6 @@ mod_case_details = Model('CaseDetails', {
     'status': fields.Nested(mod_case_status),
     'event_count': ValueCount(attribute='events'),
     'related_cases': ValueCount(attribute='related_cases'),
-    #'open_tasks': OpenTaskCount(attribute='tasks'),
     'open_tasks': fields.Integer,
     #'total_tasks': ValueCount(attribute='tasks'),
     'total_tasks': fields.Integer,

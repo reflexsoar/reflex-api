@@ -2485,7 +2485,7 @@ class AgentGroupList(Resource):
 class EncryptPassword(Resource):
 
     @api2.doc(security="Bearer")
-    @api2.expect(mod_credential_create)
+    @api2.expect(mod_credential_create, validate=True)
     @api2.marshal_with(mod_credential_full)
     @api2.response('400', 'Successfully created credential.')
     @api2.response('409', 'Credential already exists.')
