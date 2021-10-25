@@ -2506,17 +2506,59 @@ class EncryptPassword(Resource):
             ns_credential_v2.abort(409, 'Credential already exists.')
 
 
+
+cred_parser = pager_parser.copy()
+cred_parser.add_argument('name', location='args', required=False, type=str)
+cred_parser.add_argument('page', type=int, location='args', default=1, required=False)
+cred_parser.add_argument('sort_by', type=str, location='args', default='-created_at', required=False)
+cred_parser.add_argument('page_size', type=int, location='args', default=10, required=False)
+
 @ns_credential_v2.route("")
 class CredentialList(Resource):
 
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_credential_list)
+    @api2.expect(cred_parser)
     @token_required
     @user_has('view_credentials')
     def get(self, current_user):
-        credentials = Credential.search().execute()
+
+        
+
+        args = cred_parser.parse_args()
+
+        credentials = Credential.search()
+
+        if 'name' in args and args.name not in [None, '']:
+            credentials = credentials.filter('match', name=args.name)
+
+        credentials = credentials.sort(args.sort_by)
+
+        total_creds = credentials.count()
+
+        page = args.page - 1
+        pages = math.ceil(float(total_creds / args['page_size']))
+
+        start = page*args.page_size
+        end = start+args.page_size
+
+        credentials = credentials[start:end]
+        credentials = credentials.execute()
+
+        """ TODO: Make this the new return for credentials
+        return {
+            'logs': credentials,
+            'pagination': {
+                'page': args.page,
+                'page_size': args.page_size,
+                'total_results': total_cred,
+                'pages': pages
+            }
+        }
+        """
+
         if credentials:
-            return [c for c in credentials]
+            return list(credentials)
         else:
             return []
 
@@ -2556,7 +2598,7 @@ class CredentialDetails(Resource):
         if credential:
             return credential
         else:
-            ns_credential_v2.abort(409, 'Credential not found.')
+            ns_credential_v2.abort(404, 'Credential not found.')
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_credential_update, validate=True)
@@ -2579,6 +2621,7 @@ class CredentialDetails(Resource):
             if 'secret' in api2.payload:
                 credential.encrypt(api2.payload.pop('secret').encode(
                 ), current_app.config['MASTER_PASSWORD'])
+
             if len(api2.payload) > 0:
                 credential.update(**api2.payload)
             return credential
