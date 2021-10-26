@@ -392,6 +392,7 @@ class Role(base.BaseDocument):
         '''
         Adds users unique IDs to the members field
         '''
+        print(user_id)
         if isinstance(user_id, list):
             self.members = self.members + user_id
         else:
@@ -408,7 +409,8 @@ class Role(base.BaseDocument):
         if isinstance(user_id, list):
             self.members = [m for m in self.members if m not in user_id]
         else:
-            self.members.remove(user_id)
+            if self.members is not None:
+                self.members.remove(user_id)
         self.save()
 
     @classmethod

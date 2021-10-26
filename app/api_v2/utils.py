@@ -174,7 +174,7 @@ def _check_token():
 
                 # TODO: ADD AGENT FUNCTIONALITY BACK IN
                 if 'type' in token and token['type'] == 'agent':
-                    current_user = Agent.query.filter_by(uuid=token['uuid']).first()
+                    current_user = Agent.get_by_uuid(uuid=token['uuid'])
 
                 # Refresh and Password Reset tokens should not be used to access the API
                 # only to refresh an access token or reset the password

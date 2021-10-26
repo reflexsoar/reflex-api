@@ -2364,9 +2364,9 @@ class AgentList(Resource):
         if not agent:
 
             agent = Agent(**api2.payload)
+            agent.save()
             role = Role.get_by_name(name='Agent')
             role.add_user_to_role(agent.uuid)
-            agent.save()
 
             token = generate_token(str(agent.uuid), 86400, token_type='agent')
 
@@ -2423,6 +2423,8 @@ class AgentDetails(Resource):
         ''' Removes a Agent '''
         agent = Agent.get_by_uuid(uuid=uuid)
         if agent:
+            role = Role.get_by_name(name='Agent')
+            role.remove_user_from_role(uuid)
             agent.delete()
             return {'message': 'Agent successfully delete.'}
         else:
