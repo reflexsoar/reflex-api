@@ -92,7 +92,7 @@ class CaseTests(BaseTest):
         rv = self.client.get(self.api_base_url+'case_status?name=Closed', headers=self.auth_header)
         case_status = rv.json[0]['uuid']
 
-        rv = self.client.get(self.api_base_url+'close_reason?title=False%20Positive', headers=self.auth_header)
+        rv = self.client.get(self.api_base_url+'close_reason?title=False%20positive', headers=self.auth_header)
         reason = rv.json[0]['uuid']
 
         rv = self.client.put(test_url, data=json.dumps({'status_uuid': case_status, 'close_reason_uuid': reason}), headers=self.auth_header)

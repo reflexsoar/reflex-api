@@ -1,5 +1,6 @@
 import uuid
 import datetime
+
 from . import (
     Document,
     Keyword,

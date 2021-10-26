@@ -1,3 +1,8 @@
+"""app/api_v2/model/agent.py
+
+Contains all the logic for Agent interaction with the API
+"""
+
 from . import (
     Keyword,
     Ip,
@@ -45,15 +50,15 @@ class Agent(base.BaseDocument):
         return bool(getattr(role.permissions, permission))
 
     @classmethod
-    def get_by_name(self, name):
+    def get_by_name(cls, name):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = self.search().query('term', name=name).execute()
+        response = cls.search().query('term', name=name).execute()
         if response:
-            user = response[0]
-            return user
+            usr = response[0]
+            return usr
         return response
 
 

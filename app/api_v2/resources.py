@@ -1216,11 +1216,11 @@ class CloseReasonList(Resource):
         close_reasons = CloseReason.search()
         
         if args.title:
-            close_reason = close_reasons.filter('match', title=args.title)
+            close_reasons = close_reasons.filter('match', title=args.title)
         
-        close_reason = close_reason.execute()
+        close_reasons = close_reasons.execute()
         if close_reasons:
-            return [c for c in close_reasons]
+            return list(close_reasons)
         else:
             return []
 
