@@ -741,7 +741,7 @@ class CreateBulkEvents(Resource):
         workers = []
 
         request_id = str(uuid.uuid4())
-
+        
         def process_event(queue, request_id):
             while not queue.empty():
                 raw_event = queue.get()
