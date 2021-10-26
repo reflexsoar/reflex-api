@@ -18,6 +18,10 @@ class BaseTest(unittest.TestCase):
     auth_header = {}
     api_base_url = f'/api/{API_VERSION}/'
 
+    def get_admin_user(self):
+        rv = self.client.get(self.api_base_url+'user?username=Admin', headers=self.auth_header)
+        return rv.json
+
     def setUp(self):
         self.app = create_app('development')
         self.app.test_client_class = RESTClient

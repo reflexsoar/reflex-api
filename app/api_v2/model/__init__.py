@@ -19,7 +19,8 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
         Nested,
         Ip,
         Object,
-        Float
+        Float,
+        A
     )
 else:
     from elasticsearch_dsl.utils import AttrList
@@ -34,7 +35,8 @@ else:
         Nested,
         Ip,
         Object,
-        Float
+        Float,
+        A
     )
 
 from .user import User, Role, ExpiredToken

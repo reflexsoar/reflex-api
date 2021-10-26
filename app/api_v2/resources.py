@@ -2,6 +2,7 @@ import base64
 import math
 import datetime
 import itertools
+from os import close
 from queue import Queue
 import threading
 import uuid
@@ -35,6 +36,7 @@ from .model import (
     PluginConfig,
     Plugin,
     EventLog,
+    A
 )
 
 from .utils import ip_approved, token_required, user_has, generate_token, log_event
@@ -617,12 +619,10 @@ class EventList(Resource):
         if 'signature' in args and args['signature']:
             s = s.filter('term', **{'signature': args['signature']})
             total_events = s.count()
-            #events = [e for e in s[start:end]]
 
         if 'case_uuid' in args and args['case_uuid']:
             s = s.filter('match', **{'case': args['case_uuid']})
             total_events = s.count()
-            #events = [e for e in s[start:end]]
 
         if len(search_filter) > 0:
             for a in search_filter:
@@ -1108,15 +1108,29 @@ class EventRuleDetails(Resource):
             return {'message': 'Sucessfully deleted the event rule.'}
 
 
+case_status_parser = api2.parser()
+case_status_parser.add_argument(
+    'name', type=str, location='args', required=False)
+
 @ns_case_status_v2.route("")
 class CaseStatusList(Resource):
 
     @api2.doc(security="Bearer")
+    @api2.expect(case_status_parser)
     @api2.marshal_with(mod_case_status_list, as_list=True)
     @token_required
     def get(self, current_user):
         ''' Returns a list of case_statuss '''
-        statuses = CaseStatus.search().execute()
+
+        args = case_status_parser.parse_args()
+
+        
+        statuses = CaseStatus.search()
+
+        if args.name is not None:
+            statuses = statuses.filter('term', name=args.name)
+
+        statuses = statuses.execute()
         if statuses:
             return [s for s in statuses]
         else:
@@ -1183,16 +1197,28 @@ class CaseStatusDetails(Resource):
             case_status.delete()
             return {'message': 'Sucessfully deleted Case Status.'}
 
+close_reason_parser = api2.parser()
+close_reason_parser.add_argument(
+    'title', type=str, location='args', required=False)
 
 @ns_close_reason_v2.route("")
 class CloseReasonList(Resource):
 
     @api2.doc(security="Bearer")
+    @api2.expect(close_reason_parser)
     @api2.marshal_with(mod_close_reason_list, as_list=True)
     @token_required
     def get(self, current_user):
         ''' Returns a list of close_reasons '''
-        close_reasons = CloseReason.search().execute()
+
+        args = close_reason_parser.parse_args()
+
+        close_reasons = CloseReason.search()
+        
+        if args.title:
+            close_reason = close_reasons.filter('match', title=args.title)
+        
+        close_reason = close_reason.execute()
         if close_reasons:
             return [c for c in close_reasons]
         else:
@@ -1476,6 +1502,13 @@ class CaseDetails(Resource):
                             case.reopen()
 
                     elif f == 'severity':
+
+                        if api2.payload[f] > 4:
+                            api2.payload[f] = 4
+
+                        if api2.payload[f] < 1:
+                            api2.payload[f] = 1
+
                         value = {1: 'Low', 2: 'Medium', 3: 'High',
                                  4: 'Critical'}[api2.payload[f]]
 

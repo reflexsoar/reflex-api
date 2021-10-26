@@ -38,6 +38,8 @@ class User(base.BaseDocument):
     locked = Boolean()
     #groups = Nested(Group)
     api_key = Text()
+    auth_method = Keyword() # local, ldap, saml
+    auth_realm = Keyword() # Which authentication realm to log in to
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
