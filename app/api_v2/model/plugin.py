@@ -45,6 +45,21 @@ class Plugin(base.BaseDocument):
             self.configs = [config.uuid]
         self.save()
 
+    @classmethod
+    def get_by_filename(cls, filename):
+        '''
+        Returns a plugin based on the filename
+        associated with the plugin
+        '''
+        
+        search = cls.search()
+        search = search.filter('match', filename=filename)
+        search = search.execute()
+        if search:
+            return list(search)
+        else:
+            return []
+
 
 class PluginConfig(base.BaseDocument):
     '''

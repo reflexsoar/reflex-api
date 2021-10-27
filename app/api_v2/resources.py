@@ -2,13 +2,17 @@ import base64
 import math
 import datetime
 import itertools
-from os import close
+import os
 from queue import Queue
 import threading
 import uuid
 import json
+import hashlib
+from zipfile import ZipFile
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs, marshal
+from werkzeug.datastructures import FileStorage
+from werkzeug.utils import secure_filename
 from .schemas import *
 from .model import (
     Event,
@@ -100,6 +104,11 @@ pager_parser.add_argument('page_size', location='args',
                           required=False, type=int, default=25)
 pager_parser.add_argument('page', location='args',
                           required=False, type=int, default=1)
+
+upload_parser = api2.parser()
+upload_parser.add_argument('files', location='files',
+                           type=FileStorage, required=True, action="append")
+
 
 
 def save_tags(tags):
@@ -2852,23 +2861,142 @@ class ThreatListDetails(Resource):
 class PluginList(Resource):
 
     @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_plugin_list)
     @token_required
     @user_has('view_plugins')
     def get(self, current_user):
         ''' Retrieves a list of plugins'''
-        return {}
+
+        plugins = Plugin.search()
+        plugins = plugins[0:plugins.count()]
+        plugins = plugins.execute()
+
+        return list(plugins)
+
+
+@ns_plugins_v2.route("/<uuid>")
+class PluginDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_plugin_list)
+    @token_required
+    @user_has('view_plugins')
+    def get(self, uuid, current_user):
+        ''' Retrieves the details of a specific plugin'''
+
+        plugin = Plugin.get_by_uuid(uuid)
+        if plugin:
+            return plugin
+        else:
+            ns_plugins_v2.abort(404, 'Plugin not found.')
+
+
+@ns_plugins_v2.route("/download/<path:path>")
+class DownloadPlugin(Resource):
+
+    # TODO: MAKE THIS ONLY ACCESSIBLE FROM AGENT TOKENS
+    @api2.doc(security="Bearer")
+    @token_required
+    def get(self, path, current_user):
+        plugin_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), current_app.config['PLUGIN_DIRECTORY'])
+        return send_from_directory(plugin_dir, path, as_attachment=True)
 
 
 @ns_plugins_v2.route("/upload")
 class PluginUpload(Resource):
 
     @api2.doc(security="Bearer")
+    @api2.expect(upload_parser)
+    @api2.marshal_with(mod_plugin_list, as_list=True)
     @token_required
     @user_has('create_plugin')
     def post(self, current_user):
         ''' Adds a new plugin to the system'''
-        print(api2.payload)
-        return {}
+
+        plugins = []
+
+        args = upload_parser.parse_args()
+
+        def allowed_file(filename):
+            return '.' in filename and filename.rsplit('.', 1)[1].lower() in current_app.config['PLUGIN_EXTENSIONS']
+
+        if 'files' not in request.files:
+            ns_plugins_v2.abort(400, 'No file selected.')
+
+        uploaded_files = args['files']
+        for uploaded_file in uploaded_files:
+
+            if uploaded_file.filename == '':
+                ns_plugins_v2.abort(400, 'No file selected.')
+
+            if uploaded_file and allowed_file(uploaded_file.filename):
+
+                # Make sure the file is one that can be uploaded
+                # TODO: Add mime-type checking
+                filename = secure_filename(uploaded_file.filename)
+                
+                # Check to see if the organizations plugin directory exists
+                plugin_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), current_app.config['PLUGIN_DIRECTORY'])
+                if not os.path.exists(plugin_dir):
+                    os.makedirs(plugin_dir)
+
+                # Save the file
+                file_path = os.path.join(plugin_dir, filename)
+                uploaded_file.save(file_path)
+                uploaded_file.close()
+
+                # Hash the file and update the checksum for the plugin
+                hasher = hashlib.sha1()
+                with open(file_path, 'rb') as f:
+                    hasher.update(f.read())
+
+                # Open the file and grab the manifest and the logo
+                with ZipFile(file_path, 'r') as z:
+                    # TODO: Add plugin structure checks
+                    # if 'logo.png' not in z.namelist():
+                    #    ns_plugin.abort(400, "Archive does not contain logo.png")
+                    # if 'plugin.json' not in z.namelist():
+                    #    ns_plugin.abort(400, "Archive does not contain plugin.json")
+
+                    files = [{'name': name, 'data': z.read(
+                        name)} for name in z.namelist()]
+                    for f in files:
+                        if 'logo.png' in f['name']:
+                            logo_b64 = base64.b64encode(f['data']).decode()
+                        if 'plugin.json' in f['name']:
+                            manifest_data = json.loads(f['data'].decode())
+                            description = manifest_data['description']
+                            name = manifest_data['name']
+                            if 'config_template' in manifest_data:
+                                config_template = manifest_data['config_template']
+                            else:
+                                config_template = {}
+                
+
+                #plugin = Plugin.query.filter_by(filename=filename).first()
+                plugin = Plugin.get_by_filename(filename=filename)
+                if plugin:
+                    plugin = plugin[0]
+                    plugin.manifest = manifest_data
+                    plugin.logo = logo_b64
+                    plugin.description = description
+                    plugin.config_template = config_template
+                    plugin.name = name
+                    plugin.file_hash = hasher.hexdigest()
+                    plugin.save()
+                else:
+                    plugin = Plugin(name=name,
+                                    filename=filename,
+                                    description=description,
+                                    manifest=manifest_data,
+                                    logo=logo_b64,
+                                    config_template=config_template,
+                                    file_hash=hasher.hexdigest())
+                    plugin.save()
+                    
+                plugins.append(plugin)
+            print(plugins)
+        return plugins
 
 audit_list_parser = api2.parser()
 audit_list_parser.add_argument(

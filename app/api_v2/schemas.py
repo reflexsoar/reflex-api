@@ -258,6 +258,56 @@ mod_tag = Model('Tag', {
     'name': fields.String
 })
 
+mod_plugin_create = Model('PluginCreate', {
+    "name": fields.String,
+    "description": fields.String,
+    "filename": fields.String,
+    "file_hash": fields.String
+})
+
+mod_plugin_name = Model('PluginDetailsLimited', {
+    "name": fields.String
+})
+
+mod_plugin_config_list = Model('PluginConfigList', {
+    "name": fields.String,
+    "description": fields.String,
+    "plugin": fields.Nested(mod_plugin_name),
+    "plugin_uuid": fields.String,
+    "config": fields.String,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at')
+
+})
+
+mod_plugin_manifest_action = Model('PluginManifestAction', {
+    "name": fields.String,
+    "used_by": fields.List(fields.String),
+    "description": fields.String
+})
+
+mod_plugin_manifest = Model('PluginManifest', {
+    "actions": fields.List(fields.Nested(mod_plugin_manifest_action)),
+    "description": fields.String,
+    "name": fields.String,
+    "config_template": fields.String
+})
+
+mod_plugin_list = Model('PluginList', {
+    "uuid": fields.String,
+    "name": fields.String,
+    "logo": fields.String,
+    "description": fields.String,
+    "enabled": fields.Boolean,
+    "manifest": fields.Nested(mod_plugin_manifest),
+    #"config_template": JSONField,
+    "filename": fields.String,
+    "file_hash": fields.String,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='modified_at'),
+    "configs": fields.List(fields.Nested(mod_plugin_config_list))
+})
+
 mod_observable_create = Model('ObservableCreate', {
     'value': fields.String(required=True),
     'ioc': fields.Boolean,
@@ -866,4 +916,6 @@ mod_event_details, mod_observable_list, mod_observable_list_paged, mod_bulk_add_
 mod_case_observables, mod_related_events, mod_pagination, mod_event_create_bulk,
 mod_agent_group_list, mod_paged_agent_group_list, mod_agent_group_create, mod_case_task_note,
 mod_case_task_note_create, mod_case_task_note_details, mod_audit_log, mod_audit_log_paged_list,
-mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_events_response]
+mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_events_response,
+mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plugin_manifest_action,
+mod_plugin_manifest]
