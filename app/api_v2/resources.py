@@ -92,6 +92,7 @@ ns_tag_v2 = api2.namespace('Tag', description='Tag operations', path='/tag')
 ns_dashboard_v2 = api2.namespace('Dashboard', description='API endpoints that drive dashboard display', path='/dashboard')
 ns_plugins_v2 = api2.namespace('Plugin', description='Plugin operations', path='/plugin')
 ns_audit_log_v2 = api2.namespace('AuditLog', description='Reflex audit logs', path='/audit_log')
+ns_observable_v2 = api2.namespace('Observable', description="Observable operations", path='/observable')
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -1115,6 +1116,82 @@ class EventRuleDetails(Resource):
         if event_rule:
             event_rule.delete()
             return {'message': 'Sucessfully deleted the event rule.'}
+
+
+@ns_observable_v2.route("/history/<value>")
+class ObservableHistory(Resource):
+    '''Provides historical information about an observable so that
+    analysts can look at the observable over time and perform correlative
+    research into how the observable appears in their environment
+    '''
+
+    def get(self, value):
+
+        response = {
+            'case_count': 0,
+            'event_count': 0,
+            'event_list': [],
+            'case_list': [],
+            'is_ioc': False,
+            'tags': [],
+            'timeline': []
+        }
+        observable = Observable.get_by_value(value=value, all_docs=True)
+
+        # Determine how many cases and events this observable appears in
+        for obs in list(observable):
+            if obs.case:
+                response['case_count'] += 1
+                response['case_list'].append(obs.case)
+
+            if obs.events:
+                response['event_count'] += 1
+                response['event_list'] += obs.events
+
+            if obs.ioc:
+                response['is_ioc'] = True
+
+            if obs.tags is not None:
+                response['tags'] += obs.tags
+                response['tags'] = list(set(response['tags']))
+
+        for event_uuid in response['event_list']:
+            event = Event.get_by_uuid(event_uuid)
+            timeline_item = {
+                'type': 'event',
+                'title': event.title,
+                'uuid': event_uuid,
+                'description': event.description,
+                'tags': list(event.tags) if event.tags else [],
+                #'observables': event.observables,
+                'created_at': str(event.created_at)
+            }
+            response['timeline'].append(timeline_item)
+
+        for case_uuid in response['case_list']:
+            case = Case.get_by_uuid(case_uuid)
+            timeline_item = {
+                'type': 'case',
+                'title': case.title,
+                'uuid': case_uuid,
+                'description': case.description,
+                'tags': list(case.tags) if case.tags else [],
+                #'observables': case.observables,
+                'created_at': str(case.created_at)
+            }
+            response['timeline'].append(timeline_item)
+
+
+        # Sort the timeline
+        response['timeline'] = sorted(
+                            response['timeline'],
+                            key = lambda i: i['created_at'],
+                            reverse=True)
+
+        print(json.dumps(response, indent=4))
+        return response
+        
+
 
 
 case_status_parser = api2.parser()

@@ -173,7 +173,7 @@ class Observable(base.BaseDocument):
     uuid = Text()
     tags = Keyword()
     data_type = Text()
-    value = Keyword()
+    value = Text()
     spotted = Boolean()
     ioc = Boolean()
     safe = Boolean()
@@ -287,7 +287,7 @@ class Observable(base.BaseDocument):
                     response.execute()
                 else:
                     response.execute()
-                documents = [r for r in response]
+                documents = list(response)
             else:
                 response = self.search().query('term', value=value)
                 if all_docs:
