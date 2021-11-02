@@ -8,6 +8,8 @@ import threading
 import uuid
 import json
 import hashlib
+import pyqrcode
+from io import BytesIO
 from zipfile import ZipFile
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs, marshal
@@ -220,6 +222,45 @@ class UserGenerateApiKey(Resource):
     def get(self, current_user):
         ''' Returns a new API key for the user making the request '''
         return current_user.generate_api_key()
+
+
+@ns_user_v2.route('/generate_mfa_qr')
+class UserGenerateMFAQr(Resource):
+
+    @api2.doc(security="Bearer")
+    @token_required
+    def get(self, current_user):
+        ''' Returns a QR code that the user can use to add MFA this account '''
+        url = pyqrcode.create(current_user.get_totp_uri())
+        stream = BytesIO()
+        url.svg(stream, scale=5)
+        return stream.getvalue().decode('utf-8'), 200, {
+            'Content-Type': 'image/svg+xml',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        }
+
+@ns_user_v2.route('/enable_mfa')
+class UserEnableMFA(Resource):
+
+    @api2.doc(security="Bearer")
+    @token_required
+    def get(self, current_user):
+        ''' Enables MFA for the current user '''
+        current_user.generate_mfa_secret()
+        return {'message': 'Secret Generated'}, 200
+
+
+@ns_user_v2.route('/disable_mfa')
+class UserDisableMFA(Resource):
+
+    @api2.doc(security="Bearer")
+    @token_required
+    def get(self, current_user):
+        ''' Enables MFA for the current user '''
+        current_user.disable_mfa()
+        return {'message': 'MFA disabled'}, 200
 
 
 @ns_user_v2.route("/<uuid>/unlock")

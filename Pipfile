@@ -34,6 +34,8 @@ flask-sqlalchemy = "*"
 requests = "*"
 opensearch-py = "*"
 opensearch-dsl = {git = "https://github.com/opensearch-project/opensearch-dsl-py.git"}
+onetimepass = "*"
+pyqrcode = "*"
 
 [requires]
 python_version = "3.8"

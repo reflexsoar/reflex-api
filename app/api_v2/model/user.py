@@ -5,6 +5,9 @@ Contains all the models related to users of the system
 
 import datetime
 import jwt
+import onetimepass
+import base64
+import os
 from flask import current_app
 from flask_bcrypt import Bcrypt
 
@@ -40,6 +43,8 @@ class User(base.BaseDocument):
     api_key = Text()
     auth_method = Keyword() # local, ldap, saml
     auth_realm = Keyword() # Which authentication realm to log in to
+    otp_secret = Keyword()
+    mfa_enabled = Boolean()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -206,6 +211,45 @@ class User(base.BaseDocument):
 
     def load_role(self):
         self.role = Role.get_by_member(self.uuid)
+
+    def get_totp_uri(self):
+        '''
+        Returns a TOTP/HOTP URI for QR encoding to add
+        MFA to an account
+        '''
+        return 'otpauth://totp/Reflex:{0}?secret={1}&issuer=Reflex' \
+            .format(self.username, self.otp_secret)
+
+    def generate_mfa_secret(self, **kwargs):
+        ''' Sets an OTP secret for the user when they enabled MFA
+        '''
+
+        if self.otp_secret is None:
+            self.otp_secret = base64.b32encode(os.urandom(10)).decode('utf-8')
+
+        self.save()
+
+    def disable_mfa(self):
+        ''' Removes the otp secret when the user disables MFA
+        '''
+        
+        if self.otp_secret is not None:
+            self.otp_secret = None
+
+        self.mfa_enabled = False
+
+        self.save()
+
+    def verify_mfa_setup_complete(self, token):
+        ''' Once the user submits a TOTP that is correct enable MFA'''
+
+        if onetimepass.valid_totp(token, self.otp_secret):
+            self.mfa_enabled = True
+            self.save()
+
+    def verify_totp(self, token):
+        ''' Checks to see if the submitted TOTP token is valid'''
+        return onetimepass.valid_top(token, self.otp_secret)
 
 
 class Permission(InnerDoc):

@@ -247,6 +247,7 @@ mod_user_self = Model('UserSelf', {
     'last_name': fields.String,
     'email': fields.String,
     'role': fields.Nested(mod_user_role_no_members),
+    'mfa_enabled': fields.Boolean
 })
 
 mod_tag_list = Model('TagList', {
