@@ -16,6 +16,7 @@ RUN apt-get update \
 && mkdir instance \
 && pip install --upgrade pip \
 && pip install pipenv \
-&& pipenv install
+&& pipenv install \
+&& pipenv install tzdata
 
 CMD ["pipenv", "run", "gunicorn", "app:create_app('production')", "--preload", "-b 0.0.0.0:$REFLEX_API_PORT", "--workers=$GUNICORN_WORKERS", "--threads=$GUNICORN_THREADS", "--worker-class=gthread"]
