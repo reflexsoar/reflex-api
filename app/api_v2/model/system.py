@@ -127,10 +127,37 @@ class Settings(base.BaseDocument):
     data_types = Keyword()
     require_approved_ips = Boolean()
     approved_ips = Keyword()
+    require_mfa = Boolean()
+    minimum_password_length = Integer()
+    enforce_password_complexity = Boolean()
+    disallowed_password_keywords = Keyword()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-settings'
+
+
+    def save(self, **kwargs):
+        ''' Overrides the save() function of BaseDocument to provide a method
+        for creating defaults when new settings are added or the system is first
+        initialized
+        '''
+
+        ''' System defined defaults '''
+        if self.require_mfa is None:
+            self.require_mfa = False
+
+        if self.minimum_password_length is None:
+            self.minimum_password_length = 8
+        
+        if self.enforce_password_complexity is None:
+            self.enforce_password_complexity = False
+
+        if self.disallowed_password_keywords is None:
+            self.disallowed_password_keywords = ['reflex']
+        ''' End System defined defaults '''
+
+        return super().save(**kwargs)
 
     @classmethod
     def load(self):

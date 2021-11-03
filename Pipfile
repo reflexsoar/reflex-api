@@ -36,6 +36,8 @@ opensearch-py = "*"
 opensearch-dsl = {git = "https://github.com/opensearch-project/opensearch-dsl-py.git"}
 onetimepass = "*"
 pyqrcode = "*"
+tzdata = "*"
+colorama = "*"
 
 [requires]
 python_version = "3.8"

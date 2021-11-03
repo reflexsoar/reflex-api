@@ -128,6 +128,21 @@ class User(base.BaseDocument):
 
         return _token
 
+    def create_mfa_challenge_token(self):
+        ''' Creates a JWT that is used on MFA TOTP requests to make sure the 
+        individual attempting to perform a TOTP validation actually made it
+        through username/password validation first
+        '''
+
+        _token = jwt.encode({
+            'uuid': self.uuid,
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30),
+            'iat': datetime.datetime.utcnow(),
+            'type': 'mfa_challenge'
+        }, current_app.config['SECRET_KEY'])
+
+        return _token
+
     def create_refresh_token(self, user_agent_string):
         _refresh_token = jwt.encode({
             'uuid': self.uuid,
@@ -225,7 +240,7 @@ class User(base.BaseDocument):
         '''
 
         if self.otp_secret is None:
-            self.otp_secret = base64.b32encode(os.urandom(10)).decode('utf-8')
+            self.otp_secret = base64.b32encode(os.urandom(15)).decode('utf-8')
 
         self.save()
 
@@ -242,14 +257,16 @@ class User(base.BaseDocument):
 
     def verify_mfa_setup_complete(self, token):
         ''' Once the user submits a TOTP that is correct enable MFA'''
-
+        
         if onetimepass.valid_totp(token, self.otp_secret):
             self.mfa_enabled = True
             self.save()
+            return True
+        return False
 
     def verify_totp(self, token):
         ''' Checks to see if the submitted TOTP token is valid'''
-        return onetimepass.valid_top(token, self.otp_secret)
+        return onetimepass.valid_totp(token, self.otp_secret)
 
 
 class Permission(InnerDoc):
@@ -436,7 +453,6 @@ class Role(base.BaseDocument):
         '''
         Adds users unique IDs to the members field
         '''
-        print(user_id)
         if isinstance(user_id, list):
             self.members = self.members + user_id
         else:

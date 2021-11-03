@@ -9,6 +9,7 @@ import uuid
 import json
 import hashlib
 import pyqrcode
+import jwt
 from io import BytesIO
 from zipfile import ZipFile
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
@@ -45,7 +46,7 @@ from .model import (
     A
 )
 
-from .utils import ip_approved, token_required, user_has, generate_token, log_event
+from .utils import ip_approved, token_required, user_has, generate_token, log_event, check_password_reset_token
 
 # Instantiate a new API object
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
@@ -126,6 +127,28 @@ def save_tags(tags):
             tag = Tag(name=tag)
             tag.save()
 
+@ns_auth_v2.route('/mfa')
+class MultiFactor(Resource):
+
+    @api2.expect(mod_mfa_challenge)
+    @api2.response(200, 'Success', mod_auth_success_token)
+    @api2.response(401, 'Incorrect token')
+    def post(self):
+        '''Check the users challenge against their TOTP'''
+
+        user = check_password_reset_token(api2.payload['mfa_challenge_token'])
+        if user:
+            if user.verify_totp(api2.payload['token']):
+                # Generate an access token
+                _access_token = user.create_access_token()
+
+                # Generate a refresh tokenn
+                _refresh_token = user.create_refresh_token(
+                request.user_agent.string.encode('utf-8'))
+                log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Successful MFA Check.", status="Success")
+                return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
+
+        ns_auth_v2.abort(401, 'Invalid TOTP token')
 
 @ns_auth_v2.route("/login")
 class Login(Resource):
@@ -155,11 +178,13 @@ class Login(Resource):
 
             # Update the users failed_logons and last_logon entries
             user.update(failed_logons=0, last_logon=datetime.datetime.utcnow())
-
-            
+       
             log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Successful Authentication.", status="Success")
 
-            return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
+            if user.mfa_enabled:
+                return {'mfa_challenge_token': user.create_mfa_challenge_token()}
+            else:
+                return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
 
         if user.failed_logons == None:
             user.update(failed_logons=0)
@@ -240,6 +265,26 @@ class UserGenerateMFAQr(Resource):
             'Pragma': 'no-cache',
             'Expires': '0'
         }
+
+@ns_user_v2.route('/validate_mfa_setup')
+class UserValidateMFASetup(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_mfa_token)
+    @token_required
+    def post(self, current_user):
+        ''' Checks to see if the user has successfully completed the MFA setup
+        by verifying the first TOTP given by their authenticator app
+        '''
+
+        if 'token' in api2.payload and api2.payload['token'] is not None:
+            valid_token = current_user.verify_mfa_setup_complete(api2.payload['token'])
+            if valid_token:
+                return {'message': 'Succesfully enabled MFA'}, 200
+            else:
+                return {'message': 'Invalid TOTP Token'}, 400            
+        else:
+            ns_user_v2.abort(400, 'TOTP token required.')
 
 @ns_user_v2.route('/enable_mfa')
 class UserEnableMFA(Resource):
@@ -1229,7 +1274,6 @@ class ObservableHistory(Resource):
                             key = lambda i: i['created_at'],
                             reverse=True)
 
-        print(json.dumps(response, indent=4))
         return response
         
 
@@ -3113,7 +3157,6 @@ class PluginUpload(Resource):
                     plugin.save()
                     
                 plugins.append(plugin)
-            print(plugins)
         return plugins
 
 audit_list_parser = api2.parser()
@@ -3199,8 +3242,11 @@ class GlobalSettings(Resource):
                 ns_settings_v2.abort(
                     400, 'agent_pairing_token_valid_minutes can not be greated than 365 days.')
 
-        if 'approved_ips' in api2.payload:
+        if 'approved_ips' in api2.payload and api2.payload['approved_ips'] is not None:
             api2.payload['approved_ips'] = api2.payload['approved_ips'].split('\n')
+
+        if 'disallowed_password_keywords' in api2.payload and api2.payload['disallowed_password_keywords'] is not None:
+            api2.payload['disallowed_password_keywords'] = api2.payload['disallowed_password_keywords'].split('\n')
              
         settings = Settings.load()
         settings.update(**api2.payload)

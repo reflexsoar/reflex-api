@@ -469,7 +469,11 @@ mod_settings = Model('SettingsList', {
     'events_per_page': fields.Integer,
     'data_types': fields.List(fields.String),
     'require_approved_ips': fields.Boolean,
-    'approved_ips': AsNewLineDelimited()
+    'approved_ips': AsNewLineDelimited(),
+    'require_mfa': fields.Boolean,
+    'minimum_password_length': fields.Integer,
+    'enforce_password_complexity': fields.Boolean,
+    'disallowed_password_keywords': AsNewLineDelimited()
 })
 
 mod_persistent_pairing_token = Model('PeristentPairingToken', {
@@ -899,6 +903,15 @@ mod_audit_log_paged_list = Model('AuditLogPagedList', {
     'pagination': fields.Nested(mod_pagination)
 })
 
+mod_mfa_token = Model('MFATOTP', {
+    'token': fields.String
+})
+
+mod_mfa_challenge = Model('MFAChallenge', {
+    'mfa_challenge_token': fields.String,
+    'token': fields.String
+})
+
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full,
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create,
 mod_observable_brief, mod_observable_create, mod_observable_update, mod_raw_log, mod_permissions,
@@ -919,4 +932,4 @@ mod_agent_group_list, mod_paged_agent_group_list, mod_agent_group_create, mod_ca
 mod_case_task_note_create, mod_case_task_note_details, mod_audit_log, mod_audit_log_paged_list,
 mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_events_response,
 mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plugin_manifest_action,
-mod_plugin_manifest]
+mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge]

@@ -133,14 +133,14 @@ def check_password_reset_token(token):
     '''
 
     try:
-        decoded_token = jwt.decode(token, current_app.config['SECRET_KEY'])
+        decoded_token = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
 
         expired = ExpiredToken.search().filter('term', token=token).execute()
         if expired:
             abort(401, 'Token retired.')
 
-        if 'type' in decoded_token and decoded_token['type'] == 'password_reset':
-            user = User.get(id=decoded_token['id'])
+        if 'type' in decoded_token and decoded_token['type'] in ['password_reset','mfa_challenge']:
+            user = User.get_by_uuid(uuid=decoded_token['uuid'])
             return user
         
     except ValueError:
