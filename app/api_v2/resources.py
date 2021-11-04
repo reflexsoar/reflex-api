@@ -147,6 +147,7 @@ class MultiFactor(Resource):
                 request.user_agent.string.encode('utf-8'))
                 log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Successful MFA Check.", status="Success")
                 return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
+            log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Failed MFA Challenge", status="Failure")
 
         ns_auth_v2.abort(401, 'Invalid TOTP token')
 
@@ -276,6 +277,8 @@ class UserValidateMFASetup(Resource):
         ''' Checks to see if the user has successfully completed the MFA setup
         by verifying the first TOTP given by their authenticator app
         '''
+
+        print(api2.payload)
 
         if 'token' in api2.payload and api2.payload['token'] is not None:
             valid_token = current_user.verify_mfa_setup_complete(api2.payload['token'])
@@ -881,9 +884,9 @@ class CreateBulkEvents(Resource):
 
                     end_event_process_dt = datetime.datetime.utcnow().timestamp()
                     event_process_time = end_event_process_dt - start_event_process_dt
-                    log_event(event_type='Bulk Event Insert', request_id=request_id, event_reference=event.reference, time_taken=event_process_time, status="Success", message="Event Inserted.", event_id=event.uuid)
+                    log_event(event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=event_process_time, status="Success", message="Event Inserted.", event_id=event.uuid)
                 else:
-                    log_event(event_type='Bulk Event Insert', request_id=request_id, event_reference=event.reference, time_taken=0, status="Failed", message="Event Already Exists.")
+                    log_event(event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=0, status="Failed", message="Event Already Exists.")
 
         
         start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
