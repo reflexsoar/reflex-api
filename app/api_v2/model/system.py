@@ -221,6 +221,11 @@ class Observable(base.BaseDocument):
         Saves the observable and assigns it a UUID
         '''
         self.uuid = uuid.uuid4()
+
+        # All values should be strings
+        if not isinstance(self.value, str):
+            self.value = str(self.value)
+            
         return super().save(**kwargs)
 
     def set_case(self, uuid):
