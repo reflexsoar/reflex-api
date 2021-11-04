@@ -256,12 +256,15 @@ class Observable(base.BaseDocument):
         # Well known SIDs for Microsoft Domains
         if self.data_type == 'sid':
             for k in MS_SID_ENDS_WITH:
-                if self.value.endswith(k):
-                    self.add_tag(MS_SID_ENDS_WITH[k])
+                if isinstance(k, str):
+                    k = str(k)
+                    if self.value.endswith(k):
+                        self.add_tag(MS_SID_ENDS_WITH[k])
 
             for k in MS_SID_EQUALS:
-                if self.value == k:
-                    self.add_tag(MS_SID_EQUALS[k])
+                if isinstance(k, str):
+                    if self.value == k:
+                        self.add_tag(MS_SID_EQUALS[k])
 
         self.save()
 
