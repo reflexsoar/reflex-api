@@ -344,7 +344,8 @@ def create_default_data_types():
         {'name': 'imphash', 'description': 'A hash of a binaries import table'},
         {'name': 'process', 'description': 'A process that was launched on a machine', 'regex':r'^([A-Z]?[:\\\/]).*(\.\w{3,})?$'},
         {'name': 'sid', 'description': 'A Microsoft Security Identifier', 'regex':r'^S(\-\d{1,10}){4,7}$'},
-        {'name': 'mac', 'description': 'The hardware address of a network adapter, MAC address', 'regex': r'^([A-Za-z0-9]{2}\:?\-?){6}$'}
+        {'name': 'mac', 'description': 'The hardware address of a network adapter, MAC address', 'regex': r'^([A-Za-z0-9]{2}\:?\-?){6}$'},
+        {'name': 'snort_signature', 'description': 'The ID of a snort rule that fired'}
     ]
     for d in data_types:
         data_type = DataType(**d)

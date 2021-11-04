@@ -697,6 +697,7 @@ class EventList(Resource):
                                 search_filter['severity'] = {"value": args[arg], "type":"terms"}
                         elif arg == 'tags':
                             if len(args[arg]) > 0 and '' not in args[arg]:
+                                print(args[arg])
                                 search_filter['tags'] = {"value": args[arg], "type":"terms"}
                         elif arg == 'title':
                             if len(args[arg]) > 0 and '' not in args[arg]:

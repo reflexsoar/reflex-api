@@ -4,7 +4,9 @@ import atexit
 import logging
 from datetime import datetime
 from flask import Flask
+from app.services import housekeeper
 from app.services.threat_list_poller.base import ThreatListPoller
+from app.services.housekeeper import HouseKeeper
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -39,16 +41,17 @@ def create_app(environment='development'):
 
     authorizations = {"Bearer": {"type": "apiKey", "in": "header", "name":"Authorization"}}
 
-    if not app.config['THREAT_POLLER_DISABLED']:
-        threat_list_poller = ThreatListPoller(app, log_level=app.config['THREAT_POLLER_LOG_LEVEL'])
-        scheduler.add_job(func=threat_list_poller.run, trigger="interval", seconds=app.config['THREAT_POLLER_INTERVAL'])
-    
     if not app.config['SCHEDULER_DISABLED']:
-        scheduler.start()
+        if not app.config['THREAT_POLLER_DISABLED']:
+            threat_list_poller = ThreatListPoller(app, log_level=app.config['THREAT_POLLER_LOG_LEVEL'])
+            scheduler.add_job(func=threat_list_poller.run, trigger="interval", seconds=app.config['THREAT_POLLER_INTERVAL'])
 
-    # Shut down the scheduler when exiting the app
-    if not app.config['SCHEDULER_DISABLED']:
-        atexit.register(lambda: scheduler.shutdown())
+        if not app.config['HOUSEKEEPER_DISABLED']:
+            housekeeper = HouseKeeper(app, log_level=app.config['HOUSEKEEPER_LOG_LEVEL'])
+            scheduler.add_job(func=housekeeper.prune_old_agents, trigger="interval", seconds=app.config['AGENT_PRUNE_INTERVAL'])
+
+        scheduler.start()
+        atexit.register(lambda: scheduler.shutdown())      
 
     #from app.resources import api
     

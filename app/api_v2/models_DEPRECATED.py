@@ -88,6 +88,7 @@ def _current_user_id_or_none():
     except Exception:
         return None
 
+
 class BaseDocument(Document):
     """
     Base class for Documents containing common fields
