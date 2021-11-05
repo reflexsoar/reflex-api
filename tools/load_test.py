@@ -155,7 +155,7 @@ def random_event():
           ]
         },
         {
-          "value": "S-1-5-21-1004336348-1177238915-682023330-512",
+          "value": 12345,
           "ioc": False,
           "tlp": 2,
           "spotted": False,
@@ -163,6 +163,17 @@ def random_event():
           "data_type": "sid",
           "tags": [
             "source-user", "corporate-user"
+          ]
+        },
+        {
+          "value": 1234,
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "process",
+          "tags": [
+            "source-user", "source-process"
           ]
         }
       ],
