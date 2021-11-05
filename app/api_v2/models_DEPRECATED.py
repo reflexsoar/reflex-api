@@ -50,16 +50,23 @@ FLASK_BCRYPT = Bcrypt()
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def escape_special_characters(string):
+def escape_special_characters(value):
     '''
     Escapes characters in Elasticsearch that might wedge a search
     and return false matches
     '''
 
-    characters = ['.', ' ']
-    for character in characters:
-        string = string.replace(character, '\\'+character)
-    return string
+    characters = ['.', ' ', ']', '[']
+    if isinstance(value, list):
+        new_list = []
+        for _value in value:
+            for character in characters:
+                new_list.append(_value.replace(character, '\\'+character))
+        return new_list
+    else:
+        for character in characters:
+            value = value.replace(character, '\\'+character)
+    return value
 
 def _current_user_id_or_none():
     try:

@@ -199,11 +199,16 @@ class Event(base.BaseDocument):
         return response
 
     @classmethod
-    def get_by_signature(self, signature):
+    def get_by_signature(self, signature, all_events=False):
         '''
         Fetches an event by its calculated signature
         '''
-        response = self.search().query('match', signature=signature).execute()
+        response = self.search()
+        response = response.filter('match', signature=signature)
+        if all_events:
+            response = response[0:response.count()]
+            
+        response = response.execute()
         if len(response) >= 1:
             return [d for d in response]
         else:
@@ -220,6 +225,78 @@ class Event(base.BaseDocument):
             return [d for d in response]
         else:
             return [response]
+
+    @property
+    def related_events_count(self):
+        ''' 
+        Returns an numeric representation of how many related events there 
+        are with this event based on the given filter and the events 
+        signature
+        '''
+
+        filters = []
+        
+        search = self.search()
+        if self.signature:
+            search = search.filter('term', **{'signature': self.signature})
+        else:
+            return 0
+        if hasattr(self, 'related_event_filters'):
+            filters = self.related_event_filters
+            if len(filters) > 0:
+                for _filter in filters:
+                    search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+        return search.count()
+
+
+    def set_filters(self, filters=[], skip_related_events=False):
+        '''
+        Sets search filters that are used when calling related_events()
+        '''
+
+        if not hasattr(self, 'skip_related_events'):
+            self.__dict__['skip_related_events'] = skip_related_events
+        else:
+            self.skip_related_events = skip_related_events
+
+        if not hasattr(self, 'related_event_filters'):
+            self.__dict__['related_event_filters'] = filters
+        else:
+            self.related_event_filters = filters
+
+    """
+    @property
+    def related_events(self):
+        '''
+        Returns a list of uuids for all related events that match the given
+        filter
+        '''
+
+        filters = []
+        skip_related_events = True
+        search = self.search()
+        search = search.filter('term', **{'signature': self.signature})
+
+        if hasattr(self, 'related_event_filters'):
+            filters = self.related_event_filters
+
+        if hasattr(self, 'skip_related_events'):
+            skip_related_events = self.skip_related_events
+
+        if not skip_related_events:
+            print(filters)
+            if len(filters) > 0:
+                for _filter in filters:
+                    search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+            search = search[0:search.count()]
+            import json
+            print(json.dumps(search.to_dict(), indent=2))
+            results = search.execute()
+            if len(results) >= 1:
+                return [e.uuid for e in results if e.uuid != self.uuid]
+        return []
+    """
+
 
 
 class EventRule(base.BaseDocument):

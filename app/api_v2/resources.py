@@ -46,6 +46,8 @@ from .model import (
     A
 )
 
+from app.api_v2.model.utils import escape_special_characters
+
 from .utils import ip_approved, token_required, user_has, generate_token, log_event, check_password_reset_token
 
 # Instantiate a new API object
@@ -655,6 +657,71 @@ event_list_parser.add_argument(
     'sort_desc', type=xinputs.boolean, location='args', default=True, required=False)
 
 
+@ns_event_v2.route("/aggregated")
+class EventListAggregated(Resource):
+
+    @api2.expect(event_list_parser)
+    @api2.marshal_with(mod_event_paged_list)
+    def get(self):
+
+        args = event_list_parser.parse_args()
+
+        start = (args.page - 1)*args.page_size
+        end = (args.page * args.page_size)
+
+        search = Event.search()
+
+        search_filters = []
+
+        if args.title is not None and len(args.title) > 0:
+            search_filters.append({'type':'terms','field':'title','value':escape_special_characters(args.title)})
+
+        if len(args.status) > 0:
+            search_filters.append({'type':'terms','field':'status.name__keyword','value':args.status})
+
+        if len(args.tags) > 0:
+            search_filters.append({'type':'terms','field':'tags','value':args.tags})
+
+        if len(search_filters) > 0:
+            for _filter in search_filters:
+                search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+
+        search = search.sort(args.sort_by)
+
+        total_events = search.count()
+        pages = math.ceil(float(total_events / args.page_size))
+
+        search = search[start:end]
+        events = search.execute()
+
+        observables = {}
+        
+        events_by_signature = {sig: [r for r in events if r.signature == sig] for sig in set([e.signature for e in events])}
+
+        events = []
+        
+        for signature in events_by_signature:
+            event = events_by_signature[signature][0]
+            event.set_filters(filters=search_filters)
+            events.append(event)
+            observables[event.uuid] = [o.to_dict() for o in event.observables]
+        
+        events = sorted(events, key=lambda x: x.created_at, reverse=True)
+
+        response = {
+            'events': events,
+            'observables': json.loads(json.dumps(observables, default=str)),
+            'pagination': {
+                'total_results': total_events,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
+            }
+        }
+
+        return response
+
+
 @ns_event_v2.route("")
 class EventList(Resource):
 
@@ -681,6 +748,11 @@ class EventList(Resource):
         event_uuids = [] # Used for selecting events based on their UUID
 
         search_filter = {}
+        search_filters = []
+
+        if len(args.status) > 0:
+            if args.status != [""]:
+                search_filters.append({'type':'terms','field':'status.name__keyword','value':args.status})
         for arg in args:
             if arg in ['status','severity','title','observables','tags']:
                 if args[arg] != '' and args[arg] is not None:
@@ -744,12 +816,12 @@ class EventList(Resource):
             this may become expensive at some point in the future
             - BC
         """
-        for event in events:
-            related_events_count = len([e for e in events if e.signature == event.signature])
-            if related_events_count > 1:
-                event.related_events_count = related_events_count
-            else:
-                event.related_events_count = 0
+        #for event in events:
+        #    related_events_count = len([e for e in events if e.signature == event.signature])
+        #    if related_events_count > 1:
+        #        event.related_events_count = related_events_count
+        #    else:
+        #        event.related_events_count = 0 
 
         # Keep only one copy of an event where signatures are the same
         # Keep the most recent
@@ -766,6 +838,7 @@ class EventList(Resource):
         observables = Observable.get_by_event_uuid(uuid=event_uuids)
         event_to_observables = {}
         for event in events:
+            event.set_filters(search_filters)
             event_to_observables[event.uuid] = [o.to_dict() for o in observables if event.uuid in o.events]
 
         response = {
@@ -1088,7 +1161,7 @@ class EventUpdateCase(Resource):
             ns_event_v2.abort(400, 'Missing or invalid action.')
 """
 
-@ns_event_v2.route("/<uuid>/new_related_events")
+@ns_event_v2.route("/<signature>/new_related_events")
 class EventNewRelatedEvents(Resource):
 
     @api2.doc(security="Bearer")
@@ -1097,10 +1170,9 @@ class EventNewRelatedEvents(Resource):
     @api2.response('404', 'Event not found')
     @token_required
     @user_has('view_events')
-    def get(self, uuid, current_user):
+    def get(self, signature, current_user):
         ''' Returns the UUIDs of all related events that are Open '''
-        event = Event.get_by_uuid(uuid=uuid)
-        events = Event.get_by_signature(signature=event.signature)
+        events = Event.get_by_signature(signature=signature, all_events=True)
         related_events = [e.uuid for e in events if e.status.name == 'New']
         return {"events": related_events}
 
@@ -1280,8 +1352,6 @@ class ObservableHistory(Resource):
 
         return response
         
-
-
 
 case_status_parser = api2.parser()
 case_status_parser.add_argument(
