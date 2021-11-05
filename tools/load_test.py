@@ -155,7 +155,7 @@ def random_event():
           ]
         },
         {
-          "value": 12345,
+          "value": "S-1-5-21-1004336348-1177238915-682023330-512",
           "ioc": False,
           "tlp": 2,
           "spotted": False,
@@ -166,7 +166,7 @@ def random_event():
           ]
         },
         {
-          "value": 1234,
+          "value": "svchost.exe",
           "ioc": False,
           "tlp": 2,
           "spotted": False,
