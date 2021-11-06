@@ -339,7 +339,9 @@ mod_observable_list = Model('ObservableList', {
     'safe': fields.Boolean,
     'data_type': fields.String,
     'uuid': fields.String,
-    'case': fields.String
+    'case': fields.String,
+    'source_field': fields.String,
+    'original_source_field': fields.String
 })
 
 mod_observable_list_paged = Model('PagedObservableList', {
@@ -355,7 +357,9 @@ mod_observable_brief = Model('ShortObservableDetails', {
     'uuid': fields.String,
     'value': fields.String,
     'data_type': fields.String,
-    'tags': fields.List(fields.String)
+    'tags': fields.List(fields.String),
+    'source_field': fields.String,
+    'original_source_field': fields.String
 })
 
 mod_raw_log = Model('RawLog', {

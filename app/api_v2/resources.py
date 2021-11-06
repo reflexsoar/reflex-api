@@ -279,9 +279,6 @@ class UserValidateMFASetup(Resource):
         ''' Checks to see if the user has successfully completed the MFA setup
         by verifying the first TOTP given by their authenticator app
         '''
-
-        print(api2.payload)
-
         if 'token' in api2.payload and api2.payload['token'] is not None:
             valid_token = current_user.verify_mfa_setup_complete(api2.payload['token'])
             if valid_token:
@@ -695,6 +692,13 @@ class EventListAggregated(Resource):
                     'field': 'signature',
                     'value': args.signature
                 })
+
+        if args.case_uuid:
+            search_filters.append({
+                'type': 'match',
+                'field': 'case',
+                'value': args.case_uuid
+            })
 
         observables = {}
 

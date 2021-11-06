@@ -93,7 +93,6 @@ class Event(base.BaseDocument):
         for o in content:
 
             observable = system.Observable(**o)
-            print(observable.to_dict())
 
             observable.add_event_uuid(self.uuid)
             observable.check_threat_list()
