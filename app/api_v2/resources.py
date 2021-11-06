@@ -43,7 +43,8 @@ from .model import (
     PluginConfig,
     Plugin,
     EventLog,
-    A
+    A,
+    Search
 )
 
 from app.api_v2.model.utils import escape_special_characters
@@ -3214,5 +3215,8 @@ class HuntingQuery(Resource):
 
     @token_required
     def post(self, current_user):
-        print(api2.payload)
-        return "OK"
+
+        search = Search(index='winlogbeat-*')
+        search = search.query('query_string', query=api2.payload['query'])
+        results = search.execute()
+        return results.to_dict()
