@@ -98,6 +98,7 @@ ns_dashboard_v2 = api2.namespace('Dashboard', description='API endpoints that dr
 ns_plugins_v2 = api2.namespace('Plugin', description='Plugin operations', path='/plugin')
 ns_audit_log_v2 = api2.namespace('AuditLog', description='Reflex audit logs', path='/audit_log')
 ns_observable_v2 = api2.namespace('Observable', description="Observable operations", path='/observable')
+ns_hunting_v2 = api2.namespace('Hunting', description="Threat hunting operaitons", path="/hunting")
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -3183,7 +3184,7 @@ class PersistentPairingToken(Resource):
 
 @ns_dashboard_v2.route("")
 class DashboardMetrics(Resource):
-
+    
     @api2.doc(security="Bearer")
     @token_required
     def get(self, current_user):
@@ -3207,3 +3208,11 @@ class DashboardMetrics(Resource):
             'new_events': new_events.count(),
             'time_since_last_event': last_event.created_at.isoformat()+"Z" if last_event else "Never"
         }
+
+@ns_hunting_v2.route("/query")
+class HuntingQuery(Resource):
+
+    @token_required
+    def post(self, current_user):
+        print(api2.payload)
+        return "OK"

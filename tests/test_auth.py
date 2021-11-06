@@ -47,5 +47,3 @@ class AuthenticationTests(BaseTest):
         self.assertEqual(rv.status_code, 200)
         self.assertEqual(rv.json['message'], 'Successfully logged out.')
 
-
-

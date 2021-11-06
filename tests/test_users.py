@@ -48,7 +48,6 @@ class UserTests(BaseTest):
         rv = self.client.get(f'/api/{API_VERSION}/user/generate_api_key', headers=auth_headers)
         self.assertRegex(rv.json['api_key'], r'^eyJ.*$')
 
-
     def test_4_lock_user(self):
 
         auth_headers = self.auth_headers(self.login())
