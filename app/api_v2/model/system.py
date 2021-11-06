@@ -208,6 +208,9 @@ class Observable(base.BaseDocument):
     events = Keyword() # A list of event UUIDs this Observable belongs to
     case = Keyword() # The case the observable belongs to
     rule = Keyword() # The rule the Observable belongs to
+    source_type = Keyword() # The type of object from the source field (int, str, ip, bool)
+    source_field = Keyword() # The source field or alias being used
+    original_source_field = Keyword() # The source field where the observable was extracted from
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -222,11 +225,16 @@ class Observable(base.BaseDocument):
         '''
         self.uuid = uuid.uuid4()
 
+        # Set the original source_field if it doesn't exist
+        if not hasattr(self, 'original_source_field'):
+            self.original_source_field = self.source_field
+
         # All values should be strings
         if not isinstance(self.value, str):
             self.value = str(self.value)
-            
+
         return super().save(**kwargs)
+
 
     def set_case(self, uuid):
         '''
@@ -235,12 +243,14 @@ class Observable(base.BaseDocument):
         self.case = uuid
         self.save()
 
+
     def set_rule(self, uuid):
         '''
         Assigns the event rule the observable belongs to
         '''
         self.rule = uuid
         self.save()
+
 
     def toggle_ioc(self):
         '''
@@ -273,6 +283,7 @@ class Observable(base.BaseDocument):
 
         self.save()
 
+
     def add_event_uuid(self, uuid):
         '''
         Adds an event UUID to an observable for future lookup
@@ -283,6 +294,7 @@ class Observable(base.BaseDocument):
         else:
             self.events = [uuid]
 
+
     def add_tag(self, tag):
         '''
         Adds a tag to the observable
@@ -292,6 +304,7 @@ class Observable(base.BaseDocument):
                 self.tags.append(tag)
         else:
             self.tags = [tag]
+
 
     def check_threat_list(self):
         '''

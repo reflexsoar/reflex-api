@@ -316,7 +316,9 @@ mod_observable_create = Model('ObservableCreate', {
     'spotted': fields.Boolean,
     'safe': fields.Boolean,
     'data_type': fields.String(required=True),
-    'tags': fields.List(fields.String)
+    'tags': fields.List(fields.String),
+    'source_field': fields.String,
+    'original_source_field': fields.String
 })
 
 mod_observable_update = Model('ObservableUpdate', {
@@ -373,6 +375,7 @@ mod_event_create = Model('EventCreate', {
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'source': fields.String,
+    'signature': fields.String,
     'observables': fields.List(fields.Nested(mod_observable_create)),
     'raw_log': fields.String
 })

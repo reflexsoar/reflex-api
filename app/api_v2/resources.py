@@ -657,57 +657,102 @@ event_list_parser.add_argument(
     'sort_desc', type=xinputs.boolean, location='args', default=True, required=False)
 
 
-@ns_event_v2.route("/aggregated")
+@ns_event_v2.route("")
 class EventListAggregated(Resource):
 
-    @api2.expect(event_list_parser)
+    @api2.doc(security="Bearer")
     @api2.marshal_with(mod_event_paged_list)
-    def get(self):
+    @api2.expect(event_list_parser)
+    @token_required
+    @user_has('view_events')
+    def get(self, current_user):
 
         args = event_list_parser.parse_args()
 
         start = (args.page - 1)*args.page_size
         end = (args.page * args.page_size)
 
-        search = Event.search()
-
         search_filters = []
 
-        if args.title is not None and len(args.title) > 0:
-            search_filters.append({'type':'terms','field':'title','value':escape_special_characters(args.title)})
+        if args.status and args.status != ['']:
+            search_filters.append({
+                    'type': 'terms',
+                    'field': 'status.name__keyword',
+                    'value': args.status
+                })
 
-        if len(args.status) > 0:
-            search_filters.append({'type':'terms','field':'status.name__keyword','value':args.status})
+        for arg in ['severity','title','tags']:
+            if 'arg' in args and args['arg'] != ['']:
+                search_filters.append({
+                    'type': 'terms',
+                    'field': arg,
+                    'value': args[arg]
+                })
+        
+        if args.signature:
+            search_filters.append({
+                    'type': 'term',
+                    'field': 'signature',
+                    'value': args.signature
+                })
 
-        if len(args.tags) > 0:
-            search_filters.append({'type':'terms','field':'tags','value':args.tags})
+        observables = {}
 
-        if len(search_filters) > 0:
+        # If not filtering by a signature
+        if not args.signature:
+            search = Event.search()
+
+            search = search[:0]        
+
+            # Apply all filters
             for _filter in search_filters:
                 search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
-        search = search.sort(args.sort_by)
+            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=1000000)
+            search.aggs['signature'].metric('max_date', 'max', field='created_at')
+            search.aggs['signature'].bucket('uuid', 'terms', field='uuid', size=1, order={'max_date': 'desc'})
+            search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
 
-        total_events = search.count()
-        pages = math.ceil(float(total_events / args.page_size))
+            events = search.execute()
+            event_uuids = []
+            for signature in events.aggs.signature.buckets:
+                event_uuids.append(signature.uuid.buckets[0]['key'])
+            
+            search = Event.search()
+            search = search[start:end]
 
-        search = search[start:end]
-        events = search.execute()
+            if args.sort_desc:
+                args.sort_by = f"-{args.sort_by}"
 
-        observables = {}
+            search = search.sort(args.sort_by)
+            search = search.filter('terms', uuid=event_uuids)
+
+            total_events = search.count()
+            pages = math.ceil(float(total_events / args.page_size))
+
+            events = search.execute()
         
-        events_by_signature = {sig: [r for r in events if r.signature == sig] for sig in set([e.signature for e in events])}
+        # If filtering by a signature
+        else:
 
-        events = []
-        
-        for signature in events_by_signature:
-            event = events_by_signature[signature][0]
+            search = Event.search()
+            search = search[start:end]
+
+            if args.sort_desc:
+                args.sort_by = f"-{args.sort_by}"
+
+            search = search.sort(args.sort_by)
+            search = search.filter('term', signature=args.signature)
+
+            total_events = search.count()
+            pages = math.ceil(float(total_events / args.page_size))
+
+            events = search.execute()            
+
+        for event in events:
             event.set_filters(filters=search_filters)
-            events.append(event)
             observables[event.uuid] = [o.to_dict() for o in event.observables]
         
-        events = sorted(events, key=lambda x: x.created_at, reverse=True)
-
         response = {
             'events': events,
             'observables': json.loads(json.dumps(observables, default=str)),
@@ -718,141 +763,8 @@ class EventListAggregated(Resource):
                 'page_size': args['page_size']
             }
         }
-
         return response
 
-
-@ns_event_v2.route("")
-class EventList(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_event_paged_list)
-    @api2.expect(event_list_parser)
-    @token_required
-    @user_has('view_events')
-    def get(self, current_user):
-        ''' Returns a list of events '''
-
-        args = event_list_parser.parse_args()
-
-        if args['page'] == 1:
-            start = 0
-            end = args['page']*args['page_size']
-            args['page'] = 0
-        else:
-            start = ((args['page']-1)*args['page_size'])
-            end = args['page_size']*args['page']
-
-        events = []
-        total_events = 0
-        event_uuids = [] # Used for selecting events based on their UUID
-
-        search_filter = {}
-        search_filters = []
-
-        if len(args.status) > 0:
-            if args.status != [""]:
-                search_filters.append({'type':'terms','field':'status.name__keyword','value':args.status})
-        for arg in args:
-            if arg in ['status','severity','title','observables','tags']:
-                if args[arg] != '' and args[arg] is not None:
-                    if isinstance(args[arg], list):
-                        if arg == 'observables':
-                            if len(args[arg]) > 0:
-                                observables = Observable.get_by_value(args[arg])
-                                event_uuids=list(itertools.chain.from_iterable([o.events for o in observables if o.events is not None]))
-                        elif arg == 'status':
-                            if len(args[arg]) > 0 and '' not in args[arg]:
-                                search_filter['status.name__keyword'] = {"value": args[arg], "type":"terms"}
-                        elif arg == 'severity':
-                            if len(args[arg]) > 0 and '' not in args[arg]:
-                                search_filter['severity'] = {"value": args[arg], "type":"terms"}
-                        elif arg == 'tags':
-                            if len(args[arg]) > 0 and '' not in args[arg]:
-                                print(args[arg])
-                                search_filter['tags'] = {"value": args[arg], "type":"terms"}
-                        elif arg == 'title':
-                            if len(args[arg]) > 0 and '' not in args[arg]:
-                                search_filter['title'] = {"value": args[arg], "type":"terms"}
-                        else:
-                            if len(args[arg]) > 0 and '' not in args[arg]:
-                                search_filter[arg] = args[arg]
-                    else:
-                        search_filter[arg] = args[arg]                   
-
-        sort_by = { args['sort_by']: {'order': 'desc'} }
-
-        s = Event.search()
-        s = s.sort(sort_by)
-
-        if len(event_uuids) > 0:
-            s = s.filter('terms', **{'uuid': event_uuids})
-
-        if 'signature' in args and args['signature']:
-            s = s.filter('term', **{'signature': args['signature']})
-            total_events = s.count()
-
-        if 'case_uuid' in args and args['case_uuid']:
-            s = s.filter('match', **{'case': args['case_uuid']})
-            total_events = s.count()
-
-        if len(search_filter) > 0:
-            for a in search_filter:
-                s = s.filter(search_filter[a]["type"], **{a: search_filter[a]["value"]})
-            total_events = s.count()
-            
-            events = [e for e in s[start:end]]
-        else:
-            total_events = s.count()
-            events = [e for e in s[start:end]]
-
-        if args['page_size'] < total_events:
-            pages = math.ceil(float(total_events / args['page_size']))
-        else:
-            pages = 0
-
-        """ Calculate related event counts
-            I couldn't figure out a better way to do this with elasticsearch DSL
-            this may become expensive at some point in the future
-            - BC
-        """
-        #for event in events:
-        #    related_events_count = len([e for e in events if e.signature == event.signature])
-        #    if related_events_count > 1:
-        #        event.related_events_count = related_events_count
-        #    else:
-        #        event.related_events_count = 0 
-
-        # Keep only one copy of an event where signatures are the same
-        # Keep the most recent
-        if 'signature' in args and not args['signature']:
-            events_dedupe = []
-            for event in events:
-                x = list(filter(lambda e: e.signature == event.signature, events))[0]
-                if x not in events_dedupe:
-                    events_dedupe += [x]
-
-            events = events_dedupe
-
-        event_uuids = [e.uuid for e in events]
-        observables = Observable.get_by_event_uuid(uuid=event_uuids)
-        event_to_observables = {}
-        for event in events:
-            event.set_filters(search_filters)
-            event_to_observables[event.uuid] = [o.to_dict() for o in observables if event.uuid in o.events]
-
-        response = {
-            'events': events,
-            'observables': json.loads(json.dumps(event_to_observables, default=str)),
-            'pagination': {
-                'total_results': total_events,
-                'pages': pages,
-                'page': args['page'],
-                'page_size': args['page_size']
-            }
-        }
-
-        return response
 
     @api2.expect(mod_event_create)
     def post(self):
@@ -873,26 +785,28 @@ class EventList(Resource):
             event.save()
 
             if observables:
-                added_observables = event.add_observable(observables)
+                event.add_observable(observables)
 
-            event.hash_event(observables=added_observables)
+            # DEPRECATED: 2021-11-05 - bcarroll
+            #event.hash_event(observables=added_observables)
 
             # Check if there are any event rules for the alarm with this title
-            event_rules = EventRule.get_by_title(title=event.title)
-            if event_rules:
+            #event_rules = EventRule.get_by_title(title=event.title)
+            #if event_rules:
 
-                matched = None            
-                for event_rule in event_rules:
+            #    matched = None            
+            #    for event_rule in event_rules:
 
                     # If the event matches the event rules criteria perform the rule actions
-                    if event.check_event_rule_signature(event_rule.rule_signature, observables=added_observables):
+            #        if event.check_event_rule_signature(event_rule.rule_signature, observables=added_observables):
                         # TODO: Add logging for when this fails
-                        matched = event_rule.process(event)
+            #            matched = event_rule.process(event)
 
-                if not matched:
-                    event.set_new()
-            else:
-                event.set_new()
+            #    if not matched:
+            #        event.set_new()
+            #else:
+            #    event.set_new()
+            event.set_new()
 
             return {'message': 'Successfully created the event.'}
         else:
@@ -923,7 +837,7 @@ class CreateBulkEvents(Resource):
                 if not event:
 
                     observables = []
-                    added_observables = []
+                    #added_observables = []
 
                     # Start clocking event creation
                     start_event_process_dt = datetime.datetime.utcnow().timestamp()
@@ -935,26 +849,29 @@ class CreateBulkEvents(Resource):
                     event.save()
 
                     if observables:
-                        added_observables = event.add_observable(observables)
+                        event.add_observable(observables)
 
-                    event.hash_event(observables=added_observables)
+                    # DEPRECATED: 2021-11-05 - bcarroll
+                    #event.hash_event(observables=added_observables)
 
                     # Check if there are any event rules for the alarm with this title
-                    event_rules = EventRule.get_by_title(title=event.title)
-                    if event_rules:
+                    #event_rules = EventRule.get_by_title(title=event.title)
+                    #if event_rules:
 
-                        matched = None                    
-                        for event_rule in event_rules:
+                    #    matched = None                    
+                    #    for event_rule in event_rules:
 
                             # If the event matches the event rules criteria perform the rule actions
-                            if event.check_event_rule_signature(event_rule.rule_signature, observables=added_observables):
+                            #if event.check_event_rule_signature(event_rule.rule_signature, observables=added_observables):
                                 # TODO: Add logging for when this fails
-                                matched = event_rule.process(event)
+                                #matched = event_rule.process(event)
 
-                        if not matched:
-                            event.set_new()
-                    else:
-                        event.set_new()
+                        #if not matched:
+                            #event.set_new()
+                    #else:
+                        #event.set_new()
+
+                    event.set_new()
 
                     end_event_process_dt = datetime.datetime.utcnow().timestamp()
                     event_process_time = end_event_process_dt - start_event_process_dt
@@ -978,87 +895,6 @@ class CreateBulkEvents(Resource):
         log_event(event_type="Bulk Event Insert", request_id=request_id, time_taken=total_process_time, status="Success", message="Bulk request finished.")
 
         return {"request_id": request_id, "response_time": total_process_time}
-
-
-@ns_event_v2.route('/_bulk_old')
-class CreateBulkEventsOld(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_event_create_bulk)
-    @api2.response('200', 'Sucessfully created events.')
-    @api2.response('207', 'Multi-Status')    
-    @token_required
-    @user_has('add_event')
-    def post(self, current_user):
-        '''
-        Creates Events in bulk 
-        '''
-        response = {
-            'results': [],
-            'success': True
-        }
-
-        # Start clocking the bulk process
-        start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
-
-        events = api2.payload['events']
-        for item in events:
-
-            event = Event.get_by_reference(item['reference'])
-
-            if not event:
-
-                observables = []
-                added_observables = []
-
-                # Start clocking event creation
-                start_event_process_dt = datetime.datetime.utcnow().timestamp()
-
-                if 'observables' in item:
-                    observables = item.pop('observables')
-
-                event = Event(**item)
-                event.save()
-
-                if observables:
-                    added_observables = event.add_observable(observables)
-
-                event.hash_event(observables=added_observables)
-
-                # Check if there are any event rules for the alarm with this title
-                event_rules = EventRule.get_by_title(title=event.title)
-                if event_rules:
-
-                    matched = None                    
-                    for event_rule in event_rules:
-
-                        # If the event matches the event rules criteria perform the rule actions
-                        if event.check_event_rule_signature(event_rule.rule_signature, observables=added_observables):
-                            # TODO: Add logging for when this fails
-                            matched = event_rule.process(event)
-
-                    if not matched:
-                        event.set_new()
-                else:
-                    event.set_new()
-
-                # Stop clocking the event and compute the time the event took to create
-                end_event_process_dt = datetime.datetime.utcnow().timestamp()
-                event_process_time = end_event_process_dt - start_event_process_dt
-
-                response['results'].append(
-                    {'reference': item['reference'], 'status': 200, 'message': 'Event successfully created.', 'process_time': event_process_time})
-            else:
-                response['results'].append(
-                    {'reference': item['reference'], 'status': 409, 'message': 'Event already exists.', 'process_time': '0'})
-                response['success'] = False
-
-        # Stop clocking the bulk process and compute the time taken
-        end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
-        total_process_time = end_bulk_process_dt - start_bulk_process_dt
-        response['process_time'] = total_process_time
-
-        return response, 207
 
 
 @ns_event_v2.route("/bulk_dismiss")

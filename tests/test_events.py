@@ -18,15 +18,17 @@ class EventTests(BaseTest):
             "source": "unittests",
             "observables": [
                 {
-                "value": "tester",
-                "ioc": False,
-                "tlp": 0,
-                "spotted": False,
-                "safe": True,
-                "data_type": "user",
-                "tags": [
-                    "test-user"
-                ]
+                    "value": "tester",
+                    "ioc": False,
+                    "tlp": 0,
+                    "spotted": False,
+                    "safe": True,
+                    "data_type": "user",
+                    "tags": [
+                        "test-user"
+                    ],
+                    "source_field": "winlog.event_data.User",
+                    "original_source_field": "winlog.event_data.User"
                 }
             ],
             "raw_log": "Something something dark side"
@@ -50,15 +52,17 @@ class EventTests(BaseTest):
             "source": "unittests",
             "observables": [
                 {
-                "value": "tester",
-                "ioc": False,
-                "tlp": 0,
-                "spotted": False,
-                "safe": True,
-                "data_type": "user",
-                "tags": [
-                    "test-user"
-                ]
+                    "value": "tester",
+                    "ioc": False,
+                    "tlp": 0,
+                    "spotted": False,
+                    "safe": True,
+                    "data_type": "user",
+                    "tags": [
+                        "test-user"
+                    ],
+                    "source_field": "winlog.event_data.User",
+                    "original_source_field": "winlog.event_data.User"
                 }
             ],
             "raw_log": "Something something dark side"
@@ -74,26 +78,30 @@ class EventTests(BaseTest):
             "source": "unittests",
             "observables": [
                 {
-                "value": "tester",
-                "ioc": False,
-                "tlp": 0,
-                "spotted": False,
-                "safe": True,
-                "data_type": "user",
-                "tags": [
-                    "test-user"
-                ]
+                    "value": "tester",
+                    "ioc": False,
+                    "tlp": 0,
+                    "spotted": False,
+                    "safe": True,
+                    "data_type": "user",
+                    "tags": [
+                        "test-user"
+                    ],
+                    "source_field": "winlog.event_data.User",
+                    "original_source_field": "winlog.event_data.User"
                 },
                 {
-                "value": "google.com",
-                "ioc": False,
-                "tlp": 0,
-                "spotted": False,
-                "safe": True,
-                "data_type": "domain",
-                "tags": [
-                    "test-user"
-                ]
+                    "value": "google.com",
+                    "ioc": False,
+                    "tlp": 0,
+                    "spotted": False,
+                    "safe": True,
+                    "data_type": "domain",
+                    "tags": [
+                        "test-user"
+                    ],
+                    "source_field": "dns.query.name",
+                    "original_source_field": "dns.query.name"
                 }
             ],
             "raw_log": "Something something dark side"
