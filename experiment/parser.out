@@ -1,0 +1,305 @@
+Created by PLY version 3.11 (http://www.dabeaz.com/ply)
+
+Unused terminals:
+
+    BOOL
+    LPAREN
+    LT
+    LTE
+    RPAREN
+
+Grammar
+
+Rule 0     S' -> expression
+Rule 1     expression -> target
+Rule 2     expression -> expression OR expression
+Rule 3     expression -> expression AND expression
+Rule 4     expression -> target EQUALS STRING
+Rule 5     expression -> target CONTAINS STRING
+Rule 6     expression -> target IN ARRAY
+Rule 7     expression -> target GT NUMBER
+Rule 8     expression -> target GT FLOAT
+Rule 9     expression -> target GTE NUMBER
+Rule 10    expression -> target GTE FLOAT
+Rule 11    expression -> target CIDR ipblock
+Rule 12    expression -> target EXISTS
+
+Terminals, with rules where they appear
+
+AND                  : 3
+ARRAY                : 6
+BOOL                 : 
+CIDR                 : 11
+CONTAINS             : 5
+EQUALS               : 4
+EXISTS               : 12
+FLOAT                : 8 10
+GT                   : 7 8
+GTE                  : 9 10
+IN                   : 6
+LPAREN               : 
+LT                   : 
+LTE                  : 
+NUMBER               : 7 9
+OR                   : 2
+RPAREN               : 
+STRING               : 4 5
+error                : 
+ipblock              : 11
+target               : 1 4 5 6 7 8 9 10 11 12
+
+Nonterminals, with rules where they appear
+
+expression           : 2 2 3 3 0
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . expression
+    (1) expression -> . target
+    (2) expression -> . expression OR expression
+    (3) expression -> . expression AND expression
+    (4) expression -> . target EQUALS STRING
+    (5) expression -> . target CONTAINS STRING
+    (6) expression -> . target IN ARRAY
+    (7) expression -> . target GT NUMBER
+    (8) expression -> . target GT FLOAT
+    (9) expression -> . target GTE NUMBER
+    (10) expression -> . target GTE FLOAT
+    (11) expression -> . target CIDR ipblock
+    (12) expression -> . target EXISTS
+
+    target          shift and go to state 2
+
+    expression                     shift and go to state 1
+
+state 1
+
+    (0) S' -> expression .
+    (2) expression -> expression . OR expression
+    (3) expression -> expression . AND expression
+
+    OR              shift and go to state 3
+    AND             shift and go to state 4
+
+
+state 2
+
+    (1) expression -> target .
+    (4) expression -> target . EQUALS STRING
+    (5) expression -> target . CONTAINS STRING
+    (6) expression -> target . IN ARRAY
+    (7) expression -> target . GT NUMBER
+    (8) expression -> target . GT FLOAT
+    (9) expression -> target . GTE NUMBER
+    (10) expression -> target . GTE FLOAT
+    (11) expression -> target . CIDR ipblock
+    (12) expression -> target . EXISTS
+
+    OR              reduce using rule 1 (expression -> target .)
+    AND             reduce using rule 1 (expression -> target .)
+    $end            reduce using rule 1 (expression -> target .)
+    EQUALS          shift and go to state 5
+    CONTAINS        shift and go to state 6
+    IN              shift and go to state 7
+    GT              shift and go to state 8
+    GTE             shift and go to state 9
+    CIDR            shift and go to state 10
+    EXISTS          shift and go to state 11
+
+
+state 3
+
+    (2) expression -> expression OR . expression
+    (1) expression -> . target
+    (2) expression -> . expression OR expression
+    (3) expression -> . expression AND expression
+    (4) expression -> . target EQUALS STRING
+    (5) expression -> . target CONTAINS STRING
+    (6) expression -> . target IN ARRAY
+    (7) expression -> . target GT NUMBER
+    (8) expression -> . target GT FLOAT
+    (9) expression -> . target GTE NUMBER
+    (10) expression -> . target GTE FLOAT
+    (11) expression -> . target CIDR ipblock
+    (12) expression -> . target EXISTS
+
+    target          shift and go to state 2
+
+    expression                     shift and go to state 12
+
+state 4
+
+    (3) expression -> expression AND . expression
+    (1) expression -> . target
+    (2) expression -> . expression OR expression
+    (3) expression -> . expression AND expression
+    (4) expression -> . target EQUALS STRING
+    (5) expression -> . target CONTAINS STRING
+    (6) expression -> . target IN ARRAY
+    (7) expression -> . target GT NUMBER
+    (8) expression -> . target GT FLOAT
+    (9) expression -> . target GTE NUMBER
+    (10) expression -> . target GTE FLOAT
+    (11) expression -> . target CIDR ipblock
+    (12) expression -> . target EXISTS
+
+    target          shift and go to state 2
+
+    expression                     shift and go to state 13
+
+state 5
+
+    (4) expression -> target EQUALS . STRING
+
+    STRING          shift and go to state 14
+
+
+state 6
+
+    (5) expression -> target CONTAINS . STRING
+
+    STRING          shift and go to state 15
+
+
+state 7
+
+    (6) expression -> target IN . ARRAY
+
+    ARRAY           shift and go to state 16
+
+
+state 8
+
+    (7) expression -> target GT . NUMBER
+    (8) expression -> target GT . FLOAT
+
+    NUMBER          shift and go to state 17
+    FLOAT           shift and go to state 18
+
+
+state 9
+
+    (9) expression -> target GTE . NUMBER
+    (10) expression -> target GTE . FLOAT
+
+    NUMBER          shift and go to state 19
+    FLOAT           shift and go to state 20
+
+
+state 10
+
+    (11) expression -> target CIDR . ipblock
+
+    ipblock         shift and go to state 21
+
+
+state 11
+
+    (12) expression -> target EXISTS .
+
+    OR              reduce using rule 12 (expression -> target EXISTS .)
+    AND             reduce using rule 12 (expression -> target EXISTS .)
+    $end            reduce using rule 12 (expression -> target EXISTS .)
+
+
+state 12
+
+    (2) expression -> expression OR expression .
+    (2) expression -> expression . OR expression
+    (3) expression -> expression . AND expression
+
+    OR              reduce using rule 2 (expression -> expression OR expression .)
+    $end            reduce using rule 2 (expression -> expression OR expression .)
+    AND             shift and go to state 4
+
+  ! AND             [ reduce using rule 2 (expression -> expression OR expression .) ]
+  ! OR              [ shift and go to state 3 ]
+
+
+state 13
+
+    (3) expression -> expression AND expression .
+    (2) expression -> expression . OR expression
+    (3) expression -> expression . AND expression
+
+    OR              reduce using rule 3 (expression -> expression AND expression .)
+    AND             reduce using rule 3 (expression -> expression AND expression .)
+    $end            reduce using rule 3 (expression -> expression AND expression .)
+
+  ! OR              [ shift and go to state 3 ]
+  ! AND             [ shift and go to state 4 ]
+
+
+state 14
+
+    (4) expression -> target EQUALS STRING .
+
+    OR              reduce using rule 4 (expression -> target EQUALS STRING .)
+    AND             reduce using rule 4 (expression -> target EQUALS STRING .)
+    $end            reduce using rule 4 (expression -> target EQUALS STRING .)
+
+
+state 15
+
+    (5) expression -> target CONTAINS STRING .
+
+    OR              reduce using rule 5 (expression -> target CONTAINS STRING .)
+    AND             reduce using rule 5 (expression -> target CONTAINS STRING .)
+    $end            reduce using rule 5 (expression -> target CONTAINS STRING .)
+
+
+state 16
+
+    (6) expression -> target IN ARRAY .
+
+    OR              reduce using rule 6 (expression -> target IN ARRAY .)
+    AND             reduce using rule 6 (expression -> target IN ARRAY .)
+    $end            reduce using rule 6 (expression -> target IN ARRAY .)
+
+
+state 17
+
+    (7) expression -> target GT NUMBER .
+
+    OR              reduce using rule 7 (expression -> target GT NUMBER .)
+    AND             reduce using rule 7 (expression -> target GT NUMBER .)
+    $end            reduce using rule 7 (expression -> target GT NUMBER .)
+
+
+state 18
+
+    (8) expression -> target GT FLOAT .
+
+    OR              reduce using rule 8 (expression -> target GT FLOAT .)
+    AND             reduce using rule 8 (expression -> target GT FLOAT .)
+    $end            reduce using rule 8 (expression -> target GT FLOAT .)
+
+
+state 19
+
+    (9) expression -> target GTE NUMBER .
+
+    OR              reduce using rule 9 (expression -> target GTE NUMBER .)
+    AND             reduce using rule 9 (expression -> target GTE NUMBER .)
+    $end            reduce using rule 9 (expression -> target GTE NUMBER .)
+
+
+state 20
+
+    (10) expression -> target GTE FLOAT .
+
+    OR              reduce using rule 10 (expression -> target GTE FLOAT .)
+    AND             reduce using rule 10 (expression -> target GTE FLOAT .)
+    $end            reduce using rule 10 (expression -> target GTE FLOAT .)
+
+
+state 21
+
+    (11) expression -> target CIDR ipblock .
+
+    OR              reduce using rule 11 (expression -> target CIDR ipblock .)
+    AND             reduce using rule 11 (expression -> target CIDR ipblock .)
+    $end            reduce using rule 11 (expression -> target CIDR ipblock .)
+
