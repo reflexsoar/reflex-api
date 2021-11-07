@@ -140,7 +140,8 @@ class RQLSearch:
             [[self.key, self.value]] = target.items()
 
         def __call__(self, obj):
-            return self.key in obj and re.match(self.value, obj[self.key])
+            regex = re.compile(self.value)
+            return self.key in obj and regex.match(obj[self.key])
 
     class InCIDR:
         '''

@@ -6,9 +6,9 @@ _tabversion = '3.10'
 
 _lr_method = 'LALR'
 
-_lr_signature = 'leftORleftANDnonassocEQUALSnonassocINnonassocCONTAINSAND ARRAY BOOL CIDR CONTAINS EQUALS EXISTS FLOAT GT GTE IN LPAREN LT LTE NUMBER OR RPAREN STRING ipblock targetexpression : targetexpression : expression OR expressionexpression : expression AND expressionexpression : target EQUALS STRINGexpression : target CONTAINS STRINGexpression : target IN ARRAYexpression : target GT NUMBER \n                   | target GT FLOAT\n        expression : target GTE NUMBER \n                   | target GTE FLOAT\n        expression : target CIDR ipblockexpression : target EXISTS'
+_lr_signature = 'leftORleftANDnonassocEQUALSnonassocINnonassocCONTAINSAND ARRAY BOOL CIDR CONTAINS EQUALS EXISTS FLOAT GT GTE IN LPAREN LT LTE NUMBER OR REGEXP RPAREN STRING targetexpression : targetexpression : expression OR expressionexpression : expression AND expressionexpression : target EQUALS STRINGexpression : target CONTAINS STRINGexpression : target IN ARRAYexpression : target GT NUMBER \n                   | target GT FLOAT\n        expression : target GTE NUMBER \n                   | target GTE FLOAT\n        expression : target LT NUMBER \n                   | target LT FLOAT\n        expression : target LTE NUMBER \n                   | target LTE FLOAT\n        expression : target CIDR STRINGexpression : target EXISTSexpression : target REGEXP STRING'
     
-_lr_action_items = {'target':([0,3,4,],[2,2,2,]),'$end':([1,2,11,12,13,14,15,16,17,18,19,20,21,],[0,-1,-12,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,]),'OR':([1,2,11,12,13,14,15,16,17,18,19,20,21,],[3,-1,-12,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,]),'AND':([1,2,11,12,13,14,15,16,17,18,19,20,21,],[4,-1,-12,4,-3,-4,-5,-6,-7,-8,-9,-10,-11,]),'EQUALS':([2,],[5,]),'CONTAINS':([2,],[6,]),'IN':([2,],[7,]),'GT':([2,],[8,]),'GTE':([2,],[9,]),'CIDR':([2,],[10,]),'EXISTS':([2,],[11,]),'STRING':([5,6,],[14,15,]),'ARRAY':([7,],[16,]),'NUMBER':([8,9,],[17,19,]),'FLOAT':([8,9,],[18,20,]),'ipblock':([10,],[21,]),}
+_lr_action_items = {'target':([0,3,4,],[2,2,2,]),'$end':([1,2,13,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,],[0,-1,-16,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15,-17,]),'OR':([1,2,13,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,],[3,-1,-16,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15,-17,]),'AND':([1,2,13,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,],[4,-1,-16,4,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15,-17,]),'EQUALS':([2,],[5,]),'CONTAINS':([2,],[6,]),'IN':([2,],[7,]),'GT':([2,],[8,]),'GTE':([2,],[9,]),'LT':([2,],[10,]),'LTE':([2,],[11,]),'CIDR':([2,],[12,]),'EXISTS':([2,],[13,]),'REGEXP':([2,],[14,]),'STRING':([5,6,12,14,],[17,18,28,29,]),'ARRAY':([7,],[19,]),'NUMBER':([8,9,10,11,],[20,22,24,26,]),'FLOAT':([8,9,10,11,],[21,23,25,27,]),}
 
 _lr_action = {}
 for _k, _v in _lr_action_items.items():
@@ -17,7 +17,7 @@ for _k, _v in _lr_action_items.items():
       _lr_action[_x][_k] = _y
 del _lr_action_items
 
-_lr_goto_items = {'expression':([0,3,4,],[1,12,13,]),}
+_lr_goto_items = {'expression':([0,3,4,],[1,15,16,]),}
 
 _lr_goto = {}
 for _k, _v in _lr_goto_items.items():
@@ -37,6 +37,11 @@ _lr_productions = [
   ('expression -> target GT FLOAT','expression',3,'p_expression_greater_than','rql_experiment2.py',215),
   ('expression -> target GTE NUMBER','expression',3,'p_expression_greater_than_or_equal','rql_experiment2.py',220),
   ('expression -> target GTE FLOAT','expression',3,'p_expression_greater_than_or_equal','rql_experiment2.py',221),
-  ('expression -> target CIDR ipblock','expression',3,'p_expression_in_cidr','rql_experiment2.py',226),
-  ('expression -> target EXISTS','expression',2,'p_expression_exists','rql_experiment2.py',230),
+  ('expression -> target LT NUMBER','expression',3,'p_expression_less_than','rql_experiment2.py',226),
+  ('expression -> target LT FLOAT','expression',3,'p_expression_less_than','rql_experiment2.py',227),
+  ('expression -> target LTE NUMBER','expression',3,'p_expression_less_than_or_equal','rql_experiment2.py',232),
+  ('expression -> target LTE FLOAT','expression',3,'p_expression_less_than_or_equal','rql_experiment2.py',233),
+  ('expression -> target CIDR STRING','expression',3,'p_expression_in_cidr','rql_experiment2.py',238),
+  ('expression -> target EXISTS','expression',2,'p_expression_exists','rql_experiment2.py',242),
+  ('expression -> target REGEXP STRING','expression',3,'p_expression_regexp','rql_experiment2.py',246),
 ]

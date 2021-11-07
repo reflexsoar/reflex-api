@@ -103,9 +103,9 @@ if __name__ == '__main__':
         'OR',
         'CIDR',
         'target',
-        'ipblock',
         'BOOL',
-        'EXISTS'
+        'EXISTS',
+        'REGEXP'
     )
 
     precedence = (
@@ -130,9 +130,10 @@ if __name__ == '__main__':
     t_LTE = r'<=|lte'
     t_BOOL = r'True|true|False|false'
     t_EXISTS = r'Exists|exists'
-
+    t_REGEXP = r'RegExp|regexp|regex|re'
+   
     def t_NUMBER(t):
-        r'\d+$'
+        r'\d+'
         t.value = ast.literal_eval(t.value)
         return t
 
@@ -140,8 +141,6 @@ if __name__ == '__main__':
         r'\d+\.?\d+$'
         t.value = ast.literal_eval(t.value)
         return t        
-
-    t_ipblock = r'\d+.\d+.\d+.\d+\/\d{1,2}'
 
     def t_STRING(t):
         r'[\"|\'](.*?)[\"|\']'
@@ -157,8 +156,7 @@ if __name__ == '__main__':
         t.lexer.lineno ++ len(t.value)
 
     def t_target(t):
-        #func_doc = r'observables\.([^\s]+)'
-        #r'{}'.format(patterns)
+        # TODO: Define all the fields a user can access here
         r'observables(\.([^\s]+))?|title|description|test\.awesome|first|tlp|ip'
         return t
     
@@ -173,18 +171,20 @@ if __name__ == '__main__':
         print("Illegal character '%s'" % t.value[0])
 
     lexer = lex.lex()
-    #while True:
-    #    q = input('Query: ')
-    #    if not q:
-    #        break
-    #    lexer.input(q)
-    #    query = None
-    #    while True:
-    #        tok = lexer.token()
-    #        if not tok:
-    #            break
-    #        print(tok)
-    #exit()
+    while True:
+        q = input('Query: ')
+        if not q:
+            break
+        lexer.input(q)
+        if q == 'exit':
+            exit
+        if q == 'yacc':
+            break
+        while True:
+            tok = lexer.token()
+            if not tok:
+                break
+            print(tok)
 
     def p_expression(p):
         'expression : target'
@@ -222,13 +222,29 @@ if __name__ == '__main__':
         '''
         p[0] = search.GreaterThanOrEqual(**{p[1]: p[3]})
 
+    def p_expression_less_than(p):
+        '''expression : target LT NUMBER 
+                   | target LT FLOAT
+        '''
+        p[0] = search.LessThan(**{p[1]: p[3]})
+
+    def p_expression_less_than_or_equal(p):
+        '''expression : target LTE NUMBER 
+                   | target LTE FLOAT
+        '''
+        p[0] = search.LessThanOrEqual(**{p[1]: p[3]})
+
     def p_expression_in_cidr(p):
-        'expression : target CIDR ipblock'
+        'expression : target CIDR STRING'
         p[0] = search.InCIDR(**{p[1]: p[3]})
 
     def p_expression_exists(p):
         'expression : target EXISTS'
         p[0] = search.Exists(p[1])
+
+    def p_expression_regexp(p):
+        'expression : target REGEXP STRING'
+        p[0] = search.RegExp(**{p[1]: p[3]})
 
     #def p_grouping(p):
     #    'unary_expression : LPAREN expression RPAREN'
@@ -242,10 +258,12 @@ if __name__ == '__main__':
         s = input('query: ')
         if not s:
             break
+        if s == 'exit':
+            exit()
         result = parser.parse(s)
         for event in search.execute(db, result):
             print(event)
-            print()
+        print()
 
     
     # NESTED FIELD TESTING
