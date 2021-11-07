@@ -242,6 +242,17 @@ class RQLSearch:
         '''
         def __init__(self, **target):
             [[self.key, self.value]] = target.items()
+
+            if isinstance(self.value, str):
+                self.value.replace('-',',')
+                self.value.replace('..',',')
+                start, end = self.value.split(',')
+
+                # Add a +1 to the end to include the upper end which is not how
+                # python behaves normally
+                start, end = int(start), int(end)+1
+                
+                self.value = range(start, end)
         
         def __call__(self, obj):
             return self.key in obj and obj[self.key] in self.value
@@ -275,8 +286,18 @@ class RQLSearch:
             [[self.key, self.value]] = target.items()
 
             # Convert any representation of booleans to a true boolean type
-            if self.value in [True,False,0,1,'true','false']:
-                self.value = bool(self.value)
+            self.value = self.to_boolean(self.value)
+
+        def to_boolean(self, value):
+
+            if isinstance(value, bool) and value in [True, False]:
+                return value
+
+            if isinstance(value, str):
+                if value.lower() in ['true','false']:
+                    if value.lower() == 'true':
+                        return True
+                    return False
 
         def __call__(self, obj):
 
@@ -291,9 +312,11 @@ class RQLSearch:
                         self.has_key = True
 
             # Convert any representation of booleans to a true boolean type
-            if target_value in [True,False,0,1,'true','false']:
-                target_value = bool(target_value)
+            if target_value:
+                target_value = self.to_boolean(target_value)
 
+            if not isinstance(target_value, bool):
+                return False
             return self.has_key and self.value == target_value
             
 
@@ -320,7 +343,8 @@ if __name__ == "__main__":
         search.LessThan(tlp=3),
         search.LessThanOrEqual(tlp=2),
         search.Exists('spotted'),
-        search.And(search.Exists('malware'), search.Is(malware=True))
+        search.And(search.Exists('malware'), search.Is(malware=True)),
+        search.Between(tlp="1,3")
     ]
 
     for query in queries:

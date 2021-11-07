@@ -41,6 +41,7 @@ if __name__ == '__main__':
       {'title':'Test Event', 'description': 'This is a dangerous event', 'test': {'awesome': 'yes'}, 'observables': [{'value':'Brian'},{'value':'Dave'}]},
       {'title':'Test Smaller Event', 'test': {'awesome': 'no'}, 'observables': [{'value':'Brian'},{'value':'Dave'}]},
       {'title':'Test Smaller Event', 'test': {'awesome': 'no'}, 'observables': [{'value':'192.168.0.1'},{'value':'Dave'}]},
+      {'title':'Test Event from API', 'from_api': True},
       {'title': 'Test with IP in parent', 'ip': '192.168.1.1'},
       {'title': 'Test with IP in parent and malware', 'ip': '192.168.1.1', 'malware': True},
       {'title':'Test Event', 'tlp': 1},
@@ -105,7 +106,9 @@ if __name__ == '__main__':
         'target',
         'BOOL',
         'EXISTS',
-        'REGEXP'
+        'REGEXP',
+        'IS',
+        'BETWEEN'
     )
 
     precedence = (
@@ -122,6 +125,7 @@ if __name__ == '__main__':
     t_CIDR = r'cidr|InCIDR'
     t_CONTAINS = r'contains|Contains'
     t_IN = r'In|in'
+    t_IS = r'Is|is'
     t_AND = r'and|AND|And|\&\&'
     t_OR = r'or|OR|Or|\|\|'
     t_GT = r'>|gt'
@@ -130,7 +134,8 @@ if __name__ == '__main__':
     t_LTE = r'<=|lte'
     t_BOOL = r'True|true|False|false'
     t_EXISTS = r'Exists|exists'
-    t_REGEXP = r'RegExp|regexp|regex|re'
+    t_REGEXP = r'RegExp|regexp|regex|re',
+    t_BETWEEN = r'Between|between|InRange|range'
    
     def t_NUMBER(t):
         r'\d+'
@@ -157,7 +162,7 @@ if __name__ == '__main__':
 
     def t_target(t):
         # TODO: Define all the fields a user can access here
-        r'observables(\.([^\s]+))?|title|description|test\.awesome|first|tlp|ip'
+        r'observables(\.([^\s]+))?|title|description|test\.awesome|from_api|tlp|ip'
         return t
     
     def t_ARRAY(t):
@@ -172,7 +177,7 @@ if __name__ == '__main__':
 
     lexer = lex.lex()
     while True:
-        q = input('Query: ')
+        q = input('[Lex Mode] Query: ')
         if not q:
             break
         lexer.input(q)
@@ -246,6 +251,10 @@ if __name__ == '__main__':
         'expression : target REGEXP STRING'
         p[0] = search.RegExp(**{p[1]: p[3]})
 
+    def p_expression_is(p):
+        'expression : target IS BOOL'
+        p[0] = search.Is(**{p[1]: p[3]})
+
     #def p_grouping(p):
     #    'unary_expression : LPAREN expression RPAREN'
 
@@ -255,7 +264,7 @@ if __name__ == '__main__':
 
     parser = yacc.yacc()
     while True:
-        s = input('query: ')
+        s = input('[Yacc Mode] Query: ')
         if not s:
             break
         if s == 'exit':
