@@ -134,7 +134,7 @@ if __name__ == '__main__':
     t_LTE = r'<=|lte'
     t_BOOL = r'True|true|False|false'
     t_EXISTS = r'Exists|exists'
-    t_REGEXP = r'RegExp|regexp|regex|re',
+    t_REGEXP = r'RegExp|regexp|regex|re'
     t_BETWEEN = r'Between|between|InRange|range'
    
     def t_NUMBER(t):
@@ -254,6 +254,10 @@ if __name__ == '__main__':
     def p_expression_is(p):
         'expression : target IS BOOL'
         p[0] = search.Is(**{p[1]: p[3]})
+
+    def p_expression_between(p):
+        'expression : target BETWEEN STRING'
+        p[0] = search.Between(**{p[1]: p[3]})
 
     #def p_grouping(p):
     #    'unary_expression : LPAREN expression RPAREN'

@@ -26,11 +26,13 @@ Rule 15    expression -> target CIDR STRING
 Rule 16    expression -> target EXISTS
 Rule 17    expression -> target REGEXP STRING
 Rule 18    expression -> target IS BOOL
+Rule 19    expression -> target BETWEEN STRING
 
 Terminals, with rules where they appear
 
 AND                  : 3
 ARRAY                : 6
+BETWEEN              : 19
 BOOL                 : 18
 CIDR                 : 15
 CONTAINS             : 5
@@ -48,9 +50,9 @@ NUMBER               : 7 9 11 13
 OR                   : 2
 REGEXP               : 17
 RPAREN               : 
-STRING               : 4 5 15 17
+STRING               : 4 5 15 17 19
 error                : 
-target               : 1 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18
+target               : 1 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19
 
 Nonterminals, with rules where they appear
 
@@ -79,6 +81,7 @@ state 0
     (16) expression -> . target EXISTS
     (17) expression -> . target REGEXP STRING
     (18) expression -> . target IS BOOL
+    (19) expression -> . target BETWEEN STRING
 
     target          shift and go to state 2
 
@@ -112,6 +115,7 @@ state 2
     (16) expression -> target . EXISTS
     (17) expression -> target . REGEXP STRING
     (18) expression -> target . IS BOOL
+    (19) expression -> target . BETWEEN STRING
 
     OR              reduce using rule 1 (expression -> target .)
     AND             reduce using rule 1 (expression -> target .)
@@ -127,6 +131,7 @@ state 2
     EXISTS          shift and go to state 13
     REGEXP          shift and go to state 14
     IS              shift and go to state 15
+    BETWEEN         shift and go to state 16
 
 
 state 3
@@ -150,10 +155,11 @@ state 3
     (16) expression -> . target EXISTS
     (17) expression -> . target REGEXP STRING
     (18) expression -> . target IS BOOL
+    (19) expression -> . target BETWEEN STRING
 
     target          shift and go to state 2
 
-    expression                     shift and go to state 16
+    expression                     shift and go to state 17
 
 state 4
 
@@ -176,30 +182,31 @@ state 4
     (16) expression -> . target EXISTS
     (17) expression -> . target REGEXP STRING
     (18) expression -> . target IS BOOL
+    (19) expression -> . target BETWEEN STRING
 
     target          shift and go to state 2
 
-    expression                     shift and go to state 17
+    expression                     shift and go to state 18
 
 state 5
 
     (4) expression -> target EQUALS . STRING
 
-    STRING          shift and go to state 18
+    STRING          shift and go to state 19
 
 
 state 6
 
     (5) expression -> target CONTAINS . STRING
 
-    STRING          shift and go to state 19
+    STRING          shift and go to state 20
 
 
 state 7
 
     (6) expression -> target IN . ARRAY
 
-    ARRAY           shift and go to state 20
+    ARRAY           shift and go to state 21
 
 
 state 8
@@ -207,8 +214,8 @@ state 8
     (7) expression -> target GT . NUMBER
     (8) expression -> target GT . FLOAT
 
-    NUMBER          shift and go to state 21
-    FLOAT           shift and go to state 22
+    NUMBER          shift and go to state 22
+    FLOAT           shift and go to state 23
 
 
 state 9
@@ -216,8 +223,8 @@ state 9
     (9) expression -> target GTE . NUMBER
     (10) expression -> target GTE . FLOAT
 
-    NUMBER          shift and go to state 23
-    FLOAT           shift and go to state 24
+    NUMBER          shift and go to state 24
+    FLOAT           shift and go to state 25
 
 
 state 10
@@ -225,8 +232,8 @@ state 10
     (11) expression -> target LT . NUMBER
     (12) expression -> target LT . FLOAT
 
-    NUMBER          shift and go to state 25
-    FLOAT           shift and go to state 26
+    NUMBER          shift and go to state 26
+    FLOAT           shift and go to state 27
 
 
 state 11
@@ -234,15 +241,15 @@ state 11
     (13) expression -> target LTE . NUMBER
     (14) expression -> target LTE . FLOAT
 
-    NUMBER          shift and go to state 27
-    FLOAT           shift and go to state 28
+    NUMBER          shift and go to state 28
+    FLOAT           shift and go to state 29
 
 
 state 12
 
     (15) expression -> target CIDR . STRING
 
-    STRING          shift and go to state 29
+    STRING          shift and go to state 30
 
 
 state 13
@@ -258,17 +265,24 @@ state 14
 
     (17) expression -> target REGEXP . STRING
 
-    STRING          shift and go to state 30
+    STRING          shift and go to state 31
 
 
 state 15
 
     (18) expression -> target IS . BOOL
 
-    BOOL            shift and go to state 31
+    BOOL            shift and go to state 32
 
 
 state 16
+
+    (19) expression -> target BETWEEN . STRING
+
+    STRING          shift and go to state 33
+
+
+state 17
 
     (2) expression -> expression OR expression .
     (2) expression -> expression . OR expression
@@ -282,7 +296,7 @@ state 16
   ! OR              [ shift and go to state 3 ]
 
 
-state 17
+state 18
 
     (3) expression -> expression AND expression .
     (2) expression -> expression . OR expression
@@ -296,7 +310,7 @@ state 17
   ! AND             [ shift and go to state 4 ]
 
 
-state 18
+state 19
 
     (4) expression -> target EQUALS STRING .
 
@@ -305,7 +319,7 @@ state 18
     $end            reduce using rule 4 (expression -> target EQUALS STRING .)
 
 
-state 19
+state 20
 
     (5) expression -> target CONTAINS STRING .
 
@@ -314,7 +328,7 @@ state 19
     $end            reduce using rule 5 (expression -> target CONTAINS STRING .)
 
 
-state 20
+state 21
 
     (6) expression -> target IN ARRAY .
 
@@ -323,7 +337,7 @@ state 20
     $end            reduce using rule 6 (expression -> target IN ARRAY .)
 
 
-state 21
+state 22
 
     (7) expression -> target GT NUMBER .
 
@@ -332,7 +346,7 @@ state 21
     $end            reduce using rule 7 (expression -> target GT NUMBER .)
 
 
-state 22
+state 23
 
     (8) expression -> target GT FLOAT .
 
@@ -341,7 +355,7 @@ state 22
     $end            reduce using rule 8 (expression -> target GT FLOAT .)
 
 
-state 23
+state 24
 
     (9) expression -> target GTE NUMBER .
 
@@ -350,7 +364,7 @@ state 23
     $end            reduce using rule 9 (expression -> target GTE NUMBER .)
 
 
-state 24
+state 25
 
     (10) expression -> target GTE FLOAT .
 
@@ -359,7 +373,7 @@ state 24
     $end            reduce using rule 10 (expression -> target GTE FLOAT .)
 
 
-state 25
+state 26
 
     (11) expression -> target LT NUMBER .
 
@@ -368,7 +382,7 @@ state 25
     $end            reduce using rule 11 (expression -> target LT NUMBER .)
 
 
-state 26
+state 27
 
     (12) expression -> target LT FLOAT .
 
@@ -377,7 +391,7 @@ state 26
     $end            reduce using rule 12 (expression -> target LT FLOAT .)
 
 
-state 27
+state 28
 
     (13) expression -> target LTE NUMBER .
 
@@ -386,7 +400,7 @@ state 27
     $end            reduce using rule 13 (expression -> target LTE NUMBER .)
 
 
-state 28
+state 29
 
     (14) expression -> target LTE FLOAT .
 
@@ -395,7 +409,7 @@ state 28
     $end            reduce using rule 14 (expression -> target LTE FLOAT .)
 
 
-state 29
+state 30
 
     (15) expression -> target CIDR STRING .
 
@@ -404,7 +418,7 @@ state 29
     $end            reduce using rule 15 (expression -> target CIDR STRING .)
 
 
-state 30
+state 31
 
     (17) expression -> target REGEXP STRING .
 
@@ -413,11 +427,20 @@ state 30
     $end            reduce using rule 17 (expression -> target REGEXP STRING .)
 
 
-state 31
+state 32
 
     (18) expression -> target IS BOOL .
 
     OR              reduce using rule 18 (expression -> target IS BOOL .)
     AND             reduce using rule 18 (expression -> target IS BOOL .)
     $end            reduce using rule 18 (expression -> target IS BOOL .)
+
+
+state 33
+
+    (19) expression -> target BETWEEN STRING .
+
+    OR              reduce using rule 19 (expression -> target BETWEEN STRING .)
+    AND             reduce using rule 19 (expression -> target BETWEEN STRING .)
+    $end            reduce using rule 19 (expression -> target BETWEEN STRING .)
 
