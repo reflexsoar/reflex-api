@@ -33,14 +33,15 @@ def get_nested_field(message: dict, field: str):
                             values += [v for v in l if v is not None]
                 else:
                     values += [v for v in value if not isinstance(v, list)]
-                value = values
-                    
+                value = values                    
             else:
                 value = message.get(element)
 
             if isinstance(value, list):
                 if len(value) > 0 and isinstance(value[0], dict):
-                    value = [get_nested_field(item, args[1:]) for item in value]        
+                    if len(args) > 1:
+                        value = [get_nested_field(item, args[1:]) for item in value]
+
                 
             return value if len(args) == 1 else get_nested_field(value, args[1:])
 
@@ -154,6 +155,9 @@ class RQLSearch:
                 for mutator in self.mutators:
                     target_value = MUTATOR_MAP[mutator](target_value)
 
+            if isinstance(target_value, list) and isinstance(self.value, (int, float)):
+                target_value = len(target_value)
+
             if isinstance(target_value, list):
                 return self.has_key and self.value in target_value
             else:
@@ -192,12 +196,14 @@ class RQLSearch:
                     return self.has_key and self.value in target_value
             return False
 
+
     class ContainsCIS:
         def __init__(self, **target):
             [[self.key, self.value]] = target.items()
 
         def __call__(self, obj):
             return self.key in obj and self.value.lower() in obj[self.key].lower()
+
 
     class In:
         def __init__(self, **target):
@@ -229,12 +235,14 @@ class RQLSearch:
         def __call__(self, record):
             return any(predicate(record) for predicate in self.predicates)
 
+
     class And:
         def __init__(self, *predicates):
             self.predicates = predicates
 
         def __call__(self, record):
             return all(predicate(record) for predicate in self.predicates)
+
 
     class RegExp:
         '''
@@ -247,6 +255,7 @@ class RQLSearch:
         def __call__(self, obj):
             regex = re.compile(self.value)
             return self.key in obj and regex.match(obj[self.key])
+
 
     class InCIDR:
         '''
@@ -306,12 +315,13 @@ class RQLSearch:
         Returns True if the math expression is true
         '''
 
-        def __init__(self, operator=">", count=False, length=False, **target):
+        def __init__(self, mutators=[], operator=">", count=False, length=False, **target):
             
             self.has_key = False
             self.count = count
             self.length = length
             self.operator = operator
+            self.mutators = mutators
 
             [[self.key, self.value]] = target.items()
 
@@ -355,97 +365,22 @@ class RQLSearch:
                         self.has_key = True
             
             # If a target_value was found
+            # Run all the mutators
+            
             if target_value:
-                # Run the count mutator to compare the number of objects in a list
-                if self.count:
-                    if isinstance(target_value, list) and len(target_value) > 0:
-                        return self.has_key and self.op_map[self.operator](len(target_value), self.value)
-                
-                # Run the length mutator to compare the length of the target value to a number
-                if self.length:
-                    if isinstance(target_value, str):
-                        return self.has_key and self.op_map[self.operator](len(target_value), self.value)
+                for mutator in self.mutators:
+                    target_value = MUTATOR_MAP[mutator](target_value)
 
-                if isinstance(target_value, list) and len(target_value) > 0:
+                if isinstance(target_value, list):
+                    print(target_value)
                     target_value = len(target_value)
 
+                if isinstance(target_value, str):
+                    target_value = 1
+
                 return self.has_key and self.op_map[self.operator](target_value, self.value)
-
             return False
 
-    """
-    class GreaterThan:
-        '''
-        Returns True if the field is greater than a the target value
-        '''
-        def __init__(self, count=False, length=False, **target):
-            
-            self.has_key = False
-            self.count = count
-            self.length = length
-
-            [[self.key, self.value]] = target.items()
-            print(self.key, self.value)
-            
-        
-        def __call__(self, obj):
-
-            target_value = None
-            if self.key in obj:
-                target_value = obj[self.key]
-                self.has_key = True
-            else:            
-                if '.' in self.key:
-                    target_value = get_nested_field(obj, self.key)
-                    if target_value is not None:
-                        self.has_key = True
-            
-            if target_value:
-
-                # Run the count mutator to compare the number of objects in a list
-                if self.count:
-                    if isinstance(target_value, list):
-                        return self.has_key and len(target_value) > self.value
-                
-                # Run the length mutator to compare the length of the target value to a number
-                if self.length:
-                    if isinstance(target_value, str):
-                        return self.has_key and len(target_value) > self.value
-
-                return self.has_key and target_value > self.value
-
-            return False
-
-    class GreaterThanOrEqual:
-        '''
-        Returns True if the field is greater than or equal to the target value
-        '''
-        def __init__(self, **target):
-            [[self.key, self.value]] = target.items()
-        
-        def __call__(self, obj):
-            return self.key in obj and obj[self.key] >= self.value
-
-    class LessThan:
-        '''
-        Returns True if the field is less than the target value
-        '''
-        def __init__(self, **target):
-            [[self.key, self.value]] = target.items()
-        
-        def __call__(self, obj):
-            return self.key in obj and obj[self.key] < self.value
-
-    class LessThanOrEqual:
-        '''
-        Returns True if the field is less than the target value
-        '''
-        def __init__(self, **target):
-            [[self.key, self.value]] = target.items()
-        
-        def __call__(self, obj):
-            return self.key in obj and obj[self.key] <= self.value
-    """
 
     class Between:
         '''

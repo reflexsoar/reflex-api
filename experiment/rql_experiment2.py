@@ -12,6 +12,7 @@ if __name__ == '__main__':
       {'title':'Test Event', 'description': 'This is a dangerous event', 'test': {'awesome': 'yes'}, 'observables': [{'value':'Brian'},{'value':'Dave'}]},
       {'title':'Test Smaller Event', 'test': {'awesome': 'no'}, 'observables': [{'value':'Brian'},{'value':'Dave'}]},
       {'title':'Test Smaller Event', 'test': {'awesome': 'no'}, 'observables': [{'value':'192.168.0.1'},{'value':'Dave'}]},
+      {'title':'Test Smaller Event', 'test': {'awesome': 'no'}, 'observables': [{'value':'192.168.0.1'}]},
       {'title':'Test Event from API', 'from_api': True},
       {'title': 'Test with IP in parent', 'ip': '192.168.1.1'},
       {'title': 'Test with IP in parent and malware', 'ip': '192.168.1.1', 'malware': True},
@@ -254,15 +255,9 @@ if __name__ == '__main__':
                    | target MUTATOR LTE FLOAT
                 
         '''
-        if len(p) > 4:
-            mutator = p[2].replace('|','')
-            if mutator == "count":
-                p[0] = search.MathOp(count=True, operator=p[3], **{p[1]: p[4]})
-
-            if mutator == "length":
-                p[0] = search.MathOp(length=True, operator=p[3], **{p[1]: p[4]})
-        else:
-            p[0] = search.MathOp(operator=p[2], **{p[1]: p[3]})
+        mutators, field, target, op = extract_mutators_and_fields(p)
+    
+        p[0] = search.MathOp(mutators=mutators, operator=op, **{field: target})
 
     def p_expression_in_cidr(p):
         'expression : target CIDR STRING'
@@ -284,9 +279,6 @@ if __name__ == '__main__':
         'expression : target BETWEEN STRING'
         p[0] = search.Between(**{p[1]: p[3]})
 
-    #def p_grouping(p):
-    #    'unary_expression : LPAREN expression RPAREN'
-
     def p_error(p):
         print(p)
         print("Syntax error in input!")
@@ -302,46 +294,3 @@ if __name__ == '__main__':
         for event in search.execute(db, result):
             print(event)
         print()
-
-    
-    # NESTED FIELD TESTING
-    #print("venues.name", get_nested_field(event, "venues.name"))
-    #print("venues.tags", get_nested_field(event, "venues.tags"))
-
-    #print("description:", get_nested_field(db[0],"description"))
-    #print("test.awesome:", get_nested_field(db[0],"test.awesome"))
-    #print("observables.more.data:", get_nested_field(db[0],"observables.more.data"))
-    #print("observables.tags:", get_nested_field(db[0],"observables.tags"))
-    #print("observables.tags.name:", get_nested_field(db[0],"observables.tags.name"))
-    #print("observables.tlp:", get_nested_field(db[0],"observables.tlp"))
-    
-    """
-    print('(first = "john" OR last = "doe") AND likes Contains "cookies"')
-    query = And(Or(Match(first='john'), Match(last='doe')), Contains(likes='cookies'))
-    for result in run_query(db, query):
-        print(result)
-
-    print()
-    print('first RegExp "^jo.*"')
-    query = RegExp(first='^jo.*')
-    for result in run_query(db, query):
-        print(result)
-
-    print()
-    print('first = "john" and likes In ["cookies"]')
-    query = And(Match(first="john"), In(likes=['cookies']))
-    for result in run_query(db, query):
-        print(result)
-
-    print()
-    print('last ContainsCIS "carroll" AND likes In ["cookies"]')
-    query = And(ContainsCIS(last="carroll"), In(likes=['cookies']))
-    for result in run_query(db, query):
-        print(result)
-
-    print()
-    print('ip InCIDR "192.168.0.0/16"')
-    query = InCIDR(ip="192.168.0.0/16")
-    for result in run_query(db, query):
-        print(result)
-    """
