@@ -1,7 +1,6 @@
 import re
-import base64
 import ipaddress
-from .mutators import MUTATOR_MAP
+from .mutators import MUTATOR_MAP, MUTATORS
 
 def get_nested_field(message: dict, field: str):
     '''
@@ -68,6 +67,9 @@ class RQLSearch:
             self.has_key = False
             self.mutators = mutators
             self.target_value = None
+
+            # Setting the allowed_mutators each expression is allowed to run, default to all
+            self.allowed_mutators = MUTATORS
             [[self.key, self.value]] = target.items()
 
         def get_target_value(self, obj):
@@ -90,7 +92,8 @@ class RQLSearch:
             '''
             if self.target_value:
                 for mutator in self.mutators:
-                    self.target_value = MUTATOR_MAP[mutator](self.target_value)
+                    if mutator in self.allowed_mutators:
+                        self.target_value = MUTATOR_MAP[mutator](self.target_value)
 
         def __call__(self, obj):
 
@@ -276,7 +279,7 @@ class RQLSearch:
             
             self.operator = operator
             self.mutators = mutators
-
+            
             self.op_map = {
                 '>': self.gt,
                 'gt': self.gt,
@@ -289,6 +292,8 @@ class RQLSearch:
             }
 
             super().__init__(mutators=mutators, **target)
+
+            self.allowed_mutators = ['count','length']
 
         def lte(self, left, right):
             ''' Returns the result of left <= right '''
@@ -330,6 +335,8 @@ class RQLSearch:
         def __init__(self, mutators=[], **target):
             
             super().__init__(mutators=mutators, **target)
+
+            self.allowed_mutators = ['count','length']
 
             if isinstance(self.value, str):
                 self.value.replace('-',',')
@@ -377,6 +384,7 @@ class RQLSearch:
         def __init__(self, mutators=[], **target):
 
             super().__init__(mutators=mutators, **target)
+            self.allowed_mutators = []
 
             # Convert any representation of booleans to a true boolean type
             self.value = self.to_boolean(self.value)
@@ -403,39 +411,3 @@ class RQLSearch:
             if not isinstance(self.target_value, bool):
                 return False
             return self.has_key and self.value == self.target_value
-            
-
-if __name__ == "__main__":
-
-    import json
-
-    positive_tests = {
-        1: '{"tlp": 1}',
-        2: '{"tlp": 2}',
-        3: '{"tlp": 3}',
-        4: '{"tlp": 4}',
-        5: '{"tlp": 5}',
-        6: '{"tlp": 1, "spotted": 1}',
-        7: '{"tlp": 1, "malware": true}',
-        8: '{"tlp": 1, "malware": false}'
-    }
-
-    search = RQLSearch
-
-    queries = [
-        search.MathOp(operator=">", tlp=1),
-        search.MathOp(operator=">=", tlp=2),
-        search.MathOp(operator="<", tlp=3),
-        search.MathOp(operator="<=", tlp=2),
-        search.Exists('spotted'),
-        search.And(search.Exists('malware'), search.Is(malware=True)),
-        search.Between(tlp="1,3")
-    ]
-
-    for query in queries:
-        result = search.execute([json.loads(positive_tests[i]) for i in positive_tests], query)
-        matches = []
-        for r in result:
-            matches += [i for i in positive_tests if positive_tests[i] == json.dumps(r)]
-        
-        print(matches)

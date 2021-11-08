@@ -2,6 +2,7 @@ import ast
 import ply.lex as lex
 import ply.yacc as yacc
 from rql import RQLSearch, MUTATORS
+from ply.lex import LexError
 
 if __name__ == '__main__':
 
@@ -70,7 +71,8 @@ if __name__ == '__main__':
         ('left', 'AND'),
         ('nonassoc', 'EQUALS'),
         ('nonassoc', 'IN'),
-        ('nonassoc', 'CONTAINS')
+        ('nonassoc', 'CONTAINS'),
+        ('right','STRING')
     )
 
     t_LPAREN = r'\('
@@ -137,13 +139,17 @@ if __name__ == '__main__':
         q = input('[Lex Mode] Query: ')
         if not q:
             break
-        lexer.input(q)
         if q == 'exit':
-            exit
+            exit()
         if q == 'yacc':
             break
+
+        lexer.input(q)
         while True:
-            tok = lexer.token()
+            try:
+                tok = lexer.token()
+            except LexError as e:
+                tok = None
             if not tok:
                 break
             print(tok)
@@ -175,6 +181,10 @@ if __name__ == '__main__':
     def p_expression_and(p):
         'expression : expression AND expression'
         p[0] = search.And(p[1], p[3])
+
+    def p_expression_singlet(p):
+        'expression : LPAREN expression RPAREN'
+        p[0] = p[2]
 
     def p_expression_and_group(p):
         'expression : LPAREN expression AND expression RPAREN'
@@ -280,6 +290,7 @@ if __name__ == '__main__':
     def p_error(p):
         print("Syntax error in input!")
 
+    
     parser = yacc.yacc()
     while True:
         s = input('[Yacc Mode] Query: ')
@@ -287,7 +298,13 @@ if __name__ == '__main__':
             break
         if s == 'exit':
             exit()
-        result = parser.parse(s)
+        try:
+            result = parser.parse(s)
+        except LexError as e:
+            print(e)
+            result = None
+        if not result:
+            continue
         for event in search.execute(db, result):
             print(event)
         print()
