@@ -183,7 +183,6 @@ if __name__ == '__main__':
 
     def p_expression_or_group(p):
         'expression : LPAREN expression OR expression RPAREN'
-        print(p[2], p[4])
         p[0] = search.Or(p[2], p[4])
     
     def p_expression_startswith(p):
@@ -280,7 +279,6 @@ if __name__ == '__main__':
         p[0] = search.Between(**{p[1]: p[3]})
 
     def p_error(p):
-        print(p)
         print("Syntax error in input!")
 
     parser = yacc.yacc()

@@ -155,8 +155,13 @@ class RQLSearch:
                 for mutator in self.mutators:
                     target_value = MUTATOR_MAP[mutator](target_value)
 
-            if isinstance(target_value, list) and isinstance(self.value, (int, float)):
-                target_value = len(target_value)
+            # Handle number comparisons
+            if isinstance(self.value, (int, float)):
+                if isinstance(target_value, list) and isinstance(self.value, (int, float)):
+                    target_value = len(target_value)
+
+                if isinstance(target_value, str):
+                    target_value = 1
 
             if isinstance(target_value, list):
                 return self.has_key and self.value in target_value
@@ -366,15 +371,18 @@ class RQLSearch:
             
             # If a target_value was found
             # Run all the mutators
+
+            print(target_value, self.operator, self.value)
             
             if target_value:
                 for mutator in self.mutators:
                     target_value = MUTATOR_MAP[mutator](target_value)
 
+                # If the target value is a list, calculate how many items are in the list
                 if isinstance(target_value, list):
-                    print(target_value)
                     target_value = len(target_value)
 
+                # If the target value is a string there is only one item
                 if isinstance(target_value, str):
                     target_value = 1
 
