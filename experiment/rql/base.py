@@ -185,10 +185,11 @@ class RQLSearch:
             return self.has_key and self.value.lower() in self.target_value.lower()
 
 
-    class In:
-        def __init__(self, **target):
-            self.has_key = False
-            [[self.key, self.value]] = target.items()
+    class In(BaseExpression):
+        def __init__(self, mutators=[], **target):
+            
+            super().__init__(mutators=mutators, **target)
+            self.allowed_mutators = []
 
         def __call__(self, obj):
             
@@ -197,9 +198,11 @@ class RQLSearch:
             # The target value from a nested field can come back empty in some instances
             # so return False if its empty cuz it definitely doesn't match
             if self.target_value:
-                return self.has_key and bool(len([i for i in self.target_value if i in self.value]))
-            else:
-                return False
+                if isinstance(self.target_value, str):
+                    return self.has_key and any([a for a in self.value if self.target_value == a])
+                if isinstance(self.target_value, list):
+                    return self.has_key and any([a for a in self.value if a in self.target_value])
+            return False
 
     class Or:
         def __init__(self, *predicates):
