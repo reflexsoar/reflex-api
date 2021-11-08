@@ -6,9 +6,9 @@ _tabversion = '3.10'
 
 _lr_method = 'LALR'
 
-_lr_signature = 'leftORleftANDnonassocEQUALSnonassocINnonassocCONTAINSAND ARRAY BETWEEN BOOL CIDR CONTAINS EQUALS EXISTS FLOAT GT GTE IN IS LPAREN LT LTE NUMBER OR REGEXP RPAREN STRING targetexpression : targetexpression : expression OR expressionexpression : expression AND expressionexpression : target EQUALS STRINGexpression : target CONTAINS STRINGexpression : target IN ARRAYexpression : target GT NUMBER \n                   | target GT FLOAT\n        expression : target GTE NUMBER \n                   | target GTE FLOAT\n        expression : target LT NUMBER \n                   | target LT FLOAT\n        expression : target LTE NUMBER \n                   | target LTE FLOAT\n        expression : target CIDR STRINGexpression : target EXISTSexpression : target REGEXP STRINGexpression : target IS BOOLexpression : target BETWEEN STRING'
+_lr_signature = 'leftORleftANDnonassocEQUALSnonassocINnonassocCONTAINSAND ARRAY BETWEEN BOOL CIDR CONTAINS EQUALS EWITH EXISTS FLOAT GT GTE IN IS LPAREN LT LTE MUTATOR NUMBER OR REGEXP RPAREN STRING SWITH targetexpression : targetexpression : expression OR expressionexpression : expression AND expressionexpression : LPAREN expression AND expression RPARENexpression : LPAREN expression OR expression RPARENexpression : target SWITH STRING\n                    | target MUTATOR SWITH STRING\n                    | target MUTATOR MUTATOR SWITH STRING\n                    | target MUTATOR MUTATOR MUTATOR SWITH STRING\n                    | target MUTATOR MUTATOR MUTATOR MUTATOR SWITH STRING\n                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR SWITH STRING\n        expression : target EWITH STRING\n                    | target MUTATOR EWITH STRING\n                    | target MUTATOR MUTATOR EWITH STRING\n                    | target MUTATOR MUTATOR MUTATOR EWITH STRING\n                    | target MUTATOR MUTATOR MUTATOR MUTATOR EWITH STRING\n                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR EWITH STRING\n        expression : target EQUALS STRING\n                    | target MUTATOR EQUALS STRING\n                    | target MUTATOR MUTATOR EQUALS STRING\n                    | target MUTATOR MUTATOR MUTATOR EQUALS STRING\n                    | target MUTATOR MUTATOR MUTATOR MUTATOR EQUALS STRING\n                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR EQUALS STRING\n                    | target EQUALS NUMBER\n        expression : target CONTAINS STRING\n                    | target MUTATOR CONTAINS STRING\n                    | target MUTATOR MUTATOR CONTAINS STRING\n                    | target MUTATOR MUTATOR MUTATOR CONTAINS STRING\n                    | target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS STRING\n                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS STRING\n        expression : target IN ARRAYexpression : target GT NUMBER \n                   | target GTE NUMBER\n                   | target LT NUMBER\n                   | target LTE NUMBER\n                   | target MUTATOR GT NUMBER\n                   | target MUTATOR GTE NUMBER\n                   | target MUTATOR LT NUMBER\n                   | target MUTATOR LTE NUMBER\n                   | target GT FLOAT \n                   | target GTE FLOAT\n                   | target LT FLOAT\n                   | target LTE FLOAT\n                   | target MUTATOR GT FLOAT\n                   | target MUTATOR GTE FLOAT\n                   | target MUTATOR LT FLOAT\n                   | target MUTATOR LTE FLOAT\n                \n        expression : target CIDR STRINGexpression : target EXISTSexpression : target REGEXP STRINGexpression : target IS BOOLexpression : target BETWEEN STRING'
     
-_lr_action_items = {'target':([0,3,4,],[2,2,2,]),'$end':([1,2,13,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,],[0,-1,-16,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15,-17,-18,-19,]),'OR':([1,2,13,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,],[3,-1,-16,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15,-17,-18,-19,]),'AND':([1,2,13,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,],[4,-1,-16,4,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15,-17,-18,-19,]),'EQUALS':([2,],[5,]),'CONTAINS':([2,],[6,]),'IN':([2,],[7,]),'GT':([2,],[8,]),'GTE':([2,],[9,]),'LT':([2,],[10,]),'LTE':([2,],[11,]),'CIDR':([2,],[12,]),'EXISTS':([2,],[13,]),'REGEXP':([2,],[14,]),'IS':([2,],[15,]),'BETWEEN':([2,],[16,]),'STRING':([5,6,12,14,16,],[19,20,30,31,33,]),'ARRAY':([7,],[21,]),'NUMBER':([8,9,10,11,],[22,24,26,28,]),'FLOAT':([8,9,10,11,],[23,25,27,29,]),'BOOL':([15,],[32,]),}
+_lr_action_items = {'target':([0,3,4,5,51,52,],[2,2,2,2,2,2,]),'LPAREN':([0,3,4,5,51,52,],[3,3,3,3,3,3,]),'$end':([1,2,17,22,23,24,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,58,59,60,61,62,63,64,65,66,67,68,69,77,78,79,80,81,82,88,89,90,91,96,97,98,99,100,101,102,103,],[0,-1,-49,-2,-3,-6,-12,-18,-24,-25,-31,-32,-40,-33,-41,-34,-42,-35,-43,-48,-50,-51,-52,-7,-13,-19,-26,-36,-44,-37,-45,-38,-46,-39,-47,-8,-14,-20,-27,-4,-5,-9,-15,-21,-28,-10,-16,-22,-29,-11,-17,-23,-30,]),'OR':([1,2,17,21,22,23,24,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,58,59,60,61,62,63,64,65,66,67,68,69,70,71,77,78,79,80,81,82,88,89,90,91,96,97,98,99,100,101,102,103,],[4,-1,-49,52,-2,-3,-6,-12,-18,-24,-25,-31,-32,-40,-33,-41,-34,-42,-35,-43,-48,-50,-51,-52,-7,-13,-19,-26,-36,-44,-37,-45,-38,-46,-39,-47,-3,-2,-8,-14,-20,-27,-4,-5,-9,-15,-21,-28,-10,-16,-22,-29,-11,-17,-23,-30,]),'AND':([1,2,17,21,22,23,24,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,58,59,60,61,62,63,64,65,66,67,68,69,70,71,77,78,79,80,81,82,88,89,90,91,96,97,98,99,100,101,102,103,],[5,-1,-49,51,5,-3,-6,-12,-18,-24,-25,-31,-32,-40,-33,-41,-34,-42,-35,-43,-48,-50,-51,-52,-7,-13,-19,-26,-36,-44,-37,-45,-38,-46,-39,-47,-3,5,-8,-14,-20,-27,-4,-5,-9,-15,-21,-28,-10,-16,-22,-29,-11,-17,-23,-30,]),'RPAREN':([2,17,22,23,24,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,58,59,60,61,62,63,64,65,66,67,68,69,70,71,77,78,79,80,81,82,88,89,90,91,96,97,98,99,100,101,102,103,],[-1,-49,-2,-3,-6,-12,-18,-24,-25,-31,-32,-40,-33,-41,-34,-42,-35,-43,-48,-50,-51,-52,-7,-13,-19,-26,-36,-44,-37,-45,-38,-46,-39,-47,81,82,-8,-14,-20,-27,-4,-5,-9,-15,-21,-28,-10,-16,-22,-29,-11,-17,-23,-30,]),'SWITH':([2,7,25,53,72,83,],[6,26,54,73,84,92,]),'MUTATOR':([2,7,25,53,72,],[7,25,53,72,83,]),'EWITH':([2,7,25,53,72,83,],[8,27,55,74,85,93,]),'EQUALS':([2,7,25,53,72,83,],[9,28,56,75,86,94,]),'CONTAINS':([2,7,25,53,72,83,],[10,29,57,76,87,95,]),'IN':([2,],[11,]),'GT':([2,7,],[12,30,]),'GTE':([2,7,],[13,31,]),'LT':([2,7,],[14,32,]),'LTE':([2,7,],[15,33,]),'CIDR':([2,],[16,]),'EXISTS':([2,],[17,]),'REGEXP':([2,],[18,]),'IS':([2,],[19,]),'BETWEEN':([2,],[20,]),'STRING':([6,8,9,10,16,18,20,26,27,28,29,54,55,56,57,73,74,75,76,84,85,86,87,92,93,94,95,],[24,34,35,37,47,48,50,58,59,60,61,77,78,79,80,88,89,90,91,96,97,98,99,100,101,102,103,]),'NUMBER':([9,12,13,14,15,30,31,32,33,],[36,39,41,43,45,62,64,66,68,]),'ARRAY':([11,],[38,]),'FLOAT':([12,13,14,15,30,31,32,33,],[40,42,44,46,63,65,67,69,]),'BOOL':([19,],[49,]),}
 
 _lr_action = {}
 for _k, _v in _lr_action_items.items():
@@ -17,7 +17,7 @@ for _k, _v in _lr_action_items.items():
       _lr_action[_x][_k] = _y
 del _lr_action_items
 
-_lr_goto_items = {'expression':([0,3,4,],[1,17,18,]),}
+_lr_goto_items = {'expression':([0,3,4,5,51,52,],[1,21,22,23,70,71,]),}
 
 _lr_goto = {}
 for _k, _v in _lr_goto_items.items():
@@ -27,23 +27,56 @@ for _k, _v in _lr_goto_items.items():
 del _lr_goto_items
 _lr_productions = [
   ("S' -> expression","S'",1,None,None,None),
-  ('expression -> target','expression',1,'p_expression','rql_experiment2.py',195),
-  ('expression -> expression OR expression','expression',3,'p_expression_or','rql_experiment2.py',199),
-  ('expression -> expression AND expression','expression',3,'p_expression_and','rql_experiment2.py',203),
-  ('expression -> target EQUALS STRING','expression',3,'p_expression_match','rql_experiment2.py',207),
-  ('expression -> target CONTAINS STRING','expression',3,'p_expression_contains','rql_experiment2.py',211),
-  ('expression -> target IN ARRAY','expression',3,'p_expression_in','rql_experiment2.py',215),
-  ('expression -> target GT NUMBER','expression',3,'p_expression_greater_than','rql_experiment2.py',219),
-  ('expression -> target GT FLOAT','expression',3,'p_expression_greater_than','rql_experiment2.py',220),
-  ('expression -> target GTE NUMBER','expression',3,'p_expression_greater_than_or_equal','rql_experiment2.py',225),
-  ('expression -> target GTE FLOAT','expression',3,'p_expression_greater_than_or_equal','rql_experiment2.py',226),
-  ('expression -> target LT NUMBER','expression',3,'p_expression_less_than','rql_experiment2.py',231),
-  ('expression -> target LT FLOAT','expression',3,'p_expression_less_than','rql_experiment2.py',232),
-  ('expression -> target LTE NUMBER','expression',3,'p_expression_less_than_or_equal','rql_experiment2.py',237),
-  ('expression -> target LTE FLOAT','expression',3,'p_expression_less_than_or_equal','rql_experiment2.py',238),
-  ('expression -> target CIDR STRING','expression',3,'p_expression_in_cidr','rql_experiment2.py',243),
-  ('expression -> target EXISTS','expression',2,'p_expression_exists','rql_experiment2.py',247),
-  ('expression -> target REGEXP STRING','expression',3,'p_expression_regexp','rql_experiment2.py',251),
-  ('expression -> target IS BOOL','expression',3,'p_expression_is','rql_experiment2.py',255),
-  ('expression -> target BETWEEN STRING','expression',3,'p_expression_between','rql_experiment2.py',259),
+  ('expression -> target','expression',1,'p_expression','rql_experiment2.py',168),
+  ('expression -> expression OR expression','expression',3,'p_expression_or','rql_experiment2.py',172),
+  ('expression -> expression AND expression','expression',3,'p_expression_and','rql_experiment2.py',176),
+  ('expression -> LPAREN expression AND expression RPAREN','expression',5,'p_expression_and_group','rql_experiment2.py',180),
+  ('expression -> LPAREN expression OR expression RPAREN','expression',5,'p_expression_or_group','rql_experiment2.py',184),
+  ('expression -> target SWITH STRING','expression',3,'p_expression_startswith','rql_experiment2.py',189),
+  ('expression -> target MUTATOR SWITH STRING','expression',4,'p_expression_startswith','rql_experiment2.py',190),
+  ('expression -> target MUTATOR MUTATOR SWITH STRING','expression',5,'p_expression_startswith','rql_experiment2.py',191),
+  ('expression -> target MUTATOR MUTATOR MUTATOR SWITH STRING','expression',6,'p_expression_startswith','rql_experiment2.py',192),
+  ('expression -> target MUTATOR MUTATOR MUTATOR MUTATOR SWITH STRING','expression',7,'p_expression_startswith','rql_experiment2.py',193),
+  ('expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR SWITH STRING','expression',8,'p_expression_startswith','rql_experiment2.py',194),
+  ('expression -> target EWITH STRING','expression',3,'p_expression_endswith','rql_experiment2.py',200),
+  ('expression -> target MUTATOR EWITH STRING','expression',4,'p_expression_endswith','rql_experiment2.py',201),
+  ('expression -> target MUTATOR MUTATOR EWITH STRING','expression',5,'p_expression_endswith','rql_experiment2.py',202),
+  ('expression -> target MUTATOR MUTATOR MUTATOR EWITH STRING','expression',6,'p_expression_endswith','rql_experiment2.py',203),
+  ('expression -> target MUTATOR MUTATOR MUTATOR MUTATOR EWITH STRING','expression',7,'p_expression_endswith','rql_experiment2.py',204),
+  ('expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR EWITH STRING','expression',8,'p_expression_endswith','rql_experiment2.py',205),
+  ('expression -> target EQUALS STRING','expression',3,'p_expression_match','rql_experiment2.py',211),
+  ('expression -> target MUTATOR EQUALS STRING','expression',4,'p_expression_match','rql_experiment2.py',212),
+  ('expression -> target MUTATOR MUTATOR EQUALS STRING','expression',5,'p_expression_match','rql_experiment2.py',213),
+  ('expression -> target MUTATOR MUTATOR MUTATOR EQUALS STRING','expression',6,'p_expression_match','rql_experiment2.py',214),
+  ('expression -> target MUTATOR MUTATOR MUTATOR MUTATOR EQUALS STRING','expression',7,'p_expression_match','rql_experiment2.py',215),
+  ('expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR EQUALS STRING','expression',8,'p_expression_match','rql_experiment2.py',216),
+  ('expression -> target EQUALS NUMBER','expression',3,'p_expression_match','rql_experiment2.py',217),
+  ('expression -> target CONTAINS STRING','expression',3,'p_expression_contains','rql_experiment2.py',223),
+  ('expression -> target MUTATOR CONTAINS STRING','expression',4,'p_expression_contains','rql_experiment2.py',224),
+  ('expression -> target MUTATOR MUTATOR CONTAINS STRING','expression',5,'p_expression_contains','rql_experiment2.py',225),
+  ('expression -> target MUTATOR MUTATOR MUTATOR CONTAINS STRING','expression',6,'p_expression_contains','rql_experiment2.py',226),
+  ('expression -> target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS STRING','expression',7,'p_expression_contains','rql_experiment2.py',227),
+  ('expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS STRING','expression',8,'p_expression_contains','rql_experiment2.py',228),
+  ('expression -> target IN ARRAY','expression',3,'p_expression_in','rql_experiment2.py',235),
+  ('expression -> target GT NUMBER','expression',3,'p_expression_math_op','rql_experiment2.py',239),
+  ('expression -> target GTE NUMBER','expression',3,'p_expression_math_op','rql_experiment2.py',240),
+  ('expression -> target LT NUMBER','expression',3,'p_expression_math_op','rql_experiment2.py',241),
+  ('expression -> target LTE NUMBER','expression',3,'p_expression_math_op','rql_experiment2.py',242),
+  ('expression -> target MUTATOR GT NUMBER','expression',4,'p_expression_math_op','rql_experiment2.py',243),
+  ('expression -> target MUTATOR GTE NUMBER','expression',4,'p_expression_math_op','rql_experiment2.py',244),
+  ('expression -> target MUTATOR LT NUMBER','expression',4,'p_expression_math_op','rql_experiment2.py',245),
+  ('expression -> target MUTATOR LTE NUMBER','expression',4,'p_expression_math_op','rql_experiment2.py',246),
+  ('expression -> target GT FLOAT','expression',3,'p_expression_math_op','rql_experiment2.py',247),
+  ('expression -> target GTE FLOAT','expression',3,'p_expression_math_op','rql_experiment2.py',248),
+  ('expression -> target LT FLOAT','expression',3,'p_expression_math_op','rql_experiment2.py',249),
+  ('expression -> target LTE FLOAT','expression',3,'p_expression_math_op','rql_experiment2.py',250),
+  ('expression -> target MUTATOR GT FLOAT','expression',4,'p_expression_math_op','rql_experiment2.py',251),
+  ('expression -> target MUTATOR GTE FLOAT','expression',4,'p_expression_math_op','rql_experiment2.py',252),
+  ('expression -> target MUTATOR LT FLOAT','expression',4,'p_expression_math_op','rql_experiment2.py',253),
+  ('expression -> target MUTATOR LTE FLOAT','expression',4,'p_expression_math_op','rql_experiment2.py',254),
+  ('expression -> target CIDR STRING','expression',3,'p_expression_in_cidr','rql_experiment2.py',268),
+  ('expression -> target EXISTS','expression',2,'p_expression_exists','rql_experiment2.py',272),
+  ('expression -> target REGEXP STRING','expression',3,'p_expression_regexp','rql_experiment2.py',276),
+  ('expression -> target IS BOOL','expression',3,'p_expression_is','rql_experiment2.py',280),
+  ('expression -> target BETWEEN STRING','expression',3,'p_expression_between','rql_experiment2.py',284),
 ]

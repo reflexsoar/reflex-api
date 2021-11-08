@@ -1,42 +1,13 @@
-import re
 import ast
-import ipaddress
-
-import pandas
 import ply.lex as lex
 import ply.yacc as yacc
-from rql import RQLSearch
+from rql import RQLSearch, MUTATORS
 
 if __name__ == '__main__':
 
-    event = {
-    "title": "This is my event",
-    "description": "This is a super awesome event.",
-    "venues": [
-        {
-            "name": "Lincoln Financial Field",
-            "address": "One Lincoln Financial Field Way",
-            "city": "Philadelphia",
-            "tags": ["Eagles"]
-        },
-        {
-            "name": "Wells Fargo Center",
-            "address": "3601 S Broad St.",
-            "city": "Philadelphia",
-            "tags": ["Flyers","Sixers","Concerts"]
-        },
-        {
-            "name": "Prudential Center",
-            "address": "25 Lafayette St",
-            "city": "Newark",
-            "tags": ["Devils","Bad Teams"]
-        }
-   ],
-   "ticket_price": 50.00,
-   "status": "New",
-}
     db = [
       {'title':'Test', 'description': 'Amazing', 'test': {'awesome': 'yes'}, 'observables': [{'value':'Brian', 'more': {'data':'okay'}, 'tlp': 1, 'tags': [{'name':'a'},{'name':'b'},{'name':'c'}]},{'value':'Dave', 'tags': [{'name':'foo'},{'name':'bar'},{'name':'deadbeef'}]}]},
+      {'title':'Test', 'description': 'Amazing', 'test': {'awesome': 'no'}, 'observables': [{'value':'Brian', 'more': {'data':'okay'}, 'tlp': 1, 'tags': [{'name':'a'},{'name':'b'},{'name':'c'}]},{'value':'Dave', 'tags': [{'name':'foo'},{'name':'bar'},{'name':'deadbeef'}]}]},
       {'title':'Test Event', 'description': 'This is a dangerous event', 'test': {'awesome': 'yes'}, 'observables': [{'value':'Brian', 'more': {'data':'okay'}, 'tlp': 1, 'tags': [{'name':'a'},{'name':'b'},{'name':'c'}]},{'value':'Dave', 'tags': [{'name':'foo'},{'name':'bar'},{'name':'deadbeef'}]}]},
       {'title':'Test Event', 'description': 'This is a dangerous event', 'test': {'awesome': 'yes'}, 'observables': [{'value':'Brian'},{'value':'Dave'}]},
       {'title':'Test Smaller Event', 'test': {'awesome': 'no'}, 'observables': [{'value':'Brian'},{'value':'Dave'}]},
@@ -49,42 +20,22 @@ if __name__ == '__main__':
       {'title':'Test Event', 'tlp': 3},
       {'title':'Test Event', 'tlp': 4},
       {'first': 'john', 'last': 'doe', 'likes': ['cookies', 'http']},
-      #{'first': 'jane', 'last': 'doe', 'likes': ['cookies', 'donuts']},
-      #{'first': 'danny', 'last': 'foo', 'likes': ['http', 'donuts']},
-      #{'first': 'john', 'last': 'carroll', 'likes': ['golf','cookies']},
-      #{'first': 'john', 'last': 'CaRrOll', 'likes': ['golf','cookies']},
-      #{'ip':'192.168.1.1'},
+      {'url':'hXXp[:]//www[.]google[.]com', 'title':'Suspicious DNS Query'},
+      {'url': ['hXXp[:]//www[.]google[.]com', 'HTTP://EVIL.DE']},
+      {'command':'SW52b2tlLU1pbWlrYXR6'},
+      {'url': 'https://www.reflexsoar.com/test?user=%3Cscript%3Ealert(xss);%3C/script%3E'},
+      {'url': 'SFRUUFM6Ly9XV1cuUkVGTEVYU09BUi5DT00vVEVTVD9VU0VSPSUzQ1NDUklQVCUzRUFMRVJUKFhTUyk7JTNDL1NDUklQVCUzRQ=='}, # From base64, decode, lower
+      {'first': 'jane', 'last': 'doe', 'likes': ['cookies', 'donuts']},
+      {'first': 'danny', 'last': 'foo', 'likes': ['http', 'donuts']},
+      {'first': 'john', 'last': 'carroll', 'likes': ['golf','cookies']},
+      {'first': 'john', 'last': 'CaRrOll', 'likes': ['golf','cookies']},
+      {'ip':'192.168.1.1'}
     ]
 
-    #print(f"Data Set:")
-    #for d in db:
-    #    print(d)
-    
-    #print()
-    query_string = '(title = "Test Event" AND description contains "dangerous" AND observables.tags.name In ["foo"]) OR title = "Test Smaller Event"'
-    #query_string = 'observables.tags.name = "Molly"'
-    #query_string = 'title = "Test Event"'
-    #query_string = '''
-    # This is a comment
-    #observables.tags.name In ["foo","bar"]
-    #'''
-    #print(f'Query: {query_string}')
 
-    #print(Match(title='Test Event'))
+    query_string = '(title = "Test Event" AND description contains "dangerous" AND observables.tags.name In ["foo"]) OR title = "Test Smaller Event"'
 
     search = RQLSearch()
-    
-    #query = Or(And(Match(title="Test Event"), Contains(description="dangerous"), In(**{"observables.tags.name": ["foo"]})), Match(title="Test Smaller Event"))
-    #query = Match(**{'observables.tags.name': 'foo'})
-    #query = Between(tlp=range(5))
-    query = search.GreaterThanOrEqual(tlp=1)
-
-    import json
-    for r in search.execute(db, query):
-        print(json.dumps(r, indent=2))
-    
-    #tree = ast.parse(query_string)
-    #print(tree.body)
 
     tokens = (
         'NUMBER',
@@ -108,7 +59,10 @@ if __name__ == '__main__':
         'EXISTS',
         'REGEXP',
         'IS',
-        'BETWEEN'
+        'BETWEEN',
+        'MUTATOR',
+        'SWITH',
+        'EWITH'
     )
 
     precedence = (
@@ -126,8 +80,8 @@ if __name__ == '__main__':
     t_CONTAINS = r'contains|Contains'
     t_IN = r'In|in'
     t_IS = r'Is|is'
-    t_AND = r'and|AND|And|\&\&'
-    t_OR = r'or|OR|Or|\|\|'
+    t_AND = r'and|AND|And'
+    t_OR = r'or|OR|Or'
     t_GT = r'>|gt'
     t_GTE = r'>=|gte'
     t_LT = r'<|lt'
@@ -136,6 +90,9 @@ if __name__ == '__main__':
     t_EXISTS = r'Exists|exists'
     t_REGEXP = r'RegExp|regexp|regex|re'
     t_BETWEEN = r'Between|between|InRange|range'
+    t_MUTATOR = r'(\|(count|length|lowercase|b64decode|refang|urldecode))'
+    t_SWITH = r'StartsWith|startswith'
+    t_EWITH = r'EndsWith|endswith'
    
     def t_NUMBER(t):
         r'\d+'
@@ -148,7 +105,7 @@ if __name__ == '__main__':
         return t        
 
     def t_STRING(t):
-        r'[\"|\'](.*?)[\"|\']'
+        r'[\"\'](.*?)[\"\']'
         t.value = ast.literal_eval(t.value)
         return t
 
@@ -162,7 +119,7 @@ if __name__ == '__main__':
 
     def t_target(t):
         # TODO: Define all the fields a user can access here
-        r'observables(\.([^\s]+))?|title|description|test\.awesome|from_api|tlp|ip'
+        r'observables(\.((?!Count|Length)[^\s]+))?|title|description|test\.awesome|from_api|tlp|ip|url|command|first|last'
         return t
     
     def t_ARRAY(t):
@@ -170,7 +127,7 @@ if __name__ == '__main__':
         t.value = ast.literal_eval(t.value)
         return t
 
-    t_ignore = ' \t./'
+    t_ignore = ' \t.'
 
     def t_error(t):
         print("Illegal character '%s'" % t.value[0])
@@ -191,6 +148,22 @@ if __name__ == '__main__':
                 break
             print(tok)
 
+    def extract_mutators_and_fields(p):
+        mutators = []
+        for part in p:
+
+            if isinstance(part, str):
+                part = part.replace('|','')
+
+            if part in MUTATORS:
+                mutators.append(part)
+
+        field = p[1]
+        target = p[-1:][0]
+        operator = p[-2:][0]
+
+        return (mutators, field, target, operator)
+
     def p_expression(p):
         'expression : target'
         p[0] = p[1]
@@ -202,42 +175,94 @@ if __name__ == '__main__':
     def p_expression_and(p):
         'expression : expression AND expression'
         p[0] = search.And(p[1], p[3])
+
+    def p_expression_and_group(p):
+        'expression : LPAREN expression AND expression RPAREN'
+        p[0] = search.And(p[2], p[4])
+
+    def p_expression_or_group(p):
+        'expression : LPAREN expression OR expression RPAREN'
+        print(p[2], p[4])
+        p[0] = search.Or(p[2], p[4])
+    
+    def p_expression_startswith(p):
+        """expression : target SWITH STRING
+                    | target MUTATOR SWITH STRING
+                    | target MUTATOR MUTATOR SWITH STRING
+                    | target MUTATOR MUTATOR MUTATOR SWITH STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR SWITH STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR SWITH STRING
+        """
+        mutators, field, target, op = extract_mutators_and_fields(p)
+        p[0] = search.StartsWith(mutators=mutators, **{field: target})
+
+    def p_expression_endswith(p):
+        """expression : target EWITH STRING
+                    | target MUTATOR EWITH STRING
+                    | target MUTATOR MUTATOR EWITH STRING
+                    | target MUTATOR MUTATOR MUTATOR EWITH STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR EWITH STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR EWITH STRING
+        """
+        mutators, field, target, op = extract_mutators_and_fields(p)
+        p[0] = search.EndsWith(mutators=mutators, **{field: target})
     
     def p_expression_match(p):
-        'expression : target EQUALS STRING'
-        p[0] = search.Match(**{p[1]:p[3]})
+        """expression : target EQUALS STRING
+                    | target MUTATOR EQUALS STRING
+                    | target MUTATOR MUTATOR EQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR EQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR EQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR EQUALS STRING
+                    | target EQUALS NUMBER
+        """
+        mutators, field, target, op = extract_mutators_and_fields(p)
+        p[0] = search.Match(mutators=mutators, **{field: target})
 
     def p_expression_contains(p):
-        'expression : target CONTAINS STRING'
-        p[0] = search.Contains(**{p[1]:p[3]})
+        """expression : target CONTAINS STRING
+                    | target MUTATOR CONTAINS STRING
+                    | target MUTATOR MUTATOR CONTAINS STRING
+                    | target MUTATOR MUTATOR MUTATOR CONTAINS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS STRING
+        """
+
+        mutators, field, target, op = extract_mutators_and_fields(p)
+        p[0] = search.Contains(mutators=mutators, **{field: target})
 
     def p_expression_in(p):
         'expression : target IN ARRAY'
         p[0] = search.In(**{p[1]:p[3]})
 
-    def p_expression_greater_than(p):
+    def p_expression_math_op(p):
         '''expression : target GT NUMBER 
-                   | target GT FLOAT
-        '''
-        p[0] = search.GreaterThan(**{p[1]: p[3]})
-
-    def p_expression_greater_than_or_equal(p):
-        '''expression : target GTE NUMBER 
+                   | target GTE NUMBER
+                   | target LT NUMBER
+                   | target LTE NUMBER
+                   | target MUTATOR GT NUMBER
+                   | target MUTATOR GTE NUMBER
+                   | target MUTATOR LT NUMBER
+                   | target MUTATOR LTE NUMBER
+                   | target GT FLOAT 
                    | target GTE FLOAT
-        '''
-        p[0] = search.GreaterThanOrEqual(**{p[1]: p[3]})
-
-    def p_expression_less_than(p):
-        '''expression : target LT NUMBER 
                    | target LT FLOAT
-        '''
-        p[0] = search.LessThan(**{p[1]: p[3]})
-
-    def p_expression_less_than_or_equal(p):
-        '''expression : target LTE NUMBER 
                    | target LTE FLOAT
+                   | target MUTATOR GT FLOAT
+                   | target MUTATOR GTE FLOAT
+                   | target MUTATOR LT FLOAT
+                   | target MUTATOR LTE FLOAT
+                
         '''
-        p[0] = search.LessThanOrEqual(**{p[1]: p[3]})
+        if len(p) > 4:
+            mutator = p[2].replace('|','')
+            if mutator == "count":
+                p[0] = search.MathOp(count=True, operator=p[3], **{p[1]: p[4]})
+
+            if mutator == "length":
+                p[0] = search.MathOp(length=True, operator=p[3], **{p[1]: p[4]})
+        else:
+            p[0] = search.MathOp(operator=p[2], **{p[1]: p[3]})
 
     def p_expression_in_cidr(p):
         'expression : target CIDR STRING'

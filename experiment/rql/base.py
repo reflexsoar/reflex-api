@@ -1,6 +1,7 @@
-
 import re
+import base64
 import ipaddress
+from .mutators import MUTATOR_MAP
 
 def get_nested_field(message: dict, field: str):
     '''
@@ -57,9 +58,14 @@ class RQLSearch:
         '''
         return filter(query, data)
 
-    class Match:
-        def __init__(self, **target):
+    class StartsWith:
+        '''
+        Detects if a string starts with another string
+        '''
+
+        def __init__(self, mutators=[], **target):
             self.has_key = False
+            self.mutators = mutators
             [[self.key, self.value]] = target.items()
         
         def __call__(self, obj):
@@ -75,17 +81,116 @@ class RQLSearch:
                     if target_value is not None:
                         self.has_key = True
 
+            # Run all the mutators
+            if target_value:
+                for mutator in self.mutators:
+                    target_value = MUTATOR_MAP[mutator](target_value)
+
+            if target_value:
+                if isinstance(target_value, list):
+                    return self.has_key and any([s for s in target_value if s.startswith(self.value)])
+                else:
+                    return self.has_key and target_value.startswith(self.value)
+            return False
+
+
+    class EndsWith:
+        '''
+        Detects if a string starts with another string
+        '''
+
+        def __init__(self, mutators=[], **target):
+            self.has_key = False
+            self.mutators = mutators
+            [[self.key, self.value]] = target.items()
+        
+        def __call__(self, obj):
+
+            target_value = None
+
+            if self.key in obj:
+                target_value = obj[self.key]
+                self.has_key = True
+            else:
+                if '.' in self.key:
+                    target_value = get_nested_field(obj, self.key)
+                    if target_value is not None:
+                        self.has_key = True
+
+            # Run all the mutators
+            if target_value:
+                for mutator in self.mutators:
+                    target_value = MUTATOR_MAP[mutator](target_value)
+
+            if isinstance(target_value, list):
+                return self.has_key and any([s for s in target_value if s.endswith(self.value)])
+            else:
+                return self.has_key and target_value.endswith(self.value)
+
+    class Match:
+        '''
+        Detects if a string or list of strings equals a specified value
+        '''
+        def __init__(self, mutators=[], **target):
+            self.has_key = False
+            self.mutators = mutators
+            [[self.key, self.value]] = target.items()
+        
+        def __call__(self, obj):
+
+            target_value = None
+
+            if self.key in obj:
+                target_value = obj[self.key]
+                self.has_key = True
+            else:
+                if '.' in self.key:
+                    target_value = get_nested_field(obj, self.key)
+                    if target_value is not None:
+                        self.has_key = True
+
+            # Run all the mutators
+            if target_value:
+                for mutator in self.mutators:
+                    target_value = MUTATOR_MAP[mutator](target_value)
+
             if isinstance(target_value, list):
                 return self.has_key and self.value in target_value
             else:
                 return self.has_key and self.value == target_value
 
     class Contains:        
-        def __init__(self, **target):
+        def __init__(self, mutators=[], **target):
+
+            self.has_key = False
+            self.mutators = mutators
+
             [[self.key, self.value]] = target.items()
 
         def __call__(self, obj):
-            return self.key in obj and self.value in obj[self.key]
+
+            target_value = None
+
+            if self.key in obj:
+                target_value = obj[self.key]
+                self.has_key = True
+            else:
+                if '.' in self.key:
+                    target_value = get_nested_field(obj, self.key)
+                    if target_value is not None:
+                        self.has_key = True
+
+            # Run all the mutators
+            if target_value:
+                for mutator in self.mutators:
+                    target_value = MUTATOR_MAP[mutator](target_value)
+
+            if target_value:
+                if isinstance(target_value, list):
+                    return self.has_key and any([v for v in target_value if self.value in v])
+                else:
+                    return self.has_key and self.value in target_value
+            return False
 
     class ContainsCIS:
         def __init__(self, **target):
@@ -196,15 +301,120 @@ class RQLSearch:
                 return self.has_key and target_value in network
 
 
+    class MathOp:
+        '''
+        Returns True if the math expression is true
+        '''
+
+        def __init__(self, operator=">", count=False, length=False, **target):
+            
+            self.has_key = False
+            self.count = count
+            self.length = length
+            self.operator = operator
+
+            [[self.key, self.value]] = target.items()
+
+            self.op_map = {
+                '>': self.gt,
+                'gt': self.gt,
+                '>=': self.gte,
+                'gte': self.gte,
+                'lt': self.lt,
+                '<': self.lt,
+                'lte': self.lte,
+                '<=': self.lte
+            }
+
+        def lte(self, left, right):
+            ''' Returns the result of left <= right '''
+            return left <= right
+
+        def lt(self, left, right):
+            ''' Returns the result of left < right '''
+            return left < right
+
+        def gte(self, left, right):
+            ''' Returns the result of left >= right '''
+            return left >= right
+
+        def gt(self, left, right):
+            ''' Returns the result of left > right '''
+            return left > right
+        
+        def __call__(self, obj):
+
+            target_value = None
+            if self.key in obj:
+                target_value = obj[self.key]
+                self.has_key = True
+            else:            
+                if '.' in self.key:
+                    target_value = get_nested_field(obj, self.key)
+                    if target_value is not None:
+                        self.has_key = True
+            
+            # If a target_value was found
+            if target_value:
+                # Run the count mutator to compare the number of objects in a list
+                if self.count:
+                    if isinstance(target_value, list) and len(target_value) > 0:
+                        return self.has_key and self.op_map[self.operator](len(target_value), self.value)
+                
+                # Run the length mutator to compare the length of the target value to a number
+                if self.length:
+                    if isinstance(target_value, str):
+                        return self.has_key and self.op_map[self.operator](len(target_value), self.value)
+
+                if isinstance(target_value, list) and len(target_value) > 0:
+                    target_value = len(target_value)
+
+                return self.has_key and self.op_map[self.operator](target_value, self.value)
+
+            return False
+
+    """
     class GreaterThan:
         '''
         Returns True if the field is greater than a the target value
         '''
-        def __init__(self, **target):
+        def __init__(self, count=False, length=False, **target):
+            
+            self.has_key = False
+            self.count = count
+            self.length = length
+
             [[self.key, self.value]] = target.items()
+            print(self.key, self.value)
+            
         
         def __call__(self, obj):
-            return self.key in obj and obj[self.key] > self.value
+
+            target_value = None
+            if self.key in obj:
+                target_value = obj[self.key]
+                self.has_key = True
+            else:            
+                if '.' in self.key:
+                    target_value = get_nested_field(obj, self.key)
+                    if target_value is not None:
+                        self.has_key = True
+            
+            if target_value:
+
+                # Run the count mutator to compare the number of objects in a list
+                if self.count:
+                    if isinstance(target_value, list):
+                        return self.has_key and len(target_value) > self.value
+                
+                # Run the length mutator to compare the length of the target value to a number
+                if self.length:
+                    if isinstance(target_value, str):
+                        return self.has_key and len(target_value) > self.value
+
+                return self.has_key and target_value > self.value
+
+            return False
 
     class GreaterThanOrEqual:
         '''
@@ -235,6 +445,7 @@ class RQLSearch:
         
         def __call__(self, obj):
             return self.key in obj and obj[self.key] <= self.value
+    """
 
     class Between:
         '''
@@ -251,7 +462,7 @@ class RQLSearch:
                 # Add a +1 to the end to include the upper end which is not how
                 # python behaves normally
                 start, end = int(start), int(end)+1
-                
+
                 self.value = range(start, end)
         
         def __call__(self, obj):
@@ -338,10 +549,10 @@ if __name__ == "__main__":
     search = RQLSearch
 
     queries = [
-        search.GreaterThan(tlp=1),
-        search.GreaterThanOrEqual(tlp=2),
-        search.LessThan(tlp=3),
-        search.LessThanOrEqual(tlp=2),
+        search.MathOp(operator=">", tlp=1),
+        search.MathOp(operator=">=", tlp=2),
+        search.MathOp(operator="<", tlp=3),
+        search.MathOp(operator="<=", tlp=2),
         search.Exists('spotted'),
         search.And(search.Exists('malware'), search.Is(malware=True)),
         search.Between(tlp="1,3")
