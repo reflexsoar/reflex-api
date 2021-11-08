@@ -92,16 +92,23 @@ class RQLSearch:
                 for mutator in self.mutators:
                     self.target_value = MUTATOR_MAP[mutator](self.target_value)
 
+        def __call__(self, obj):
+
+            self.target_value = None
+            self.has_key = False
+
+            self.get_target_value(obj)
+            self.run_mutators()
+
 
     class StartsWith(BaseExpression):
         '''
         Detects if a string starts with another string
         '''
-      
+        
         def __call__(self, obj):
 
-            self.get_target_value(obj)
-            self.run_mutators()
+            super().__call__(obj)
 
             if self.target_value:
                 if isinstance(self.target_value, list):
@@ -118,94 +125,61 @@ class RQLSearch:
         
         def __call__(self, obj):
 
-            self.get_target_value(obj)
-            self.run_mutators()
+            super().__call__(obj)
 
             if isinstance(self.target_value, list):
                 return self.has_key and any([s for s in self.target_value if s.endswith(self.value)])
             else:
                 return self.has_key and self.target_value.endswith(self.value)
 
-    class Match:
+    class Match(BaseExpression):
         '''
         Detects if a string or list of strings equals a specified value
         '''
-        def __init__(self, mutators=[], **target):
-            self.has_key = False
-            self.mutators = mutators
-            [[self.key, self.value]] = target.items()
         
         def __call__(self, obj):
 
-            target_value = None
-
-            if self.key in obj:
-                target_value = obj[self.key]
-                self.has_key = True
-            else:
-                if '.' in self.key:
-                    target_value = get_nested_field(obj, self.key)
-                    if target_value is not None:
-                        self.has_key = True
-
-            # Run all the mutators
-            if target_value:
-                for mutator in self.mutators:
-                    target_value = MUTATOR_MAP[mutator](target_value)
+            super().__call__(obj)
 
             # Handle number comparisons
             if isinstance(self.value, (int, float)):
-                if isinstance(target_value, list) and isinstance(self.value, (int, float)):
-                    target_value = len(target_value)
+                if isinstance(self.target_value, list) and isinstance(self.value, (int, float)):
+                    self.target_value = len(self.target_value)
 
-                if isinstance(target_value, str):
-                    target_value = 1
+                if isinstance(self.target_value, str):
+                    self.target_value = 1
 
-            if isinstance(target_value, list):
-                return self.has_key and self.value in target_value
+            if isinstance(self.target_value, list):
+                return self.has_key and self.value in self.target_value
             else:
-                return self.has_key and self.value == target_value
+                return self.has_key and self.value == self.target_value
 
-    class Contains:        
-        def __init__(self, mutators=[], **target):
-
-            self.has_key = False
-            self.mutators = mutators
-
-            [[self.key, self.value]] = target.items()
+    class Contains(BaseExpression):
+        '''
+        Detects if a string contains a sub-string
+        '''
 
         def __call__(self, obj):
 
-            target_value = None
+            super().__call__(obj)
 
-            if self.key in obj:
-                target_value = obj[self.key]
-                self.has_key = True
-            else:
-                if '.' in self.key:
-                    target_value = get_nested_field(obj, self.key)
-                    if target_value is not None:
-                        self.has_key = True
-
-            # Run all the mutators
-            if target_value:
-                for mutator in self.mutators:
-                    target_value = MUTATOR_MAP[mutator](target_value)
-
-            if target_value:
-                if isinstance(target_value, list):
-                    return self.has_key and any([v for v in target_value if self.value in v])
+            if self.target_value:
+                if isinstance(self.target_value, list):
+                    return self.has_key and any([v for v in self.target_value if self.value in v])
                 else:
-                    return self.has_key and self.value in target_value
+                    return self.has_key and self.value in self.target_value
             return False
 
 
-    class ContainsCIS:
-        def __init__(self, **target):
-            [[self.key, self.value]] = target.items()
+    class ContainsCIS(BaseExpression):
+        '''
+        Detects if a string contains a case insensitive sub-string
+        '''
 
         def __call__(self, obj):
-            return self.key in obj and self.value.lower() in obj[self.key].lower()
+
+            super().__call__(obj)
+            return self.has_key and self.value.lower() in self.target_value.lower()
 
 
     class In:
@@ -215,19 +189,12 @@ class RQLSearch:
 
         def __call__(self, obj):
             
-            if self.key in obj:
-                target_value = obj[self.key]
-                self.has_key = True
-            else:            
-                if '.' in self.key:
-                    target_value = get_nested_field(obj, self.key)
-                    if target_value is not None:
-                        self.has_key = True
+            super().__call__(obj)
             
             # The target value from a nested field can come back empty in some instances
             # so return False if its empty cuz it definitely doesn't match
-            if target_value:
-                return self.has_key and bool(len([i for i in target_value if i in self.value]))
+            if self.target_value:
+                return self.has_key and bool(len([i for i in self.target_value if i in self.value]))
             else:
                 return False
 
@@ -247,40 +214,27 @@ class RQLSearch:
             return all(predicate(record) for predicate in self.predicates)
 
 
-    class RegExp:
+    class RegExp(BaseExpression):
         '''
         Returns True if a value matches the defined regular expression
         '''
 
-        def __init__(self, **target):
-            [[self.key, self.value]] = target.items()
-
         def __call__(self, obj):
+
+            super().__call__(obj)
+
             regex = re.compile(self.value)
-            return self.key in obj and regex.match(obj[self.key])
+            return self.key in obj and regex.match(self.target_value)
 
 
-    class InCIDR:
+    class InCIDR(BaseExpression):
         '''
         Returns True if an IP address in the specified CIDR range
         '''
 
-        def __init__(self, **target):
-            self.has_key = False
-            [[self.key, self.value]] = target.items()
-
         def __call__(self, obj):
 
-            if self.key in obj:
-                target_value = obj[self.key]
-                self.has_key = True
-            else:            
-                if '.' in self.key:
-                    target_value = get_nested_field(obj, self.key)
-                    if target_value is not None:
-                        self.has_key = True
-                else:
-                    target_value = None
+            super().__call__(obj)
 
             try: 
                 network = ipaddress.ip_network(self.value) 
@@ -288,45 +242,40 @@ class RQLSearch:
                 network = None
 
             try:
-                if isinstance(target_value, list):
+                if isinstance(self.target_value, list):
                     target_values = []
-                    for value in target_value:
+                    for value in self.target_value:
                         try:
                             target_values.append(ipaddress.ip_address(value))
                         except:
                             pass
-                    target_value = target_values
+                    self.target_value = target_values
                 else:
-                    target_value = ipaddress.ip_address(target_value)
+                    self.target_value = ipaddress.ip_address(self.target_value)
 
             except ValueError:
-                target_value = None
+                self.target_value = None
 
             if not network:
                 return False
-            if not target_value:
+            if not self.target_value:
                 return False
 
-            if isinstance(target_value, list) and len(target_value) > 0:
-                return self.has_key and any([ip for ip in target_value if ip in network])
+            if isinstance(self.target_value, list) and len(self.target_value) > 0:
+                return self.has_key and any([ip for ip in self.target_value if ip in network])
             else:
-                return self.has_key and target_value in network
+                return self.has_key and self.target_value in network
 
 
-    class MathOp:
+    class MathOp(BaseExpression):
         '''
         Returns True if the math expression is true
         '''
 
-        def __init__(self, mutators=[], operator=">", count=False, length=False, **target):
+        def __init__(self, mutators=[], operator=">", **target):
             
-            self.has_key = False
-            self.count = count
-            self.length = length
             self.operator = operator
             self.mutators = mutators
-
-            [[self.key, self.value]] = target.items()
 
             self.op_map = {
                 '>': self.gt,
@@ -338,6 +287,8 @@ class RQLSearch:
                 'lte': self.lte,
                 '<=': self.lte
             }
+
+            super().__init__(mutators=mutators, **target)
 
         def lte(self, left, right):
             ''' Returns the result of left <= right '''
@@ -357,40 +308,28 @@ class RQLSearch:
         
         def __call__(self, obj):
 
-            target_value = None
-            if self.key in obj:
-                target_value = obj[self.key]
-                self.has_key = True
-            else:            
-                if '.' in self.key:
-                    target_value = get_nested_field(obj, self.key)
-                    if target_value is not None:
-                        self.has_key = True
-            
-            # If a target_value was found
-            # Run all the mutators            
-            if target_value:
-                for mutator in self.mutators:
-                    target_value = MUTATOR_MAP[mutator](target_value)
+            super().__call__(obj)
 
+            if self.target_value:
                 # If the target value is a list, calculate how many items are in the list
-                if isinstance(target_value, list):
-                    target_value = len(target_value)
+                if isinstance(self.target_value, list):
+                    self.target_value = len(self.target_value)
 
                 # If the target value is a string there is only one item
-                if isinstance(target_value, str):
-                    target_value = 1
+                if isinstance(self.target_value, str):
+                    self.target_value = 1
 
-                return self.has_key and self.op_map[self.operator](target_value, self.value)
+                return self.has_key and self.op_map[self.operator](self.target_value, self.value)
             return False
 
 
-    class Between:
+    class Between(BaseExpression):
         '''
         Returns True if the field is target_value is in a specified range
         '''
-        def __init__(self, **target):
-            [[self.key, self.value]] = target.items()
+        def __init__(self, mutators=[], **target):
+            
+            super().__init__(mutators=mutators, **target)
 
             if isinstance(self.value, str):
                 self.value.replace('-',',')
@@ -404,35 +343,40 @@ class RQLSearch:
                 self.value = range(start, end)
         
         def __call__(self, obj):
-            return self.key in obj and obj[self.key] in self.value
 
-    class Exists:
+            super().__call__(obj)
+
+            if self.target_value:
+                if isinstance(self.target_value, list):
+                    self.target_value = len(self.target_value)
+                
+                if isinstance(self.target_value, str):
+                    self.target_value = 1
+
+            return self.has_key and self.target_value in self.value
+
+    class Exists(BaseExpression):
         '''
         Returns True if the item has the dictionary key
         '''
-        def __init__(self, field):
+        def __init__(self, field, mutators=[]):
             self.has_key = False
             self.key = field
+            self.mutators = mutators
 
         def __call__(self, obj):
 
-            if self.key in obj:
-                return True
-            else:            
-                if '.' in self.key:
-                    target_value = get_nested_field(obj, self.key)
-                    if target_value is not None:
-                        self.has_key = True
+            super().__call__(obj)
 
             return self.has_key
 
-    class Is:
+    class Is(BaseExpression):
         '''
         Returns True if the item has value that matches a boolean
         '''
-        def __init__(self, **target):
-            self.has_key = False
-            [[self.key, self.value]] = target.items()
+        def __init__(self, mutators=[], **target):
+
+            super().__init__(mutators=mutators, **target)
 
             # Convert any representation of booleans to a true boolean type
             self.value = self.to_boolean(self.value)
@@ -450,23 +394,15 @@ class RQLSearch:
 
         def __call__(self, obj):
 
-            target_value = None
-            if self.key in obj:
-                target_value = obj[self.key]
-                self.has_key = True
-            else:            
-                if '.' in self.key:
-                    target_value = get_nested_field(obj, self.key)
-                    if target_value is not None:
-                        self.has_key = True
+            super().__call__(obj)
 
             # Convert any representation of booleans to a true boolean type
-            if target_value:
-                target_value = self.to_boolean(target_value)
+            if self.target_value:
+                self.target_value = self.to_boolean(self.target_value)
 
-            if not isinstance(target_value, bool):
+            if not isinstance(self.target_value, bool):
                 return False
-            return self.has_key and self.value == target_value
+            return self.has_key and self.value == self.target_value
             
 
 if __name__ == "__main__":
