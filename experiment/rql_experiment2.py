@@ -23,16 +23,15 @@ if __name__ == '__main__':
       {'first': 'john', 'last': 'doe', 'likes': ['cookies', 'http']},
       {'url':'hXXp[:]//www[.]google[.]com', 'title':'Suspicious DNS Query'},
       {'url': ['hXXp[:]//www[.]google[.]com', 'HTTP://EVIL.DE']},
-      {'command':'SW52b2tlLU1pbWlrYXR6'},
       {'url': 'https://www.reflexsoar.com/test?user=%3Cscript%3Ealert(xss);%3C/script%3E'},
       {'url': 'SFRUUFM6Ly9XV1cuUkVGTEVYU09BUi5DT00vVEVTVD9VU0VSPSUzQ1NDUklQVCUzRUFMRVJUKFhTUyk7JTNDL1NDUklQVCUzRQ=='}, # From base64, decode, lower
+      {'command':'SW52b2tlLU1pbWlrYXR6'},
       {'first': 'jane', 'last': 'doe', 'likes': ['cookies', 'donuts']},
       {'first': 'danny', 'last': 'foo', 'likes': ['http', 'donuts']},
       {'first': 'john', 'last': 'carroll', 'likes': ['golf','cookies']},
       {'first': 'john', 'last': 'CaRrOll', 'likes': ['golf','cookies']},
       {'ip':'192.168.1.1'}
     ]
-
 
     query_string = '(title = "Test Event" AND description contains "dangerous" AND observables.tags.name In ["foo"]) OR title = "Test Smaller Event"'
 

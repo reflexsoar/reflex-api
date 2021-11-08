@@ -59,74 +59,72 @@ class RQLSearch:
         '''
         return filter(query, data)
 
-    class StartsWith:
+    class BaseExpression:
         '''
-        Detects if a string starts with another string
+        A base expression that contains a lot of code used by each expression
         '''
 
         def __init__(self, mutators=[], **target):
             self.has_key = False
             self.mutators = mutators
+            self.target_value = None
             [[self.key, self.value]] = target.items()
-        
-        def __call__(self, obj):
 
-            target_value = None
+        def get_target_value(self, obj):
+            '''
+            Dives down into the object and gets the target value
+            '''
 
             if self.key in obj:
-                target_value = obj[self.key]
+                self.target_value = obj[self.key]
                 self.has_key = True
             else:
                 if '.' in self.key:
-                    target_value = get_nested_field(obj, self.key)
-                    if target_value is not None:
+                    self.target_value = get_nested_field(obj, self.key)
+                    if self.target_value is not None:
                         self.has_key = True
 
-            # Run all the mutators
-            if target_value:
+        def run_mutators(self):
+            '''
+            Runs all the mutators defined against the target_value
+            '''
+            if self.target_value:
                 for mutator in self.mutators:
-                    target_value = MUTATOR_MAP[mutator](target_value)
+                    self.target_value = MUTATOR_MAP[mutator](self.target_value)
 
-            if target_value:
-                if isinstance(target_value, list):
-                    return self.has_key and any([s for s in target_value if s.startswith(self.value)])
+
+    class StartsWith(BaseExpression):
+        '''
+        Detects if a string starts with another string
+        '''
+      
+        def __call__(self, obj):
+
+            self.get_target_value(obj)
+            self.run_mutators()
+
+            if self.target_value:
+                if isinstance(self.target_value, list):
+                    return self.has_key and any([s for s in self.target_value if s.startswith(self.value)])
                 else:
-                    return self.has_key and target_value.startswith(self.value)
+                    return self.has_key and self.target_value.startswith(self.value)
             return False
 
 
-    class EndsWith:
+    class EndsWith(BaseExpression):
         '''
         Detects if a string starts with another string
         '''
-
-        def __init__(self, mutators=[], **target):
-            self.has_key = False
-            self.mutators = mutators
-            [[self.key, self.value]] = target.items()
         
         def __call__(self, obj):
 
-            target_value = None
+            self.get_target_value(obj)
+            self.run_mutators()
 
-            if self.key in obj:
-                target_value = obj[self.key]
-                self.has_key = True
+            if isinstance(self.target_value, list):
+                return self.has_key and any([s for s in self.target_value if s.endswith(self.value)])
             else:
-                if '.' in self.key:
-                    target_value = get_nested_field(obj, self.key)
-                    if target_value is not None:
-                        self.has_key = True
-
-            # Run all the mutators
-            if target_value:
-                for mutator in self.mutators:
-                    target_value = MUTATOR_MAP[mutator](target_value)
-
-            if isinstance(target_value, list):
-                return self.has_key and any([s for s in target_value if s.endswith(self.value)])
-            else:
-                return self.has_key and target_value.endswith(self.value)
+                return self.has_key and self.target_value.endswith(self.value)
 
     class Match:
         '''
@@ -370,10 +368,7 @@ class RQLSearch:
                         self.has_key = True
             
             # If a target_value was found
-            # Run all the mutators
-
-            print(target_value, self.operator, self.value)
-            
+            # Run all the mutators            
             if target_value:
                 for mutator in self.mutators:
                     target_value = MUTATOR_MAP[mutator](target_value)
