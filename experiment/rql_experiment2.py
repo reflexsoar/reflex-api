@@ -31,7 +31,8 @@ if __name__ == '__main__':
       {'first': 'danny', 'last': 'foo', 'likes': ['http', 'donuts']},
       {'first': 'john', 'last': 'carroll', 'likes': ['golf','cookies']},
       {'first': 'john', 'last': 'CaRrOll', 'likes': ['golf','cookies']},
-      {'ip':'192.168.1.1'}
+      {'ip':'192.168.1.1'},
+      {'ip': '198.199.134.100'}
     ]
 
     query_string = '(title = "Test Event" AND description contains "dangerous" AND observables.tags.name In ["foo"]) OR title = "Test Smaller Event"'
@@ -63,7 +64,8 @@ if __name__ == '__main__':
         'BETWEEN',
         'MUTATOR',
         'SWITH',
-        'EWITH'
+        'EWITH',
+        'NOT'
     )
 
     precedence = (
@@ -77,22 +79,23 @@ if __name__ == '__main__':
 
     t_LPAREN = r'\('
     t_RPAREN = r'\)'
-    t_EQUALS = r'=|eq'
+    t_EQUALS = r'=|eq|Eq|EQ'
     t_CIDR = r'cidr|InCIDR'
     t_CONTAINS = r'contains|Contains'
-    t_IN = r'In|in'
-    t_IS = r'Is|is'
+    t_IN = r'In|in|IN'
+    t_IS = r'Is|is|IS'
     t_AND = r'and|AND|And'
     t_OR = r'or|OR|Or'
-    t_GT = r'>|gt'
-    t_GTE = r'>=|gte'
-    t_LT = r'<|lt'
-    t_LTE = r'<=|lte'
+    t_NOT = r'not|NOT|Not'
+    t_GT = r'>|gt|GT'
+    t_GTE = r'>=|gte|GTE'
+    t_LT = r'<|lt|LT'
+    t_LTE = r'<=|lte|LTE'
     t_BOOL = r'True|true|False|false'
-    t_EXISTS = r'Exists|exists'
+    t_EXISTS = r'Exists|exists|EXISTS'
     t_REGEXP = r'RegExp|regexp|regex|re'
     t_BETWEEN = r'Between|between|InRange|range'
-    t_MUTATOR = r'(\|(count|length|lowercase|b64decode|refang|urldecode))'
+    t_MUTATOR = r'(\|(count|length|lowercase|b64decode|refang|urldecode|any|all))'
     t_SWITH = r'StartsWith|startswith'
     t_EWITH = r'EndsWith|endswith'
    
@@ -224,9 +227,24 @@ if __name__ == '__main__':
                     | target MUTATOR MUTATOR MUTATOR MUTATOR EQUALS STRING
                     | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR EQUALS STRING
                     | target EQUALS NUMBER
+                    | target NOT EQUALS STRING
+                    | target MUTATOR NOT EQUALS STRING
+                    | target MUTATOR MUTATOR NOT EQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR NOT EQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR NOT EQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT EQUALS STRING
+                    | target NOT EQUALS NUMBER
         """
+        contains_not = False
+        for _ in p:
+            if _  and isinstance(_, str) and _.lower() == 'not':
+                contains_not = True
+
         mutators, field, target, op = extract_mutators_and_fields(p)
-        p[0] = search.Match(mutators=mutators, **{field: target})
+        if contains_not:
+            p[0] = search.Not(search.Match(mutators=mutators, **{field: target}))
+        else:
+            p[0] = search.Match(mutators=mutators, **{field: target})
 
     def p_expression_contains(p):
         """expression : target CONTAINS STRING
@@ -235,14 +253,53 @@ if __name__ == '__main__':
                     | target MUTATOR MUTATOR MUTATOR CONTAINS STRING
                     | target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS STRING
                     | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS STRING
+                    | target NOT CONTAINS STRING
+                    | target MUTATOR NOT CONTAINS STRING
+                    | target MUTATOR MUTATOR NOT CONTAINS STRING
+                    | target MUTATOR MUTATOR MUTATOR NOT CONTAINS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS STRING
+                    | target CONTAINS ARRAY
+                    | target MUTATOR MUTATOR CONTAINS ARRAY
+                    | target MUTATOR MUTATOR MUTATOR CONTAINS ARRAY
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS ARRAY
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS ARRAY
+                    | target NOT CONTAINS ARRAY
+                    | target MUTATOR NOT CONTAINS ARRAY
+                    | target MUTATOR MUTATOR NOT CONTAINS ARRAY
+                    | target MUTATOR MUTATOR MUTATOR NOT CONTAINS ARRAY
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS ARRAY
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS ARRAY
         """
 
+        contains_not = False
+        for _ in p:
+            if _  and isinstance(_, str) and _.lower() == 'not':
+                contains_not = True
+
         mutators, field, target, op = extract_mutators_and_fields(p)
-        p[0] = search.Contains(mutators=mutators, **{field: target})
+        if contains_not:
+            p[0] = search.Not(search.Contains(mutators=mutators, **{field: target}))
+        else:
+            p[0] = search.Contains(mutators=mutators, **{field: target})
 
     def p_expression_in(p):
-        'expression : target IN ARRAY'
-        p[0] = search.In(**{p[1]:p[3]})
+        """expression : target IN ARRAY
+                   | target MUTATOR IN ARRAY
+                   | target NOT IN ARRAY
+                   | target MUTATOR NOT IN ARRAY
+        """
+
+        contains_not = False
+        for _ in p:
+            if _  and isinstance(_, str) and _.lower() == 'not':
+                contains_not = True
+
+        mutators, field, target, op = extract_mutators_and_fields(p)
+        if contains_not:
+            p[0] = search.Not(search.In(mutators=mutators, **{field: target}))
+        else:    
+            p[0] = search.In(mutators=mutators, **{field: target})
 
     def p_expression_math_op(p):
         '''expression : target GT NUMBER 
@@ -268,24 +325,73 @@ if __name__ == '__main__':
         p[0] = search.MathOp(mutators=mutators, operator=op, **{field: target})
 
     def p_expression_in_cidr(p):
-        'expression : target CIDR STRING'
-        p[0] = search.InCIDR(**{p[1]: p[3]})
+        """expression : target CIDR STRING
+                    | target NOT CIDR STRING
+        """
+
+        contains_not = False
+        for _ in p:
+            if _  and isinstance(_, str) and _.lower() == 'not':
+                contains_not = True
+
+        mutators, field, target, op = extract_mutators_and_fields(p)
+        if contains_not:
+            p[0] = search.Not(search.InCIDR(**{field: target}))
+        else:    
+            p[0] = search.InCIDR(**{field: target})
+
+        
 
     def p_expression_exists(p):
-        'expression : target EXISTS'
-        p[0] = search.Exists(p[1])
+        """expression : target EXISTS
+                    | target NOT EXISTS
+        """
+
+        contains_not = False
+        for _ in p:
+            if _  and isinstance(_, str) and _.lower() == 'not':
+                contains_not = True
+        
+        if contains_not:
+            p[0] = search.Not(search.Exists(p[1]))
+        else:
+            p[0] = search.Exists(p[1])
 
     def p_expression_regexp(p):
-        'expression : target REGEXP STRING'
-        p[0] = search.RegExp(**{p[1]: p[3]})
+        """expression : target REGEXP STRING
+                    | target NOT REGEXP STRING
+        """
+
+        contains_not = False
+        for _ in p:
+            if _  and isinstance(_, str) and _.lower() == 'not':
+                contains_not = True
+        
+        mutators, field, target, op = extract_mutators_and_fields(p)
+        if contains_not:
+            p[0] = search.Not(search.RegExp(**{field: target}))
+        else:
+            p[0] = search.RegExp(**{field: target})
 
     def p_expression_is(p):
         'expression : target IS BOOL'
         p[0] = search.Is(**{p[1]: p[3]})
 
     def p_expression_between(p):
-        'expression : target BETWEEN STRING'
-        p[0] = search.Between(**{p[1]: p[3]})
+        """expression : target BETWEEN STRING
+                    | target NOT BETWEEN STRING
+        """
+
+        contains_not = False
+        for _ in p:
+            if _  and isinstance(_, str) and _.lower() == 'not':
+                contains_not = True
+        
+        mutators, field, target, op = extract_mutators_and_fields(p)
+        if contains_not:
+            p[0] = search.Not(search.Between(**{field: target}))
+        else:
+            p[0] = search.Between(**{field: target})
 
     def p_error(p):
         print("Syntax error in input!")

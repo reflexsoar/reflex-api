@@ -9,7 +9,9 @@ MUTATORS = (
     'refang',
     'urldecode',
     'count',
-    'length'
+    'length',
+    'any',
+    'all'
 )
 
 def mutate_count(value):

@@ -67,6 +67,8 @@ class RQLSearch:
             self.has_key = False
             self.mutators = mutators
             self.target_value = None
+            self.any_mode = True
+            self.all_mode = False
 
             # Setting the allowed_mutators each expression is allowed to run, default to all
             self.allowed_mutators = MUTATORS
@@ -93,7 +95,14 @@ class RQLSearch:
             if self.target_value:
                 for mutator in self.mutators:
                     if mutator in self.allowed_mutators:
-                        self.target_value = MUTATOR_MAP[mutator](self.target_value)
+                        if mutator not in ['all', 'any']:
+                            self.target_value = MUTATOR_MAP[mutator](self.target_value)
+                        elif mutator == 'all':
+                            self.all_mode = True
+                            self.any_mode = False
+                        elif mutator == 'any':
+                            self.any_mode = True
+                            self.all_mode = False
 
         def __call__(self, obj):
 
@@ -168,8 +177,13 @@ class RQLSearch:
 
             if self.target_value:
                 if isinstance(self.target_value, list):
-                    return self.has_key and any([v for v in self.target_value if self.value in v])
+                    if self.all_mode:
+                        return self.has_key and all([v in self.target_value for v in self.value])
+                    else:
+                        return self.has_key and any([v in self.target_value for v in self.value])
                 else:
+                    if isinstance(self.value, list) and isinstance(self.target_value, (list, str)):
+                        return any([v in self.target_value for v in self.value])
                     return self.has_key and self.value in self.target_value
             return False
 
@@ -189,7 +203,7 @@ class RQLSearch:
         def __init__(self, mutators=[], **target):
             
             super().__init__(mutators=mutators, **target)
-            self.allowed_mutators = []
+            self.allowed_mutators = ['any','all']
 
         def __call__(self, obj):
             
@@ -201,7 +215,11 @@ class RQLSearch:
                 if isinstance(self.target_value, str):
                     return self.has_key and any([a for a in self.value if self.target_value == a])
                 if isinstance(self.target_value, list):
-                    return self.has_key and any([a for a in self.value if a in self.target_value])
+                    if self.all_mode:
+                        return self.has_key and all([a == self.value for a in self.target_value])
+                    if self.any_mode:
+                        return self.has_key and any([a in self.value for a in self.target_value])
+
             return False
 
     class Or:
@@ -218,6 +236,14 @@ class RQLSearch:
 
         def __call__(self, record):
             return all(predicate(record) for predicate in self.predicates)
+
+
+    class Not:
+        def __init__(self, *predicates):
+            self.predicates = predicates
+
+        def __call__(self, record):
+           return all(predicate(record) == False for predicate in self.predicates)
 
 
     class RegExp(BaseExpression):
