@@ -38,6 +38,7 @@ onetimepass = "*"
 pyqrcode = "*"
 tzdata = "*"
 colorama = "*"
+ply = "*"
 
 [requires]
 python_version = "3.8"

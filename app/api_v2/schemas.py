@@ -42,6 +42,11 @@ class FormatTags(fields.Raw):
     def format(self, value):
         return [{'name': v} for v in value]
 
+class EventStatusName(fields.Raw):
+    ''' Returns a final value from the source value '''
+    def format(self, value):
+        return value['name']
+
 mod_pagination = Model('Pagination', {
     'total_results': fields.Integer,
     'pages': fields.Integer,
@@ -454,6 +459,24 @@ mod_event_details = Model('EventDetails', {
 })
 
 
+mod_event_rql = Model('EventDetails', {
+    'uuid': fields.String,
+    'title': fields.String(required=True),
+    'reference': fields.String(required=True),
+    'description': fields.String(required=True),
+    'tlp': fields.Integer,
+    'severity': fields.Integer,
+    'source': fields.String,
+    'tags': fields.List(fields.String),
+    'observables': fields.List(fields.Nested(mod_observable_list)),
+    'case': fields.String,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='updated_at'),
+    'raw_log': fields.String,
+    'signature': fields.String
+})
+
+
 mod_settings = Model('SettingsList', {
     'base_url': fields.String,
     'require_case_templates': fields.Boolean,
@@ -637,13 +660,18 @@ mod_list_create = Model('ListCreate', {
     'active': fields.Boolean(example=True)
 })
 
+mod_event_rule_test = Model('TestEventRuleQuery', {
+    'query': fields.String,
+    'uuid': fields.String
+})
+
 mod_event_rule_create = Model('CreateEventRule', {
     'name': fields.String,
     'description': fields.String,
     'event_signature': fields.String,
     'merge_into_case': fields.Boolean,
     'target_case_uuid': fields.String,
-    'observables': fields.List(fields.Nested(mod_observable_create)),
+    'query': fields.String,
     'dismiss': fields.Boolean,
     'expire': fields.Boolean,
     'expire_days': fields.Integer,
@@ -940,4 +968,4 @@ mod_agent_group_list, mod_paged_agent_group_list, mod_agent_group_create, mod_ca
 mod_case_task_note_create, mod_case_task_note_details, mod_audit_log, mod_audit_log_paged_list,
 mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_events_response,
 mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plugin_manifest_action,
-mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge]
+mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql]

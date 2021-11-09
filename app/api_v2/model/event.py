@@ -1,5 +1,7 @@
 import datetime
 import hashlib
+
+from app.api_v2.rql.parser import QueryParser
 from . import case as c
 from . import (
     base,
@@ -12,6 +14,7 @@ from . import (
     system,
     utils
 )
+
 
 class EventStatus(base.BaseDocument):
     '''
@@ -298,7 +301,6 @@ class Event(base.BaseDocument):
     """
 
 
-
 class EventRule(base.BaseDocument):
     '''
     An Event Rule is created so that when new events come in they can
@@ -310,105 +312,69 @@ class EventRule(base.BaseDocument):
     description = Text()
     event_signature = Keyword()  # The title of the event that this was created from
     rule_signature = Keyword()  # A hash of the title + user customized observable values
-    # The target case to merge this into if merge into case is selected
-    target_case_uuid = Keyword()
-    #observables = Nested(Observable)
+    target_case_uuid = Keyword() # The target case to merge this into if merge into case is selected
     merge_into_case = Boolean()
+    query = Text() # The RQL query to run against events
     dismiss = Boolean()
     expire = Boolean()  # If not set the rule will never expire, Default: True
     expire_at = Date()  # Computed from the created_at date of the event + a timedelta in days
     active = Boolean()  # Users can override the alarm and disable it out-right
-    hit_count = Integer()
+    hit_count = Integer() # How many times the event rule has triggered
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-event-rules'
 
-    def add_observable(self, content):
+
+    def process_rql(self, event):
         '''
-        Adds an observable to the event and also checks it
-        against threatlists that are defined in the system
+        Checks an event against an RQL query to see if it matches.  If an event 
+        matches the rule, apply the rules conditions to the event
         '''
 
-        added_observables = []
-        for _ in content:
+        if self.expire and self.expire_at < datetime.datetime.utcnow():
+            self.active = False
+            self.save()
+        else:
 
-            observable = system.Observable(**_)
+            qp = QueryParser()
 
-            observable.set_rule(self.uuid)
-            observable.save()
-            added_observables.append(observable)
+            if self.query:
+                
+                parsed_query = qp.parser.parse(self.query)
+            else:
+                parsed_query = qp.parser.parse(self.query)
 
-        return added_observables
+            results = [r for r in qp.run_search(event, parsed_query)]
+            
+            # Process the event
+            if len(results) > 0:
+                return True
+        return False
 
-    def hash_observables(self, observables: list):
-        '''
-        Creates an MD5 hash of all the observables on an event
-        so that they can be compared to the events signature set
-        '''
-        hasher = hashlib.md5()
-        obs = []
-        for observable in observables:
-            obs.append({'data_type': observable.data_type.lower(),
-                        'value': observable.value.lower()})
-        obs = [dict(t) for t in {tuple(d.items())
-                                 for d in obs}]  # Deduplicate the observables
-        obs = sorted(
-            sorted(obs, key=lambda i: i['data_type']), key=lambda i: i['value'])
-        hasher.update(str(obs).encode())
-        self.rule_signature = hasher.hexdigest()
-        self.save()
 
-    def hash_target_observables(self, target_observables):
-        '''
-        Creates an MD5 hash of all the observables on an event
-        so that they can be compared to the events signature set
-        '''
-        hasher = hashlib.md5()
-        obs = []
-        expected_observables = [{'data_type': obs.data_type.lower(
-        ), 'value': obs.value.lower()} for obs in self.observables]
-        for observable in target_observables:
-            obs_dict = {'data_type': observable.data_type.name.lower(
-            ), 'value': observable.value.lower()}
-            if obs_dict in expected_observables:
-                obs.append(obs_dict)
-        obs = [dict(t) for t in {tuple(d.items())
-                                 for d in obs}]  # Deduplicate the observables
-        obs = sorted(
-            sorted(obs, key=lambda i: i['data_type']), key=lambda i: i['value'])
-        hasher.update(str(obs).encode())
-        return hasher.hexdigest()
-
-    def process(self, event) -> bool:
+    def process_event(self, event) -> bool:
         """
         Process the event based on the settings in the rule
         """
         # Check if the should be expired, disable the rule if it expired
-        if self.expire and self.expire_at < datetime.datetime.utcnow():
-            self.active = False
-            self.save()
-            return False
-
+        
+        if self.hit_count:
+            self.hit_count += 1
         else:
+            self.hit_count = 1
+        self.save()
 
-            # Increment the hit count
-            if self.hit_count:
-                self.hit_count += 1
-            else:
-                self.hit_count = 1
-            self.save()
+        if self.dismiss:
+            reason = c.CloseReason.get_by_name(title='Other')
+            event.set_dismissed(reason=reason)
+            return True
+        elif self.merge_into_case:
 
-            if self.dismiss:
-                reason = c.CloseReason.get_by_name(title='Other')
-                event.set_dismissed(reason=reason)
-                return True
-            elif self.merge_into_case:
-
-                # Add the event to the case
-                case = c.Case.get_by_uuid(self.target_case_uuid)                                
-                case.add_event(event)
-                return True
+            # Add the event to the case
+            case = c.Case.get_by_uuid(self.target_case_uuid)                                
+            case.add_event(event)
+            return True
 
         return False
 

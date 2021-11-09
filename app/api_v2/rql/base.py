@@ -56,6 +56,7 @@ class RQLSearch:
         :param data: The data to search against
         :param query: The query to run
         '''
+
         return filter(query, data)
 
     class BaseExpression:
@@ -176,7 +177,6 @@ class RQLSearch:
             super().__call__(obj)
 
             if self.target_value:
-                print(self.value, self.target_value)
                 if isinstance(self.target_value, list):
                     if self.all_mode:
                         return self.has_key and all([v in self.target_value for v in self.value])

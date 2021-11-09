@@ -1,5 +1,6 @@
 import base64
 import math
+import copy
 import datetime
 import itertools
 import os
@@ -8,6 +9,7 @@ import threading
 import uuid
 import json
 import hashlib
+from .rql.parser import QueryParser
 import pyqrcode
 import jwt
 from io import BytesIO
@@ -777,7 +779,8 @@ class EventListAggregated(Resource):
         ''' Creates a new event '''
 
         observables = []
-        added_observables = []
+
+        original_payload = copy.copy(api2.payload)
 
         # If the event has an observables pop them off the request payload
         # so that the Event can be generated using the remaining dictionary values
@@ -793,26 +796,29 @@ class EventListAggregated(Resource):
             if observables:
                 event.add_observable(observables)
 
-            # DEPRECATED: 2021-11-05 - bcarroll
-            #event.hash_event(observables=added_observables)
+            event_rules = EventRule.get_by_title(title=event.title)
+            if event_rules:
+               
+                matched = False
+                for event_rule in event_rules:
 
-            # Check if there are any event rules for the alarm with this title
-            #event_rules = EventRule.get_by_title(title=event.title)
-            #if event_rules:
+                    # If the event matches the event rule criteria perform the rule actions
+                    matched = event_rule.process_rql(original_payload)
 
-            #    matched = None            
-            #    for event_rule in event_rules:
-
-                    # If the event matches the event rules criteria perform the rule actions
-            #        if event.check_event_rule_signature(event_rule.rule_signature, observables=added_observables):
-                        # TODO: Add logging for when this fails
-            #            matched = event_rule.process(event)
-
-            #    if not matched:
-            #        event.set_new()
-            #else:
-            #    event.set_new()
-            event.set_new()
+                    # If the rule matched, process the event
+                    if matched:
+                        event_rule.process_event(event)
+                        
+                        # TODO: Allow for matching on multiple rules that don't have overlapping
+                        # actions, e.g. one rule to move it to a case but a different rule to apply
+                        # tags to the event
+                        # Break out of the loop, we don't want to match on any more rules
+                        break
+                
+                if not matched:
+                    event.set_new()
+            else:
+                event.set_new()
 
             return {'message': 'Successfully created the event.'}
         else:
@@ -848,6 +854,8 @@ class CreateBulkEvents(Resource):
                     # Start clocking event creation
                     start_event_process_dt = datetime.datetime.utcnow().timestamp()
 
+                    original_payload = copy.copy(raw_event)
+
                     if 'observables' in raw_event:
                         observables = raw_event.pop('observables')
 
@@ -857,27 +865,29 @@ class CreateBulkEvents(Resource):
                     if observables:
                         event.add_observable(observables)
 
-                    # DEPRECATED: 2021-11-05 - bcarroll
-                    #event.hash_event(observables=added_observables)
+                    event_rules = EventRule.get_by_title(title=event.title)
+                    if event_rules:
+                    
+                        matched = False
+                        for event_rule in event_rules:
 
-                    # Check if there are any event rules for the alarm with this title
-                    #event_rules = EventRule.get_by_title(title=event.title)
-                    #if event_rules:
+                            # If the event matches the event rule criteria perform the rule actions
+                            matched = event_rule.process_rql(original_payload)
 
-                    #    matched = None                    
-                    #    for event_rule in event_rules:
-
-                            # If the event matches the event rules criteria perform the rule actions
-                            #if event.check_event_rule_signature(event_rule.rule_signature, observables=added_observables):
-                                # TODO: Add logging for when this fails
-                                #matched = event_rule.process(event)
-
-                        #if not matched:
-                            #event.set_new()
-                    #else:
-                        #event.set_new()
-
-                    event.set_new()
+                            # If the rule matched, process the event
+                            if matched:
+                                event_rule.process_event(event)
+                                
+                                # TODO: Allow for matching on multiple rules that don't have overlapping
+                                # actions, e.g. one rule to move it to a case but a different rule to apply
+                                # tags to the event
+                                # Break out of the loop, we don't want to match on any more rules
+                                break
+                        
+                        if not matched:
+                            event.set_new()
+                    else:
+                        event.set_new()
 
                     end_event_process_dt = datetime.datetime.utcnow().timestamp()
                     event_process_time = end_event_process_dt - start_event_process_dt
@@ -1054,20 +1064,7 @@ class EventRuleList(Resource):
             else:
                 ns_event_rule_v2.abort(400, 'Missing expire_days field.')
 
-        
-        observables = None
-        added_observables = []
-
-        if 'observables' in api2.payload:
-            observables = api2.payload.pop('observables')
-
         event_rule = EventRule(**api2.payload)
-        event_rule.save()
-
-        if observables:
-            added_observables = event_rule.add_observable(observables)
-
-        event_rule.hash_observables(observables=added_observables)
         event_rule.active = True
         event_rule.save()
 
@@ -1121,6 +1118,28 @@ class EventRuleDetails(Resource):
             event_rule.delete()
             return {'message': 'Sucessfully deleted the event rule.'}
 
+
+@ns_event_rule_v2.route("/test_rule_rql")
+class TestEventRQL(Resource):
+
+    @api2.expect(mod_event_rule_test)
+    def post(self):
+        ''' Tests an RQL query against a target event to see if the RQL is valid '''
+
+        event = Event.get_by_uuid(uuid=api2.payload['uuid'])
+        event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
+        try:
+            qp = QueryParser()
+            parsed_query = qp.parser.parse(api2.payload['query'])
+            result = [r for r in qp.run_search(event_data, parsed_query)]
+
+            if len(result) > 0:
+                return {"message": "Query matched target Event", "success": True}, 200
+            else:
+                return {"message": "Query did not match target Event", "success": False}, 200
+        except Exception:
+            return {"message":"Invalid RQL query."}, 400
+        
 
 @ns_observable_v2.route("/history/<value>")
 class ObservableHistory(Resource):
@@ -2626,7 +2645,6 @@ class EncryptPassword(Resource):
             return credential
         else:
             ns_credential_v2.abort(409, 'Credential already exists.')
-
 
 
 cred_parser = pager_parser.copy()
