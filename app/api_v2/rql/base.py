@@ -179,6 +179,7 @@ class RQLSearch:
             if self.target_value:
                 if isinstance(self.target_value, list):
                     if self.all_mode:
+                        
                         return self.has_key and all([v in self.target_value for v in self.value])
                     else:
                         if isinstance(self.value, str):

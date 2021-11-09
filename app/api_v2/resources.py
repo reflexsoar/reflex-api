@@ -1025,7 +1025,7 @@ class EventNewRelatedEvents(Resource):
     def get(self, signature, current_user):
         ''' Returns the UUIDs of all related events that are Open '''
         events = Event.get_by_signature(signature=signature, all_events=True)
-        related_events = [e.uuid for e in events if e.status.name == 'New']
+        related_events = [e.uuid for e in events if hasattr(e.status,'name') and e.status.name == 'New']
         return {"events": related_events}
 
 @ns_event_rule_v2.route("")
@@ -1137,8 +1137,8 @@ class TestEventRQL(Resource):
                 return {"message": "Query matched target Event", "success": True}, 200
             else:
                 return {"message": "Query did not match target Event", "success": False}, 200
-        except Exception:
-            return {"message":"Invalid RQL query."}, 400
+        except ValueError as e:
+            return {"message":f"Invalid RQL query. {e}", "success": False}, 400
         
 
 @ns_observable_v2.route("/history/<value>")

@@ -124,7 +124,7 @@ if __name__ == '__main__':
 
     def t_target(t):
         # TODO: Define all the fields a user can access here
-        r'observables(\.((?!Count|Length)[^\s]+))?|malware|title|description|test\.awesome|from_api|tlp|ip|url|command|first|last'
+        r'observables(\.([^\s\|]+))?|malware|title|description|test\.awesome|from_api|tlp|ip|url|command|first|last'
         return t
     
     def t_ARRAY(t):

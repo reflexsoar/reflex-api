@@ -92,7 +92,7 @@ class QueryLexer(object):
 
     def t_target(self, t):
         # TODO: Define all the fields a user can access here
-        r'observables(\.((?!Count|Length)[^\s]+))?|malware|title|description|test\.awesome|from_api|tlp|ip|url|command|first|last'
+        r'observables(\.([^\s\|]+))?|title|description|severity|status(\.([^\s\|]+))?|reference|tlp|source|tags'
         return t
     
     def t_ARRAY(self, t):
@@ -101,7 +101,7 @@ class QueryLexer(object):
         return t
 
     def t_error(self, t):
-        print("Illegal character '%s'" % t.value[0])
+        raise ValueError("Illegal character '%s'" % t.value[0])
 
     def __init__(self):
         self.lexer = lex.lex(module=self)
@@ -215,6 +215,7 @@ class QueryParser(object):
                     | target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS STRING
                     | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS STRING
                     | target CONTAINS ARRAY
+                    | target MUTATOR CONTAINS ARRAY
                     | target MUTATOR MUTATOR CONTAINS ARRAY
                     | target MUTATOR MUTATOR MUTATOR CONTAINS ARRAY
                     | target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS ARRAY
@@ -350,7 +351,7 @@ class QueryParser(object):
             p[0] = self.search.Between(**{field: target})
 
     def p_error(self, p):
-        print("Syntax error in input!")
+        raise ValueError("Syntax error in input")
 
     def __init__(self):
         self.lexer = QueryLexer()
