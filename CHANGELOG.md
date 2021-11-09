@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 - RQL (Reflex Query Language)
 
+## 21.11.0 - 2021-11-08
+
+### Feature
+
+- Added support for RQL (Reflex Query Language) when creating Event Rules and processing Event Rules against ingested Events.  More on RQL can be found [here](https://github.com/reflexsoar/reflex-docs/blob/main/rql.md)
+
+### Bug Fix
+
+- Fixed a bug when using a `Contains` statement in RQL when only a single mutator was given
+
 ## 21.11.0 - 2021-11-05
 
 ### Bug
