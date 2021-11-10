@@ -34,7 +34,10 @@ def get_nested_field(message: dict, field: str):
                     values += [v for v in value if not isinstance(v, list)]
                 value = values                    
             else:
-                value = message.get(element)
+                if isinstance(message, dict):
+                    value = message.get(element)
+                else:
+                    value = message
 
             if isinstance(value, list):
                 if len(value) > 0 and isinstance(value[0], dict):

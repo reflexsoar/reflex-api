@@ -9,7 +9,10 @@ from flask_restx import Model, fields
 
 class AsDict(fields.Raw):
     def format(self, value):
-        return json.loads(value)
+        try:
+            return json.loads(value)
+        except:
+            return value
 
 class JSONField(fields.Raw):
     def format(self, value):
