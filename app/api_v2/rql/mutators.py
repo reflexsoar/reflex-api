@@ -15,7 +15,8 @@ MUTATORS = (
     'avg',
     'max',
     'min',
-    'extractb64'
+    'sum',
+    'extractb64'    
 )
 
 def mutate_count(value):
@@ -142,6 +143,17 @@ def mutate_min(value):
         return value
 
 
+def mutate_sum(value):
+    '''
+    Sums all the values in a list of values
+    '''
+    try:
+        if isinstance(value, list):
+            return sum(value)
+    except:
+        return value
+        
+
 def mutate_extractb64(value):
     '''
     Extracts a base64 string or strings from a input string and decodes them
@@ -171,5 +183,6 @@ MUTATOR_MAP = {
     'urldecode': mutate_urldecode,
     'avg': mutate_avg,
     'max': mutate_max,
-    'min': mutate_min
+    'min': mutate_min,
+    'sum': mutate_sum
 }

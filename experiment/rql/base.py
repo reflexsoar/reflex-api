@@ -176,10 +176,9 @@ class RQLSearch:
             super().__call__(obj)
 
             if self.target_value:
-                print(self.value, self.target_value)
                 if isinstance(self.target_value, list):
                     if self.all_mode:
-                        print(self.target_value, self.value)
+
                         return self.has_key and all([v in self.target_value for v in self.value])
                     else:
                         if isinstance(self.value, str):
@@ -251,6 +250,35 @@ class RQLSearch:
 
         def __call__(self, record):
            return all(predicate(record) == False for predicate in self.predicates)
+
+    class Expand(BaseExpression):
+        ''' 
+        Expands a list of dictionarys allow you two compare two or more values of the target
+        dictionary
+        '''
+
+        def __init__(self, *predicates, key=''):
+            self.predicates = predicates
+            self.key = key
+
+            super().__init__(mutators=[], **{self.key: None})
+        
+        def __call__(self, obj):
+
+            super().__call__(obj)
+
+            # Must be a list of dictionaries
+            if isinstance(self.target_value, list):
+                results = []
+                for v in self.target_value:
+
+                    # Can only target dictionaries with this expand function
+                    if isinstance(v, dict):
+                        result = [predicate(v) for predicate in self.predicates][0]
+                        results.append(result)
+                    else:
+                        results.append(False)
+                return any(results)
 
 
     class RegExp(BaseExpression):
@@ -398,6 +426,7 @@ class RQLSearch:
 
             return self.has_key and self.target_value in self.value
 
+
     class Exists(BaseExpression):
         '''
         Returns True if the item has the dictionary key
@@ -412,6 +441,7 @@ class RQLSearch:
             super().__call__(obj)
 
             return self.has_key
+
 
     class Is(BaseExpression):
         '''

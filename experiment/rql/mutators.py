@@ -11,7 +11,12 @@ MUTATORS = (
     'count',
     'length',
     'any',
-    'all'
+    'all',
+    'avg',
+    'max',
+    'min',
+    'sum',
+    'extractb64'    
 )
 
 def mutate_count(value):
@@ -73,6 +78,7 @@ def mutate_refang(value):
 
     return value
 
+
 def mutate_b64decode(value):
     '''
     Attempts to base64 decode a string
@@ -82,6 +88,7 @@ def mutate_b64decode(value):
     except:
         return value
     return value
+
 
 def mutate_urldecode(value):
     ''' 
@@ -94,12 +101,88 @@ def mutate_urldecode(value):
     return value
 
 
+def mutate_avg(*value):
+    '''
+    Computes the average value if given a list of integers or floats
+    '''
+    try:
+        if isinstance(value, list):
+            total_items = len(value)
+            target_items = [i for i in value if isinstance(i, (int, float))]
+            print(total_items)
+            print(target_items)
+            if len(target_items) == total_items:
+                value = sum(target_items)/total_items
+                return value
+        return value
+    except:
+        return value
+
+
+def mutate_max(value):
+    '''
+    Finds the maximum value in a list of values
+    '''
+    try:
+        if isinstance(value, list):
+            _max = max(*value)
+            return _max
+    except:
+        return value
+
+
+def mutate_min(value):
+    '''
+    Finds the minimum value in a list of values
+    '''
+    try:
+        if isinstance(value, list):
+            _min = min(*value)
+            return _min
+    except:
+        return value
+
+
+def mutate_sum(value):
+    '''
+    Sums all the values in a list of values
+    '''
+    try:
+        if isinstance(value, list):
+            return sum(value)
+    except:
+        return value
+        
+
+def mutate_extractb64(value):
+    '''
+    Extracts a base64 string or strings from a input string and decodes them
+    so they can be compared down the pipeline
+    '''
+    try:
+        decoded_matches = []
+        if isinstance(value, str):
+            pattern = re.compile(r'\s+([A-Za-z0-9+/]{20}\S+)')
+            matched = pattern.findall(value)
+            if len(matched) > 0:
+                decoded_matches = [base64.b64decode(match).decode() for match in matched]
+                return decoded_matches
+        return value
+    except:
+        return value
+
+
 MUTATOR_MAP = {
     'lowercase': mutate_lowercase,
     'uppercase': mutate_uppercase,
     'refang': mutate_refang,
     'count': mutate_count,
     'length': mutate_length,
+    'extractb64': mutate_extractb64,
     'b64decode': mutate_b64decode,
-    'urldecode': mutate_urldecode
+    'urldecode': mutate_urldecode,
+    'avg': mutate_avg,
+    'max': mutate_max,
+    'min': mutate_min,
+    'sum': mutate_sum
 }
