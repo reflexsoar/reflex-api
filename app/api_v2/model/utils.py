@@ -1,7 +1,9 @@
 import jwt
+import json
 from flask import request, current_app
 
 from . import user as u
+
 
 def escape_special_characters(value):
     '''
