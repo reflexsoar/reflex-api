@@ -181,8 +181,10 @@ class RQLSearch:
             if self.target_value:
                 if isinstance(self.target_value, list):
                     if self.all_mode:
-
-                        return self.has_key and all([v in self.target_value for v in self.value])
+                        if isinstance(self.value, list):
+                            return self.has_key and sorted(self.value) == sorted(self.target_value)
+                        else:
+                            return self.has_key and all([v in self.target_value for v in self.value])
                     else:
                         if isinstance(self.value, str):
                             return self.has_key and any([self.value in v for v in self.target_value])
@@ -225,11 +227,12 @@ class RQLSearch:
                     return self.has_key and any([a for a in self.value if self.target_value == a])
                 if isinstance(self.target_value, list):
                     if self.all_mode:
-                        return self.has_key and all([a == self.value for a in self.target_value])
+                        if isinstance(self.value, list):
+                            return self.has_key and sorted(self.value) == sorted(self.target_value)
+                        else:
+                            return self.has_key and all([a == self.value for a in self.target_value])
                     if self.any_mode:
                         return self.has_key and any([a in self.value for a in self.target_value])
-
-            return False
 
     class Or:
         def __init__(self, *predicates):
