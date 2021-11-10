@@ -32,7 +32,8 @@ class QueryLexer(object):
         'MUTATOR',
         'SWITH',
         'EWITH',
-        'NOT'
+        'NOT',
+        'EXPAND'
     )
 
     precedence = (
@@ -62,9 +63,10 @@ class QueryLexer(object):
     t_EXISTS = r'Exists|exists|EXISTS'
     t_REGEXP = r'RegExp|regexp|regex|re'
     t_BETWEEN = r'Between|between|InRange|range'
-    t_MUTATOR = r'(\|(count|length|lowercase|b64decode|refang|urldecode|any|all))'
+    t_MUTATOR = r'(\|(count|length|lowercase|extractb64|b64decode|refang|urldecode|any|all|avg|max|min))'
     t_SWITH = r'StartsWith|startswith'
     t_EWITH = r'EndsWith|endswith'
+    t_EXPAND = r'Expand|EXPAND|expand'
     t_ignore = ' \t.'
    
     def t_NUMBER(self, t):
@@ -92,7 +94,10 @@ class QueryLexer(object):
 
     def t_target(self, t):
         # TODO: Define all the fields a user can access here
-        r'observables(\.([^\s\|]+))?|title|description|severity|status(\.([^\s\|]+))?|reference|tlp|source|tags'
+        r'''observables(\.([^\s\|]+))?|value|tlp|tags|spotted|safe|source_field
+        |data_type|ioc|original_source_field|title|severity|status|reference|source
+        |signature|tags|raw_log
+        '''
         return t
     
     def t_ARRAY(self, t):
@@ -150,6 +155,10 @@ class QueryParser(object):
     def p_expression_or_group(self, p):
         'expression : LPAREN expression OR expression RPAREN'
         p[0] = self.search.Or(p[2], p[4])
+
+    def p_expression_each_and_group(self, p):
+        'expression : EXPAND target LPAREN expression AND expression RPAREN'
+        p[0] = self.search.Expand(self.search.And(p[4], p[6]), key=p[2])
     
     def p_expression_startswith(self, p):
         """expression : target SWITH STRING
