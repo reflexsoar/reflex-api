@@ -33,7 +33,8 @@ class QueryLexer(object):
         'SWITH',
         'EWITH',
         'NOT',
-        'EXPAND'
+        'EXPAND',
+        'NOTEQUALS'
     )
 
     precedence = (
@@ -48,6 +49,7 @@ class QueryLexer(object):
     t_LPAREN = r'\('
     t_RPAREN = r'\)'
     t_EQUALS = r'=|eq|Eq|EQ'
+    t_NOTEQUALS = r'!=|ne|NE|ne'
     t_CIDR = r'cidr|InCIDR'
     t_CONTAINS = r'contains|Contains'
     t_IN = r'In|in|IN'
@@ -63,7 +65,7 @@ class QueryLexer(object):
     t_EXISTS = r'Exists|exists|EXISTS'
     t_REGEXP = r'RegExp|regexp|regex|re'
     t_BETWEEN = r'Between|between|InRange|range'
-    t_MUTATOR = r'(\|(count|length|lowercase|extractb64|b64decode|refang|urldecode|any|all|avg|max|min|sum))'
+    t_MUTATOR = r'(\|(count|length|lowercase|extractb64|b64decode|refang|urldecode|any|all|avg|max|min|sum|split))'
     t_SWITH = r'StartsWith|startswith'
     t_EWITH = r'EndsWith|endswith'
     t_EXPAND = r'Expand|EXPAND|expand'
@@ -94,7 +96,7 @@ class QueryLexer(object):
 
     def t_target(self, t):
         # TODO: Define all the fields a user can access here
-        r'''observables(\.([^\s\|]+))?|value|tlp|tags|spotted|safe|source_field
+        r'''observables(\.([^\s\|]+))?|value|tlp|tags|spotted|safe|source_field|description
         |data_type|ioc|original_source_field|title|severity|status|reference|source
         |signature|tags|raw_log(\.([^\s\|]+))?
         '''
@@ -106,7 +108,7 @@ class QueryLexer(object):
         return t
 
     def t_error(self, t):
-        print("Illegal character '%s'" % t.value[0])
+        raise ValueError("Illegal character '%s'" % t.value[0])
 
     def __init__(self):
         self.lexer = lex.lex(module=self)
@@ -181,6 +183,28 @@ class QueryParser(object):
         """
         mutators, field, target, op = self.extract_mutators_and_fields(p)
         p[0] = self.search.EndsWith(mutators=mutators, **{field: target})
+
+
+    def p_expression_not_match(self, p):
+        """expression : target NOTEQUALS STRING
+                    | target MUTATOR NOTEQUALS STRING
+                    | target MUTATOR MUTATOR NOTEQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR NOTEQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR NOTEQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOTEQUALS STRING
+                    | target NOTEQUALS NUMBER
+                    | target NOT NOTEQUALS STRING
+                    | target MUTATOR NOT NOTEQUALS STRING
+                    | target MUTATOR MUTATOR NOT NOTEQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR NOT NOTEQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR NOT NOTEQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT NOTEQUALS STRING
+                    | target NOT NOTEQUALS NUMBER
+        """
+
+        mutators, field, target, op = self.extract_mutators_and_fields(p)
+
+        p[0] = self.search.Not(self.search.Match(mutators=mutators, **{field: target}))
     
     def p_expression_match(self, p):
         """expression : target EQUALS STRING
@@ -204,6 +228,7 @@ class QueryParser(object):
                 contains_not = True
 
         mutators, field, target, op = self.extract_mutators_and_fields(p)
+
         if contains_not:
             p[0] = self.search.Not(self.search.Match(mutators=mutators, **{field: target}))
         else:
@@ -285,6 +310,7 @@ class QueryParser(object):
                 
         '''
         mutators, field, target, op = self.extract_mutators_and_fields(p)
+        
     
         p[0] = self.search.MathOp(mutators=mutators, operator=op, **{field: target})
 
@@ -358,13 +384,16 @@ class QueryParser(object):
             p[0] = self.search.Between(**{field: target})
 
     def p_error(self, p):
-        print(p)
-        print("Syntax error in input!")
+        raise ValueError("Syntax error in input")
 
     def __init__(self):
         self.lexer = QueryLexer()
         self.parser = yacc.yacc(module=self)
 
     def run_search(self, data, parsed_query):
-        return self.search.execute(data, parsed_query)
-        
+     
+        if isinstance(data, list):
+            result = self.search.execute(data, parsed_query)
+        else:
+            result = self.search.execute([data], parsed_query)
+        return result
