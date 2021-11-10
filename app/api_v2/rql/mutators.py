@@ -16,7 +16,8 @@ MUTATORS = (
     'max',
     'min',
     'sum',
-    'extractb64'    
+    'extractb64',
+    'split'
 )
 
 def mutate_count(value):
@@ -171,6 +172,17 @@ def mutate_extractb64(value):
     except:
         return value
 
+def mutate_split(value, delimeter=' '):
+    '''
+    Splits a string at a delimeter, default ' ' (space) and returns an array of 
+    strings
+    '''
+    try:
+        if isinstance(value, str):
+            return value.split(delimeter)
+    except:
+        return value
+
 
 MUTATOR_MAP = {
     'lowercase': mutate_lowercase,
@@ -184,5 +196,6 @@ MUTATOR_MAP = {
     'avg': mutate_avg,
     'max': mutate_max,
     'min': mutate_min,
-    'sum': mutate_sum
+    'sum': mutate_sum,
+    'split': mutate_split
 }

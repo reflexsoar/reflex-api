@@ -65,7 +65,7 @@ class QueryLexer(object):
     t_EXISTS = r'Exists|exists|EXISTS'
     t_REGEXP = r'RegExp|regexp|regex|re'
     t_BETWEEN = r'Between|between|InRange|range'
-    t_MUTATOR = r'(\|(count|length|lowercase|extractb64|b64decode|refang|urldecode|any|all|avg|max|min|sum))'
+    t_MUTATOR = r'(\|(count|length|lowercase|extractb64|b64decode|refang|urldecode|any|all|avg|max|min|sum|split))'
     t_SWITH = r'StartsWith|startswith'
     t_EWITH = r'EndsWith|endswith'
     t_EXPAND = r'Expand|EXPAND|expand'
@@ -96,7 +96,7 @@ class QueryLexer(object):
 
     def t_target(self, t):
         # TODO: Define all the fields a user can access here
-        r'''observables(\.([^\s\|]+))?|value|tlp|tags|spotted|safe|source_field
+        r'''observables(\.([^\s\|]+))?|value|tlp|tags|spotted|safe|source_field|description
         |data_type|ioc|original_source_field|title|severity|status|reference|source
         |signature|tags|raw_log(\.([^\s\|]+))?
         '''
@@ -392,5 +392,8 @@ class QueryParser(object):
 
     def run_search(self, data, parsed_query):
      
-        result = self.search.execute([data], parsed_query)
+        if isinstance(data, list):
+            result = self.search.execute(data, parsed_query)
+        else:
+            result = self.search.execute([data], parsed_query)
         return result
