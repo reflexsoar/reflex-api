@@ -96,7 +96,7 @@ class QueryLexer(object):
         # TODO: Define all the fields a user can access here
         r'''observables(\.([^\s\|]+))?|value|tlp|tags|spotted|safe|source_field
         |data_type|ioc|original_source_field|title|severity|status|reference|source
-        |signature|tags|raw_log
+        |signature|tags|raw_log(\.([^\s\|]+))?
         '''
         return t
     

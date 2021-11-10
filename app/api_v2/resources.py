@@ -1128,6 +1128,7 @@ class TestEventRQL(Resource):
 
         event = Event.get_by_uuid(uuid=api2.payload['uuid'])
         event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
+        print(json.dumps(event_data, indent=4))
         try:
             qp = QueryParser()
             parsed_query = qp.parser.parse(api2.payload['query'])

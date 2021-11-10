@@ -4,11 +4,17 @@
 Contains all marshal schemas for API responses and inputs
 """
 
+import json
 from flask_restx import Model, fields
+
+class AsDict(fields.Raw):
+    def format(self, value):
+        return json.loads(value)
 
 class JSONField(fields.Raw):
     def format(self, value):
         return value
+
 class ObservableCount(fields.Raw):
     ''' Returns the number of observables '''
     def format(self, value):
@@ -472,7 +478,7 @@ mod_event_rql = Model('EventDetails', {
     'case': fields.String,
     'created_at': ISO8601(attribute='created_at'),
     'modified_at': ISO8601(attribute='updated_at'),
-    'raw_log': fields.String,
+    'raw_log': AsDict,
     'signature': fields.String
 })
 
