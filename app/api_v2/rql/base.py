@@ -294,7 +294,10 @@ class RQLSearch:
             super().__call__(obj)
 
             regex = re.compile(self.value)
-            return self.key in obj and regex.match(self.target_value)
+            if isinstance(self.target_value, str):
+                return self.has_key and regex.match(self.target_value)
+            else:
+                return False
 
 
     class InCIDR(BaseExpression):
