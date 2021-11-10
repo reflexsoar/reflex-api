@@ -33,7 +33,8 @@ class QueryLexer(object):
         'SWITH',
         'EWITH',
         'NOT',
-        'EXPAND'
+        'EXPAND',
+        'NOTEQUALS'
     )
 
     precedence = (
@@ -48,6 +49,7 @@ class QueryLexer(object):
     t_LPAREN = r'\('
     t_RPAREN = r'\)'
     t_EQUALS = r'=|eq|Eq|EQ'
+    t_NOTEQUALS = r'!=|ne|NE|ne'
     t_CIDR = r'cidr|InCIDR'
     t_CONTAINS = r'contains|Contains'
     t_IN = r'In|in|IN'
@@ -181,6 +183,28 @@ class QueryParser(object):
         """
         mutators, field, target, op = self.extract_mutators_and_fields(p)
         p[0] = self.search.EndsWith(mutators=mutators, **{field: target})
+
+
+    def p_expression_not_match(self, p):
+        """expression : target NOTEQUALS STRING
+                    | target MUTATOR NOTEQUALS STRING
+                    | target MUTATOR MUTATOR NOTEQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR NOTEQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR NOTEQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOTEQUALS STRING
+                    | target NOTEQUALS NUMBER
+                    | target NOT NOTEQUALS STRING
+                    | target MUTATOR NOT NOTEQUALS STRING
+                    | target MUTATOR MUTATOR NOT NOTEQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR NOT NOTEQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR NOT NOTEQUALS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT NOTEQUALS STRING
+                    | target NOT NOTEQUALS NUMBER
+        """
+
+        mutators, field, target, op = self.extract_mutators_and_fields(p)
+
+        p[0] = self.search.Not(self.search.Match(mutators=mutators, **{field: target}))
     
     def p_expression_match(self, p):
         """expression : target EQUALS STRING
