@@ -244,6 +244,13 @@ class User(base.BaseDocument):
 
         self.save()
 
+    def enable_mfa(self):
+        ''' Removes the otp secret when the user disables MFA
+        '''
+        
+        self.mfa_enabled = True
+        self.save()
+
     def disable_mfa(self):
         ''' Removes the otp secret when the user disables MFA
         '''

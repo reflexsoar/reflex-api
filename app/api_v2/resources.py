@@ -314,6 +314,44 @@ class UserDisableMFA(Resource):
         return {'message': 'MFA disabled'}, 200
 
 
+@ns_user_v2.route('/toggle_mfa')
+class ToggleMFA(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_toggle_user_mfa)
+    @token_required
+    @user_has('update_user')
+    def put(self, current_user):
+        ''' Enables or disables MFA for multiple users '''
+        
+        print(api2.payload)
+        if 'users' in api2.payload:
+            users = User.get_by_uuid(uuid=api2.payload['users'])
+        enabled_disabled = ''
+        user_action = []
+        if users:
+            for user in users:
+                if 'mfa_enabled' in api2.payload:
+                    if api2.payload['mfa_enabled'] == True:
+                        try:
+                            user.enable_mfa()
+                            enabled_disabled = 'enabled'
+                            user_action.append({'uuid': user.uuid, 'success': True})
+                        except Exception as e:
+                            print(e)
+                            user_action.append({'uuid': user.uuid, 'success': False})
+                    elif api2.payload['mfa_enabled'] == False:
+                        try:
+                            user.disable_mfa()
+                            enabled_disabled = 'disabled'
+                            user_action.append({'uuid': user.uuid, 'success': True})
+                        except:
+                            user_action.append({'uuid': user.uuid, 'success': False})
+                else:
+                    ns_user_v2.abort('Missing mfa_enable field.'), 400
+
+        return {'message': f'MFA {enabled_disabled}'}, 200
+
 @ns_user_v2.route("/<uuid>/unlock")
 class UnlockUser(Resource):
 
@@ -1181,10 +1219,6 @@ class EventRuleDetails(Resource):
         event_rule = EventRule.get_by_uuid(uuid=uuid)
 
         if event_rule:
-
-            if 'observables' in api2.payload:
-                event_rule.observables = api2.payload.pop('observables')
-                event_rule.hash_observables()
 
             if len(api2.payload) > 0:
                 event_rule.update(**api2.payload)

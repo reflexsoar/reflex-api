@@ -229,6 +229,7 @@ mod_user_full = Model('UserFull', {
     'last_name': fields.String,
     'last_logon': ISO8601(attribute='last_logon'),
     'locked': fields.Boolean,
+    'mfa_enabled': fields.Boolean,
     'failed_logons': fields.Integer,
     'disabled': fields.Boolean,
     'created_at': ISO8601(attribute='created_at'),
@@ -252,6 +253,11 @@ mod_user_create = Model('UserCreate', {
 
 mod_api_key = Model('UserApiKey', {
     'api_key': fields.String
+})
+
+mod_toggle_user_mfa = Model('UserUUIDs', {
+    'users': fields.List(fields.String),
+    'mfa_enabled': fields.Boolean
 })
 
 mod_user_self = Model('UserSelf', {
@@ -985,4 +991,4 @@ mod_case_task_note_create, mod_case_task_note_details, mod_audit_log, mod_audit_
 mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_events_response,
 mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plugin_manifest_action,
 mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql,
-mod_event_rql_list]
+mod_event_rql_list, mod_toggle_user_mfa]
