@@ -96,8 +96,12 @@ def token_required(f):
     return wrapper
 
 
-def user_has(permission):
-    # User permissions
+def user_has(permission: str):
+    '''
+    Route decorator that takes a permission as a string and determines if the
+    current_user has that permission.  If they do return the current route, if
+    they do not return 401 Unauthorized
+    '''
 
     def decorator(f):
         def wrapper(*args, **kwargs):

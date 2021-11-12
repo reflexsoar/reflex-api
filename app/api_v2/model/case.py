@@ -469,6 +469,26 @@ class Case(base.BaseDocument):
         self.save()
         return True
 
+
+    def remove_event(self, events):
+        ''' Removes an event from the case
+
+        Parameter:
+            events (Events): A list of events
+        '''
+
+        #If dealing with many events
+        if isinstance(events, list):
+            for _event in events:
+                _event.set_new()
+                _event.set_case(None)
+        else:
+            events.set_new()
+            events.set_case(None)
+        self.save()
+        return True
+
+
     def process_event_observables(self, evt):
         '''Takes in an event and processes the observables associated
         with the event by adding them to the case

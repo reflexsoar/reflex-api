@@ -848,6 +848,15 @@ class CreateBulkEvents(Resource):
 
                 if not event:
 
+                    # Generate a default signature based off the rule name and the current time
+                    # signatures are required in the system but user's don't need to supply them
+                    # these events will remain ungrouped
+                    if 'signature' in raw_event and raw_event['signature'] == '':
+                        hasher = hashlib.md5()
+                        date_string = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                        hasher.update(f"{raw_event['title']}{date_string}".encode('utf-8'))
+                        raw_event['signature'] = hasher.hexdigest()
+
                     observables = []
                     #added_observables = []
 
@@ -977,6 +986,82 @@ class EventDetails(Resource):
             return {'message':'Successfully dismissed event'}, 200
         else:
             return {}
+
+    @api2.doc(security="Bearer")
+    @token_required
+    @user_has('delete_event')
+    def delete(self, uuid, current_user):
+        '''
+        Deletes an event and any related artifacts from the system
+
+        Parameters:
+            uuid (str): The unique identifier of the Event
+            current_user (User): The current user making the API request
+        '''
+
+        event = Event.get_by_uuid(uuid=uuid)
+
+        # Only support deleting events that are not in cases right now
+        if event and not event.case:
+        
+            # Remove this event from any cases it may be associated with
+            #if event.case:
+            #    case = Case.get_by_uuid(uuid=event.case)
+
+            # Delete any observables from the observables index related to this event
+            observables = Observable.get_by_event_uuid(uuid=uuid)
+            for observable in observables:
+                observable.delete()
+
+            # Delete the event
+            event.delete()
+
+            return {'message': 'Successfully deleted the event.', 'uuid': uuid}, 200
+        else:
+            return {'message': 'Event not found'}, 404
+
+
+@ns_event_v2.route("/bulk_delete")
+class BulkDeleteEvent(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_event_bulk_dismiss)
+    @token_required
+    @user_has('delete_event')
+    def delete(self, current_user):
+        '''
+        Deletes an event and any related artifacts from the system
+
+        Parameters:
+            uuid (str): The unique identifier of the Event
+            current_user (User): The current user making the API request
+        '''
+
+        print(api2.payload)
+
+        if api2.payload['events']:
+            for _event in api2.payload['events']:
+                print(_event)
+
+                event = Event.get_by_uuid(uuid=_event)
+
+                # Only support deleting events that are not in cases right now
+                if event and not event.case:
+                
+                    # TODO: Add this back if we want to allow deleting events that are in cases
+                    # Remove this event from any cases it may be associated with
+                    #if event.case:
+                    #    case = Case.get_by_uuid(uuid=event.case)
+                    #    case.remove_event(uuid=event.uuid)
+
+                    # Delete any observables from the observables index related to this event
+                    observables = Observable.get_by_event_uuid(uuid=event.uuid)
+                    for observable in observables:
+                        observable.delete()
+
+                    # Delete the event
+                    event.delete()
+        return {'message': 'Successfully deleted Events.'}, 200
 
 """
 @ns_event_v2.route("/<uuid>/update_case")
@@ -1126,16 +1211,25 @@ class TestEventRQL(Resource):
     def post(self):
         ''' Tests an RQL query against a target event to see if the RQL is valid '''
 
-        event = Event.get_by_uuid(uuid=api2.payload['uuid'])
-        event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
-        print(json.dumps(event_data, indent=4))
+        if 'uuid' in api2.payload and api2.payload['uuid'] not in [None, '']:
+            event = Event.get_by_uuid(uuid=api2.payload['uuid'])
+            event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
+        else:
+            print('NAH')
+            search = Event.search()
+            search = search[0:api2.payload['event_count']]
+            events = search.execute()
+            event_data = [json.loads(json.dumps(marshal(e, mod_event_rql))) for e in events]
+       
         try:
             qp = QueryParser()
             parsed_query = qp.parser.parse(api2.payload['query'])
             result = [r for r in qp.run_search(event_data, parsed_query)]
+            hits = len(result)
 
-            if len(result) > 0:
-                return {"message": "Query matched target Event", "success": True}, 200
+            if hits > 0:
+                print(hits)
+                return {"message": f"Query matched {hits} Events", "success": True}, 200
             else:
                 return {"message": "Query did not match target Event", "success": False}, 200
         except ValueError as e:

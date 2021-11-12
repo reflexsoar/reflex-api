@@ -468,7 +468,7 @@ mod_event_details = Model('EventDetails', {
 })
 
 
-mod_event_rql = Model('EventDetails', {
+mod_event_rql = Model('EventDetailsRQLFormatted', {
     'uuid': fields.String,
     'title': fields.String(required=True),
     'reference': fields.String(required=True),
@@ -485,6 +485,9 @@ mod_event_rql = Model('EventDetails', {
     'signature': fields.String
 })
 
+mod_event_rql_list = Model('EventDetailsListRQLFormatted', {
+    'events': fields.List(fields.Nested(mod_event_rql))
+})
 
 mod_settings = Model('SettingsList', {
     'base_url': fields.String,
@@ -671,7 +674,9 @@ mod_list_create = Model('ListCreate', {
 
 mod_event_rule_test = Model('TestEventRuleQuery', {
     'query': fields.String,
-    'uuid': fields.String
+    'uuid': fields.String,
+    'event_count': fields.Integer,
+    'return_results': fields.Boolean
 })
 
 mod_event_rule_create = Model('CreateEventRule', {
@@ -698,6 +703,8 @@ mod_event_rule_list = Model('EventRuleList', {
     'dismiss': fields.Boolean,
     'expire': fields.Boolean,
     'active': fields.Boolean,
+    'query': fields.String,
+    'hits': fields.Integer,
     'observables': fields.List(fields.Nested(mod_observable_brief)),
     'expire_at': ISO8601(attribute='expire_at'),
     'created_at': ISO8601(attribute='created_at'),
@@ -977,4 +984,5 @@ mod_agent_group_list, mod_paged_agent_group_list, mod_agent_group_create, mod_ca
 mod_case_task_note_create, mod_case_task_note_details, mod_audit_log, mod_audit_log_paged_list,
 mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_events_response,
 mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plugin_manifest_action,
-mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql]
+mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql,
+mod_event_rql_list]

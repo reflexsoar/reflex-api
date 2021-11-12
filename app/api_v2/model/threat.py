@@ -83,7 +83,10 @@ class ThreatList(base.BaseDocument):
         it should be associated with
         '''
         data_type = system.DataType.get_by_name(name=data_type)
-        response = self.search().query('term', data_type_uuid=data_type.uuid).execute()
+        try:
+            response = self.search().query('term', data_type_uuid=data_type.uuid).execute()
+        except AttributeError:
+            return []
         if response:
             return list(response)
         return []
