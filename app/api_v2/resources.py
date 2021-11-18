@@ -53,6 +53,8 @@ from app.api_v2.model.utils import escape_special_characters
 
 from .utils import ip_approved, token_required, user_has, generate_token, log_event, check_password_reset_token
 
+from .resource import ns_playbook_v2, ns_audit_log_v2
+
 # Instantiate a new API object
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
 api2 = Api(api_v2)
@@ -99,9 +101,10 @@ ns_close_reason_v2 = api2.namespace(
 ns_tag_v2 = api2.namespace('Tag', description='Tag operations', path='/tag')
 ns_dashboard_v2 = api2.namespace('Dashboard', description='API endpoints that drive dashboard display', path='/dashboard')
 ns_plugins_v2 = api2.namespace('Plugin', description='Plugin operations', path='/plugin')
-ns_audit_log_v2 = api2.namespace('AuditLog', description='Reflex audit logs', path='/audit_log')
 ns_observable_v2 = api2.namespace('Observable', description="Observable operations", path='/observable')
 ns_hunting_v2 = api2.namespace('Hunting', description="Threat hunting operaitons", path="/hunting")
+api2.add_namespace(ns_playbook_v2)
+api2.add_namespace(ns_audit_log_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -3222,64 +3225,6 @@ class PluginUpload(Resource):
                 plugins.append(plugin)
         return plugins
 
-audit_list_parser = api2.parser()
-audit_list_parser.add_argument(
-    'event_type', action='split', location='args', required=False)
-audit_list_parser.add_argument(
-    'status', action='split', location='args', required=False)
-audit_list_parser.add_argument(
-    'source_user', action='split', location='args', required=False)
-audit_list_parser.add_argument(
-    'page', type=int, location='args', default=1, required=False)
-audit_list_parser.add_argument(
-    'sort_by', type=str, location='args', default='created_at', required=False)
-
-@ns_audit_log_v2.route("")
-class AuditLogsList(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_audit_log_paged_list)
-    @api2.expect(audit_list_parser)
-    @ip_approved
-    @token_required    
-    @user_has('view_settings')
-    def get(self, current_user):
-        ''' Returns a paginated collection of audit logs'''
-
-        args = audit_list_parser.parse_args()
-
-        page_size = 25
-        page = args.page - 1
-        logs = EventLog.search()
-
-        if args.status:
-            logs = logs.filter('terms', status=args.status)
-
-        if args.event_type:
-            logs = logs.filter('terms', event_type=args.event_type)
-
-        if args.source_user:
-            logs = logs.filter('terms', source_user=args.source_user)
-
-        total_logs = logs.count()
-        total_pages = total_logs/page_size
-
-        start = page*page_size
-        end = start+page_size
-        
-        logs = logs.sort('-created_at')
-        logs = logs[start:end]
-        logs = [l for l in logs]
-
-        return {
-            'logs': logs,
-            'pagination': {
-                'page': page+1,
-                'page_size': page_size,
-                'total_results': total_logs,
-                'pages': total_pages
-            }
-        }
 
 
 @ns_settings_v2.route("")
