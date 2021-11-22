@@ -39,6 +39,7 @@ pyqrcode = "*"
 tzdata = "*"
 colorama = "*"
 ply = "*"
+python-dotenv = "*"
 
 [requires]
 python_version = "3.8"

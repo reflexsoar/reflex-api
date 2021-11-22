@@ -724,7 +724,7 @@ class EventListAggregated(Resource):
                 })
 
         for arg in ['severity','title','tags']:
-            if 'arg' in args and args['arg'] != ['']:
+            if arg in args and args[arg] not in ['', None, []]:
                 search_filters.append({
                     'type': 'terms',
                     'field': arg,
@@ -745,10 +745,20 @@ class EventListAggregated(Resource):
                 'value': args.case_uuid
             })
 
+        if args.observables:
+            observables = Observable.get_by_value(args.observables)
+            event_uuids = [o.events[0] for o in observables if o.events]
+            search_filters.append({
+                'type': 'terms',
+                'field': 'uuid',
+                'value': event_uuids
+            })
+
         observables = {}
 
         # If not filtering by a signature
         if not args.signature:
+            
             search = Event.search()
 
             search = search[:0]        
@@ -786,6 +796,7 @@ class EventListAggregated(Resource):
 
             search = Event.search()
             search = search[start:end]
+
 
             if args.sort_desc:
                 args.sort_by = f"-{args.sort_by}"
