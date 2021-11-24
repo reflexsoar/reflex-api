@@ -139,6 +139,8 @@ def random_event():
           "spotted": False,
           "safe": False,
           "data_type": "host",
+          "source_field": "agent.hostname",
+          "original_source_field": "agent.hostname",
           "tags": [
             "source-host", "windows", "internal"
           ]
@@ -150,6 +152,8 @@ def random_event():
           "spotted": False,
           "safe": False,
           "data_type": "user",
+          "source_field": "winlog.event_data.User",
+          "original_source_field": "winlog.event_data.User",
           "tags": [
             "source-user", "corporate-user"
           ]
@@ -161,6 +165,8 @@ def random_event():
           "spotted": False,
           "safe": False,
           "data_type": "sid",
+          "source_field": "winlog.event_data.SubjectUserSid",
+          "original_source_field": "winlog.event_data.SubjectUserSid",
           "tags": [
             "source-user", "corporate-user"
           ]
@@ -172,6 +178,8 @@ def random_event():
           "spotted": False,
           "safe": False,
           "data_type": "process",
+          "source_field": "winlog.event_data.ImageName",
+          "original_source_field": "winlog.event_data.ImageName",
           "tags": [
             "source-user", "source-process"
           ]
