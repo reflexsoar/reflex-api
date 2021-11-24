@@ -842,6 +842,16 @@ class EventListAggregated(Resource):
         event = Event.get_by_reference(api2.payload['reference'])
 
         if not event:
+
+            # Generate a default signature based off the rule name and the current time
+            # signatures are required in the system but user's don't need to supply them
+            # these events will remain ungrouped
+            if 'signature' not in api2.payload or api2.payload['signature'] == '':
+                hasher = hashlib.md5()
+                date_string = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                hasher.update(f"{api2.payload['title']}{date_string}".encode('utf-8'))
+                api2.payload['signature'] = hasher.hexdigest()
+
             event = Event(**api2.payload)
             event.save()
 
