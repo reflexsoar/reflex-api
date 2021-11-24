@@ -184,7 +184,7 @@ class Settings(base.BaseDocument):
 
         if self.peristent_pairing_token is not None:
             expired = user.ExpiredToken(token=self.peristent_pairing_token)
-            expired.create()
+            expired.save()
 
         self.update(peristent_pairing_token=_api_key)
 

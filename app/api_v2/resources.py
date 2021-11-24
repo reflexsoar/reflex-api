@@ -751,7 +751,7 @@ class EventListAggregated(Resource):
             search_filters.append({
                 'type': 'terms',
                 'field': 'uuid',
-                'value': event_uuids
+                'value': list(set(event_uuids))
             })
 
         observables = {}
