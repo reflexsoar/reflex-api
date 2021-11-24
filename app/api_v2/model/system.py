@@ -274,12 +274,12 @@ class Observable(base.BaseDocument):
             for k in MS_SID_ENDS_WITH:
                 if isinstance(k, str):
                     k = str(k)
-                    if self.value.endswith(k):
+                    if self.value.lower().endswith(k.lower()):
                         self.add_tag(MS_SID_ENDS_WITH[k])
 
             for k in MS_SID_EQUALS:
                 if isinstance(k, str):
-                    if self.value == k:
+                    if self.value.lower() == k.lower():
                         self.add_tag(MS_SID_EQUALS[k])
 
         self.save()
