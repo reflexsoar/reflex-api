@@ -797,6 +797,9 @@ class EventListAggregated(Resource):
             search = Event.search()
             search = search[start:end]
 
+            # Apply all filters
+            for _filter in search_filters:
+                search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
             if args.sort_desc:
                 args.sort_by = f"-{args.sort_by}"
@@ -1273,7 +1276,6 @@ class TestEventRQL(Resource):
             event = Event.get_by_uuid(uuid=api2.payload['uuid'])
             event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
         else:
-            print('NAH')
             search = Event.search()
             search = search[0:api2.payload['event_count']]
             events = search.execute()
@@ -1286,7 +1288,6 @@ class TestEventRQL(Resource):
             hits = len(result)
 
             if hits > 0:
-                print(hits)
                 return {"message": f"Query matched {hits} Events", "success": True}, 200
             else:
                 return {"message": "Query did not match target Event", "success": False}, 200
