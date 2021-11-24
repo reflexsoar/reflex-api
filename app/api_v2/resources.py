@@ -1004,7 +1004,7 @@ class EventBulkUpdate(Resource):
 
             comment = api2.payload['dismiss_comment'] if api2.payload['dismiss_comment'] != "" else None
 
-            events = Event.get_by_uuid(uuid=api2.payload['events'])
+            events = Event.get_by_uuid(uuid=api2.payload['events'], all_results=True)
             [event.set_dismissed(reason=reason, comment=comment) for event in events]
 
         return []

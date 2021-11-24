@@ -23,7 +23,7 @@ class BaseDocument(Document):
     created_by = Nested()
 
     @classmethod
-    def get_by_uuid(self, uuid, **kwargs):
+    def get_by_uuid(self, uuid, all_results=False, **kwargs):
         '''
         Fetches a document by the uuid field
         '''
@@ -31,7 +31,11 @@ class BaseDocument(Document):
         documents = None
         if uuid is not None:
             if isinstance(uuid, (AttrList, list)):
-                response = self.search().query('terms', uuid=uuid, **kwargs).execute()
+                response = self.search()
+                response = response.query('terms', uuid=uuid, **kwargs)
+                if all_results:
+                    response = response[0:response.count()]
+                response = response.execute()
                 documents = list(response)
             else:
                 response = self.search().query('term', uuid=uuid, **kwargs).execute()

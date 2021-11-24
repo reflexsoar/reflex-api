@@ -179,7 +179,6 @@ def random_event():
           "safe": False,
           "data_type": "process",
           "source_field": "winlog.event_data.ImageName",
-          "original_source_field": "winlog.event_data.ImageName",
           "tags": [
             "source-user", "source-process"
           ]
@@ -195,7 +194,7 @@ def random_event():
 
 while True:
   events = []
-  for i in range(0,1):
+  for i in range(0,25):
     headers = {
       'Content-Type': 'application/json'
     }
