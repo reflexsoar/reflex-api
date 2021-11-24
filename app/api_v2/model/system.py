@@ -1,3 +1,4 @@
+from app.api_v2.model.utils import escape_special_characters
 import jwt
 import uuid
 import datetime
@@ -200,7 +201,7 @@ class Observable(base.BaseDocument):
     uuid = Text()
     tags = Keyword()
     data_type = Text()
-    value = Text()
+    value = Keyword()
     spotted = Boolean()
     ioc = Boolean()
     safe = Boolean()
