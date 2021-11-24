@@ -903,7 +903,7 @@ class CreateBulkEvents(Resource):
                     # Generate a default signature based off the rule name and the current time
                     # signatures are required in the system but user's don't need to supply them
                     # these events will remain ungrouped
-                    if 'signature' in raw_event and raw_event['signature'] == '':
+                    if 'signature' not in raw_event or raw_event['signature'] == '':
                         hasher = hashlib.md5()
                         date_string = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
                         hasher.update(f"{raw_event['title']}{date_string}".encode('utf-8'))
