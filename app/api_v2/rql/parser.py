@@ -65,7 +65,7 @@ class QueryLexer(object):
     t_EXISTS = r'Exists|exists|EXISTS'
     t_REGEXP = r'RegExp|regexp|regex|re'
     t_BETWEEN = r'Between|between|InRange|range'
-    t_MUTATOR = r'(\|(count|length|lowercase|extractb64|b64decode|refang|urldecode|any|all|avg|max|min|sum|split))'
+    t_MUTATOR = r'(\|(count|length|lowercase|b64extract|b64decode|refang|urldecode|any|all|avg|max|min|sum|split))'
     t_SWITH = r'StartsWith|startswith'
     t_EWITH = r'EndsWith|endswith'
     t_EXPAND = r'Expand|EXPAND|expand'

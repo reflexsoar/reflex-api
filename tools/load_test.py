@@ -130,6 +130,7 @@ def random_event():
         "T1262"
       ],
       "tlp": 2,
+      "signature": "THISISATESTSIGNATURE",
       "severity": random_severity(),
       "observables": [
         {
@@ -191,7 +192,6 @@ def random_event():
   return alerts[random.randint(0, len(alerts)-1)]
 
 
-
 while True:
   events = []
   for i in range(0,25):
@@ -199,6 +199,7 @@ while True:
       'Content-Type': 'application/json'
     }
     event = random_event()
+   
     events.append(event)
                                   
     #if i % 2 == 0 :

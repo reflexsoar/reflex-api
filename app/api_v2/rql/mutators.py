@@ -16,7 +16,7 @@ MUTATORS = (
     'max',
     'min',
     'sum',
-    'extractb64',
+    'b64extract',
     'split'
 )
 
@@ -166,7 +166,13 @@ def mutate_extractb64(value):
             pattern = re.compile(r'\s+([A-Za-z0-9+/]{20}\S+)')
             matched = pattern.findall(value)
             if len(matched) > 0:
-                decoded_matches = [base64.b64decode(match).decode() for match in matched]
+                for match in matched:
+                    decoded = base64.b64decode(match)
+                    if '\x00' in decoded:
+                        decoded_matches.append(decoded.decode('utf-16'))
+                    else:
+                        decoded_matches.append(decoded.decode(''))
+                
                 return decoded_matches
         return value
     except:
@@ -190,7 +196,7 @@ MUTATOR_MAP = {
     'refang': mutate_refang,
     'count': mutate_count,
     'length': mutate_length,
-    'extractb64': mutate_extractb64,
+    'b64extract': mutate_extractb64,
     'b64decode': mutate_b64decode,
     'urldecode': mutate_urldecode,
     'avg': mutate_avg,
