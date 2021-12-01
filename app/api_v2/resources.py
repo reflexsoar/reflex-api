@@ -1579,7 +1579,8 @@ class CaseList(Resource):
 
         # Apply filters
         if 'title' in args and args['title']:
-            cases = cases.filter('term', title=args['title'])
+            print(args['title'])
+            cases = cases.filter('wildcard', title=args['title']+"*")
 
         if 'status' in args and args['status']:
             cases = cases.filter('match', status__name=args['status'])
@@ -2326,7 +2327,7 @@ class CaseTaskList(Resource):
         args = case_task_parser.parse_args()
 
         if 'case_uuid' in args:
-            tasks = CaseTask.get_by_case(uuid=args['case_uuid'])
+            tasks = CaseTask.get_by_case(uuid=args['case_uuid'], all_results=True)
             if tasks:
                 
                 #return [t for t in sorted(tasks, key = lambda t: t.order) if t is not None]
