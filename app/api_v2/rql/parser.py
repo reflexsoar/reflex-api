@@ -65,7 +65,7 @@ class QueryLexer(object):
     t_EXISTS = r'Exists|exists|EXISTS'
     t_REGEXP = r'RegExp|regexp|regex|re'
     t_BETWEEN = r'Between|between|InRange|range'
-    t_MUTATOR = r'(\|(count|length|lowercase|b64extract|b64decode|refang|urldecode|any|all|avg|max|min|sum|split))'
+    t_MUTATOR = r'(\|(count|length|lowercase|uppercase|b64extract|b64decode|refang|urldecode|any|all|avg|max|min|sum|split))'
     t_SWITH = r'StartsWith|startswith'
     t_EWITH = r'EndsWith|endswith'
     t_EXPAND = r'Expand|EXPAND|expand'
@@ -390,10 +390,10 @@ class QueryParser(object):
         self.lexer = QueryLexer()
         self.parser = yacc.yacc(module=self)
 
-    def run_search(self, data, parsed_query):
+    def run_search(self, data, parsed_query, marshaller=None):
      
         if isinstance(data, list):
-            result = self.search.execute(data, parsed_query)
+            result = self.search.execute(data, parsed_query, marshaller=marshaller)
         else:
-            result = self.search.execute([data], parsed_query)
+            result = self.search.execute([data], parsed_query, marshaller=marshaller)
         return result

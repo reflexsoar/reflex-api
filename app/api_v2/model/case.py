@@ -150,11 +150,14 @@ class CaseTask(base.BaseDocument):
         self.save()
 
     @classmethod
-    def get_by_case(self, uuid):
+    def get_by_case(self, uuid, all_results=False):
         '''
         Fetches a document by the uuid field
         '''
-        response = self.search().query('match', case=uuid).execute()
+        response = self.search().query('match', case=uuid)
+        if all_results:
+            response = response[0:response.count()]
+        response = response.execute()
         if response:
             return list(response)
         return []
@@ -165,7 +168,9 @@ class CaseTask(base.BaseDocument):
         Fetches a task by the title and case uuid
         '''
         response = self.search().query('match', case=case_uuid).query(
-            'term', title=title).execute()
+            'term', title=title)
+        print(response.to_dict())
+        response = response.execute()
         if response:
             document = response[0]
             return document

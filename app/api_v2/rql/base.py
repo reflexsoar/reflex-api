@@ -1,5 +1,7 @@
 import re
 import ipaddress
+
+from flask_restx import marshal
 from .mutators import MUTATOR_MAP, MUTATORS
 
 def get_nested_field(message: dict, field: str):
@@ -47,11 +49,12 @@ def get_nested_field(message: dict, field: str):
                 
             return value if len(args) == 1 else get_nested_field(value, args[1:])
 
+import json
 
 class RQLSearch:
 
     @classmethod
-    def execute(cls, data, query):
+    def execute(cls, data, query, marshaller=None):
         '''
         Executes the expressions in the RQLSearch class
 
@@ -59,6 +62,18 @@ class RQLSearch:
         :param data: The data to search against
         :param query: The query to run
         '''
+        
+        if any(isinstance(x, dict) for x in data):
+            return filter(query, data)
+        
+        if any(hasattr(x, '__class__') for x in data):
+            events = []
+            for item in data:
+                if item.__class__.__name__ == 'Event':
+                    response = filter(query, [json.loads(json.dumps(marshal(item, marshaller)))])
+                    if len(list(response)) > 0:
+                        events.append(item)
+            return events
         return filter(query, data)
 
     class BaseExpression:

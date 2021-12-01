@@ -687,6 +687,7 @@ event_list_parser.add_argument(
     'case_uuid', type=str, location='args', required=False)
 event_list_parser.add_argument('search', type=str, action='split', default=[
 ], location='args', required=False)
+event_list_parser.add_argument('rql', type=str, default="", location="args", required=False)
 event_list_parser.add_argument(
     'title', type=str, location='args', action='split', required=False)
 event_list_parser.add_argument(
@@ -756,6 +757,8 @@ class EventListAggregated(Resource):
 
         observables = {}
 
+        
+
         # If not filtering by a signature
         if not args.signature:
             
@@ -790,6 +793,11 @@ class EventListAggregated(Resource):
             pages = math.ceil(float(total_events / args.page_size))
 
             events = search.execute()
+
+            if args.rql:
+                qp = QueryParser()
+                parsed_query = qp.parser.parse(args.rql)
+                events = [r for r in qp.run_search(list(events), parsed_query, marshaller=mod_event_rql)]
         
         # If filtering by a signature
         else:
