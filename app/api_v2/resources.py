@@ -2328,7 +2328,9 @@ class CaseTaskList(Resource):
         if 'case_uuid' in args:
             tasks = CaseTask.get_by_case(uuid=args['case_uuid'])
             if tasks:
-                return [t for t in sorted(tasks, key = lambda t: t.order)]
+                
+                #return [t for t in sorted(tasks, key = lambda t: t.order) if t is not None]
+                return tasks
             else:
                 return []
         else:
@@ -2349,11 +2351,14 @@ class CaseTaskList(Resource):
 
         if not task:
             case_uuid = api2.payload.pop('case_uuid')
-            if 'owner_uuid' in api2.payload:
-                owner = api2.payload.pop('owner_uuid')
+
             case = Case.get_by_uuid(uuid=case_uuid)
             task = case.add_task(**api2.payload)
-            task.set_owner(owner)
+
+            if 'owner_uuid' in api2.payload:
+                owner = api2.payload.pop('owner_uuid')            
+                task.set_owner(owner)
+
             task.save()
 
             return task
