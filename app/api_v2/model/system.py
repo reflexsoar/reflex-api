@@ -323,6 +323,35 @@ class Observable(base.BaseDocument):
 
 
     @classmethod
+    def get_by_value_and_field(self, value, field, all_docs=True):
+        '''
+        Fetches a document by the value field
+        '''
+        documents = []
+        if value is not None:
+            if isinstance(value, list):
+                response = self.search().query('terms', value=value).query('match', source_field=field)
+                print(response.to_dict())
+                if all_docs:
+                    response = response[0:response.count()]
+                    response.execute()
+                else:
+                    response.execute()
+                documents = list(response)
+            else:
+                response = self.search().query('term', value=value).query('match', source_field=field)
+                print(response.to_dict())
+                if all_docs:
+                    response = response[0:response.count()]
+                    response.execute()
+                else:
+                    response.execute()
+                documents = response
+
+        return documents
+
+
+    @classmethod
     def get_by_value(self, value, all_docs=True):
         '''
         Fetches a document by the value field

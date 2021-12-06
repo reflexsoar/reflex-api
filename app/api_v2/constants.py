@@ -4,6 +4,27 @@
 Contains constant values that are referenced in the API
 """
 
+DATA_TYPES = [
+    'ip',
+    'domain',
+    'fqdn',
+    'host',
+    'email',
+    'email_subject',
+    'md5hash',
+    'sha1hash',
+    'sha256hash',
+    'user',
+    'command',
+    'url',
+    'imphash',
+    'process',
+    'sid',
+    'mac',
+    'detection_id',
+    'port'
+]
+
 # Used to translate SIDS in to human readible format via tags
 MS_SID_ENDS_WITH = ends_with = {
     '500': 'Administrator',

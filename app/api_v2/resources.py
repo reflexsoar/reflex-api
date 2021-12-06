@@ -687,7 +687,7 @@ event_list_parser.add_argument(
     'case_uuid', type=str, location='args', required=False)
 event_list_parser.add_argument('search', type=str, action='split', default=[
 ], location='args', required=False)
-event_list_parser.add_argument('rql', type=str, default="", location="args", required=False)
+#event_list_parser.add_argument('rql', type=str, default="", location="args", required=False)
 event_list_parser.add_argument(
     'title', type=str, location='args', action='split', required=False)
 event_list_parser.add_argument(
@@ -747,17 +747,25 @@ class EventListAggregated(Resource):
             })
 
         if args.observables:
-            observables = Observable.get_by_value(args.observables)
-            event_uuids = [o.events[0] for o in observables if o.events]
+            event_uuids = []
+
+            if any('|' in o for o in args.observables):
+                for observable in args.observables:
+                    if '|' in observable:
+                        value,field = observable.split('|')
+                        response = Observable.get_by_value_and_field(value, field)
+                        event_uuids += [o.events[0] for o in response]
+            else:
+                observables = Observable.get_by_value(args.observables)
+                event_uuids = [o.events[0] for o in observables if o.events]
+            
             search_filters.append({
                 'type': 'terms',
                 'field': 'uuid',
                 'value': list(set(event_uuids))
             })
 
-        observables = {}
-
-        
+        observables = {}        
 
         # If not filtering by a signature
         if not args.signature:
@@ -794,10 +802,11 @@ class EventListAggregated(Resource):
 
             events = search.execute()
 
-            if args.rql:
-                qp = QueryParser()
-                parsed_query = qp.parser.parse(args.rql)
-                events = [r for r in qp.run_search(list(events), parsed_query, marshaller=mod_event_rql)]
+            # SLATED FOR FUTURE RELEASE - BC
+            # if args.rql:
+            #    qp = QueryParser()
+            #    parsed_query = qp.parser.parse(args.rql)
+            #    events = [r for r in qp.run_search(list(events), parsed_query, marshaller=mod_event_rql)]
         
         # If filtering by a signature
         else:
