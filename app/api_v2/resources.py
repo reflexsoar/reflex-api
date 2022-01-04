@@ -821,8 +821,11 @@ class EventListAggregated(Resource):
             for _filter in search_filters:
                 search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
-            if args.sort_desc:
-                args.sort_by = f"-{args.sort_by}"
+            if args.sort_direction:
+                if args.sort_direction == "asc":
+                    args.sort_by = f"-{args.sort_by}"
+                else:
+                    args.sort_by = f"{args.sort_by}"
 
             search = search.sort(args.sort_by)
             search = search.filter('term', signature=args.signature)
