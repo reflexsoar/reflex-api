@@ -697,7 +697,7 @@ event_list_parser.add_argument(
 event_list_parser.add_argument(
     'sort_by', type=str, location='args', default='created_at', required=False)
 event_list_parser.add_argument(
-    'sort_desc', type=xinputs.boolean, location='args', default=True, required=False)
+    'sort_direction', type=str, location='args', default="desc", required=False)
 
 
 @ns_event_v2.route("")
@@ -765,8 +765,8 @@ class EventListAggregated(Resource):
                 'value': list(set(event_uuids))
             })
 
-        observables = {}        
-
+        observables = {}
+        
         # If not filtering by a signature
         if not args.signature:
             
@@ -791,8 +791,11 @@ class EventListAggregated(Resource):
             search = Event.search()
             search = search[start:end]
 
-            if args.sort_desc:
-                args.sort_by = f"-{args.sort_by}"
+            if args.sort_direction:
+                if args.sort_direction == "asc":
+                    args.sort_by = f"-{args.sort_by}"
+                else:
+                    args.sort_by = f"{args.sort_by}"
 
             search = search.sort(args.sort_by)
             search = search.filter('terms', uuid=event_uuids)
