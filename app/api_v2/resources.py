@@ -1676,19 +1676,40 @@ class CaseList(Resource):
         if api2.payload['severity'] > 4:
             api2.payload['severity'] = 4
 
+        if 'events' in api2.payload:
+            events = api2.payload.pop('events')
+
         case = Case(**api2.payload)
 
         # Set the default status to New
         case.status = CaseStatus.get_by_name(name="New")
         case.set_owner(owner_uuid)
 
-        if 'events' in api2.payload:
-            for event in api2.payload['events']:
+        if isinstance(events, list) and len(events) > 0:
+            uuids = []
+            for event in events:
                 e = Event.get_by_uuid(event)
                 e.set_open()
                 e.set_case(uuid=case.uuid)
+                uuids.append(e.uuid)
+
+                if 'include_related_events' in api2.payload and api2.payload['include_related_events']:
+                    parent_uuid = e.uuid
+                    related_events = Event.get_by_signature(signature=e.signature, all_events=True)
+                    related_events = [e for e in related_events if hasattr(e.status,'name') and e.status.name == 'New' and e.uuid != parent_uuid]
+                    for related_event in related_events:
+                        related_event.set_open()
+                        related_event.set_case(uuid=case.uuid)
+                        case_observables += Observable.get_by_event_uuid(related_event.uuid)
+                        uuids.append(e.uuid)
 
                 case_observables += Observable.get_by_event_uuid(event)
+
+                # Automatically generates an event rule for the event associated with this case
+                if 'generate_event_rule' in api2.payload and api2.payload['generate_event_rule']:
+                    print("GENERATING THE EVENT RULE")
+            
+            case.events = uuids
 
         # Deduplicate case observables
         case_observables = list(set([Observable(

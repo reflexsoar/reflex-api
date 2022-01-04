@@ -887,7 +887,9 @@ mod_case_create = Model('CaseCreate', {
     'severity': fields.Integer(required=True),
     'observables': fields.List(fields.String),
     'events': fields.List(fields.String),
-    'case_template_uuid': fields.String
+    'case_template_uuid': fields.String,
+    'include_related_events': fields.Boolean,
+    'generate_event_rule': fields.Boolean
 })
 
 mod_case_list = Model('CaseList', {
