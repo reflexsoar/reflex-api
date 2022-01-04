@@ -362,12 +362,7 @@ class Observable(base.BaseDocument):
                 response = self.search().query('terms', value=value)
                 if all_docs:
                     #response = response[0:response.count()]
-                    for _ in response.scan():
-                        print(_)
-                    response.execute()
-                    print("---")
-                    for _ in response:
-                        print(_)
+                    response = list(response.scan())
                 else:
                     response.execute()
                 documents = list(response)
