@@ -263,7 +263,7 @@ class RQLSearch:
         def __init__(self, mutators=[], **target):
             
             super().__init__(mutators=mutators, **target)
-            self.allowed_mutators = ['any','all']
+            self.allowed_mutators = ['any','all','lowercase','uppercase']
 
         def __call__(self, obj):
             
@@ -277,7 +277,8 @@ class RQLSearch:
                 if isinstance(self.target_value, list):
                     if self.all_mode:
                         if isinstance(self.value, list):
-                            return self.has_key and sorted(self.value) == sorted(self.target_value)
+                            return self.has_key and all([v in self.target_value for v in self.value])
+                            #return self.has_key and sorted(self.value) == sorted(self.target_value)
                         else:
                             return self.has_key and all([a == self.value for a in self.target_value])
                     if self.any_mode:
