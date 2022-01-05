@@ -274,6 +274,44 @@ class QueryParser(object):
         else:
             p[0] = self.search.Contains(mutators=mutators, **{field: target})
 
+    def p_expression_containscis(self, p):
+        """expression : target CONTAINSCIS STRING
+                    | target MUTATOR CONTAINSCIS STRING
+                    | target MUTATOR MUTATOR CONTAINSCIS STRING
+                    | target MUTATOR MUTATOR MUTATOR CONTAINSCIS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS STRING
+                    | target NOT CONTAINSCIS STRING
+                    | target MUTATOR NOT CONTAINSCIS STRING
+                    | target MUTATOR MUTATOR NOT CONTAINSCIS STRING
+                    | target MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS STRING
+                    | target CONTAINSCIS ARRAY
+                    | target MUTATOR CONTAINSCIS ARRAY
+                    | target MUTATOR MUTATOR CONTAINSCIS ARRAY
+                    | target MUTATOR MUTATOR MUTATOR CONTAINSCIS ARRAY
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS ARRAY
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS ARRAY
+                    | target NOT CONTAINSCIS ARRAY
+                    | target MUTATOR NOT CONTAINSCIS ARRAY
+                    | target MUTATOR MUTATOR NOT CONTAINSCIS ARRAY
+                    | target MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS ARRAY
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS ARRAY
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS ARRAY
+        """
+
+        contains_not = False
+        for _ in p:
+            if _  and isinstance(_, str) and _.lower() == 'not':
+                contains_not = True
+
+        mutators, field, target, op = self.extract_mutators_and_fields(p)
+        if contains_not:
+            p[0] = self.search.Not(self.search.ContainsCIS(mutators=mutators, **{field: target}))
+        else:
+            p[0] = self.search.ContainsCIS(mutators=mutators, **{field: target})
+
     def p_expression_in(self, p):
         """expression : target IN ARRAY
                    | target MUTATOR IN ARRAY

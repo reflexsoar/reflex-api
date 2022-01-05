@@ -222,7 +222,36 @@ class RQLSearch:
         def __call__(self, obj):
 
             super().__call__(obj)
-            return self.has_key and self.value.lower() in self.target_value.lower()
+
+            if isinstance(self.target_value, list):
+                self.target_value = [v.lower() for v in self.target_value]
+            else:
+                self.target_value = self.target_value.lower()
+
+            if isinstance(self.value, list):
+                self.value = [v.lower() for v in self.value]
+            else:
+                self.value = self.value.lower()
+
+            if self.target_value:
+                if isinstance(self.target_value, list):
+                    if self.all_mode:
+                        if isinstance(self.value, list):
+                            return self.has_key and sorted(self.value) == sorted(self.target_value)
+                        else:
+                            return self.has_key and all([v in self.target_value for v in self.value])
+                    else:
+                        if isinstance(self.value, str):
+                            return self.has_key and any([self.value in v for v in self.target_value])
+                        else:
+                            return self.has_key and any([v in self.target_value for v in self.value])
+                else:
+                    
+                    if isinstance(self.value, list) and isinstance(self.target_value, (list, str)):
+                        return any([v in self.target_value for v in self.value])
+                        
+                    return self.has_key and self.value in self.target_value
+            return False
 
 
     class In(BaseExpression):
