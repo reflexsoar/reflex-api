@@ -218,6 +218,23 @@ class Event(base.BaseDocument):
             return [response]
 
     @classmethod
+    def get_by_signature_and_status(self, signature, status, all_events=False):
+        '''
+        Fetches an event by its calculated signature and status
+        '''
+        response = self.search()
+        response = response.filter('match', signature=signature)
+        response = response.filter('match', **{'status.name':status})
+        if all_events:
+            response = response[0:response.count()]
+            
+        response = response.execute()
+        if len(response) >= 1:
+            return list(response)
+        else:
+            return [response]
+
+    @classmethod
     def get_by_case(self, case):
         """
         Returns any event that has a case uuid associated with it that

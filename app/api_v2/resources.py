@@ -1695,21 +1695,41 @@ class CaseList(Resource):
 
                 if 'include_related_events' in api2.payload and api2.payload['include_related_events']:
                     parent_uuid = e.uuid
-                    related_events = Event.get_by_signature(signature=e.signature, all_events=True)
-                    related_events = [e for e in related_events if hasattr(e.status,'name') and e.status.name == 'New' and e.uuid != parent_uuid]
+                    related_events = Event.get_by_signature_and_status(signature=e.signature, status='New', all_events=True)
                     for related_event in related_events:
                         related_event.set_open()
                         related_event.set_case(uuid=case.uuid)
                         case_observables += Observable.get_by_event_uuid(related_event.uuid)
-                        uuids.append(e.uuid)
+                        uuids.append(related_event.uuid)
 
-                case_observables += Observable.get_by_event_uuid(event)
+                observables = Observable.get_by_event_uuid(event)
+                case_observables += observables
 
                 # Automatically generates an event rule for the event associated with this case
                 if 'generate_event_rule' in api2.payload and api2.payload['generate_event_rule']:
-                    print("GENERATING THE EVENT RULE")
+                    rule_text = f'''# System generated base query
+
+# Pin this rule to this event by it's title
+title = "{e.title}"
+
+# Default matchin on all present observables
+# Consider fine tuning this with expands function
+and observables.value|all In ["{'","'.join([o.value for o in observables])}"]'''
+
+                    event_rule = EventRule(
+                        name=f"Automatic Rule for Case {case.title}",
+                        description=f"Automatic Rule for Case {case.title}",
+                        event_signature=f"{e.title}",
+                        expire=False,
+                        expire_days=0,
+                        merge_into_case=True,
+                        taget_case_uuid=case.uuid,
+                        query=rule_text,
+                        dismiss=False)
+                    event_rule.active = True
+                    event_rule.save()
             
-            case.events = uuids
+            case.events = list(set(uuids))
 
         # Deduplicate case observables
         case_observables = list(set([Observable(
