@@ -418,3 +418,17 @@ class EventRule(base.BaseDocument):
                 rule = None
 
         return rule
+
+    @classmethod
+    def get_all(self):
+        """
+        Returns all the event rules
+        """
+
+        query = self.search()
+        query = query[0:query.count()]
+        response = query.execute()
+        if response:
+            return list(response)
+
+        return []

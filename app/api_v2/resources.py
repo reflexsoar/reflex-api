@@ -963,7 +963,9 @@ class CreateBulkEvents(Resource):
                     if observables:
                         event.add_observable(observables)
 
-                    event_rules = EventRule.get_by_title(title=event.title)
+                    #event_rules = EventRule.get_by_title(title=event.title)
+                    event_rules = EventRule.get_all()
+                    print(event_rules)
                     if event_rules:
                     
                         matched = False
