@@ -51,9 +51,9 @@ def case_templates():
 
 def random_title_description():
   titles = [
-    #{'User added to local admins': 'Someone added a normal user to local admins'},
-    #{'Suspicious DNS hit': 'A machine made a request for a suspicious DNS record'},
-    #{'Local account discovery': 'A machine exhibited enumeration behavior'},
+    {'User added to local admins': 'Someone added a normal user to local admins'},
+    {'Suspicious DNS hit': 'A machine made a request for a suspicious DNS record'},
+    {'Local account discovery': 'A machine exhibited enumeration behavior'},
     {'CVE-2021-40444': 'Remote code execution via malicious document in word'}
   ]
 
@@ -65,7 +65,7 @@ def random_severity():
 def random_host_name():
   names = [
     'thor',
-    #'sundial',
+    'sundial',
     #'hunter',
     #'bigrig',
     #'bigbertha',
@@ -120,6 +120,12 @@ def random_powershell_command():
 
 def random_event():
   alert_title = random_title_description()
+  username = random_username()
+  hostname = random_host_name()
+  signature_values = [alert_title, username, hostname]
+  event_hasher = hashlib.md5()
+  event_hasher.update(str(signature_values).encode())
+  
   alerts = [
     {
       "title": list(alert_title.keys())[0],
@@ -130,11 +136,11 @@ def random_event():
         "T1262"
       ],
       "tlp": 2,
-      "signature": "THISISATESTSIGNATURE",
+      "signature": event_hasher.hexdigest(),
       "severity": random_severity(),
       "observables": [
         {
-          "value": random_host_name(),
+          "value": hostname,
           "ioc": False,
           "tlp": 2,
           "spotted": False,
@@ -147,7 +153,7 @@ def random_event():
           ]
         },
         {
-          "value": random_username(),
+          "value": username,
           "ioc": False,
           "tlp": 2,
           "spotted": False,
