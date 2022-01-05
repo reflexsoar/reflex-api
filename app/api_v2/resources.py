@@ -1034,8 +1034,10 @@ class EventBulkUpdate(Resource):
                 e = Event.get_by_uuid(uuid=event)
                 e.set_dismissed(reason=reason, comment=comment)
                 related_events = Event.get_by_signature_and_status(signature=e.signature, status='New', all_events=True)
-                for evt in related_events:
-                    evt.set_dismissed(reason=reason, comment=comment)
+                if len(related_events) > 0:
+                    for evt in related_events:
+                        if evt.uuid not in api2.payload['events']:
+                            evt.set_dismissed(reason=reason, comment=comment)
 
         return []
 
