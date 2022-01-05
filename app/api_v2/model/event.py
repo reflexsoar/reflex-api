@@ -54,6 +54,7 @@ class Event(base.BaseDocument):
     reference = Keyword()
     case = Keyword()
     source = Text()
+    source_uuid = Keyword()
     tlp = Integer()
     severity = Integer()
     tags = Keyword()
@@ -98,6 +99,7 @@ class Event(base.BaseDocument):
             observable = system.Observable(**o)
 
             observable.add_event_uuid(self.uuid)
+            observable.auto_data_type()
             observable.check_threat_list()
             observable.enrich()
             observable.save()

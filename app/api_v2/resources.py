@@ -12,6 +12,7 @@ import hashlib
 from .rql.parser import QueryParser
 import pyqrcode
 import jwt
+import time
 from io import BytesIO
 from zipfile import ZipFile
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
@@ -1039,6 +1040,8 @@ class EventBulkUpdate(Resource):
                         if evt.uuid not in api2.payload['events']:
                             evt.set_dismissed(reason=reason, comment=comment)
 
+        time.sleep(1)
+
         return []
 
 
@@ -1155,6 +1158,9 @@ class BulkDeleteEvent(Resource):
 
                     # Delete the event
                     event.delete()
+
+        time.sleep(1)
+
         return {'message': 'Successfully deleted Events.'}, 200
 
 """

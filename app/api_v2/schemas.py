@@ -633,7 +633,8 @@ mod_data_type_list = Model('DataTypeList', {
 
 mod_data_type_create = Model('CreateDataType', {
     'name': fields.String,
-    'description': fields.String
+    'description': fields.String,
+    'regex': fields.String
 })
 
 mod_add_events_to_case = Model('AddEventsToCase', {

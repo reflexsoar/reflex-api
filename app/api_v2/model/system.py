@@ -1,4 +1,5 @@
 from app.api_v2.model.utils import escape_special_characters
+import re
 import jwt
 import uuid
 import datetime
@@ -95,6 +96,19 @@ class DataType(base.BaseDocument):
             user = response[0]
             return user
         return response
+
+    @classmethod
+    def get_all(self):
+        '''
+        Fetches all the configured DataTypes in the system
+        '''
+        response = self.search()
+        response = response[0:response.count()]
+        response = response.execute()
+        if response:
+            return list(response)
+        else:
+            return []
 
 
 class Settings(base.BaseDocument):
@@ -320,6 +334,33 @@ class Observable(base.BaseDocument):
                     if l.tag_on_match:
                         self.add_tag(f"list: {l.name}")
         self.save()
+
+    def auto_data_type(self):
+        '''
+        Attempts to automatically determine the data_type using regular
+        expressions
+        '''
+
+        data_types = DataType.get_all()
+        if self.data_type == "auto":
+            matched = False
+            for dt in data_types:
+                if dt.regex:
+                    if dt.regex.startswith('/') and dt.regex.endswith('/'):
+                        expression = dt.regex.lstrip('/').rstrip('/')
+                    else:
+                        expression = dt.regex
+                    pattern = re.compile(expression)
+                    matches = pattern.findall(self.value)
+                    if len(matches) > 0:
+                        self.data_type = dt.name
+                        matched = True
+
+            if not matched:
+                self.data_type = "generic" # CHANGE THIS TO GENERIC
+            
+        else:
+            print(f"Skipping because data type is {self.data_type}")
 
 
     @classmethod
