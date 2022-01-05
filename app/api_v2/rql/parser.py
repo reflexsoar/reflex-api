@@ -15,6 +15,7 @@ class QueryLexer(object):
         'STRING',
         'ARRAY',
         'CONTAINS',
+        'CONTAINSCIS',
         'GT',
         'GTE',
         'LT',
@@ -52,6 +53,7 @@ class QueryLexer(object):
     t_NOTEQUALS = r'!=|ne|NE|ne'
     t_CIDR = r'cidr|InCIDR'
     t_CONTAINS = r'contains|Contains'
+    t_CONTAINSCIS = r'containscis|ContainsCIS'
     t_IN = r'In|in|IN'
     t_IS = r'Is|is|IS'
     t_AND = r'and|AND|And'
@@ -275,8 +277,16 @@ class QueryParser(object):
     def p_expression_in(self, p):
         """expression : target IN ARRAY
                    | target MUTATOR IN ARRAY
+                   | target MUTATOR MUTATOR IN ARRAY
+                   | target MUTATOR MUTATOR MUTATOR IN ARRAY
+                   | target MUTATOR MUTATOR MUTATOR MUTATOR IN ARRAY
+                   | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IN ARRAY
                    | target NOT IN ARRAY
                    | target MUTATOR NOT IN ARRAY
+                   | target MUTATOR MUTATOR NOT IN ARRAY
+                   | target MUTATOR MUTATOR MUTATOR NOT IN ARRAY
+                   | target MUTATOR MUTATOR MUTATOR MUTATOR NOT IN ARRAY
+                   | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT IN ARRAY
         """
 
         contains_not = False
