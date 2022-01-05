@@ -1718,7 +1718,7 @@ class CaseList(Resource):
 # Pin this rule to this event by it's title
 title = "{e.title}"
 
-# Default matchin on all present observables
+# Default matching on all present observables
 # Consider fine tuning this with expands function
 and observables.value|all In ["{'","'.join([o.value for o in observables])}"]'''
 
@@ -2082,7 +2082,7 @@ class RelateCases(Resource):
         case = Case.get_by_uuid(uuid=uuid)
         if case:
             if case.related_cases:
-                return [c for c in Case.get_related_cases(uuid=uuid)]
+                return Case.get_by_uuid(uuid=case.related_cases)
         return []
 
     @api2.doc(security="Bearer")
