@@ -350,7 +350,9 @@ def create_default_data_types():
         {'name': 'sid', 'description': 'A Microsoft Security Identifier', 'regex':r'^S(\-\d{1,10}){4,7}$'},
         {'name': 'mac', 'description': 'The hardware address of a network adapter, MAC address', 'regex': r'^([A-Za-z0-9]{2}\:?\-?){6}$'},
         {'name': 'detection_id', 'description': 'The ID of detection rule/signature/policy that was fired'},
-        {'name': 'port', 'description': 'Network port', 'regex':r'^\d+{1,5}$'}
+        {'name': 'port', 'description': 'Network port', 'regex':r'^\d+{1,5}$'},
+        {'name': 'pid', 'description': 'Process ID'},
+        {'name': 'generic', 'description': 'A generic data type for a data type doesn\'t exist for the specific value'}
     ]
     for d in data_types:
         data_type = DataType(**d)
