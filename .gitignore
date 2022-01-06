@@ -7,8 +7,8 @@ experiment
 
 # Databases
 *.db
-app/plugins/*
-app/backup/*
+app/api_v2/plugins/*
+app/*/backup/*
 app/uploads/case_files/*
 app/uploads/file_observables/*
 tmp
