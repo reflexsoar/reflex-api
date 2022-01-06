@@ -24,19 +24,6 @@ def escape_special_characters(value):
             value = value.replace(character, '\\'+character)
     return value
 
-def escape_special_characters_rql(value):
-    '''
-    Escapes characters that may interfere with how an RQL query
-    is created
-    '''
-
-    characters = {
-        '"': '\"',
-        '\\': '\\\\'
-    }
-    for c in characters:
-        value = value.replace(c, characters[c])
-    return value
 
 def _current_user_id_or_none():
     try:

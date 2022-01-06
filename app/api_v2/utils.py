@@ -9,6 +9,21 @@ from flask import request, current_app, abort
 from .model import EventLog, User, ExpiredToken, Settings, Agent
 
 
+def escape_special_characters_rql(value):
+    '''
+    Escapes characters that may interfere with how an RQL query
+    is created
+    '''
+
+    characters = {
+        '"': '\"',
+        '\\': '\\\\'
+    }
+    for c in characters:
+        value = value.replace(c, characters[c])
+    return value
+
+
 def log_event(event_type, *args, **kwargs):
     '''
     Handles logging to the Reflex log database as well
