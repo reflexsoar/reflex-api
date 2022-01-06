@@ -53,7 +53,7 @@ class Event(base.BaseDocument):
     description = Text()
     reference = Keyword()
     case = Keyword()
-    source = Text()
+    source = Text(fields={'keyword':Keyword()})
     source_uuid = Keyword()
     tlp = Integer()
     severity = Integer()
@@ -65,6 +65,7 @@ class Event(base.BaseDocument):
     dismiss_reason = Text()
     dismiss_comment = Text()
     dismissed_by = Object()
+    event_rules = Keyword()
     raw_log = Text()
 
     class Index: # pylint: disable=too-few-public-methods
@@ -86,6 +87,17 @@ class Event(base.BaseDocument):
         '''
         self.event_observables = value
         self.save
+
+    def append_event_rule_uuid(self, uuid):
+        '''
+        Adds the UUID of an event rule to the event so that metrics and troubleshooting
+        can be performed on the event
+        '''
+        if self.event_rules and isinstance(self.event_rules, list):
+            self.event_rules += [uuid]
+        else:
+            self.event_rules = [uuid]
+        self.save()
 
     def add_observable(self, content):
         '''
@@ -286,39 +298,6 @@ class Event(base.BaseDocument):
         else:
             self.related_event_filters = filters
 
-    """
-    @property
-    def related_events(self):
-        '''
-        Returns a list of uuids for all related events that match the given
-        filter
-        '''
-
-        filters = []
-        skip_related_events = True
-        search = self.search()
-        search = search.filter('term', **{'signature': self.signature})
-
-        if hasattr(self, 'related_event_filters'):
-            filters = self.related_event_filters
-
-        if hasattr(self, 'skip_related_events'):
-            skip_related_events = self.skip_related_events
-
-        if not skip_related_events:
-            print(filters)
-            if len(filters) > 0:
-                for _filter in filters:
-                    search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
-            search = search[0:search.count()]
-            import json
-            print(json.dumps(search.to_dict(), indent=2))
-            results = search.execute()
-            if len(results) >= 1:
-                return [e.uuid for e in results if e.uuid != self.uuid]
-        return []
-    """
-
 
 class EventRule(base.BaseDocument):
     '''
@@ -397,18 +376,25 @@ class EventRule(base.BaseDocument):
             self.hit_count = 1
         self.save()
 
+        event_acted_on = False
+
         if self.dismiss:
             reason = c.CloseReason.get_by_name(title='Other')
             event.set_dismissed(reason=reason)
-            return True
-        elif self.merge_into_case:
+            event_acted_on = True
+
+        if self.merge_into_case:
 
             # Add the event to the case
             case = c.Case.get_by_uuid(self.target_case_uuid)                                
             case.add_event(event)
-            return True
+            event_acted_on = True
 
-        return False
+        # If the event was acted on by the signature, watermark the event
+        if event_acted_on:
+            event.append_event_rule_uuid(self.uuid)
+        
+        return event_acted_on
 
 
     @classmethod
