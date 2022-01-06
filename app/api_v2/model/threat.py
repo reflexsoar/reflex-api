@@ -19,7 +19,7 @@ class ThreatList(base.BaseDocument):
 
     name = Keyword()
     description = Text()
-    list_type = Text()  # value or pattern
+    list_type = Text(fields={'keyword':Keyword()})  # value or pattern
     data_type_uuid = Keyword()
     tag_on_match = Boolean()  # Default to False
     values = Keyword()  # A list of values to match on

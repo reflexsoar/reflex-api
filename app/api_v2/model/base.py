@@ -2,6 +2,7 @@ import uuid
 import json
 import datetime
 
+from fnmatch import fnmatch
 from . import (
     Document,
     Keyword,
@@ -21,6 +22,10 @@ class BaseDocument(Document):
     updated_at = Date()
     updated_by = Nested()
     created_by = Nested()
+
+    @classmethod
+    def _matches(cls, hit):
+        return fnmatch(hit["_index"], f'{cls.Index.name}-*')
 
     @classmethod
     def get_by_uuid(self, uuid, all_results=False, **kwargs):

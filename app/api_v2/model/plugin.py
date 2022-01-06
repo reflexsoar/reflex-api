@@ -17,8 +17,8 @@ class Plugin(base.BaseDocument):
     manifest = Object()
     config_template = Object()
     enabled = Boolean()
-    filename = Text()
-    file_hash = Text()
+    filename = Text(fields={'keyword':Keyword()})
+    file_hash = Text(fields={'keyword':Keyword()})
     configs = Keyword()
 
     class Index: # pylint: disable=too-few-public-methods

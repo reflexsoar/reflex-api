@@ -17,7 +17,7 @@ class FieldMap(InnerDoc):
     '''
 
     field = Keyword()
-    data_type = Text()
+    data_type = Text(fields={'keyword':Keyword()})
     tlp = Integer()
     tags = Keyword()
 
@@ -34,10 +34,10 @@ class Input(base.BaseDocument):
 
     # Renamed from 'plugin'.
     # The name of the ingestor being used e.g. 'elasticsearch' or 'ews'
-    source = Text()
+    source = Text(fields={'keyword':Keyword()})
     enabled = Boolean()  # Default to False
     config = Object()
-    credential = Text()  # The UUID of the credential in use
+    credential = Keyword()  # The UUID of the credential in use
     tags = Keyword()
     field_mapping = Nested(FieldMap)
 

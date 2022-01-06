@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -81,7 +82,7 @@ def check_setup_status():
 
 def create_admin_role(admin_id):
 
-    Role.init()
+    #Role.init()
 
     perms = { 
         'add_user': True,
@@ -308,7 +309,7 @@ def create_agent_role():
 
 
 def create_admin_user():
-    User.init()
+    #User.init()
 
     user_content = {
         'username': 'Admin',
@@ -330,7 +331,7 @@ def create_admin_user():
 
 
 def create_default_data_types():
-    DataType.init()
+    #DataType.init()
 
     data_types = [
         {'name': 'ip', 'description': 'IP Address', 'regex': r'/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/'},
@@ -350,7 +351,7 @@ def create_default_data_types():
         {'name': 'sid', 'description': 'A Microsoft Security Identifier', 'regex':r'^S(\-\d{1,10}){4,7}$'},
         {'name': 'mac', 'description': 'The hardware address of a network adapter, MAC address', 'regex': r'^([A-Za-z0-9]{2}\:?\-?){6}$'},
         {'name': 'detection_id', 'description': 'The ID of detection rule/signature/policy that was fired'},
-        {'name': 'port', 'description': 'Network port', 'regex':r'^\d+{1,5}$'},
+        {'name': 'port', 'description': 'Network port', 'regex':r'^\d{1,5}$'},
         {'name': 'pid', 'description': 'Process ID'},
         {'name': 'generic', 'description': 'A generic data type for a data type doesn\'t exist for the specific value'}
     ]
@@ -360,7 +361,7 @@ def create_default_data_types():
 
 
 def create_default_case_status():
-    CaseStatus.init()
+    #CaseStatus.init()
 
     statuses = {
         'New': 'A new case.',
@@ -378,7 +379,7 @@ def create_default_case_status():
 
 def create_default_closure_reasons():
 
-    CloseReason.init()
+    #CloseReason.init()
 
     reasons = [
         {'title': 'False positive', 'description': 'False positive'},
@@ -393,7 +394,7 @@ def create_default_closure_reasons():
 
 
 def create_default_event_status():
-    EventStatus.init()
+    #EventStatus.init()
 
     statuses = {
         'New': 'A new event.',
@@ -408,7 +409,7 @@ def create_default_event_status():
         status.save()
 
 def create_default_case_templates():
-    CaseTemplate.init()
+    #CaseTemplate.init()
 
     templates = [
         {"title":"Phishing Analysis","description":"Use this case template when investigating a Phishing e-mail.","tasks":[{"title":"Fetch original e-mail","description":"Get a copy of the original e-mail so that analysis can be performed on it to determine if it really is a phishing e-mail or not.","group_uuid":None,"owner_uuid":None,"order":"0"},{"title":"Notify users","description":"Send a phishing alert e-mail to all users so they are aware they may have been targeted.  This should buy time until the e-mail is scrubbed from the environment.","group_uuid":None,"owner_uuid":None,"order":"1"},{"title":"Quarantine","description":"Remove the original message from the e-mail environment","group_uuid":None,"owner_uuid":None,"order":"2"},{"title":"Post Mortem","description":"What have we learned from this event that could help in future events?","group_uuid":None,"owner_uuid":None,"order":"3"}],"tlp":2,"severity":2,"tags":["phishing"]}
@@ -420,7 +421,7 @@ def create_default_case_templates():
 
 def initial_settings():
 
-    Settings.init()
+    #Settings.init()
 
     settings_content = {
         'base_url': 'localhost',
@@ -447,28 +448,66 @@ def initial_settings():
     settings = Settings(**settings_content)
     settings.save()
 
+
+def migrate(ALIAS, VERSION, move_data=True, update_alias=True):
+
+    es = connections.get_connection()
+
+    new_index = ALIAS+f"-{VERSION}"
+
+    if not es.indices.exists(index=new_index):
+        
+        es.indices.create(index=new_index)
+
+        if move_data:
+            
+            print(f'Upgrading {ALIAS} and moving data to {new_index}')
+            es.reindex(
+                body={"source": {"index": ALIAS}, "dest": {"index": new_index}},
+                request_timeout=3600
+            )
+
+            es.indices.refresh(index=new_index)
+
+        if update_alias:
+            print(f'Updating aliases for {ALIAS}')
+            es.indices.update_aliases(
+                body={
+                    "actions":[
+                        {"remove": {"alias": ALIAS, "index": ALIAS+"-*"}},
+                        {"add": {"alias": ALIAS, "index": new_index}}
+                    ]
+                }
+            )
+
+    else:
+        print(f'{ALIAS} is already upgraded')
+
+    
 # Initialize empty indices
-check_setup_status()
-Tag.init()
-ExpiredToken.init()
-Credential.init()
-Input.init()
-Agent.init()
-ThreatList.init()
-EventStatus.init()
-EventRule.init()
-Event.init()
-CaseComment.init()
-CaseHistory.init()
-#CaseTemplate.init()
-Case.init()
-CaseTask.init()
-Observable.init()
-AgentGroup.init()
-TaskNote.init()
-Plugin.init()
-PluginConfig.init()
-EventLog.init()
+#check_setup_status()
+
+VERSION="0.1.0"
+
+models = [
+    Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
+    CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
+    TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
+    ]
+
+for model in models:
+
+    ALIAS = model.Index.name
+    PATTERN = ALIAS+f"-{VERSION}"
+    index_template = model._index.as_template(ALIAS, PATTERN)
+    index_template.save()
+    
+    if not model._index.exists():
+        migrate(ALIAS, VERSION, move_data=False)
+    else:
+        migrate(ALIAS, VERSION)
+
+
 admin_id = create_admin_user()
 create_admin_role(admin_id)
 create_analyst_role()

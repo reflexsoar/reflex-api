@@ -1,5 +1,6 @@
 import datetime
 import hashlib
+from fnmatch import fnmatch
 
 from app.api_v2.rql.parser import QueryParser
 from . import case as c

@@ -211,10 +211,9 @@ class Observable(base.BaseDocument):
     An observable is an artifact on an event that is of importance
     to an analyst. An observable could be an IP, domain, email, fqdn, etc.
     '''
-
-    uuid = Text()
+    
     tags = Keyword()
-    data_type = Text()
+    data_type = Text(fields={'keyword':Keyword()})
     value = Keyword()
     spotted = Boolean()
     ioc = Boolean()
@@ -350,17 +349,18 @@ class Observable(base.BaseDocument):
                         expression = dt.regex.lstrip('/').rstrip('/')
                     else:
                         expression = dt.regex
-                    pattern = re.compile(expression)
-                    matches = pattern.findall(self.value)
+                    try:
+                        pattern = re.compile(expression)
+                        matches = pattern.findall(self.value)
+                    except Exception as error:
+                        self.data_type = "generic"
+                        print(dt.regex, error)
                     if len(matches) > 0:
                         self.data_type = dt.name
                         matched = True
 
             if not matched:
                 self.data_type = "generic" # CHANGE THIS TO GENERIC
-            
-        else:
-            print(f"Skipping because data type is {self.data_type}")
 
 
     @classmethod

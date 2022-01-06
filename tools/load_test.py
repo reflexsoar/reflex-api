@@ -66,11 +66,11 @@ def random_host_name():
   names = [
     'thor',
     'sundial',
-    #'hunter',
-    #'bigrig',
-    #'bigbertha',
-    #'bfg4000',
-    #'brian-pc'
+    'hunter',
+    'bigrig',
+    'bigbertha',
+    'bfg4000',
+    'brian-pc'
   ]
 
   return names[random.randint(0, len(names)-1)]
@@ -79,16 +79,16 @@ def random_username():
   users = [
     'brian',
     'joe',
-    #'jonathan',
-    #'dave',
-    #'molly',
-    #'stevie',
-    #'justin',
-    #'josh',
-    #'adam',
-    #'matthew',
-    #'administrator',
-    #'system'
+    'jonathan',
+    'dave',
+    'molly',
+    'stevie',
+    'justin',
+    'josh',
+    'adam',
+    'matthew',
+    'administrator',
+    'system'
   ]
 
   return users[random.randint(0, len(users)-1)]
@@ -188,6 +188,18 @@ def random_event():
           "source_field": "winlog.event_data.ImageName",
           "tags": [
             "source-user", "source-process"
+          ]
+        },
+        {
+          "value": random_powershell_command(),
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "command",
+          "source_field": "winlog.event_data.CommandLine",
+          "tags": [
+            "command"
           ]
         }
       ],

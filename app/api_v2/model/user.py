@@ -31,16 +31,16 @@ class User(base.BaseDocument):
     '''
 
     email = Text()
-    username = Text()
-    first_name = Text()
-    last_name = Text()
+    username = Text(fields={'keyword':Keyword()})
+    first_name = Text(fields={'keyword':Keyword()})
+    last_name = Text(fields={'keyword':Keyword()})
     last_logon = Date()
     password_hash = Text()
     failed_logons = Integer()
     deleted = Boolean()
     locked = Boolean()
     #groups = Nested(Group)
-    api_key = Text()
+    api_key = Text(fields={'keyword':Keyword()})
     auth_method = Keyword() # local, ldap, saml
     auth_realm = Keyword() # Which authentication realm to log in to
     otp_secret = Keyword()

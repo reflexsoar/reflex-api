@@ -21,8 +21,8 @@ class Credential(base.BaseDocument):
 
     name = Keyword()
     description = Text()
-    username = Text()
-    secret = Text()
+    username = Text(fields={'keyword':Keyword()})
+    secret = Text(fields={'keyword':Keyword()})
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

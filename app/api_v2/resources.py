@@ -1127,7 +1127,10 @@ event_stats_parser.add_argument(
     'severity', action='split', location='args', required=False)
 event_stats_parser.add_argument(
     'title', type=str, location='args', action='split', required=False)
-
+event_stats_parser.add_argument('observables', location='args', default=[
+], type=str, action='split', required=False)
+event_stats_parser.add_argument('source', location='args', default=[
+], type=str, action='split', required=False)
 
 @ns_event_v2.route("/stats")
 class EventStats(Resource):
@@ -1153,7 +1156,7 @@ class EventStats(Resource):
                 'value': args.status
             })
 
-        for arg in ['severity','title','tags']:
+        for arg in ['severity','title','tags','source']:
             if arg in args and args[arg] not in ['', None, []]:
                 search_filters.append({
                     'type': 'terms',
@@ -1168,32 +1171,52 @@ class EventStats(Resource):
                 'value': args.signature
             })
 
+        event_uuids = []
+
+        if args.observables:
+            event_uuids = []
+
+            if any('|' in o for o in args.observables):
+                for observable in args.observables:
+                    if '|' in observable:
+                        value,field = observable.split('|')
+                        response = Observable.get_by_value_and_field(value, field)
+                        event_uuids += [o.events[0] for o in response]
+            else:
+                observables = Observable.get_by_value(args.observables)
+                event_uuids = [o.events[0] for o in observables if o.events]
+            
+            search_filters.append({
+                'type': 'terms',
+                'field': 'uuid',
+                'value': list(set(event_uuids))
+            })
+
         search = Event.search()
 
         # Apply all filters
         for _filter in search_filters:
-            search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+            search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})      
 
         search.aggs.bucket('title', 'terms', field='title', size=100)
         search.aggs.bucket('tags', 'terms', field='tags', size=50)
         search.aggs.bucket('status', 'terms', field='status.name.keyword', size=5)
         search.aggs.bucket('severity', 'terms', field='severity', size=10)
         search.aggs.bucket('signature', 'terms', field='signature', size=100)
-        #search.aggs.bucket('source', 'terms', field='source', size=10)
+        search.aggs.bucket('uuids', 'terms', field='uuid', size=10000)
+        #search.aggs.bucket('source', 'terms', field='source.keyword', size=10)
 
         events = search.execute()
 
+        observable_search = Observable.search()
+        observable_search = observable_search.filter('exists', field='events')
 
-        
-        
-        """data = {
-            'title': [{v['key']: v['doc_count']} for v in events.aggs.title.buckets],
-            'status': [{v['key']: v['doc_count']} for v in events.aggs.status.buckets],
-            'status': [{v['key']: v['doc_count']} for v in events.aggs.tags.buckets],
-            'severity': [{SEVERITY[v['key']]: v['doc_count']} for v in events.aggs.severity.buckets],
-            'signature': [{v['key']: v['doc_count']} for v in events.aggs.signature.buckets],
-            #'source': {v['key']: v['doc_count'] for v in events.aggs.source.buckets}
-        }"""
+        observable_search = observable_search.filter('terms', **{'events': [v['key'] for v in events.aggs.uuids.buckets]})
+
+        observable_search.aggs.bucket('data_type', 'terms', field='data_type.keyword', size=50)
+        observable_search.aggs.bucket('value', 'terms', field='value', size=100)
+
+        observable_search = observable_search.execute()
 
         data = {
             'title': {v['key']: v['doc_count'] for v in events.aggs.title.buckets},
@@ -1201,6 +1224,8 @@ class EventStats(Resource):
             'tag': {v['key']: v['doc_count'] for v in events.aggs.tags.buckets},
             'severity': {v['key']: v['doc_count'] for v in events.aggs.severity.buckets},
             'signature': {v['key']: v['doc_count'] for v in events.aggs.signature.buckets},
+            'data type': {v['key']: v['doc_count'] for v in observable_search.aggs.data_type.buckets},
+            'observable value': {v['key']: v['doc_count'] for v in observable_search.aggs.value.buckets},
             #'source': {v['key']: v['doc_count'] for v in events.aggs.source.buckets}
         }
 
