@@ -773,7 +773,7 @@ class EventListAggregated(Resource):
             
             search = Event.search()
 
-            search = search[:0]        
+            search = search[:0]
 
             # Apply all filters
             for _filter in search_filters:
@@ -1117,6 +1117,97 @@ class EventDetails(Resource):
         else:
             return {'message': 'Event not found'}, 404
 
+event_stats_parser = api2.parser()
+event_stats_parser.add_argument('status', location='args', default=[
+], type=str, action='split', required=False)
+event_stats_parser.add_argument('tags', location='args', default=[
+], type=str, action='split', required=False)
+event_stats_parser.add_argument('signature', location='args', required=False)
+event_stats_parser.add_argument(
+    'severity', action='split', location='args', required=False)
+event_stats_parser.add_argument(
+    'title', type=str, location='args', action='split', required=False)
+
+
+@ns_event_v2.route("/stats")
+class EventStats(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(event_stats_parser)
+    @token_required
+    @user_has('view_events')
+    def get(self, current_user):
+        '''
+        Returns metrics about events that can be used for easier filtering
+        of events on the Events List page
+        '''
+
+        args = event_stats_parser.parse_args()
+        
+        search_filters = []
+
+        if args.status and args.status != ['']:
+            search_filters.append({
+                'type': 'terms',
+                'field': 'status.name__keyword',
+                'value': args.status
+            })
+
+        for arg in ['severity','title','tags']:
+            if arg in args and args[arg] not in ['', None, []]:
+                search_filters.append({
+                    'type': 'terms',
+                    'field': arg,
+                    'value': args[arg]
+                })
+        
+        if args.signature:
+            search_filters.append({
+                'type': 'term',
+                'field': 'signature',
+                'value': args.signature
+            })
+
+        search = Event.search()
+
+        # Apply all filters
+        for _filter in search_filters:
+            search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+
+        search.aggs.bucket('title', 'terms', field='title', size=100)
+        search.aggs.bucket('tags', 'terms', field='tags', size=50)
+        search.aggs.bucket('status', 'terms', field='status.name.keyword', size=5)
+        search.aggs.bucket('severity', 'terms', field='severity', size=10)
+        search.aggs.bucket('signature', 'terms', field='signature', size=100)
+        #search.aggs.bucket('source', 'terms', field='source', size=10)
+
+        events = search.execute()
+        SEVERITY = {
+            0: 'Low',
+            1: 'Medium',
+            2: 'High',
+            3: 'Critical'
+        }
+        
+        """data = {
+            'title': [{v['key']: v['doc_count']} for v in events.aggs.title.buckets],
+            'status': [{v['key']: v['doc_count']} for v in events.aggs.status.buckets],
+            'status': [{v['key']: v['doc_count']} for v in events.aggs.tags.buckets],
+            'severity': [{SEVERITY[v['key']]: v['doc_count']} for v in events.aggs.severity.buckets],
+            'signature': [{v['key']: v['doc_count']} for v in events.aggs.signature.buckets],
+            #'source': {v['key']: v['doc_count'] for v in events.aggs.source.buckets}
+        }"""
+
+        data = {
+            'title': {v['key']: v['doc_count'] for v in events.aggs.title.buckets},
+            'status': {v['key']: v['doc_count'] for v in events.aggs.status.buckets},
+            'tag': {v['key']: v['doc_count'] for v in events.aggs.tags.buckets},
+            'severity': {SEVERITY[v['key']]: v['doc_count'] for v in events.aggs.severity.buckets},
+            'signature': {v['key']: v['doc_count'] for v in events.aggs.signature.buckets},
+            #'source': {v['key']: v['doc_count'] for v in events.aggs.source.buckets}
+        }
+
+        return data
 
 @ns_event_v2.route("/bulk_delete")
 class BulkDeleteEvent(Resource):
@@ -1134,11 +1225,8 @@ class BulkDeleteEvent(Resource):
             current_user (User): The current user making the API request
         '''
 
-        print(api2.payload)
-
         if api2.payload['events']:
             for _event in api2.payload['events']:
-                print(_event)
 
                 event = Event.get_by_uuid(uuid=_event)
 
