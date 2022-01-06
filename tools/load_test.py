@@ -136,6 +136,7 @@ def random_event():
         "T1262"
       ],
       "tlp": 2,
+      "source": "load_test.py",
       "signature": event_hasher.hexdigest(),
       "severity": random_severity(),
       "observables": [

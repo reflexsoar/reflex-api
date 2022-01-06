@@ -483,10 +483,6 @@ def migrate(ALIAS, VERSION, move_data=True, update_alias=True):
     else:
         print(f'{ALIAS} is already upgraded')
 
-    
-# Initialize empty indices
-#check_setup_status()
-
 VERSION="0.1.0"
 
 models = [

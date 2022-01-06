@@ -15,6 +15,7 @@ import jwt
 import time
 from io import BytesIO
 from zipfile import ZipFile
+import pyminizip
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs, marshal
 from werkzeug.datastructures import FileStorage
@@ -47,7 +48,9 @@ from .model import (
     Plugin,
     EventLog,
     A,
-    Search
+    Search,
+    EventStatus,
+    TaskNote
 )
 
 from app.api_v2.model.utils import escape_special_characters
@@ -1204,7 +1207,7 @@ class EventStats(Resource):
         search.aggs.bucket('severity', 'terms', field='severity', size=10)
         search.aggs.bucket('signature', 'terms', field='signature', size=100)
         search.aggs.bucket('uuids', 'terms', field='uuid', size=10000)
-        #search.aggs.bucket('source', 'terms', field='source.keyword', size=10)
+        search.aggs.bucket('source', 'terms', field='source.keyword', size=10)
 
         events = search.execute()
 
@@ -1220,13 +1223,13 @@ class EventStats(Resource):
 
         data = {
             'title': {v['key']: v['doc_count'] for v in events.aggs.title.buckets},
-            'status': {v['key']: v['doc_count'] for v in events.aggs.status.buckets},
+            'observable value': {v['key']: v['doc_count'] for v in observable_search.aggs.value.buckets},
+            'source': {v['key']: v['doc_count'] for v in events.aggs.source.buckets},
             'tag': {v['key']: v['doc_count'] for v in events.aggs.tags.buckets},
+            'status': {v['key']: v['doc_count'] for v in events.aggs.status.buckets},
             'severity': {v['key']: v['doc_count'] for v in events.aggs.severity.buckets},
             'signature': {v['key']: v['doc_count'] for v in events.aggs.signature.buckets},
-            'data type': {v['key']: v['doc_count'] for v in observable_search.aggs.data_type.buckets},
-            'observable value': {v['key']: v['doc_count'] for v in observable_search.aggs.value.buckets},
-            #'source': {v['key']: v['doc_count'] for v in events.aggs.source.buckets}
+            'data type': {v['key']: v['doc_count'] for v in observable_search.aggs.data_type.buckets},            
         }
 
         return data
@@ -3440,7 +3443,6 @@ class PluginUpload(Resource):
         return plugins
 
 
-
 @ns_settings_v2.route("")
 class GlobalSettings(Resource):
 
@@ -3475,6 +3477,77 @@ class GlobalSettings(Resource):
 
         return {'message': 'Succesfully updated settings'}
 
+
+@ns_settings_v2.route("/backup")
+class BackupData(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_create_backup)
+    @token_required
+    @user_has('view_settings')
+    def post(self, current_user):
+        '''
+        Backs up all the data from the platform into a compressed archive
+        containing a JSON file for each index
+        '''
+
+        if 'password' in api2.payload:
+
+            models = [
+                Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
+                CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
+                TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
+            ]
+
+            backup_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'backup/')
+            lock_file = os.path.join(backup_path, 'backup.lock')
+
+            # Check to see if a backup is already in progress
+            if os.path.exists(lock_file):
+                ns_settings_v2.abort(400, 'Backup already in progress.')
+
+            for f in os.listdir(backup_path):
+                os.remove(os.path.join(backup_path, f))
+
+            # Create a lock file so other admins can't start a backup
+            with open(lock_file, 'w') as f:
+                f.write(f'BACKUP STARTED {datetime.datetime.utcnow()} by {current_user.username}')
+
+            if not os.path.exists(backup_path):
+                os.makedirs(backup_path)
+
+            for model in models:
+
+                filename = f'{model.Index.name}.json'
+                file_path = os.path.join(backup_path, filename)
+                search = model.search()
+                search = search[0:search.count()]
+                results = search.execute()
+                results = [r.to_dict() for r in results]
+                with open(file_path, 'w') as fout:
+                    json.dump(results, fout, default=str)
+
+                if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+                    ns_settings_v2.abort(400, f'Unable to backup to {filename}')
+
+            archive_name = f'backup-{datetime.datetime.utcnow().strftime("%Y-%m-%d")}.zip'
+            backup_archive = os.path.join(backup_path, archive_name)
+            
+            files_to_zip = []
+            for folderName, subfolders, filenames in os.walk(backup_path):
+                for filename in filenames:
+                    if filename.endswith('.json'):
+                        filepath = os.path.join(folderName,filename)
+                        files_to_zip.append(filepath)
+
+            pyminizip.compress_multiple(files_to_zip, [], backup_archive, api2.payload['password'], 9)
+            if os.path.exists(backup_archive):
+                os.remove(os.path.join(lock_file))
+                return send_from_directory(backup_path, archive_name, as_attachment=True)
+            else:
+                ns_settings_v2.abort(400, 'Backup failed.')
+        else:
+            ns_settings_v2.abort(400, 'Password missing.')
 
 @ns_settings_v2.route("/generate_persistent_pairing_token")
 class PersistentPairingToken(Resource):
