@@ -715,7 +715,8 @@ mod_event_rule_list = Model('EventRuleList', {
     'observables': fields.List(fields.Nested(mod_observable_brief)),
     'expire_at': ISO8601(attribute='expire_at'),
     'created_at': ISO8601(attribute='created_at'),
-    'updated_at': ISO8601(attribute='updated_at')
+    'updated_at': ISO8601(attribute='updated_at'),
+    'last_matched_date': ISO8601(attribute='last_matched_date')
 })
 
 mod_case_history = Model('CaseHistoryEntry', {

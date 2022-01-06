@@ -339,12 +339,23 @@ class EventRule(base.BaseDocument):
     expire_at = Date()  # Computed from the created_at date of the event + a timedelta in days
     active = Boolean()  # Users can override the alarm and disable it out-right
     hit_count = Integer() # How many times the event rule has triggered
+    last_matched_date = Date() # When the rule last matched on an event
+    order = Integer() # What order to process events in, 1 being first
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-event-rules'
 
 
+    @classmethod
+    def update_order(self, order):
+        '''
+        Updates the order in which this rule will be processed
+        '''
+
+        self.order = order
+        self.save()
+    
     def process_rql(self, event):
         '''
         Checks an event against an RQL query to see if it matches.  If an event 
@@ -368,6 +379,8 @@ class EventRule(base.BaseDocument):
             
             # Process the event
             if len(results) > 0:
+                self.last_matched_date = datetime.datetime.utcnow()
+                self.save()
                 return True
         return False
 
