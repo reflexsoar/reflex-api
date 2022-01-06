@@ -1182,12 +1182,9 @@ class EventStats(Resource):
         #search.aggs.bucket('source', 'terms', field='source', size=10)
 
         events = search.execute()
-        SEVERITY = {
-            0: 'Low',
-            1: 'Medium',
-            2: 'High',
-            3: 'Critical'
-        }
+
+
+        
         
         """data = {
             'title': [{v['key']: v['doc_count']} for v in events.aggs.title.buckets],
@@ -1202,7 +1199,7 @@ class EventStats(Resource):
             'title': {v['key']: v['doc_count'] for v in events.aggs.title.buckets},
             'status': {v['key']: v['doc_count'] for v in events.aggs.status.buckets},
             'tag': {v['key']: v['doc_count'] for v in events.aggs.tags.buckets},
-            'severity': {SEVERITY[v['key']]: v['doc_count'] for v in events.aggs.severity.buckets},
+            'severity': {v['key']: v['doc_count'] for v in events.aggs.severity.buckets},
             'signature': {v['key']: v['doc_count'] for v in events.aggs.signature.buckets},
             #'source': {v['key']: v['doc_count'] for v in events.aggs.source.buckets}
         }
