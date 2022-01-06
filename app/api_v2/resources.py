@@ -1728,7 +1728,7 @@ title = "{e.title}"
 
 # Default matching on all present observables
 # Consider fine tuning this with expands function
-and observables.value|all In ["{'","'.join([o.value for o in observables])}"]'''
+and observables.value|all In ["{'","'.join([o.value.replace('\\','\\\\').replace('"','\"') for o in observables])}"]'''
 
                     event_rule = EventRule(
                         name=f"Automatic Rule for Case {case.title}",
