@@ -52,7 +52,7 @@ from .model import (
 
 from app.api_v2.model.utils import escape_special_characters
 
-from .utils import ip_approved, token_required, user_has, generate_token, log_event, check_password_reset_token
+from .utils import ip_approved, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
 
 from .resource import ns_playbook_v2, ns_audit_log_v2
 
@@ -1728,7 +1728,7 @@ title = "{e.title}"
 
 # Default matching on all present observables
 # Consider fine tuning this with expands function
-and observables.value|all In ["{'","'.join([o.value.replace('\\','\\\\').replace('"','\"') for o in observables])}"]'''
+and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.value) for o in observables])}"]'''
 
                     event_rule = EventRule(
                         name=f"Automatic Rule for Case {case.title}",
