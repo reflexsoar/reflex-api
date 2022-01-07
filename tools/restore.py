@@ -236,7 +236,7 @@ if __name__ == "__main__":
                         
                         data = fin.read()
                         for model in models:
-                            if model.Index.name == index_name:
+                            if model.Index.name.replace(REFLEX_VERSION,'') == index_name.replace(REFLEX_VERSION,''):
                                 for _ in json.loads(data):
                                     doc = model(**_)
                                     doc.save()
