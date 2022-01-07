@@ -9,6 +9,7 @@ experiment
 *.db
 app/api_v2/plugins/*
 app/*/backup/*
+tools/backup/
 app/uploads/case_files/*
 app/uploads/file_observables/*
 tmp
