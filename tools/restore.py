@@ -13,112 +13,6 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
 else:
     from elasticsearch_dsl import connections, Document
 
-REFLEX_VERSION = ''
-
-class Event(Document):
-    class Index:
-        name = f'reflex-events{REFLEX_VERSION}'
-
-class Tag(Document):
-    class Index:
-        name = f'reflex-tags{REFLEX_VERSION}'
-
-class ExpiredToken(Document):
-    class Index:
-        name = f'reflex-expired-tokens{REFLEX_VERSION}'
-
-class Credential(Document):
-    class Index:
-        name = f'reflex-credentials{REFLEX_VERSION}'
-
-class Agent(Document):
-    class Index:
-        name = f'reflex-agents{REFLEX_VERSION}'
-
-class ThreatList(Document):
-    class Index:
-        name = f'reflex-threat-lists{REFLEX_VERSION}'
-
-class EventStatus(Document):
-    class Index:
-        name = f'reflex-event-statuses{REFLEX_VERSION}'
-
-class EventRule(Document):
-    class Index:
-        name = f'reflex-event-rules{REFLEX_VERSION}'
-
-class CaseComment(Document):
-    class Index:
-        name = f'reflex-case-comments{REFLEX_VERSION}'
-
-class CaseHistory(Document):
-    class Index:
-        name = f'reflex-case-history{REFLEX_VERSION}'
-
-class Case(Document):
-    class Index:
-        name = f'reflex-cases{REFLEX_VERSION}'
-
-class CaseTask(Document):
-    class Index:
-        name = f'reflex-case-tasks{REFLEX_VERSION}'
-
-class CaseTemplate(Document):
-    class Index:
-        name = f'reflex-case-templates{REFLEX_VERSION}'
-
-class Observable(Document):
-    class Index:
-        name = f'reflex-observables-test{REFLEX_VERSION}'
-
-class AgentGroup(Document):
-    class Index:
-        name = f'reflex-agent-groups{REFLEX_VERSION}'
-
-class TaskNote(Document):
-    class Index:
-        name = f'reflex-case-task-notes{REFLEX_VERSION}'
-
-class Plugin(Document):
-    class Index:
-        name = f'reflex-plugins{REFLEX_VERSION}'
-
-class PluginConfig(Document):
-    class Index:
-        name = f'reflex-plugin-configs{REFLEX_VERSION}'
-
-class EventLog(Document):
-    class Index:
-        name = f'reflex-audit-logs{REFLEX_VERSION}'
-
-class User(Document):
-    class Index:
-        name = f'reflex-users{REFLEX_VERSION}'
-
-class Role(Document):
-    class Index:
-        name = f'reflex-user-roles{REFLEX_VERSION}'
-
-class DataType(Document):
-    class Index:
-        name = f'reflex-data-types{REFLEX_VERSION}'
-
-class CaseStatus(Document):
-    class Index:
-        name = f'reflex-case-statuses{REFLEX_VERSION}'
-
-class CloseReason(Document):
-    class Index:
-        name = f'reflex-close-reasons{REFLEX_VERSION}'
-
-class Settings(Document):
-    class Index:
-        name = f'reflex-settings{REFLEX_VERSION}'
-
-class Input(Document):
-    class Index:
-        name = f'reflex-inputs{REFLEX_VERSION}'
-
 
 if __name__ == "__main__":
 
@@ -131,6 +25,7 @@ if __name__ == "__main__":
     parser.add_argument('--dump','-d', action='store_true')
     parser.add_argument('--outfile', '-o', type=str)
     parser.add_argument('--nozip', action='store_true')
+    parser.add_argument('--version', default='', type=str)
 
     args = parser.parse_args()
 
@@ -142,6 +37,113 @@ if __name__ == "__main__":
     ES_CERT_VERIFY = os.getenv('REFLEX_ES_CERT_VERIFY') if os.getenv('REFLEX_ES_CERT_VERIFY') else False
     ES_USE_SSL = os.getenv('REFLEX_ES_USE_SSL') if os.getenv('REFLEX_ES_USE_SSL') else True
     ELASTICSEARCH_SHOW_SSL_WARN = True if os.getenv('REFLEX_ES_SHOW_SSL_WARN') else False # This can equal any value, as long as it is set True
+
+    if args.version != '':
+        REFLEX_VERSION = f'-{args.version}'
+
+    class Event(Document):
+        class Index:
+            name = f'reflex-events{REFLEX_VERSION}'
+
+    class Tag(Document):
+        class Index:
+            name = f'reflex-tags{REFLEX_VERSION}'
+
+    class ExpiredToken(Document):
+        class Index:
+            name = f'reflex-expired-tokens{REFLEX_VERSION}'
+
+    class Credential(Document):
+        class Index:
+            name = f'reflex-credentials{REFLEX_VERSION}'
+
+    class Agent(Document):
+        class Index:
+            name = f'reflex-agents{REFLEX_VERSION}'
+
+    class ThreatList(Document):
+        class Index:
+            name = f'reflex-threat-lists{REFLEX_VERSION}'
+
+    class EventStatus(Document):
+        class Index:
+            name = f'reflex-event-statuses{REFLEX_VERSION}'
+
+    class EventRule(Document):
+        class Index:
+            name = f'reflex-event-rules{REFLEX_VERSION}'
+
+    class CaseComment(Document):
+        class Index:
+            name = f'reflex-case-comments{REFLEX_VERSION}'
+
+    class CaseHistory(Document):
+        class Index:
+            name = f'reflex-case-history{REFLEX_VERSION}'
+
+    class Case(Document):
+        class Index:
+            name = f'reflex-cases{REFLEX_VERSION}'
+
+    class CaseTask(Document):
+        class Index:
+            name = f'reflex-case-tasks{REFLEX_VERSION}'
+
+    class CaseTemplate(Document):
+        class Index:
+            name = f'reflex-case-templates{REFLEX_VERSION}'
+
+    class Observable(Document):
+        class Index:
+            name = f'reflex-observables-test{REFLEX_VERSION}'
+
+    class AgentGroup(Document):
+        class Index:
+            name = f'reflex-agent-groups{REFLEX_VERSION}'
+
+    class TaskNote(Document):
+        class Index:
+            name = f'reflex-case-task-notes{REFLEX_VERSION}'
+
+    class Plugin(Document):
+        class Index:
+            name = f'reflex-plugins{REFLEX_VERSION}'
+
+    class PluginConfig(Document):
+        class Index:
+            name = f'reflex-plugin-configs{REFLEX_VERSION}'
+
+    class EventLog(Document):
+        class Index:
+            name = f'reflex-audit-logs{REFLEX_VERSION}'
+
+    class User(Document):
+        class Index:
+            name = f'reflex-users{REFLEX_VERSION}'
+
+    class Role(Document):
+        class Index:
+            name = f'reflex-user-roles{REFLEX_VERSION}'
+
+    class DataType(Document):
+        class Index:
+            name = f'reflex-data-types{REFLEX_VERSION}'
+
+    class CaseStatus(Document):
+        class Index:
+            name = f'reflex-case-statuses{REFLEX_VERSION}'
+
+    class CloseReason(Document):
+        class Index:
+            name = f'reflex-close-reasons{REFLEX_VERSION}'
+
+    class Settings(Document):
+        class Index:
+            name = f'reflex-settings{REFLEX_VERSION}'
+
+    class Input(Document):
+        class Index:
+            name = f'reflex-inputs{REFLEX_VERSION}'
 
     elastic_connection = {
         'hosts': ES_URL,
