@@ -3,21 +3,32 @@ import ssl
 import atexit
 import logging
 from datetime import datetime
+from typing import Set
+from app.api_v2.model.system import Settings
 from flask import Flask
 from app.services import housekeeper
 from app.services.threat_list_poller.base import ThreatListPoller
 from app.services.housekeeper import HouseKeeper
-from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_mail import Mail
 from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
+
 from app.api_v2.model import (
     Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
-        TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason
+        TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
+        Settings
 )
+
+from .defaults import (
+    create_default_case_status, create_admin_role, initial_settings, create_agent_role,
+    create_default_closure_reasons, create_default_case_templates, create_default_data_types,
+    create_default_event_status, create_analyst_role,create_admin_user
+)
+
+REFLEX_VERSION = '0.1.0'
 
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
@@ -35,7 +46,7 @@ cache = Cache(config={'CACHE_TYPE': 'simple'})
 scheduler = BackgroundScheduler()
 
 
-def migrate(ALIAS, VERSION, move_data=True, update_alias=True):
+def migrate(ALIAS, move_data=True, update_alias=True):
     '''
     Upgrades all the indices in the system when a new version is released
     that requires a schema change
@@ -43,7 +54,7 @@ def migrate(ALIAS, VERSION, move_data=True, update_alias=True):
 
     es = connections.get_connection()
 
-    new_index = ALIAS+f"-{VERSION}"
+    new_index = ALIAS+f"-{REFLEX_VERSION}"
 
     # Check to make sure the index hasn't already been upgraded
     if not es.indices.exists(index=new_index):
@@ -53,8 +64,6 @@ def migrate(ALIAS, VERSION, move_data=True, update_alias=True):
 
         # Move the data to the new index
         if move_data:
-            
-                print(f'Upgrading {ALIAS} and moving data to {new_index}')
                 es.reindex(
                     body={"source": {"index": ALIAS}, "dest": {"index": new_index}},
                     request_timeout=3600
@@ -64,7 +73,6 @@ def migrate(ALIAS, VERSION, move_data=True, update_alias=True):
 
         # Update the index alias
         if update_alias:
-            print(f'Updating aliases for {ALIAS}')
             es.indices.update_aliases(
                 body={
                     "actions":[
@@ -75,24 +83,54 @@ def migrate(ALIAS, VERSION, move_data=True, update_alias=True):
             )
 
 def upgrade_indices():
-
-    VERSION = '0.1.0'
-    
+    '''
+    Performs an upgrade on each index and initializes them if they do not
+    exist yet (e.g. first time running the software)
+    '''
+   
     models = [
         Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
-        TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
+        TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings
         ]
+
     for model in models:
         ALIAS = model.Index.name
-        PATTERN = ALIAS+f"-{VERSION}"
+        PATTERN = ALIAS+f"-{REFLEX_VERSION}"
         index_template = model._index.as_template(ALIAS, PATTERN)
         index_template.save()
 
         if not model._index.exists():
-            migrate(ALIAS, VERSION, move_data=False)
+            migrate(ALIAS, move_data=False)
         else:
-            migrate(ALIAS, VERSION)
+            migrate(ALIAS)
+
+
+def setup_complete():
+    '''
+    Checks if setup has been completed in the past
+    '''
+
+    es = connections.get_connection()
+    return es.indices.exists('reflex-settings')
+
+def setup():
+    '''
+    Performs initial setup by setting defaults
+    '''
+
+    admin_id = create_admin_user(User)
+    create_admin_role(Role, admin_id)
+    create_analyst_role(Role)
+    create_agent_role(Role)
+    create_default_data_types(DataType)
+    create_default_closure_reasons(CloseReason)
+    create_default_case_status(CaseStatus)
+    create_default_event_status(EventStatus)
+    create_default_case_templates(CaseTemplate)
+    initial_settings(Settings)
+    return 
+
 
 def create_app(environment='development'):
 
@@ -118,14 +156,6 @@ def create_app(environment='development'):
         scheduler.start()
         atexit.register(lambda: scheduler.shutdown())      
 
-    #from app.resources import api
-    
-    #api.authorizations = authorizations
-    #api.title = app.config['API_TITLE']
-    #api.version = app.config['API_VERSION']
-    #api.description = app.config['API_DESCRIPTION']
-    #api.default_mediatype='application/json'
-    
     from app.api_v2.resources import api2
     api2.authorizations = authorizations
     api2.title = app.config['API_TITLE']
@@ -136,9 +166,7 @@ def create_app(environment='development'):
     from app.api_v2.model.user import FLASK_BCRYPT as FLASK_V2_BCRYPT
     FLASK_V2_BCRYPT.init_app(app)
 
-    #from app.resources import api_v1
     from app.api_v2.resources import api_v2
-    #app.register_blueprint(api_v1)
     app.register_blueprint(api_v2)
 
     FLASK_BCRYPT.init_app(app)
@@ -163,6 +191,17 @@ def create_app(environment='development'):
 
     connections.create_connection(**elastic_connection)
 
-    upgrade_indices()
+    # If Reflex is in recovery mode, initial setup will be skipped and indices will be 
+    # created empty
+    recovery_mode = app.config['REFLEX_RECOVERY_MODE'] if 'REFLEX_RECOVERY_MODE' in app.config else os.getenv('REFLEX_RECOVERY_MODE') if os.getenv('REFLEX_RECOVERY_MODE') else False
+
+    if setup_complete() != True:
+        print("Running setup")
+        upgrade_indices()
+        if not recovery_mode:
+            setup()
+    else:
+        print("Setup already run")
+        upgrade_indices()
 
     return app
