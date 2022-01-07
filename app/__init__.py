@@ -39,7 +39,6 @@ else:
 from config import app_config
 
 FLASK_BCRYPT = Bcrypt()
-#db = SQLAlchemy()
 cors = CORS()
 mail = Mail()
 cache = Cache(config={'CACHE_TYPE': 'simple'})
