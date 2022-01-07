@@ -115,6 +115,10 @@ class Settings(Document):
     class Index:
         name = f'reflex-settings{REFLEX_VERSION}'
 
+class Input(Document):
+    class Index:
+        name = f'reflex-inputs{REFLEX_VERSION}'
+
 
 if __name__ == "__main__":
 
@@ -167,7 +171,7 @@ if __name__ == "__main__":
         Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
-        Settings
+        Settings,Input
     ]
 
     if args.dump and not args.nozip:

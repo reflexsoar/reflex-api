@@ -3497,7 +3497,7 @@ class BackupData(Resource):
                 Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
                 CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
                 TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
-                Settings
+                Settings,Input
             ]
 
             backup_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'backup/')
