@@ -3,7 +3,7 @@ import json
 import time
 import requests
 import logging
-import pyminizip
+#import pyminizip
 from zipfile import ZipFile
 import argparse
 
@@ -209,7 +209,7 @@ if __name__ == "__main__":
                             filepath = os.path.join(folderName,filename)
                             files_to_zip.append(filepath)
 
-                pyminizip.compress_multiple(files_to_zip, [], os.path.join(backup_path, args.outfile), args.archive_password, 9)
+                #pyminizip.compress_multiple(files_to_zip, [], os.path.join(backup_path, args.outfile), args.archive_password, 9)
 
     else:
 

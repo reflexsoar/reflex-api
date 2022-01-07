@@ -15,7 +15,7 @@ import jwt
 import time
 from io import BytesIO
 from zipfile import ZipFile
-import pyminizip
+#import pyminizip
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
 from flask_restx import Api, Resource, Namespace, fields, Model, inputs as xinputs, marshal
 from werkzeug.datastructures import FileStorage
@@ -3541,7 +3541,7 @@ class BackupData(Resource):
                         filepath = os.path.join(folderName,filename)
                         files_to_zip.append(filepath)
 
-            pyminizip.compress_multiple(files_to_zip, [], backup_archive, api2.payload['password'], 9)
+            #pyminizip.compress_multiple(files_to_zip, [], backup_archive, api2.payload['password'], 9)
             if os.path.exists(backup_archive):
                 os.remove(os.path.join(lock_file))
                 return send_from_directory(backup_path, archive_name, as_attachment=True)

@@ -40,7 +40,6 @@ tzdata = "*"
 colorama = "*"
 ply = "*"
 python-dotenv = "*"
-pyminizip = "*"
 
 [requires]
 python_version = "3.8"
