@@ -1,10 +1,10 @@
 FROM python:3.8.1-slim-buster
 
-COPY setup.py /
 COPY Pipfile /
 COPY Pipfile.lock /
 COPY config.py /
 COPY app /app
+COPY tools /tools
 
 ENV GUNICORN_WORKERS=8
 ENV GUNICORN_THREADS=2
