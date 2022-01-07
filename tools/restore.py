@@ -13,107 +13,107 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
 else:
     from elasticsearch_dsl import connections, Document
 
-REFLEX_VERSION = '0.1.0'
+REFLEX_VERSION = ''
 
 class Event(Document):
     class Index:
-        name = f'reflex-events-{REFLEX_VERSION}'
+        name = f'reflex-events{REFLEX_VERSION}'
 
 class Tag(Document):
     class Index:
-        name = f'reflex-tags-{REFLEX_VERSION}'
+        name = f'reflex-tags{REFLEX_VERSION}'
 
 class ExpiredToken(Document):
     class Index:
-        name = f'reflex-expired-tokens-{REFLEX_VERSION}'
+        name = f'reflex-expired-tokens{REFLEX_VERSION}'
 
 class Credential(Document):
     class Index:
-        name = f'reflex-credentials-{REFLEX_VERSION}'
+        name = f'reflex-credentials{REFLEX_VERSION}'
 
 class Agent(Document):
     class Index:
-        name = f'reflex-agents-{REFLEX_VERSION}'
+        name = f'reflex-agents{REFLEX_VERSION}'
 
 class ThreatList(Document):
     class Index:
-        name = f'reflex-threat-lists-{REFLEX_VERSION}'
+        name = f'reflex-threat-lists{REFLEX_VERSION}'
 
 class EventStatus(Document):
     class Index:
-        name = f'reflex-event-statuses-{REFLEX_VERSION}'
+        name = f'reflex-event-statuses{REFLEX_VERSION}'
 
 class EventRule(Document):
     class Index:
-        name = f'reflex-event-rules-{REFLEX_VERSION}'
+        name = f'reflex-event-rules{REFLEX_VERSION}'
 
 class CaseComment(Document):
     class Index:
-        name = f'reflex-case-comments-{REFLEX_VERSION}'
+        name = f'reflex-case-comments{REFLEX_VERSION}'
 
 class CaseHistory(Document):
     class Index:
-        name = f'reflex-case-history-{REFLEX_VERSION}'
+        name = f'reflex-case-history{REFLEX_VERSION}'
 
 class Case(Document):
     class Index:
-        name = f'reflex-cases-{REFLEX_VERSION}'
+        name = f'reflex-cases{REFLEX_VERSION}'
 
 class CaseTask(Document):
     class Index:
-        name = f'reflex-case-tasks-{REFLEX_VERSION}'
+        name = f'reflex-case-tasks{REFLEX_VERSION}'
 
 class CaseTemplate(Document):
     class Index:
-        name = f'reflex-case-templates-{REFLEX_VERSION}'
+        name = f'reflex-case-templates{REFLEX_VERSION}'
 
 class Observable(Document):
     class Index:
-        name = f'reflex-observables-test-{REFLEX_VERSION}'
+        name = f'reflex-observables-test{REFLEX_VERSION}'
 
 class AgentGroup(Document):
     class Index:
-        name = f'reflex-agent-groups-{REFLEX_VERSION}'
+        name = f'reflex-agent-groups{REFLEX_VERSION}'
 
 class TaskNote(Document):
     class Index:
-        name = f'reflex-case-task-notes-{REFLEX_VERSION}'
+        name = f'reflex-case-task-notes{REFLEX_VERSION}'
 
 class Plugin(Document):
     class Index:
-        name = f'reflex-plugins-{REFLEX_VERSION}'
+        name = f'reflex-plugins{REFLEX_VERSION}'
 
 class PluginConfig(Document):
     class Index:
-        name = f'reflex-plugin-configs-{REFLEX_VERSION}'
+        name = f'reflex-plugin-configs{REFLEX_VERSION}'
 
 class EventLog(Document):
     class Index:
-        name = f'reflex-audit-logs-{REFLEX_VERSION}'
+        name = f'reflex-audit-logs{REFLEX_VERSION}'
 
 class User(Document):
     class Index:
-        name = f'reflex-users-{REFLEX_VERSION}'
+        name = f'reflex-users{REFLEX_VERSION}'
 
 class Role(Document):
     class Index:
-        name = f'reflex-user-roles-{REFLEX_VERSION}'
+        name = f'reflex-user-roles{REFLEX_VERSION}'
 
 class DataType(Document):
     class Index:
-        name = f'reflex-data-types-{REFLEX_VERSION}'
+        name = f'reflex-data-types{REFLEX_VERSION}'
 
 class CaseStatus(Document):
     class Index:
-        name = f'reflex-case-statuses-{REFLEX_VERSION}'
+        name = f'reflex-case-statuses{REFLEX_VERSION}'
 
 class CloseReason(Document):
     class Index:
-        name = f'reflex-close-reasons-{REFLEX_VERSION}'
+        name = f'reflex-close-reasons{REFLEX_VERSION}'
 
 class Settings(Document):
     class Index:
-        name = f'reflex-settings-{REFLEX_VERSION}'
+        name = f'reflex-settings{REFLEX_VERSION}'
 
 
 if __name__ == "__main__":
@@ -212,28 +212,27 @@ if __name__ == "__main__":
                 pyminizip.compress_multiple(files_to_zip, [], os.path.join(backup_path, args.outfile), args.archive_password, 9)
 
     else:
+
         if not args.archive_path and not args.nozip:
             logging.error('Archive path required')
             exit(1)
 
         backup_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'backup\\')
 
-        logging.info('Dumping reflex data to zip file')
+        logging.info('Restoring reflex data')
 
         for folderName, subfolders, filenames in os.walk(backup_path):
             for filename in filenames:
                 if filename.endswith('.json'):
                     index_name = '.'.join(filename.split('.')[:-1])
-                    print(index_name)
                     filepath = os.path.join(folderName,filename)
-                    if index_name == 'reflex-events-0.1.0':
-                        with open(filepath, 'r') as fin:
-                            
-                            data = fin.read()
-                            for model in models:
-                                if model.Index.name == index_name:
-                                    for _ in json.loads(data):
-                                        doc = model(**_)
-                                        doc.save()
+                    with open(filepath, 'r') as fin:
+                        
+                        data = fin.read()
+                        for model in models:
+                            if model.Index.name == index_name:
+                                for _ in json.loads(data):
+                                    doc = model(**_)
+                                    doc.save()
 
         time.sleep(5)
