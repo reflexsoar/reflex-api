@@ -22,7 +22,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--archive_path','-a', type=str)
     parser.add_argument('--archive_password','-p', type=str)
-    parser.add_argument('--dump','-d', action='store_true')
+    parser.add_argument('--dump','-d', default=False, action='store_true')
     parser.add_argument('--outfile', '-o', type=str)
     parser.add_argument('--nozip', action='store_true')
     parser.add_argument('--version', default='', type=str)
@@ -40,6 +40,8 @@ if __name__ == "__main__":
 
     if args.version != '':
         REFLEX_VERSION = f'-{args.version}'
+    else:
+        REFLEX_VERSION = args.version
 
     class Event(Document):
         class Index:
