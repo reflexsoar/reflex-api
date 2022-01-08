@@ -117,7 +117,6 @@ class TaskNote(base.BaseDocument):
         return []
 
 
-
 class CaseTask(base.BaseDocument):
     '''
     An action that needs to occur on a Case
@@ -154,7 +153,7 @@ class CaseTask(base.BaseDocument):
         '''
         Fetches a document by the uuid field
         '''
-        response = self.search().query('match', case=uuid)
+        response = self.search().sort('order').query('match', case=uuid)
         if all_results:
             response = response[0:response.count()]
         response = response.execute()

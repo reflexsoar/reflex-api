@@ -248,6 +248,7 @@ def create_default_data_types(cls):
         {'name': 'domain', 'description': 'A domain name'},
         {'name': 'fqdn', 'description': 'A fully qualified domain name of a host'},
         {'name': 'host', 'description': 'A host name'},
+        {'name': 'filepath', 'description': 'The full path to a file'},
         {'name': 'email', 'description': 'An e-mail address', 'regex': r'/^[a-zA-Z0-9.!#$%&\'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/'},
         {'name': 'email_subject', 'description': 'An e-mail subject'},
         {'name': 'md5hash', 'description': 'A MD5 hash', 'regex': r'/[a-f0-9A-F]{32}/'},

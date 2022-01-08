@@ -719,6 +719,11 @@ mod_event_rule_list = Model('EventRuleList', {
     'last_matched_date': ISO8601(attribute='last_matched_date')
 })
 
+mod_event_rule_list_paged = Model('PagedEventRuleList', {
+    'event_rules': fields.List(fields.Nested(mod_event_rule_list)),
+    'pagination': fields.Nested(mod_pagination)
+})
+
 mod_case_history = Model('CaseHistoryEntry', {
     'message': fields.String,
     'created_at': ISO8601(attribute='created_at'),
@@ -999,4 +1004,4 @@ mod_case_task_note_create, mod_case_task_note_details, mod_audit_log, mod_audit_
 mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_events_response,
 mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plugin_manifest_action,
 mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql,
-mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup]
+mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_event_rule_list_paged]

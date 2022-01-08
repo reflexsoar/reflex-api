@@ -22,7 +22,9 @@ DATA_TYPES = [
     'sid',
     'mac',
     'detection_id',
-    'port'
+    'port',
+    'filepath',
+    'generic'
 ]
 
 # Used to translate SIDS in to human readible format via tags

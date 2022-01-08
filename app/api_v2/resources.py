@@ -1326,20 +1326,54 @@ class EventNewRelatedEvents(Resource):
         related_events = [e.uuid for e in events if hasattr(e.status,'name') and e.status.name == 'New']
         return {"events": related_events}
 
+
+event_rule_list_parser = pager_parser.copy()
+event_rule_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
+event_rule_list_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
+event_rule_list_parser.add_argument('page_size', type=int, location='args', default=25, required=False)
+
 @ns_event_rule_v2.route("")
 class EventRuleList(Resource):
 
     @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_event_rule_list)
+    @api2.marshal_with(mod_event_rule_list_paged)
+    @api2.expect(event_rule_list_parser)
     @token_required
     @user_has('view_event_rules')
     def get(self, current_user):
         ''' Gets a list of all the event rules '''
-        event_rules = EventRule.search().execute()
-        if event_rules:
-            return [r for r in event_rules]
-        else:
-            return []
+
+        args = event_rule_list_parser.parse_args()
+
+        event_rules = EventRule.search()
+        event_rules = event_rules.sort('-last_matched_date')
+
+        # Paginate the cases
+        page = args.page - 1
+        total_cases = event_rules.count()
+        pages = math.ceil(float(total_cases / args.page_size))
+
+        start = page*args.page_size
+        end = args.page*args.page_size
+        event_rules = event_rules[start:end]
+
+        event_rules = event_rules.execute()
+        #if event_rules:
+        #    return [r for r in event_rules]
+        #else:
+        #    return []
+
+        response = {
+            'event_rules': list(event_rules),
+            'pagination': {
+                'total_results': total_cases,
+                'pages': pages,
+                'page': page+1,
+                'page_size': args.page_size
+            }
+        }
+
+        return response
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_event_rule_create)
@@ -1409,7 +1443,7 @@ class EventRuleDetails(Resource):
         ''' Removes an event rule '''
         event_rule = EventRule.get_by_uuid(uuid=uuid)
         if event_rule:
-            event_rule.delete()
+            event_rule.delete(refresh=True)
             return {'message': 'Sucessfully deleted the event rule.'}
 
 
@@ -3600,3 +3634,54 @@ class HuntingQuery(Resource):
         search = search.query('query_string', query=api2.payload['query'])
         results = search.execute()
         return results.to_dict()
+
+'''
+TESTING NETWORK GRAPHS
+@ns_observable_v2.route("/network")
+class ObservablesNetwork(Resource):
+
+    def get(self):
+
+        search = Observable.search()
+
+        search = search[0:]
+
+        search.aggs.bucket('value', 'terms', field='value', size=1, order={'_count': 'desc'})
+        search.aggs['value'].bucket('events', 'terms', field='events', size=25, order={'_count': 'desc'})
+
+        #print(json.dumps(search.to_dict(),indent=4))
+
+        results = search.execute()
+        nodes = {}
+        sources = []
+        targets = []
+        edges = {}
+
+        #print(json.dumps(results.aggs.to_dict(), indent=4))
+        for value in results.aggs.value:
+            sources.append(value['key'])
+            [targets.append(x['key']) for x in value.events.buckets]
+
+        node_num = 1
+        for s in sources:
+            nodes[f"node{node_num}"] = { "name": s }
+            node_num += 1
+
+        for t in targets:
+            nodes[f"node{node_num}"] = { "name": t }
+            node_num += 1
+
+        edge_num = 1
+        for k in nodes:
+            print(nodes[k]['name'])
+
+        for x in sources:
+            for t in targets:
+                edges[f"edge{edge_num}"] = { 
+                    "source": [k for k in nodes if nodes[k]['name'] == x][0], 
+                    "target": [k for k in nodes if nodes[k]['name'] == t][0]
+                }
+                edge_num += 1
+
+        return {'nodes': nodes, 'edges': edges}
+'''

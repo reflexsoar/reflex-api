@@ -188,7 +188,7 @@ if __name__ == "__main__":
         logging.info('Dumping reflex data to zip file')
 
         if not os.path.exists(backup_path):
-            os.makedirs(backup_path)
+            os.mkdir(backup_path)
 
         for f in os.listdir(backup_path):
                 os.remove(os.path.join(backup_path, f))
