@@ -1,4 +1,4 @@
-from base_test import BaseTest
+from base_test import BaseTest, API_VERSION
 
 
 class AuthenticationTests(BaseTest):
@@ -23,19 +23,19 @@ class AuthenticationTests(BaseTest):
     def test_whoami(self):
 
         rv = self.login()
-        rv = self.client.get('/api/v1.0/user/me', headers=self.auth_headers(rv))
+        rv = self.client.get('/api/'+API_VERSION+'/user/me', headers=self.auth_headers(rv))
         self.assertEqual(rv.status_code, 200)
         self.assertEqual(rv.json['email'], 'admin@reflexsoar.com')
 
     def test_bad_token(self):
 
-        rv = self.client.get('/api/v1.0/user/me', headers=self.bad_headers())
+        rv = self.client.get('/api/'+API_VERSION+'/user/me', headers=self.bad_headers())
         self.assertEqual(rv.status_code, 401)
         self.assertEqual(rv.json['message'], 'Invalid access token.')
 
     def test_no_auth_token(self):
 
-        rv = self.client.get('/api/v1.0/user/me', headers=self.bad_headers(token=False))
+        rv = self.client.get('/api/'+API_VERSION+'/user/me', headers=self.bad_headers(token=False))
         self.assertEqual(rv.status_code, 403)
         self.assertEqual(rv.json['message'], 'Access token required.')
 
@@ -46,6 +46,4 @@ class AuthenticationTests(BaseTest):
         rv = self.logout(headers)
         self.assertEqual(rv.status_code, 200)
         self.assertEqual(rv.json['message'], 'Successfully logged out.')
-
-
 

@@ -4,14 +4,12 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-flask-migrate = "*"
-flask-script = "*"
 coverage = "*"
-pybadges = "*"
 coverage-badge = "*"
 elasticsearch = "*"
 python-dotenv = "*"
 bandit = "*"
+pylint = "*"
 
 [packages]
 flask = "*"
@@ -29,6 +27,19 @@ flask-mail = "*"
 cffi = "*"
 flask-caching = "*"
 sqlakeyset = "*"
+elasticsearch = "*"
+elasticsearch-dsl = "*"
+apscheduler = "*"
+flask-sqlalchemy = "*"
+requests = "*"
+opensearch-py = "*"
+opensearch-dsl = {git = "https://github.com/opensearch-project/opensearch-dsl-py.git"}
+onetimepass = "*"
+pyqrcode = "*"
+tzdata = "*"
+colorama = "*"
+ply = "*"
+python-dotenv = "*"
 
 [requires]
 python_version = "3.8"
