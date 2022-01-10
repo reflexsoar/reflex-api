@@ -685,7 +685,7 @@ event_list_parser.add_argument('tags', location='args', default=[
 event_list_parser.add_argument('observables', location='args', default=[
 ], type=str, action='split', required=False)
 event_list_parser.add_argument('signature', location='args', required=False)
-event_list_parser.add_argument('source', location='args', required=False)
+event_list_parser.add_argument('source', action='split', location='args', required=False)
 event_list_parser.add_argument(
     'severity', action='split', location='args', required=False)
 event_list_parser.add_argument(
@@ -731,7 +731,15 @@ class EventListAggregated(Resource):
                     'value': args.status
                 })
 
-        for arg in ['severity','title','tags','source']:
+        if args.source and args.source != ['']:
+            print(args.source)
+            search_filters.append({
+                'type': 'terms',
+                'field': 'source__keyword',
+                'value': args.source
+            })
+
+        for arg in ['severity','title','tags']:
             if arg in args and args[arg] not in ['', None, []]:
                 search_filters.append({
                     'type': 'terms',
@@ -1131,7 +1139,7 @@ event_stats_parser.add_argument('status', location='args', default=[
 ], type=str, action='split', required=False)
 event_stats_parser.add_argument('tags', location='args', default=[
 ], type=str, action='split', required=False)
-event_stats_parser.add_argument('signature', location='args', required=False)
+event_stats_parser.add_argument('signature', action='split', location='args', required=False)
 event_stats_parser.add_argument(
     'severity', action='split', location='args', required=False)
 event_stats_parser.add_argument(
@@ -1165,7 +1173,14 @@ class EventStats(Resource):
                 'value': args.status
             })
 
-        for arg in ['severity','title','tags','source']:
+        if args.source and args.source != ['']:
+            search_filters.append({
+                'type': 'terms',
+                'field': 'source.keyword',
+                'value': args.source
+            })
+
+        for arg in ['severity','title','tags',]:
             if arg in args and args[arg] not in ['', None, []]:
                 search_filters.append({
                     'type': 'terms',
