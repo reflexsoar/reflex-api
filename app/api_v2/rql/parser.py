@@ -84,7 +84,7 @@ class QueryLexer(object):
         return t        
 
     def t_STRING(self, t):
-        r'[\"\'](.*?)[\"\']'
+        r'[\"\'].*[\"\']'
         t.value = ast.literal_eval(t.value)
         return t
 

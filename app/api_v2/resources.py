@@ -1459,6 +1459,7 @@ class TestEventRQL(Resource):
             event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
         else:
             search = Event.search()
+            search = search.sort('-created_at')
             search = search[0:api2.payload['event_count']]
             events = search.execute()
             event_data = [json.loads(json.dumps(marshal(e, mod_event_rql))) for e in events]
