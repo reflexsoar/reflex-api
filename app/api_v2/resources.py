@@ -9,6 +9,8 @@ import threading
 import uuid
 import json
 import hashlib
+
+from app.api_v2.model.exceptions import EventRuleFailure
 from .rql.parser import QueryParser
 import pyqrcode
 import jwt
@@ -973,7 +975,10 @@ class CreateBulkEvents(Resource):
                         for event_rule in event_rules:
 
                             # If the event matches the event rule criteria perform the rule actions
-                            matched = event_rule.process_rql(original_payload)
+                            try:
+                                matched = event_rule.process_rql(original_payload)
+                            except EventRuleFailure as e:
+                                log_event(event_type='Event Rule Processing', source_user="System", event_reference=event.reference, time_taken=0, status="Failed", message=f"Failed to process event rule. {e}")
 
                             # If the rule matched, process the event
                             if matched:
@@ -992,7 +997,7 @@ class CreateBulkEvents(Resource):
 
                     end_event_process_dt = datetime.datetime.utcnow().timestamp()
                     event_process_time = end_event_process_dt - start_event_process_dt
-                    log_event(event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=event_process_time, status="Success", message="Event Inserted.", event_id=event.uuid)
+                    #log_event(event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=event_process_time, status="Success", message="Event Inserted.", event_id=event.uuid)
                 else:
                     log_event(event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=0, status="Failed", message="Event Already Exists.")
 

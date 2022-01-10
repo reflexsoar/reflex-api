@@ -1,6 +1,7 @@
 import datetime
 import hashlib
 from fnmatch import fnmatch
+from app.api_v2.model.exceptions import EventRuleFailure
 
 from app.api_v2.rql.parser import QueryParser
 from . import case as c
@@ -15,7 +16,6 @@ from . import (
     system,
     utils
 )
-
 
 class EventStatus(base.BaseDocument):
     '''
@@ -347,21 +347,24 @@ class EventRule(base.BaseDocument):
             self.save()
         else:
 
-            qp = QueryParser()
+            try:
+                qp = QueryParser()
 
-            if self.query:
+                if self.query:
+                    
+                    parsed_query = qp.parser.parse(self.query)
+                else:
+                    parsed_query = qp.parser.parse(self.query)
+
+                results = [r for r in qp.run_search(event, parsed_query)]
                 
-                parsed_query = qp.parser.parse(self.query)
-            else:
-                parsed_query = qp.parser.parse(self.query)
-
-            results = [r for r in qp.run_search(event, parsed_query)]
-            
-            # Process the event
-            if len(results) > 0:
-                self.last_matched_date = datetime.datetime.utcnow()
-                self.save()
-                return True
+                # Process the event
+                if len(results) > 0:
+                    self.last_matched_date = datetime.datetime.utcnow()
+                    self.save()
+                    return True
+            except Exception as e:
+                raise EventRuleFailure(e)
         return False
 
 

@@ -193,9 +193,6 @@ class RQLSearch:
 
             super().__call__(obj)
 
-            print(self.value)
-            print(self.target_value)
-
             if self.target_value:
                 if isinstance(self.target_value, list):
                     if self.all_mode:
