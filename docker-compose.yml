@@ -1,0 +1,19 @@
+version: '2.2'
+services:
+  reflex-api:
+    environment:
+      - FLASK_CONFIG=production
+    build: .
+    container_name: reflex-api
+    volumes:
+      - ./instance/application.conf:/instance/application.conf
+      - ./config.py:/config.py
+    ports:
+      - "80:80"
+    command: pipenv run python manage.py run
+    networks:
+      - elastic
+
+networks:
+  elastic:
+    driver: bridge
