@@ -983,6 +983,10 @@ mod_create_backup = Model('CreateBackup', {
     'password': fields.String
 })
 
+mod_bulk_event_uuids = Model('BulkEventUUIDs', {
+    'events': fields.List(fields.String)
+})
+
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full,
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create,
 mod_observable_brief, mod_observable_create, mod_observable_update, mod_raw_log, mod_permissions,
@@ -1004,4 +1008,4 @@ mod_case_task_note_create, mod_case_task_note_details, mod_audit_log, mod_audit_
 mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_events_response,
 mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plugin_manifest_action,
 mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql,
-mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_event_rule_list_paged]
+mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_event_rule_list_paged, mod_bulk_event_uuids]

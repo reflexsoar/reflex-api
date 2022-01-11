@@ -781,6 +781,8 @@ class EventListAggregated(Resource):
             })
 
         observables = {}
+
+        raw_event_count = 0
         
         # If not filtering by a signature
         if not args.signature:
@@ -792,6 +794,8 @@ class EventListAggregated(Resource):
             # Apply all filters
             for _filter in search_filters:
                 search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+            
+            raw_event_count = search.count()
 
             search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=1000000)
             search.aggs['signature'].metric('max_date', 'max', field='created_at')
@@ -846,6 +850,9 @@ class EventListAggregated(Resource):
             search = search.filter('term', signature=args.signature)
 
             total_events = search.count()
+
+            raw_event_count = total_events
+
             pages = math.ceil(float(total_events / args.page_size))
 
             events = search.execute()            
@@ -858,7 +865,7 @@ class EventListAggregated(Resource):
             'events': events,
             'observables': json.loads(json.dumps(observables, default=str)),
             'pagination': {
-                'total_results': total_events,
+                'total_results': raw_event_count,
                 'pages': pages,
                 'page': args['page'],
                 'page_size': args['page_size']
@@ -1331,6 +1338,120 @@ class EventUpdateCase(Resource):
         else:
             ns_event_v2.abort(400, 'Missing or invalid action.')
 """
+
+
+event_bulk_select_parser = api2.parser()
+event_bulk_select_parser.add_argument('status', location='args', default=[
+], type=str, action='split', required=False)
+event_bulk_select_parser.add_argument('tags', location='args', default=[
+], type=str, action='split', required=False)
+event_bulk_select_parser.add_argument('observables', location='args', default=[
+], type=str, action='split', required=False)
+event_bulk_select_parser.add_argument('signature', location='args', required=False)
+event_bulk_select_parser.add_argument('source', action='split', location='args', required=False)
+event_bulk_select_parser.add_argument(
+    'severity', action='split', location='args', required=False)
+event_bulk_select_parser.add_argument(
+    'grouped', type=xinputs.boolean, location='args', required=False)
+event_bulk_select_parser.add_argument(
+    'case_uuid', type=str, location='args', required=False)
+event_bulk_select_parser.add_argument('search', type=str, action='split', default=[
+], location='args', required=False)
+#event_list_parser.add_argument('rql', type=str, default="", location="args", required=False)
+event_bulk_select_parser.add_argument(
+    'title', type=str, location='args', action='split', required=False)
+@ns_event_v2.route("/bulk_select_all")
+class BulkSelectAll(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_bulk_event_uuids)
+    @api2.expect(event_bulk_select_parser)
+    @api2.response('200','Success')
+    @token_required
+    @user_has('view_events')
+    def get(self, current_user):
+        args = event_bulk_select_parser.parse_args()
+        search_filters = []
+
+        if args.status and args.status != ['']:
+            search_filters.append({
+                    'type': 'terms',
+                    'field': 'status.name__keyword',
+                    'value': args.status
+                })
+
+        if args.source and args.source != ['']:
+            print(args.source)
+            search_filters.append({
+                'type': 'terms',
+                'field': 'source__keyword',
+                'value': args.source
+            })
+
+        for arg in ['severity','title','tags']:
+            if arg in args and args[arg] not in ['', None, []]:
+                search_filters.append({
+                    'type': 'terms',
+                    'field': arg,
+                    'value': args[arg]
+                })
+        
+        if args.signature:
+            search_filters.append({
+                    'type': 'term',
+                    'field': 'signature',
+                    'value': args.signature
+                })
+
+        if args.case_uuid:
+            search_filters.append({
+                'type': 'match',
+                'field': 'case',
+                'value': args.case_uuid
+            })
+
+        if args.observables:
+            event_uuids = []
+
+            if any('|' in o for o in args.observables):
+                for observable in args.observables:
+                    if '|' in observable:
+                        value,field = observable.split('|')
+                        response = Observable.get_by_value_and_field(value, field)
+                        event_uuids += [o.events[0] for o in response]
+            else:
+                observables = Observable.get_by_value(args.observables)
+                event_uuids = [o.events[0] for o in observables if o.events]
+            
+            search_filters.append({
+                'type': 'terms',
+                'field': 'uuid',
+                'value': list(set(event_uuids))
+            })
+
+        observables = {}        
+        
+        search = Event.search()
+
+        search = search[:0]
+
+        # Apply all filters
+        for _filter in search_filters:
+            search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+
+        search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=1000000)
+        search.aggs['signature'].metric('max_date', 'max', field='created_at')
+        search.aggs['signature'].bucket('uuid', 'terms', field='uuid', size=1, order={'max_date': 'desc'})
+        search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
+
+        events = search.execute()
+        event_uuids = []
+        for signature in events.aggs.signature.buckets:
+            event_uuids.append(signature.uuid.buckets[0]['key'])
+
+        return {
+            'events': event_uuids
+        }
 
 @ns_event_v2.route("/<signature>/new_related_events")
 class EventNewRelatedEvents(Resource):

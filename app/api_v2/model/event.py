@@ -435,3 +435,31 @@ class EventRule(base.BaseDocument):
             return list(response)
 
         return []
+
+class MutedEvents(base.BaseDocument):
+    '''
+    An Event Rule can be set to mute (dismiss) alarms for a certain period
+    and then temporarily allow an event to come in after that period expires, resetting
+    the clock and once again muting events
+    '''
+
+    event_rule = Keyword()
+    last_event_processed = Date()
+    event_uuid = Keyword()
+
+    def mute_expired(self, time_interval: int):
+        '''
+        Returns if the timespan has expired between the current date
+        and the last time an event was allowed in to the event queue
+        
+        Parameters:
+            time_interval: int - The time in minutes to mute for
+            
+        Return:
+            boolean
+        '''
+        now = datetime.datetime.utcnow()
+        
+        time_difference = (now - self.last_event_processed)
+        minutes_since = time_difference.total_seconds/60
+        return minutes_since > time_interval
