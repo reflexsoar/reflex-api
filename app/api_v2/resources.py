@@ -1439,15 +1439,19 @@ class BulkSelectAll(Resource):
         for _filter in search_filters:
             search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
-        search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=1000000)
-        search.aggs['signature'].metric('max_date', 'max', field='created_at')
-        search.aggs['signature'].bucket('uuid', 'terms', field='uuid', size=1, order={'max_date': 'desc'})
-        search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
+        if not args.signature:
+            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=1000000)
+            search.aggs['signature'].metric('max_date', 'max', field='created_at')
+            search.aggs['signature'].bucket('uuid', 'terms', field='uuid', size=1, order={'max_date': 'desc'})
+            search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
 
-        events = search.execute()
-        event_uuids = []
-        for signature in events.aggs.signature.buckets:
-            event_uuids.append(signature.uuid.buckets[0]['key'])
+            events = search.execute()
+            event_uuids = []
+            for signature in events.aggs.signature.buckets:
+                event_uuids.append(signature.uuid.buckets[0]['key'])
+        else:
+            events = search.scan()
+            event_uuids = [e.uuid for e in events]
 
         return {
             'events': event_uuids
@@ -1500,10 +1504,6 @@ class EventRuleList(Resource):
         event_rules = event_rules[start:end]
 
         event_rules = event_rules.execute()
-        #if event_rules:
-        #    return [r for r in event_rules]
-        #else:
-        #    return []
 
         response = {
             'event_rules': list(event_rules),

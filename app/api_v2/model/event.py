@@ -109,14 +109,17 @@ class Event(base.BaseDocument):
         added_observables = []
         for o in content:
 
-            observable = system.Observable(**o)
+            # FIX: Don't create observables with empty or placeholder values
+            if o['value'] not in [None,'','-']:
 
-            observable.add_event_uuid(self.uuid)
-            observable.auto_data_type()
-            observable.check_threat_list()
-            observable.enrich()
-            observable.save()
-            added_observables.append(observable)
+                observable = system.Observable(**o)
+
+                observable.add_event_uuid(self.uuid)
+                observable.auto_data_type()
+                observable.check_threat_list()
+                observable.enrich()
+                observable.save()
+                added_observables.append(observable)
 
         return added_observables
 
@@ -315,6 +318,8 @@ class EventRule(base.BaseDocument):
     merge_into_case = Boolean()
     query = Text() # The RQL query to run against events
     dismiss = Boolean()
+    dismiss_reason = Text() # The text description for why this was dismissed
+    dismiss_comment = Text() # A custom reason for why this was dismissed
     expire = Boolean()  # If not set the rule will never expire, Default: True
     expire_at = Date()  # Computed from the created_at date of the event + a timedelta in days
     active = Boolean()  # Users can override the alarm and disable it out-right
@@ -335,6 +340,7 @@ class EventRule(base.BaseDocument):
 
         self.order = order
         self.save()
+
     
     def process_rql(self, event):
         '''

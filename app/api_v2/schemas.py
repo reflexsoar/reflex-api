@@ -694,6 +694,8 @@ mod_event_rule_create = Model('CreateEventRule', {
     'target_case_uuid': fields.String,
     'query': fields.String,
     'dismiss': fields.Boolean,
+    'dismiss_reason': fields.String,
+    'dismiss_comment': fields.String,
     'expire': fields.Boolean,
     'expire_days': fields.Integer,
     'active': fields.Boolean
@@ -712,6 +714,7 @@ mod_event_rule_list = Model('EventRuleList', {
     'active': fields.Boolean,
     'query': fields.String,
     'hits': fields.Integer,
+    'hits_last_24': fields.Integer,
     'observables': fields.List(fields.Nested(mod_observable_brief)),
     'expire_at': ISO8601(attribute='expire_at'),
     'created_at': ISO8601(attribute='created_at'),
