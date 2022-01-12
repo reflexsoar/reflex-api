@@ -680,10 +680,12 @@ mod_list_create = Model('ListCreate', {
 })
 
 mod_event_rule_test = Model('TestEventRuleQuery', {
-    'query': fields.String,
+    'query': fields.String(required=True),
     'uuid': fields.String,
-    'event_count': fields.Integer,
-    'return_results': fields.Boolean
+    'event_count': fields.Integer(required=True),
+    'return_results': fields.Boolean,
+    'start_date': fields.String,
+    'end_date': fields.String,
 })
 
 mod_event_rule_create = Model('CreateEventRule', {
@@ -706,11 +708,14 @@ mod_event_rule_list = Model('EventRuleList', {
     'name': fields.String,
     'description': fields.String,
     'event_signature': fields.String,
+    'dismiss_comment': fields.String,
+    'dismiss_reason': fields.String,
     'rule_signature': fields.String,
     'merge_into_case': fields.Boolean,
     'target_case_uuid': fields.String,
     'dismiss': fields.Boolean,
     'expire': fields.Boolean,
+    'expire_days': fields.Integer,
     'active': fields.Boolean,
     'query': fields.String,
     'hits': fields.Integer,

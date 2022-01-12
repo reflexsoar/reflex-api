@@ -113,7 +113,8 @@ def random_powershell_command():
     'javascript:/*--></title></style></textarea></script></xmp><svg/onload=\'+/"/+/onmouseover=1/+/[*/[]/+alert(1)//\'>',
     '<IMG SRC="javascript:alert(\'XSS\');">',
     '<IMG SRC=javascript:alert(\'XSS\')>',
-    '<IMG SRC=javascript:alert(&quot;XSS&quot;)>'
+    '<IMG SRC=javascript:alert(&quot;XSS&quot;)>',
+    '<script>alert(\'xss\')</script>'
   ]
 
   return commands[random.randint(0, len(commands)-1)]

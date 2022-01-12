@@ -321,6 +321,7 @@ class EventRule(base.BaseDocument):
     dismiss_reason = Text() # The text description for why this was dismissed
     dismiss_comment = Text() # A custom reason for why this was dismissed
     expire = Boolean()  # If not set the rule will never expire, Default: True
+    expire_days = Integer() # The number of days before the rule expires
     expire_at = Date()  # Computed from the created_at date of the event + a timedelta in days
     active = Boolean()  # Users can override the alarm and disable it out-right
     hit_count = Integer() # How many times the event rule has triggered

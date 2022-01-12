@@ -1381,7 +1381,6 @@ class BulkSelectAll(Resource):
                 })
 
         if args.source and args.source != ['']:
-            print(args.source)
             search_filters.append({
                 'type': 'terms',
                 'field': 'source__keyword',
@@ -1492,7 +1491,7 @@ class EventRuleList(Resource):
         args = event_rule_list_parser.parse_args()
 
         event_rules = EventRule.search()
-        event_rules = event_rules.sort('-last_matched_date')
+        event_rules = event_rules.sort('-last_matched_date','-created_at')
 
         # Paginate the cases
         page = args.page - 1
@@ -1519,6 +1518,7 @@ class EventRuleList(Resource):
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_event_rule_create)
+    @api2.marshal_with(mod_event_rule_list)
     @api2.response('200', 'Successfully created event rule.')
     @token_required
     @user_has('create_event_rule')
@@ -1526,12 +1526,12 @@ class EventRuleList(Resource):
         ''' Creates a new event_rule set '''
 
         if 'expire_days' in api2.payload and not isinstance(api2.payload['expire_days'], int):
-            ns_event_rule_v2(400, 'expire_days should be an integer.')
+            ns_event_rule_v2.abort(400, 'expire_days should be an integer.')
 
         # Computer when the rule should expire
         if 'expire' in api2.payload and api2.payload['expire']:
             if 'expire_days' in api2.payload:
-                expire_days = api2.payload.pop('expire_days')
+                expire_days = api2.payload['expire_days']
 
                 expire_at = datetime.datetime.utcnow() + datetime.timedelta(days=expire_days)
                 api2.payload['expire_at'] = expire_at
@@ -1542,7 +1542,7 @@ class EventRuleList(Resource):
         event_rule.active = True
         event_rule.save()
 
-        return {'message': 'Successfully created event rule.', 'uuid': str(event_rule.uuid)}
+        return event_rule
 
 
 @ns_event_rule_v2.route("/<uuid>")
@@ -1571,6 +1571,19 @@ class EventRuleDetails(Resource):
 
         if event_rule:
 
+            if 'expire_days' in api2.payload and not isinstance(api2.payload['expire_days'], int):
+                ns_event_rule_v2.abort(400, 'expire_days should be an integer.')
+
+            # Computer when the rule should expire
+            if 'expire' in api2.payload and api2.payload['expire']:
+                if 'expire_days' in api2.payload:
+                    expire_days = api2.payload['expire_days']
+
+                    expire_at = datetime.datetime.utcnow() + datetime.timedelta(days=expire_days)
+                    api2.payload['expire_at'] = expire_at
+                else:
+                    ns_event_rule_v2.abort(400, 'Missing expire_days field.')
+
             if len(api2.payload) > 0:
                 event_rule.update(**api2.payload)
 
@@ -1596,13 +1609,33 @@ class TestEventRQL(Resource):
     def post(self):
         ''' Tests an RQL query against a target event to see if the RQL is valid '''
 
+        date_filtered = False
+
+        if api2.payload['query'] == '' or 'query' not in api2.payload:
+            return {'message':'Missing RQL query.', "success": False}, 400
+
         if 'uuid' in api2.payload and api2.payload['uuid'] not in [None, '']:
             event = Event.get_by_uuid(uuid=api2.payload['uuid'])
             event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
         else:
+
+            # A date filter is required when not supplying a single event UUID
+            if 'start_date' in api2.payload and 'end_date' in api2.payload:
+                date_filtered = True
+            else:
+                return {'message': 'A date range is required', "succes": False}, 400
+
             search = Event.search()
             search = search.sort('-created_at')
             search = search[0:api2.payload['event_count']]
+
+            # Apply a date filter
+            if date_filtered:
+                search = search.filter('range', **{'created_at': {
+                    'gte': api2.payload['start_date'],
+                    'lte': api2.payload['end_date']
+                }})
+
             events = search.execute()
             event_data = [json.loads(json.dumps(marshal(e, mod_event_rql))) for e in events]
        
@@ -1613,6 +1646,8 @@ class TestEventRQL(Resource):
             hits = len(result)
 
             if hits > 0:
+                if api2.payload['return_results']:
+                    return {"message": f"Query matched {hits} Events", "success": True, "hits": [result]}, 200
                 return {"message": f"Query matched {hits} Events", "success": True}, 200
             else:
                 return {"message": "Query did not match target Event", "success": False}, 200
