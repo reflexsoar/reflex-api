@@ -11,6 +11,7 @@ class QueryLexer(object):
         'FLOAT',
         'LPAREN',
         'RPAREN',
+        'COMMA',
         'EQUALS',
         'STRING',
         'ARRAY',
@@ -35,7 +36,8 @@ class QueryLexer(object):
         'EWITH',
         'NOT',
         'EXPAND',
-        'NOTEQUALS'
+        'NOTEQUALS',
+        'INTEL'
     )
 
     precedence = (
@@ -49,6 +51,7 @@ class QueryLexer(object):
 
     t_LPAREN = r'\('
     t_RPAREN = r'\)'
+    t_COMMA = r','
     t_EQUALS = r'=|eq|Eq|EQ'
     t_NOTEQUALS = r'!=|ne|NE|ne'
     t_CIDR = r'cidr|InCIDR'
@@ -71,6 +74,7 @@ class QueryLexer(object):
     t_SWITH = r'StartsWith|startswith'
     t_EWITH = r'EndsWith|endswith'
     t_EXPAND = r'Expand|EXPAND|expand'
+    t_INTEL = r'ThreatLookup|threatlookup|threat_lookup|threatlist|ThreatList|threat|threat_list|intel_list|intel|IntelList'
     t_ignore = ' \t.'
    
     def t_NUMBER(self, t):
@@ -84,7 +88,7 @@ class QueryLexer(object):
         return t        
 
     def t_STRING(self, t):
-        r'[\"\'].*[\"\']'
+        r'[\"\'](.*?)[\"\']'
         t.value = ast.literal_eval(t.value)
         return t
 
@@ -120,7 +124,7 @@ class QueryParser(object):
     tokens = QueryLexer.tokens
     search = RQLSearch()
 
-    def extract_mutators_and_fields(self, p):
+    def extract_mutators_and_fields(self, p, parenthesis=False):
         mutators = []
         for part in p:
 
@@ -130,8 +134,13 @@ class QueryParser(object):
             if part in MUTATORS:
                 mutators.append(part)
 
-        field = p[1]
-        target = p[-1:][0]
+        
+        if parenthesis:
+            field = p[3]
+            target = p[-2:][0]
+        else:
+            field = p[1]
+            target = p[-1:][0]
         operator = p[-2:][0]
 
         return (mutators, field, target, operator)
@@ -160,10 +169,10 @@ class QueryParser(object):
         'expression : LPAREN expression OR expression RPAREN'
         p[0] = self.search.Or(p[2], p[4])
 
-    def p_expression_each_and_group(self, p):
-        'expression : EXPAND target LPAREN expression AND expression RPAREN'
-        p[0] = self.search.Expand(self.search.And(p[4], p[6]), key=p[2])
-    
+    def p_expression_expand(self, p):
+        'expression : EXPAND target expression'
+        p[0] = self.search.Expand(p[3], key=p[2])
+  
     def p_expression_startswith(self, p):
         """expression : target SWITH STRING
                     | target MUTATOR SWITH STRING
@@ -377,7 +386,6 @@ class QueryParser(object):
             p[0] = self.search.Not(self.search.InCIDR(**{field: target}))
         else:    
             p[0] = self.search.InCIDR(**{field: target})
-
         
 
     def p_expression_exists(self, p):
@@ -414,6 +422,20 @@ class QueryParser(object):
     def p_expression_is(self, p):
         'expression : target IS BOOL'
         p[0] = self.search.Is(**{p[1]: p[3]})
+
+    def p_expression_threat(self, p):
+        '''expression : INTEL LPAREN target COMMA STRING RPAREN
+            | INTEL LPAREN target MUTATOR COMMA STRING RPAREN
+            | INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
+            | INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+            | INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+            | INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+        '''
+        
+        mutators, field, target, op = self.extract_mutators_and_fields(p, parenthesis=True)
+        list_name = p[-2:][0]
+        source_field = p[3]
+        p[0] = self.search.ThreatLookup(mutators=mutators, **{source_field: list_name})       
 
     def p_expression_between(self, p):
         """expression : target BETWEEN STRING

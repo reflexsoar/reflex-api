@@ -1,5 +1,6 @@
 import re
 import ipaddress
+from app.api_v2.models_DEPRECATED import ThreatList
 
 from flask_restx import marshal
 from .mutators import MUTATOR_MAP, MUTATORS
@@ -533,3 +534,26 @@ class RQLSearch:
             if not isinstance(self.target_value, bool):
                 return False
             return self.has_key and self.value == self.target_value
+
+    class ThreatLookup(BaseExpression):
+        '''
+        Returns True if an item matches a defined threat list
+        '''
+
+        def __init__(self, mutators=[], **target):
+            
+            print(target)
+            super().__init__(mutators=mutators, **target)
+            self.allowed_mutators=['lowercase','uppercase']
+
+        def __call__(self, obj):
+
+            super().__call__(obj)
+
+            
+
+            threat_list = ThreatList.get_by_name(name=self.value)
+            if threat_list:
+                return self.target_value in threat_list.values
+            else:
+                return False
