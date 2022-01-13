@@ -46,18 +46,30 @@ mod_list_values = api.model('ListValues', {
     'values': fields.List(fields.String)
 })
 
+list_parser = api.parser()
+list_parser.add_argument(
+    'data_type', location='args', required=False)
+
 @api.route("")
 class ThreatListList(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_list_list, as_list=True)
+    @api.expect(list_parser)
     @token_required
     @user_has('view_lists')
     def get(self, current_user):
         ''' Returns a list of ThreatLists '''
-        lists = ThreatList.search().execute()
+
+        args = list_parser.parse_args()
+
+        if args.data_type:
+            lists = ThreatList.get_by_data_type(data_type=args.data_type)
+        else:
+            lists = ThreatList.search().execute()
+
         if lists:
-            return [l for l in lists]
+            return list(lists)
         else:
             return []
 
@@ -229,7 +241,7 @@ class AddValueToThreatList(Resource):
         if value_list:
 
             if 'values' in api.payload and api.payload['values'] not in [None,'']:
-                [value_list.values.append(v) for v in api.payload['values']]
+                [value_list.values.append(v) for v in api.payload['values'] if v not in value_list.values]
                 value_list.save()
                 return {'message': 'Succesfully added values to list.'}
             else:
