@@ -542,15 +542,12 @@ class RQLSearch:
 
         def __init__(self, mutators=[], **target):
             
-            print(target)
             super().__init__(mutators=mutators, **target)
             self.allowed_mutators=['lowercase','uppercase']
 
         def __call__(self, obj):
 
-            super().__call__(obj)
-
-            
+            super().__call__(obj)           
 
             threat_list = ThreatList.get_by_name(name=self.value)
             if threat_list:
