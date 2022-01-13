@@ -482,6 +482,7 @@ mod_event_rql = Model('EventDetailsRQLFormatted', {
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'source': fields.String,
+    'status': fields.Nested(mod_event_status),
     'tags': fields.List(fields.String),
     'observables': fields.List(fields.Nested(mod_observable_list)),
     'case': fields.String,
