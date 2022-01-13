@@ -68,6 +68,8 @@ class Event(base.BaseDocument):
     dismissed_by = Object()
     event_rules = Keyword()
     raw_log = Text()
+    sla_breach_time = Date()
+    sla_violated = Boolean()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -218,6 +220,17 @@ class Event(base.BaseDocument):
             document = response[0]
             return document
         return response
+
+    @classmethod
+    def get_by_status(self, status):
+        '''
+        Fetches an event based on the string representation of it's status
+        '''
+        search = self.search()
+        search = search.filter('term', **{"status.name__keyword": status})
+        results = search.scan()
+        return results
+        
 
     @classmethod
     def get_by_signature(self, signature, all_events=False):

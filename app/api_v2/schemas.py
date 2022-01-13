@@ -679,6 +679,10 @@ mod_list_create = Model('ListCreate', {
     'active': fields.Boolean(example=True)
 })
 
+mod_list_values = Model('ListValues', {
+    'values': fields.List(fields.String)
+})
+
 mod_event_rule_test = Model('TestEventRuleQuery', {
     'query': fields.String(required=True),
     'uuid': fields.String,
@@ -1016,4 +1020,5 @@ mod_case_task_note_create, mod_case_task_note_details, mod_audit_log, mod_audit_
 mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_events_response,
 mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plugin_manifest_action,
 mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql,
-mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_event_rule_list_paged, mod_bulk_event_uuids]
+mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_event_rule_list_paged, mod_bulk_event_uuids,
+mod_list_values]
