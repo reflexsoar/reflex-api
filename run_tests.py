@@ -6,6 +6,7 @@ import argparse
 if __name__ == "__main__":
 
     os.environ['REFLEX_DISABLE_SCHEDULER'] = 'true'
+    os.environ['FLASK_CONFIG'] = 'testing'
 
     COV = coverage.coverage(
         branch=True, include='app/*',
