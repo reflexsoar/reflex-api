@@ -41,7 +41,7 @@ else:
         Search
     )
 
-from .user import User, Role, ExpiredToken
+from .user import User, Role, ExpiredToken, Organization
 from .agent import Agent, AgentGroup
 from .inout import Input
 from .threat import ThreatList
@@ -91,5 +91,7 @@ __all__ = [
     PluginConfig,
     EventLog,
     Credential,
-    TaskNote
+    TaskNote,
+    Search,
+    Organization
 ]

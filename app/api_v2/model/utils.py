@@ -25,7 +25,7 @@ def escape_special_characters(value):
     return value
 
 
-def _current_user_id_or_none():
+def _current_user_id_or_none(organization_only=False):
     try:
         auth_header = request.headers.get('Authorization')
 
@@ -40,6 +40,22 @@ def _current_user_id_or_none():
                 current_user = None
             else:
                 current_user = token['uuid']
+
+            if organization_only:
+                org_dict = {}
+               
+                if 'organization' in token:
+
+                    org_dict['organization'] = token['organization']
+
+                    if 'default_org' in token:
+                        org_dict['default_org'] = token['default_org']
+                    
+                    return org_dict
+                  
+                else:
+                    return None
+                    
         if current_user:
             user = u.User.get_by_uuid(uuid=current_user)
             current_user = {

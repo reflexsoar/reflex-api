@@ -2,11 +2,13 @@ from .playbook import api as ns_playbook_v2
 from .audit import api as ns_audit_log_v2
 from .lists import api as ns_list_v2
 from .shared import mod_pagination, ISO8601
+from .organization import api as ns_organization_v2
 
 __all__ = [
     'ns_playbook_v2',
     'ns_audit_log_v2',
-    'ns_list_v2'
+    'ns_list_v2',
+    'ns_organization_v2',
     'mod_pagination',
     'ISO8601'
 ]

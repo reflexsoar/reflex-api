@@ -38,13 +38,17 @@ def log_event(event_type, *args, **kwargs):
 
     raw_event.update(kwargs)
 
+    if 'organization' in kwargs:
+        raw_event['organization'] = kwargs['organization']
+
     log = EventLog(**raw_event)
     log.save()
 
 
-def generate_token(uuid, duration=10, token_type='agent'):
+def generate_token(uuid, duration=10, organization=None, token_type='agent'):
     token_data = {
         'uuid': uuid,
+        'organization': organization,
         'iat': datetime.datetime.utcnow(),
         'type': token_type
     }
@@ -219,6 +223,10 @@ def _check_token():
                         expired.save()
                         abort(401, 'Unauthorized')
 
+                if 'default_org' in token and token['default_org']:
+                    current_user.default_org = True
+
+
             except ValueError:
                 abort(401, 'Token retired.')
             except jwt.ExpiredSignatureError:
@@ -226,6 +234,7 @@ def _check_token():
             except (jwt.DecodeError, jwt.InvalidTokenError) as e:
                 abort(401, 'Invalid access token.')
             except Exception as e:
+                print(e)
                 abort(401, 'Unknown token error.')
 
         except IndexError:

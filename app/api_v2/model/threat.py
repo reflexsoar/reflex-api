@@ -77,14 +77,19 @@ class ThreatList(base.BaseDocument):
         return response
 
     @classmethod
-    def get_by_data_type(self, data_type):
+    def get_by_data_type(self, data_type, organization=None):
         '''
         Fetches the threat list by the data_type
         it should be associated with
         '''
-        data_type = system.DataType.get_by_name(name=data_type)
+        data_type = system.DataType.get_by_name(name=data_type, organization=organization)
         try:
-            response = self.search().query('term', data_type_uuid=data_type.uuid).execute()
+            response = self.search()
+            
+            if organization:
+                response = response.filter('term', organization=organization)
+                
+            response = response.query('term', data_type_uuid=data_type.uuid).execute()
         except AttributeError:
             return []
         if response:

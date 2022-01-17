@@ -89,7 +89,7 @@ class Event(base.BaseDocument):
         Event observables
         '''
         self.event_observables = value
-        self.save
+        self.save()
 
     def append_event_rule_uuid(self, uuid):
         '''
@@ -114,7 +114,7 @@ class Event(base.BaseDocument):
             # FIX: Don't create observables with empty or placeholder values
             if o['value'] not in [None,'','-']:
 
-                observable = system.Observable(**o)
+                observable = system.Observable(**o, organization=self.organization)
 
                 observable.add_event_uuid(self.uuid)
                 observable.auto_data_type()
@@ -211,11 +211,16 @@ class Event(base.BaseDocument):
         return False
 
     @classmethod
-    def get_by_reference(self, reference):
+    def get_by_reference(self, reference, organization=None):
         '''
         Fetches an event by its source reference value
         '''
-        response = self.search().query('match', reference=reference).execute()
+        response = self.search()
+
+        if organization:
+            response = response.filter('term', organization=organization)
+        
+        response = response.query('match', reference=reference).execute()
         if response:
             document = response[0]
             return document
@@ -443,12 +448,16 @@ class EventRule(base.BaseDocument):
         return rule
 
     @classmethod
-    def get_all(self):
+    def get_all(self, organization=None):
         """
         Returns all the event rules
         """
 
         query = self.search()
+
+        if organization:
+            query = query.filter('term', organization=organization)
+
         query = query[0:query.count()]
         response = query.execute()
         if response:

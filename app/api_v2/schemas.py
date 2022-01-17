@@ -64,7 +64,7 @@ mod_pagination = Model('Pagination', {
 })
 
 mod_auth = Model('AuthModel', {
-    'username': fields.String(default='admin'),
+    'email': fields.String(default='admin@reflexsoar.com'),
     'password': fields.String(default='reflex')
 })
 
@@ -161,7 +161,7 @@ mod_permissions = Model('Permissions', {
     'delete_credential': fields.Boolean,
     'view_credentials': fields.Boolean,
     'add_organization': fields.Boolean,
-    'view_organizatons': fields.Boolean,
+    'view_organizations': fields.Boolean,
     'update_organization': fields.Boolean,
     'delete_organization': fields.Boolean,
     'add_list': fields.Boolean,
@@ -223,6 +223,7 @@ mod_role_list = Model('Role', {
 
 mod_user_full = Model('UserFull', {
     'uuid': fields.String,
+    'organization': fields.String,
     'username': fields.String,
     'email': fields.String,
     'first_name': fields.String,
@@ -267,7 +268,8 @@ mod_user_self = Model('UserSelf', {
     'last_name': fields.String,
     'email': fields.String,
     'role': fields.Nested(mod_user_role_no_members),
-    'mfa_enabled': fields.Boolean
+    'mfa_enabled': fields.Boolean,
+    'default_org': fields.Boolean
 })
 
 mod_tag_list = Model('TagList', {

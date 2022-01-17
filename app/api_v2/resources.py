@@ -11,6 +11,7 @@ import json
 import hashlib
 
 from app.api_v2.model.exceptions import EventRuleFailure
+from app.api_v2.model.user import Organization
 from .rql.parser import QueryParser
 import pyqrcode
 import jwt
@@ -59,7 +60,7 @@ from app.api_v2.model.utils import escape_special_characters
 
 from .utils import ip_approved, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
 
-from .resource import ns_playbook_v2, ns_audit_log_v2, ns_list_v2
+from .resource import ns_playbook_v2, ns_audit_log_v2, ns_list_v2, ns_organization_v2
 
 # Instantiate a new API object
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
@@ -112,6 +113,7 @@ ns_hunting_v2 = api2.namespace('Hunting', description="Threat hunting operaitons
 api2.add_namespace(ns_playbook_v2)
 api2.add_namespace(ns_audit_log_v2)
 api2.add_namespace(ns_list_v2)
+api2.add_namespace(ns_organization_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -180,7 +182,8 @@ class Login(Resource):
 
         # Find the user based on their username, if their account is locked don't return a user
         # object to prevent processing any more failed logons
-        user = User.get_by_username(api2.payload['username'])
+        #user = User.get_by_username(api2.payload['username'])
+        user = User.get_by_email(api2.payload['email'])
         if not user:
             ns_auth_v2.abort(401, 'Incorrect username or password')
 
@@ -196,7 +199,7 @@ class Login(Resource):
             # Update the users failed_logons and last_logon entries
             user.update(failed_logons=0, last_logon=datetime.datetime.utcnow())
        
-            log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Successful Authentication.", status="Success")
+            log_event(organization=user.organization, event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Successful Authentication.", status="Success")
 
             if user.mfa_enabled:
                 return {'mfa_challenge_token': user.create_mfa_challenge_token()}
@@ -250,7 +253,9 @@ class UserInfo(Resource):
     def get(self, current_user):
         ''' Returns information about the currently logged in user '''
         role = Role.get_by_member(current_user.uuid)
+        organization = Organization.get_by_uuid(current_user.organization)
         current_user.role = role
+        current_user.default_org = organization.default_org
         return current_user
 
 
@@ -407,11 +412,11 @@ class UserList(Resource):
                 return []
         else:
             if args['deleted']:
-                s = User.search()
+                s = User.search().query()
             else:
                 s = User.search().query('match', deleted=False)
 
-            s = s[0:s.count()]
+            s = s[0:]
             response = s.execute()
             [user.load_role() for user in response]
             return [user for user in response]
@@ -875,8 +880,11 @@ class EventListAggregated(Resource):
         return response
 
 
+    @api2.doc(security="Bearer")
     @api2.expect(mod_event_create)
-    def post(self):
+    @token_required
+    @user_has('add_event')
+    def post(self, current_user):
         ''' Creates a new event '''
 
         observables = []
@@ -951,11 +959,11 @@ class CreateBulkEvents(Resource):
         workers = []
 
         request_id = str(uuid.uuid4())
-        
-        def process_event(queue, request_id):
+      
+        def process_event(queue, request_id, organization=None):
             while not queue.empty():
                 raw_event = queue.get()
-                event = Event.get_by_reference(raw_event['reference'])
+                event = Event.get_by_reference(raw_event['reference'], organization=organization)
 
                 if not event:
 
@@ -979,13 +987,13 @@ class CreateBulkEvents(Resource):
                     if 'observables' in raw_event:
                         observables = raw_event.pop('observables')
 
-                    event = Event(**raw_event)
+                    event = Event(**raw_event, organization=organization)
                     event.save()
 
                     if observables:
                         event.add_observable(observables)
 
-                    event_rules = EventRule.get_all()
+                    event_rules = EventRule.get_all(organization=organization)
                     if event_rules:
                     
                         matched = False
@@ -995,7 +1003,7 @@ class CreateBulkEvents(Resource):
                             try:
                                 matched = event_rule.process_rql(original_payload)
                             except EventRuleFailure as e:
-                                log_event(event_type='Event Rule Processing', source_user="System", event_reference=event.reference, time_taken=0, status="Failed", message=f"Failed to process event rule. {e}")
+                                log_event(organization=organization,event_type='Event Rule Processing', source_user="System", event_reference=event.reference, time_taken=0, status="Failed", message=f"Failed to process event rule. {e}")
 
                             # If the rule matched, process the event
                             if matched:
@@ -1016,7 +1024,7 @@ class CreateBulkEvents(Resource):
                     event_process_time = end_event_process_dt - start_event_process_dt
                     #log_event(event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=event_process_time, status="Success", message="Event Inserted.", event_id=event.uuid)
                 else:
-                    log_event(event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=0, status="Failed", message="Event Already Exists.")
+                    log_event(organization=organization, event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=0, status="Failed", message="Event Already Exists.")
 
         
         start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
@@ -1024,7 +1032,7 @@ class CreateBulkEvents(Resource):
             [event_queue.put(e) for e in api2.payload['events']]
 
         for i in range(0,current_app.config['EVENT_PROCESSING_THREADS']):
-            p = threading.Thread(target=process_event, daemon=True, args=(event_queue,request_id))
+            p = threading.Thread(target=process_event, daemon=True, args=(event_queue,request_id,current_user.organization))
             workers.append(p)
         [t.start() for t in workers]
 
@@ -3002,7 +3010,7 @@ class AgentPairToken(Resource):
         '''
 
         settings = Settings.load()
-        return generate_token(None, settings.agent_pairing_token_valid_minutes, 'pairing')
+        return generate_token(None, settings.agent_pairing_token_valid_minutes, current_user.organization, 'pairing')
 
 
 @ns_agent_v2.route("")

@@ -30,7 +30,7 @@ class User(base.BaseDocument):
     A User of the Reflex system
     '''
 
-    email = Text()
+    email = Text(fields={'keyword':Keyword()})
     username = Text(fields={'keyword':Keyword()})
     first_name = Text(fields={'keyword':Keyword()})
     last_name = Text(fields={'keyword':Keyword()})
@@ -70,8 +70,12 @@ class User(base.BaseDocument):
         expired token table
         '''
 
+        organization = Organization.get_by_uuid(self.organization)
+
         _api_key = jwt.encode({
             'uuid': self.uuid,
+            'organization': self.organization,
+            'default_org': organization.default_org if organization else False,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=365),
             'iat': datetime.datetime.utcnow(),
             'type': 'api'
@@ -92,9 +96,12 @@ class User(base.BaseDocument):
         user calls the API, valid for 6 hours by default
         '''
 
+        organization = Organization.get_by_uuid(self.organization)
+
         _access_token = jwt.encode({
             'uuid': self.uuid,
-            # 'organization': self.organization_uuid,
+            'organization': self.organization,
+            'default_org': organization.default_org if organization else False,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=360),
             'iat': datetime.datetime.utcnow(),
             'type': 'user'
@@ -121,6 +128,7 @@ class User(base.BaseDocument):
     def create_password_reset_token(self):
         _token = jwt.encode({
             'uuid': self.uuid,
+            'organization': self.organization,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30),
             'iat': datetime.datetime.utcnow(),
             'type': 'password_reset'
@@ -136,6 +144,7 @@ class User(base.BaseDocument):
 
         _token = jwt.encode({
             'uuid': self.uuid,
+            'organization': self.organization,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30),
             'iat': datetime.datetime.utcnow(),
             'type': 'mfa_challenge'
@@ -144,8 +153,13 @@ class User(base.BaseDocument):
         return _token
 
     def create_refresh_token(self, user_agent_string):
+
+        organization = Organization.get_by_uuid(self.organization)
+        
         _refresh_token = jwt.encode({
             'uuid': self.uuid,
+            'organization': self.organization,
+            'default_org': organization.default_org if organization else False,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=30),
             'iat': datetime.datetime.utcnow(),
             'type': 'refresh'
@@ -274,6 +288,21 @@ class User(base.BaseDocument):
     def verify_totp(self, token):
         ''' Checks to see if the submitted TOTP token is valid'''
         return onetimepass.valid_totp(token, self.otp_secret)
+
+
+class Organization(base.BaseDocument):
+    '''
+    Defines an Organization/Tenant that users and other objects belong to
+    '''
+
+    class Index():
+        name = 'reflex-organizations'
+
+    name = Keyword()
+    description = Text()
+    url = Keyword()
+    logon_domains = Keyword()
+    default_org = Boolean()
 
 
 class Permission(InnerDoc):

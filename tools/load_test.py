@@ -10,7 +10,7 @@ host = 'http://localhost'
 
 def auth():
     response = requests.post('{}/api/v2.0/auth/login'.format(host),
-                             data=json.dumps({'username':'admin', 'password':'reflex'}),
+                             data=json.dumps({'email':'bcarroll@zeroonesecurity.com', 'password':'password'}),
                              headers={'Content-Type': 'application/json'}, verify=False)
     if response.status_code == 200:
         token = response.json()['access_token']

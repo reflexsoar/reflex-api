@@ -86,23 +86,32 @@ class DataType(base.BaseDocument):
         name = 'reflex-data-types'
 
     @classmethod
-    def get_by_name(self, name):
+    def get_by_name(self, name, organization=None):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = self.search().query('term', name=name).execute()
+        response = self.search()
+        
+        if organization:
+            response = response.filter('term', organization=organization)
+            
+        response = response.query('term', name=name).execute()
         if response:
             user = response[0]
             return user
         return response
 
     @classmethod
-    def get_all(self):
+    def get_all(self, organization):
         '''
         Fetches all the configured DataTypes in the system
         '''
         response = self.search()
+
+        if organization:
+            response = response.filter('term', organization=organization)
+        
         response = response[0:response.count()]
         response = response.execute()
         if response:
@@ -325,7 +334,7 @@ class Observable(base.BaseDocument):
         Checks the value of the observable against all threat
         lists for this type
         '''
-        theat_lists = threat.ThreatList.get_by_data_type(self.data_type)
+        theat_lists = threat.ThreatList.get_by_data_type(self.data_type, organization=self.organization)
         for l in theat_lists:
             if l.active:
                 hits = l.check_value(self.value)
@@ -340,7 +349,7 @@ class Observable(base.BaseDocument):
         expressions
         '''
 
-        data_types = DataType.get_all()
+        data_types = DataType.get_all(organization=self.organization)
         if self.data_type == "auto":
             matched = False
             for dt in data_types:
