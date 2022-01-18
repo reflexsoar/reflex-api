@@ -3335,6 +3335,12 @@ class CredentialDetails(Resource):
         ''' Updates a credential '''
         credential = Credential.get_by_uuid(uuid=uuid)
         if credential:
+
+            # Strip the organization field if the user is not a member of the default
+            # organization
+            if 'organization' in api2.payload and hasattr(current_user,'default_org') and not current_user.default_org:
+                api2.payload.pop('organization')
+                
             if 'name' in api2.payload:
                 cred = Credential.get_by_name(api2.payload['name'])
                 if cred:
@@ -3365,9 +3371,6 @@ class CredentialDetails(Resource):
             return {'message': 'Credential successfully deleted.'}
         else:
             ns_credential_v2.abort(404, 'Credential not found.')
-
-
-
 
 
 @ns_plugins_v2.route("")

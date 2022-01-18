@@ -543,11 +543,13 @@ mod_credential_update = Model('CredentialUpdate', {
     'username': fields.String,
     'secret': fields.String,
     'name': fields.String,
-    'description': fields.String
+    'description': fields.String,
+    'organization': fields.String
 })
 
 mod_credential_full = Model('Credential', {
     'uuid': fields.String,
+    'organization': fields.String,
     'username': fields.String,
     'name': fields.String,
     'description': fields.String
@@ -555,6 +557,7 @@ mod_credential_full = Model('Credential', {
 
 mod_credential_list = Model('CredentialLIst', {
     'uuid': fields.String,
+    'organization': fields.String,
     'name': fields.String,
     'username': fields.String,
     'description': fields.String
