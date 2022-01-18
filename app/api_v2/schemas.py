@@ -566,6 +566,7 @@ mod_credential_return = Model('CredentialReturn', {
 
 mod_input_list = Model('InputList', {
     'uuid': fields.String,
+    'organization': fields.String,
     'name': fields.String,
     'plugin': fields.String,
     'description': fields.String,
@@ -580,6 +581,7 @@ mod_input_list = Model('InputList', {
 
 mod_input_create = Model('CreateInput', {
     'name': fields.String,
+    'organization': fields.String,
     'description': fields.String,
     'plugin': fields.String,
     'enabled': fields.Boolean,
@@ -972,6 +974,7 @@ mod_link_cases = Model('LinkCases', {
 
 mod_audit_log = Model('AuditLog', {
     'created_at': ISO8601(),
+    'organization': fields.String,
     'event_type': fields.String,
     'message': fields.String,
     'source_user': fields.String,

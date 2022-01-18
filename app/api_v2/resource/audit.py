@@ -7,6 +7,7 @@ api = Namespace('AuditLog', description='Reflex audit logs', path='/audit_log')
 
 mod_audit_log = api.model('AuditLog', {
     'created_at': ISO8601(),
+    'organization': fields.String,
     'event_type': fields.String,
     'message': fields.String,
     'source_user': fields.String,

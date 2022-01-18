@@ -155,7 +155,7 @@ class User(base.BaseDocument):
     def create_refresh_token(self, user_agent_string):
 
         organization = Organization.get_by_uuid(self.organization)
-        
+
         _refresh_token = jwt.encode({
             'uuid': self.uuid,
             'organization': self.organization,
@@ -303,6 +303,24 @@ class Organization(base.BaseDocument):
     url = Keyword()
     logon_domains = Keyword()
     default_org = Boolean()
+
+    @classmethod
+    def get_by_name(self, name):
+        response = self.search().query(
+            'match', name=name).execute()
+        if response:
+            org = response[0]
+            return org
+        return response
+
+    @classmethod
+    def get_by_logon_domain(self, domains):
+        response = self.search()
+        response = response.filter('terms', logon_domains=domains)
+        response = response.execute()
+        if response:
+            return response[0]
+        return response
 
 
 class Permission(InnerDoc):

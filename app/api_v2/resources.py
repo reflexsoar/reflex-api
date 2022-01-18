@@ -12,6 +12,7 @@ import hashlib
 
 from app.api_v2.model.exceptions import EventRuleFailure
 from app.api_v2.model.user import Organization
+from app.api_v2.resource import organization
 from .rql.parser import QueryParser
 import pyqrcode
 import jwt
@@ -211,10 +212,10 @@ class Login(Resource):
 
         if user.failed_logons >= Settings.load().logon_password_attempts:
             user.update(locked=True)
-            log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Account Locked.", status="Failed")
+            log_event(organization=user.organization, event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Account Locked.", status="Failed")
         else:
             user.update(failed_logons=user.failed_logons+1)
-            log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Bad username or password.", status="Failed")
+            log_event(organization=user.organization, event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Bad username or password.", status="Failed")
 
         ns_auth_v2.abort(401, 'Incorrect username or password')
 
@@ -437,6 +438,11 @@ class UserList(Resource):
             ns_user_v2.abort(409, "User with this e-mail already exists.")
         else:
             user_role = api2.payload.pop('role_uuid')
+
+            # Strip the organization field if the user is not a member of the default
+            # organization
+            if 'organization' in api2.payload and hasattr(current_user,'default_org') and not current_user.default_org:
+                api2.payload.pop('organization')
 
             user_password = api2.payload.pop('password')
             user = User(**api2.payload)
@@ -1003,7 +1009,7 @@ class CreateBulkEvents(Resource):
                             try:
                                 matched = event_rule.process_rql(original_payload)
                             except EventRuleFailure as e:
-                                log_event(organization=organization,event_type='Event Rule Processing', source_user="System", event_reference=event.reference, time_taken=0, status="Failed", message=f"Failed to process event rule. {e}")
+                                log_event(organization=organization, event_type='Event Rule Processing', source_user="System", event_reference=event.reference, time_taken=0, status="Failed", message=f"Failed to process event rule. {e}")
 
                             # If the rule matched, process the event
                             if matched:
@@ -2928,6 +2934,11 @@ class InputList(Resource):
                 cred_uuid = api2.payload.pop('credential')
                 api2.payload['credential'] = cred_uuid
 
+            # Strip the organization field if the user is not a member of the default
+            # organization
+            if 'organization' in api2.payload and hasattr(current_user,'default_org') and not current_user.default_org:
+                api2.payload.pop('organization')
+
             if 'config' in api2.payload:
                 try:
                     api2.payload['config'] = json.loads(base64.b64decode(
@@ -3220,6 +3231,7 @@ class EncryptPassword(Resource):
 
 cred_parser = pager_parser.copy()
 cred_parser.add_argument('name', location='args', required=False, type=str)
+cred_parser.add_argument('organization', location='args', required=False, type=str)
 cred_parser.add_argument('page', type=int, location='args', default=1, required=False)
 cred_parser.add_argument('sort_by', type=str, location='args', default='-created_at', required=False)
 cred_parser.add_argument('page_size', type=int, location='args', default=10, required=False)
@@ -3234,14 +3246,15 @@ class CredentialList(Resource):
     @user_has('view_credentials')
     def get(self, current_user):
 
-        
-
         args = cred_parser.parse_args()
 
         credentials = Credential.search()
 
         if 'name' in args and args.name not in [None, '']:
             credentials = credentials.filter('match', name=args.name)
+
+        if 'organization' in args and args.organization not in [None, '']:
+            credentials = credentials.filter('term', organization=args.organization)
 
         credentials = credentials.sort(args.sort_by)
 
