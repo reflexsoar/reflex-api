@@ -5,6 +5,7 @@ import datetime
 import itertools
 import os
 from queue import Queue
+from tabnanny import check
 import threading
 import uuid
 import json
@@ -59,7 +60,7 @@ from .model import (
 
 from app.api_v2.model.utils import escape_special_characters
 
-from .utils import ip_approved, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
+from .utils import ip_approved, check_org, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
 
 from .resource import ns_playbook_v2, ns_audit_log_v2, ns_list_v2, ns_organization_v2
 
@@ -388,6 +389,7 @@ class UnlockUser(Resource):
 
 user_parser = api2.parser()
 user_parser.add_argument('username', location='args', required=False)
+user_parser.add_argument('organization', location='args', required=False)
 user_parser.add_argument('deleted', type=xinputs.boolean, location='args',
                          required=False, default=False)
 
@@ -400,27 +402,27 @@ class UserList(Resource):
     @api2.expect(user_parser)
     @token_required
     @user_has('view_users')
-    def get(self, current_user):
+    @check_org
+    def get(self, current_user):   
         ''' Returns a list of users '''
 
         args = user_parser.parse_args()
 
-        if args['username']:
-            user = User.get_by_username(args['username'])
-            if user:
-                return [user]
-            else:
-                return []
-        else:
-            if args['deleted']:
-                s = User.search().query()
-            else:
-                s = User.search().query('match', deleted=False)
+        user = User.search()
 
-            s = s[0:]
-            response = s.execute()
-            [user.load_role() for user in response]
-            return [user for user in response]
+        if args['username']:
+            user = user.filter('term', username=args.username)
+
+        if args['organization']:
+            user = user.filter('term', organization=args.organization)
+
+        if args['deleted']:
+            user = user.filter('match', deleted=False)
+
+        user = user [0:]
+        response = user.execute()
+        [user.load_role() for user in response]
+        return [user for user in response]
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_user_create)
@@ -1846,6 +1848,9 @@ class CaseStatusDetails(Resource):
 close_reason_parser = api2.parser()
 close_reason_parser.add_argument(
     'title', type=str, location='args', required=False)
+close_reason_parser.add_argument(
+    'organization', type=str, location='args', required=False
+)
 
 @ns_close_reason_v2.route("")
 class CloseReasonList(Resource):
@@ -1860,6 +1865,9 @@ class CloseReasonList(Resource):
         args = close_reason_parser.parse_args()
 
         close_reasons = CloseReason.search()
+
+        if args.organization:
+            close_reasons = close_reasons.filter('term', organization=args.organization)
         
         if args.title:
             close_reasons = close_reasons.filter('match', title=args.title)
@@ -1935,6 +1943,7 @@ class CloseReasonDetails(Resource):
 
 case_parser = pager_parser.copy()
 case_parser.add_argument('title', location='args', required=False, type=str)
+case_parser.add_argument('organization', location='args', required=False, type=str)
 case_parser.add_argument('status', location='args', required=False, type=str)
 case_parser.add_argument('severity', location='args', required=False, action="split", type=str)
 case_parser.add_argument('owner', location='args', required=False, action="split", type=str)
@@ -1954,6 +1963,7 @@ class CaseList(Resource):
     @api2.expect(case_parser)
     @token_required
     @user_has('view_cases')
+    @check_org
     def get(self, current_user):
         ''' Returns a list of case '''
 
@@ -1965,7 +1975,6 @@ class CaseList(Resource):
 
         # Apply filters
         if 'title' in args and args['title']:
-            print(args['title'])
             cases = cases.filter('wildcard', title=args['title']+"*")
 
         if 'status' in args and args['status']:
@@ -1973,6 +1982,9 @@ class CaseList(Resource):
 
         if 'severity' in args and args['severity']:
             cases = cases.filter('terms', severity=args['severity'])
+
+        if 'organization' in args and args.organization:
+            cases = cases.filter('term', organization=args.organization)
 
         # Paginate the cases
         page = args.page - 1
@@ -2001,6 +2013,7 @@ class CaseList(Resource):
     @api2.response('200', "Successfully created the case.")
     @token_required
     @user_has('create_case')
+    @check_org
     def post(self, current_user):
         ''' Creates a new case '''
 
@@ -2096,7 +2109,7 @@ and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.valu
 
         # Deduplicate case observables
         case_observables = list(set([Observable(
-            tags=o.tags, value=o.value, data_type=o.data_type, ioc=o.ioc, spotted=o.spotted, tlp=o.tlp, case=case.uuid) for o in case_observables]))
+            tags=o.tags, value=o.value, data_type=o.data_type, ioc=o.ioc, spotted=o.spotted, tlp=o.tlp, case=case.uuid, organization=case.organization) for o in case_observables]))
         [o.save() for o in case_observables]
 
         # If the user selected a case template, take the template items
@@ -2634,6 +2647,7 @@ class CaseCommentDetails(Resource):
 
 case_template_parser = api2.parser()
 case_template_parser.add_argument('title', location='args', required=False)
+case_template_parser.add_argument('organization', location='args', required=False)
 
 
 @ns_case_template_v2.route("")
@@ -2644,16 +2658,21 @@ class CaseTemplateList(Resource):
     @api2.expect(case_template_parser)
     @token_required
     @user_has('view_case_templates')
+    @check_org
     def get(self, current_user):
         ''' Returns a list of case_template '''
 
         args = case_template_parser.parse_args()
-        case_templates = None
+
+        case_templates = CaseTemplate.search()
 
         if args['title']:
-            case_templates = CaseTemplate.title_search(search=args['title'])
-        else:
-            case_templates = CaseTemplate.search().execute()
+            case_templates = case_templates.filter('term', title=args.title)
+
+        if args['organization']:
+            case_templates = case_templates.filter('term', organization=args.organization)
+        
+        case_templates = case_templates.execute()
         if case_templates:
             return [c for c in case_templates]
         else:

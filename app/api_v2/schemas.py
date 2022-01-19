@@ -707,6 +707,7 @@ mod_event_rule_test = Model('TestEventRuleQuery', {
 
 mod_event_rule_create = Model('CreateEventRule', {
     'name': fields.String,
+    'organization': fields.String,
     'description': fields.String,
     'event_signature': fields.String,
     'merge_into_case': fields.Boolean,
@@ -928,6 +929,7 @@ mod_case_create = Model('CaseCreate', {
 mod_case_list = Model('CaseList', {
     #'id': fields.String,
     'uuid': fields.String,
+    'organization': fields.String,
     'title': fields.String,
     'owner': fields.Nested(mod_user_list),
     #'description': fields.String,
