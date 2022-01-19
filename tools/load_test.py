@@ -8,9 +8,11 @@ import time
 
 host = 'http://localhost'
 
+AUTH_TOKEN = None
+
 def auth():
     response = requests.post('{}/api/v2.0/auth/login'.format(host),
-                             data=json.dumps({'email':'bcarroll@zeroonesecurity.com', 'password':'password'}),
+                             data=json.dumps({'email':'', 'password':''}),
                              headers={'Content-Type': 'application/json'}, verify=False)
     if response.status_code == 200:
         token = response.json()['access_token']
@@ -229,3 +231,4 @@ while True:
   print("Sending {} events...".format(len(events)))
   bulk(events)
   time.sleep(5)
+  break

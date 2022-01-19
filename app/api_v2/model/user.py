@@ -223,7 +223,8 @@ class User(base.BaseDocument):
     @classmethod
     def get_by_email(self, email):
         response = self.search().query(
-            'match', email=utils.escape_special_characters(email)).execute()
+            'term', email__keyword=email)
+        response = response.execute()
         if response:
             user = response[0]
             return user

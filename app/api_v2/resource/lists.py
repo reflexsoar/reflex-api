@@ -1,4 +1,4 @@
-from ..utils import token_required, user_has, ip_approved
+from ..utils import check_org, token_required, user_has, ip_approved
 from flask_restx import Resource, Namespace, fields
 from ..model import ThreatList, DataType
 from .shared import ISO8601, ValueCount, AsNewLineDelimited
@@ -7,6 +7,7 @@ api = Namespace('Lists', description="Intel List operations", path="/list")
 
 mod_data_type_list = api.model('DataTypeList', {
     'uuid': fields.String,
+    'organization': fields.String,
     'name': fields.String,
     'description': fields.String,
     'regex': fields.String,
@@ -16,6 +17,7 @@ mod_data_type_list = api.model('DataTypeList', {
 
 mod_list_list = api.model('ListView', {
     'uuid': fields.String,
+    'organization': fields.String,
     'name': fields.String,
     'list_type': fields.String,
     'tag_on_match': fields.Boolean,
@@ -33,6 +35,7 @@ mod_list_list = api.model('ListView', {
 
 mod_list_create = api.model('ListCreate', {
     'name': fields.String(required=True, example='SpamHaus eDROP'),
+    'organization': fields.String,
     'list_type': fields.String(required=True, example='values'),
     'tag_on_match': fields.Boolean(example=False),
     'data_type_uuid': fields.String(required=True),
@@ -144,6 +147,7 @@ class ThreatListDetails(Resource):
     @api.marshal_with(mod_list_list)
     @token_required
     @user_has('update_list')
+    @check_org
     def put(self, uuid, current_user):
         ''' Updates a ThreatList '''
         value_list = ThreatList.get_by_uuid(uuid=uuid)

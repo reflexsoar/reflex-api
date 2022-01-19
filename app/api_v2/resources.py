@@ -441,6 +441,7 @@ class UserList(Resource):
 
             # Strip the organization field if the user is not a member of the default
             # organization
+            # TODO: replace with @check_org wrapper
             if 'organization' in api2.payload and hasattr(current_user,'default_org') and not current_user.default_org:
                 api2.payload.pop('organization')
 
@@ -1161,7 +1162,7 @@ event_stats_parser.add_argument('status', location='args', default=[
 ], type=str, action='split', required=False)
 event_stats_parser.add_argument('tags', location='args', default=[
 ], type=str, action='split', required=False)
-event_stats_parser.add_argument('signature', action='split', location='args', required=False)
+event_stats_parser.add_argument('signature', location='args', required=False)
 event_stats_parser.add_argument(
     'severity', action='split', location='args', required=False)
 event_stats_parser.add_argument(
@@ -1621,10 +1622,14 @@ class EventRuleDetails(Resource):
 class TestEventRQL(Resource):
 
     @api2.expect(mod_event_rule_test)
-    def post(self):
+    @token_required
+    @user_has('create_event_rule')
+    def post(self, current_user):
         ''' Tests an RQL query against a target event to see if the RQL is valid '''
 
         date_filtered = False
+
+        print(api2.payload)
 
         if api2.payload['query'] == '' or 'query' not in api2.payload:
             return {'message':'Missing RQL query.', "success": False}, 400
@@ -1641,7 +1646,12 @@ class TestEventRQL(Resource):
                 return {'message': 'A date range is required', "succes": False}, 400
 
             search = Event.search()
+            if api2.payload['organization']:
+                search = search.filter('term', organization=api2.payload['organization'])
+            else:
+                search = search.filter('term', organization=current_user.organization)
             search = search.sort('-created_at')
+            print(search.to_dict())
             search = search[0:api2.payload['event_count']]
 
             # Apply a date filter
@@ -2936,6 +2946,7 @@ class InputList(Resource):
 
             # Strip the organization field if the user is not a member of the default
             # organization
+            # TODO: replace with @check_org wrapper
             if 'organization' in api2.payload and hasattr(current_user,'default_org') and not current_user.default_org:
                 api2.payload.pop('organization')
 
@@ -3338,6 +3349,7 @@ class CredentialDetails(Resource):
 
             # Strip the organization field if the user is not a member of the default
             # organization
+            # TODO: replace with @check_org wrapper
             if 'organization' in api2.payload and hasattr(current_user,'default_org') and not current_user.default_org:
                 api2.payload.pop('organization')
                 
@@ -3367,8 +3379,13 @@ class CredentialDetails(Resource):
         ''' Deletes a credential '''
         credential = Credential.get_by_uuid(uuid=uuid)
         if credential:
-            credential.delete()
-            return {'message': 'Credential successfully deleted.'}
+
+            # Prevent deletion from other organizations unless its from the default org
+            if current_user.default_org or current_user.organization == credential.organization:
+                credential.delete()
+                return {'message': 'Credential successfully deleted.'}
+            else:
+                ns_credential_v2.abort(401, 'Unauthorized.')
         else:
             ns_credential_v2.abort(404, 'Credential not found.')
 

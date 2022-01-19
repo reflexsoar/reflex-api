@@ -8,7 +8,6 @@ import ipaddress
 from flask import request, current_app, abort
 from .model import EventLog, User, ExpiredToken, Settings, Agent
 
-
 def escape_special_characters_rql(value):
     '''
     Escapes characters that may interfere with how an RQL query
@@ -58,6 +57,31 @@ def generate_token(uuid, duration=10, organization=None, token_type='agent'):
     _access_token = jwt.encode(token_data, current_app.config['SECRET_KEY'])
     
     return _access_token
+
+
+def org_check(current_user, payload):
+    '''
+    Checks to see if the current user is not a member of the default organization and if they are not
+    remove the organization field
+    '''
+    if 'organization' in payload and hasattr(current_user,'default_org') and not current_user.default_org:
+        payload.pop('organization')
+    return payload
+
+
+def check_org(f):
+    '''
+    Returns a stripped api payload if the user violates organization guidelines
+    '''
+    def wrapper(*args, **kwargs):
+        if 'current_user' in kwargs:
+            current_user = kwargs['current_user']
+            if hasattr(current_user,'default_org') and not current_user.default_org and 'organization' in args[0].api.payload:
+                args[0].api.payload.pop('organization')
+        return f(*args, **kwargs)
+    wrapper.__doc__ = f.__doc__
+    wrapper.__name__ = f.__name__
+    return wrapper  
 
 
 def ip_approved(f):

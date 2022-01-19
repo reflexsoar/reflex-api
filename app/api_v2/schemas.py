@@ -408,6 +408,7 @@ mod_event_create = Model('EventCreate', {
 
 mod_event_list = Model('EventList', {
     'uuid': fields.String,
+    'organization': fields.String,
     'title': fields.String(required=True),
     'reference': fields.String(required=True),
     'description': fields.String(required=True),
@@ -604,6 +605,7 @@ mod_agent_create = Model('AgentCreate', {
 
 mod_agent_list = Model('AgentList', {
     'uuid': fields.String,
+    'organization': fields.String,
     'name': fields.String,
     'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
     'roles': fields.List(fields.String),
@@ -661,6 +663,7 @@ mod_add_events_response = Model('AddEventsToCaseResponse', {
 
 mod_list_list = Model('ListView', {
     'uuid': fields.String,
+    'organization': fields.String,
     'name': fields.String,
     'list_type': fields.String,
     'tag_on_match': fields.Boolean,
@@ -678,6 +681,7 @@ mod_list_list = Model('ListView', {
 
 mod_list_create = Model('ListCreate', {
     'name': fields.String(required=True, example='SpamHaus eDROP'),
+    'organization': fields.String,
     'list_type': fields.String(required=True, example='values'),
     'tag_on_match': fields.Boolean(example=False),
     'data_type_uuid': fields.String(required=True),
@@ -693,6 +697,7 @@ mod_list_values = Model('ListValues', {
 
 mod_event_rule_test = Model('TestEventRuleQuery', {
     'query': fields.String(required=True),
+    'organization': fields.String(required=True),
     'uuid': fields.String,
     'event_count': fields.Integer(required=True),
     'return_results': fields.Boolean,
@@ -717,6 +722,7 @@ mod_event_rule_create = Model('CreateEventRule', {
 
 mod_event_rule_list = Model('EventRuleList', {
     'uuid': fields.String,
+    'organization': fields.String,
     'name': fields.String,
     'description': fields.String,
     'event_signature': fields.String,
