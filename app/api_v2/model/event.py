@@ -10,6 +10,7 @@ from . import (
     Keyword,
     Text,
     Boolean,
+    Float,
     Integer,
     Object,
     Date,
@@ -63,9 +64,12 @@ class Event(base.BaseDocument):
     status = Object()
     signature = Keyword()
     dismissed = Boolean()
-    dismiss_reason = Text()
+    dismiss_reason = Text(fields={'keyword':Keyword()})
     dismiss_comment = Text()
     dismissed_by = Object()
+    dismissed_at = Date()
+    closed_at = Date()
+    time_to_act = Float()
     event_rules = Keyword()
     raw_log = Text()
     sla_breach_time = Date()
@@ -132,6 +136,7 @@ class Event(base.BaseDocument):
         analyst in a case
         '''
         self.status = EventStatus.get_by_name(name='Open')
+        self.time_to_act = (datetime.datetime.utcnow() - self.created_at).seconds
         self.save()
 
     def set_new(self):
@@ -148,8 +153,10 @@ class Event(base.BaseDocument):
         self.status = EventStatus.get_by_name(name='Dismissed')
         if comment:
             self.dismiss_comment = comment
-            self.dismiss_reason = reason.title
-            self.dismissed_by = utils._current_user_id_or_none()
+        self.dismiss_reason = reason.title
+        self.dismissed_by = utils._current_user_id_or_none()
+        self.dismissed_at = datetime.datetime.utcnow()
+        self.time_to_act = (self.dismissed_at - self.created_at).seconds
         self.save()
 
     def set_closed(self):
@@ -157,6 +164,7 @@ class Event(base.BaseDocument):
         Sets the event as closed
         '''
         self.status = EventStatus.get_by_name(name='Closed')
+        self.closed_at = datetime.datetime.utcnow()
         self.save()
 
     def set_case(self, uuid):
@@ -373,7 +381,7 @@ class EventRule(base.BaseDocument):
         else:
 
             try:
-                qp = QueryParser()
+                qp = QueryParser(organization=self.organization)
 
                 if self.query:
                     

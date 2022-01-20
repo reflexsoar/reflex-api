@@ -16,6 +16,9 @@ from flask_mail import Mail
 from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning) 
+
 from app.api_v2.model import (
     Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
@@ -148,7 +151,16 @@ def create_app(environment='development'):
 
     if not app.config['SCHEDULER_DISABLED']:
         if not app.config['THREAT_POLLER_DISABLED']:
-            threat_list_poller = ThreatListPoller(app, log_level=app.config['THREAT_POLLER_LOG_LEVEL'])
+
+            memcached_config = None
+            if app.config['THREAT_POLLER_MEMCACHED_HOST'] and app.config['THREAT_POLLER_MEMCACHED_PORT']:
+                memcached_config = {
+                    'host': app.config['THREAT_POLLER_MEMCACHED_HOST'],
+                    'port': app.config['THREAT_POLLER_MEMCACHED_PORT'],
+                    'ttl': app.config['THREAT_POLLER_MEMCACHED_TTL']
+                }
+
+            threat_list_poller = ThreatListPoller(app, memcached_config=memcached_config, log_level=app.config['THREAT_POLLER_LOG_LEVEL'])
             scheduler.add_job(func=threat_list_poller.run, trigger="interval", seconds=app.config['THREAT_POLLER_INTERVAL'])
 
         if not app.config['HOUSEKEEPER_DISABLED']:

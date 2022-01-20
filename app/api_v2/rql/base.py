@@ -63,7 +63,7 @@ class RQLSearch:
         :param data: The data to search against
         :param query: The query to run
         '''
-        
+
         if any(isinstance(x, dict) for x in data):
             return filter(query, data)
         
@@ -88,6 +88,7 @@ class RQLSearch:
             self.target_value = None
             self.any_mode = True
             self.all_mode = False
+            self.organization = None
 
             # Setting the allowed_mutators each expression is allowed to run, default to all
             self.allowed_mutators = MUTATORS
@@ -540,17 +541,26 @@ class RQLSearch:
         Returns True if an item matches a defined threat list
         '''
 
-        def __init__(self, mutators=[], **target):
+        def __init__(self, organization=None, mutators=[], **target):
             
             super().__init__(mutators=mutators, **target)
             self.allowed_mutators=['lowercase','uppercase']
+            self.organization = organization
 
         def __call__(self, obj):
 
-            super().__call__(obj)           
+            super().__call__(obj)
 
-            threat_list = ThreatList.get_by_name(name=self.value)
+            threat_list = ThreatList.search()
+            threat_list = threat_list.filter('term', name=self.value)
+
+            if self.organization:
+                threat_list = threat_list.filter('term', organization=self.organization)
+
+            threat_list = threat_list.execute()
+            
             if threat_list:
+                threat_list = threat_list[0]
                 return self.target_value in threat_list.values
             else:
                 return False

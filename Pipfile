@@ -40,6 +40,8 @@ tzdata = "*"
 colorama = "*"
 ply = "*"
 python-dotenv = "*"
+dnspython = "*"
+pymemcache = "*"
 
 [requires]
 python_version = "3.8"

@@ -2,14 +2,13 @@ import base64
 import math
 import copy
 import datetime
-import itertools
 import os
 from queue import Queue
-from tabnanny import check
 import threading
 import uuid
 import json
 import hashlib
+import re
 
 from app.api_v2.model.exceptions import EventRuleFailure
 from app.api_v2.model.user import Organization
@@ -341,7 +340,6 @@ class ToggleMFA(Resource):
     def put(self, current_user):
         ''' Enables or disables MFA for multiple users '''
         
-        print(api2.payload)
         if 'users' in api2.payload:
             users = User.get_by_uuid(uuid=api2.payload['users'])
         enabled_disabled = ''
@@ -355,7 +353,6 @@ class ToggleMFA(Resource):
                             enabled_disabled = 'enabled'
                             user_action.append({'uuid': user.uuid, 'success': True})
                         except Exception as e:
-                            print(e)
                             user_action.append({'uuid': user.uuid, 'success': False})
                     elif api2.payload['mfa_enabled'] == False:
                         try:
@@ -747,7 +744,6 @@ class EventListAggregated(Resource):
                 })
 
         if args.source and args.source != ['']:
-            print(args.source)
             search_filters.append({
                 'type': 'terms',
                 'field': 'source__keyword',
@@ -1173,6 +1169,7 @@ event_stats_parser.add_argument('observables', location='args', default=[
 ], type=str, action='split', required=False)
 event_stats_parser.add_argument('source', location='args', default=[
 ], type=str, action='split', required=False)
+event_stats_parser.add_argument('top', location='args', default=10, type=int, required=False)
 
 @ns_event_v2.route("/stats")
 class EventStats(Resource):
@@ -1245,15 +1242,24 @@ class EventStats(Resource):
 
         # Apply all filters
         for _filter in search_filters:
-            search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})      
+            search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
-        search.aggs.bucket('title', 'terms', field='title', size=100)
-        search.aggs.bucket('tags', 'terms', field='tags', size=50)
-        search.aggs.bucket('status', 'terms', field='status.name.keyword', size=5)
-        search.aggs.bucket('severity', 'terms', field='severity', size=10)
-        search.aggs.bucket('signature', 'terms', field='signature', size=100)
+        max_title = args.top if args.top != 10 else 100
+        max_tags = args.top if args.top != 10 else 50
+        max_reasons = args.top if args.top != 10 else 10
+        max_status = args.top if args.top != 10 else 5
+        max_severity = args.top if args.top != 10 else 10
+        max_signature = args.top if args.top != 10 else 100
+        max_source = args.top if args.top != 10 else 10
+
+        search.aggs.bucket('title', 'terms', field='title', size=max_title)
+        search.aggs.bucket('tags', 'terms', field='tags', size=max_tags)
+        search.aggs.bucket('dismiss_reason', 'terms', field='dismiss_reason.keyword', size=max_reasons)
+        search.aggs.bucket('status', 'terms', field='status.name.keyword', size=max_status)
+        search.aggs.bucket('severity', 'terms', field='severity', size=max_severity)
+        search.aggs.bucket('signature', 'terms', field='signature', size=max_signature)
         search.aggs.bucket('uuids', 'terms', field='uuid', size=10000)
-        search.aggs.bucket('source', 'terms', field='source.keyword', size=10)
+        search.aggs.bucket('source', 'terms', field='source.keyword', size=max_source)
 
         events = search.execute()
 
@@ -1269,6 +1275,7 @@ class EventStats(Resource):
 
         data = {
             'title': {v['key']: v['doc_count'] for v in events.aggs.title.buckets},
+            'dismiss reason': {v['key']: v['doc_count'] for v in events.aggs.dismiss_reason.buckets},
             'observable value': {v['key']: v['doc_count'] for v in observable_search.aggs.value.buckets},
             'source': {v['key']: v['doc_count'] for v in events.aggs.source.buckets},
             'tag': {v['key']: v['doc_count'] for v in events.aggs.tags.buckets},
@@ -1631,8 +1638,6 @@ class TestEventRQL(Resource):
 
         date_filtered = False
 
-        print(api2.payload)
-
         if api2.payload['query'] == '' or 'query' not in api2.payload:
             return {'message':'Missing RQL query.', "success": False}, 400
 
@@ -1653,7 +1658,6 @@ class TestEventRQL(Resource):
             else:
                 search = search.filter('term', organization=current_user.organization)
             search = search.sort('-created_at')
-            print(search.to_dict())
             search = search[0:api2.payload['event_count']]
 
             # Apply a date filter
@@ -1668,7 +1672,7 @@ class TestEventRQL(Resource):
             event_data = [json.loads(json.dumps(marshal(e, mod_event_rql))) for e in events]
        
         try:
-            qp = QueryParser()
+            qp = QueryParser(organization=current_user.organization)
             parsed_query = qp.parser.parse(api2.payload['query'])
             result = [r for r in qp.run_search(event_data, parsed_query)]
             hits = len(result)
@@ -1759,6 +1763,8 @@ class ObservableHistory(Resource):
 case_status_parser = api2.parser()
 case_status_parser.add_argument(
     'name', type=str, location='args', required=False)
+case_status_parser.add_argument(
+    'organization', type=str, location='args', required=False)
 
 @ns_case_status_v2.route("")
 class CaseStatusList(Resource):
@@ -1767,6 +1773,7 @@ class CaseStatusList(Resource):
     @api2.expect(case_status_parser)
     @api2.marshal_with(mod_case_status_list, as_list=True)
     @token_required
+    @check_org
     def get(self, current_user):
         ''' Returns a list of case_statuss '''
 
@@ -1777,6 +1784,9 @@ class CaseStatusList(Resource):
 
         if args.name is not None:
             statuses = statuses.filter('term', name=args.name)
+
+        if args.organization is not None:
+            statuses = statuses.filter('term', organization=args.organization)
 
         statuses = statuses.execute()
         if statuses:
@@ -3687,6 +3697,7 @@ class DashboardMetrics(Resource):
         last_event = None
         if events_sorted.count() > 0:
             last_event = [e for e in events_sorted[0:1]][0]
+
 
         return {
             'total_cases': cases.count(),

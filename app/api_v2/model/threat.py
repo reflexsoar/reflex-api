@@ -26,6 +26,7 @@ class ThreatList(base.BaseDocument):
     url = Text() # A url to pull threat information from
     poll_interval = Integer() # How often to pull from this list
     last_polled = Date() # The time that the list was last fetched
+    to_memcached = Boolean() # Push the contents of the list to memcached periodically
     active = Boolean()
 
     class Index: # pylint: disable=too-few-public-methods
@@ -58,7 +59,7 @@ class ThreatList(base.BaseDocument):
         Sets the values of the threat list from a list of values
         '''
         if len(values) > 0:
-            self.values = values
+            self.values = [v for v in values if v not in ('')]
 
         if from_poll:
             self.last_polled = datetime.datetime.utcnow()
@@ -88,7 +89,7 @@ class ThreatList(base.BaseDocument):
             
             if organization:
                 response = response.filter('term', organization=organization)
-                
+
             response = response.query('term', data_type_uuid=data_type.uuid).execute()
         except AttributeError:
             return []

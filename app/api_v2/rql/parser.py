@@ -124,6 +124,11 @@ class QueryParser(object):
     tokens = QueryLexer.tokens
     search = RQLSearch()
 
+    def __init__(self, organization=None):
+        self.lexer = QueryLexer()
+        self.parser = yacc.yacc(module=self)
+        self.organization = organization
+
     def extract_mutators_and_fields(self, p, parenthesis=False):
         mutators = []
         for part in p:
@@ -435,7 +440,7 @@ class QueryParser(object):
         mutators, field, target, op = self.extract_mutators_and_fields(p, parenthesis=True)
         list_name = p[-2:][0]
         source_field = p[3]
-        p[0] = self.search.ThreatLookup(mutators=mutators, **{source_field: list_name})       
+        p[0] = self.search.ThreatLookup(organization=self.organization, mutators=mutators, **{source_field: list_name})       
 
     def p_expression_between(self, p):
         """expression : target BETWEEN STRING
@@ -455,10 +460,6 @@ class QueryParser(object):
 
     def p_error(self, p):
         raise ValueError("Syntax error in input")
-
-    def __init__(self):
-        self.lexer = QueryLexer()
-        self.parser = yacc.yacc(module=self)
 
     def run_search(self, data, parsed_query, marshaller=None):
      

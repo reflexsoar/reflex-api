@@ -27,6 +27,7 @@ mod_list_list = api.model('ListView', {
     'last_polled': ISO8601(attribute='last_polled'),
     'values': AsNewLineDelimited(attribute='values'),
     #'values_list': fields.List(fields.String, attribute='values'),
+    'to_memcached': fields.Boolean,
     'active': fields.Boolean,
     'value_count': ValueCount(attribute='values'),
     'created_at': ISO8601(attribute='created_at'),
@@ -42,6 +43,7 @@ mod_list_create = api.model('ListCreate', {
     'values': fields.String(example='127.0.0.1\n4.4.4.4\n1.1.1.1'),
     'polling_interval': fields.Integer(example=3600),
     'url': fields.Url(description='A URL to pull threat data from', example='https://www.spamhaus.org/drop/edrop.txt'),
+    'to_memcached': fields.Boolean,
     'active': fields.Boolean(example=True)
 })
 
@@ -111,11 +113,11 @@ class ThreatListList(Resource):
             del api.payload['values']
 
             # The polling interval must exist in the URL field exists
-            if 'polling_interval' not in api.payload or api.payload['polling_interval'] is None:
-                api.abort(400, 'Missing polling_interval')
+            if 'poll_interval' not in api.payload or api.payload['poll_interval'] is None:
+                api.abort(400, 'Missing poll_interval')
 
             # Don't let the user define an insanely fast polling interval
-            if api.payload['polling_interval'] < 60:
+            if int(api.payload['poll_interval']) < 60:
                 api.abort(400, 'Invalid polling interval, must be greater than or equal to 60')
 
 

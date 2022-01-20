@@ -953,6 +953,7 @@ mod_case_list = Model('CaseList', {
 mod_case_details = Model('CaseDetails', {
     #'id': fields.String,
     'uuid': fields.String,
+    'organization': fields.String,
     'title': fields.String,
     'owner': fields.Nested(mod_user_list),
     'description': fields.String,
