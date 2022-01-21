@@ -719,6 +719,7 @@ event_list_parser.add_argument(
     'sort_direction', type=str, location='args', default="desc", required=False)
 event_list_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
 event_list_parser.add_argument('end', location='args', default=datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+event_list_parser.add_argument('organization', location='args', action='split', required=False)
 
 @ns_event_v2.route("")
 class EventListAggregated(Resource):
@@ -751,7 +752,7 @@ class EventListAggregated(Resource):
                 'value': args.source
             })
 
-        for arg in ['severity','title','tags']:
+        for arg in ['severity','title','tags','organization']:
             if arg in args and args[arg] not in ['', None, []]:
                 search_filters.append({
                     'type': 'terms',
@@ -786,15 +787,25 @@ class EventListAggregated(Resource):
         if args.observables:
             event_uuids = []
 
-            if any('|' in o for o in args.observables):
-                for observable in args.observables:
-                    if '|' in observable:
-                        value,field = observable.split('|')
-                        response = Observable.get_by_value_and_field(value, field)
-                        event_uuids += [o.events[0] for o in response]
-            else:
-                observables = Observable.get_by_value(args.observables)
-                event_uuids = [o.events[0] for o in observables if o.events]
+            #if any('|' in o for o in args.observables):
+            #    for observable in args.observables:
+            #        if '|' in observable:
+            #            value,field = observable.split('|')
+            #            response = Observable.get_by_value_and_field(value, field)
+            #            event_uuids += [o.events[0] for o in response]
+            #else:
+            observables = Observable.search()
+
+            for _filter in search_filters:
+                if _filter['type'] == 'range':
+                    observables = observables.filter(_filter['type'], **{_filter['field']: _filter['value']})
+
+            observables = observables.filter('terms', value=args.observables)
+
+            observables = observables.execute()
+
+            #observables = Observable.get_by_value(args.observables)
+            event_uuids = [o.events[0] for o in observables if o.events]
             
             search_filters.append({
                 'type': 'terms',
@@ -816,6 +827,7 @@ class EventListAggregated(Resource):
             # Apply all filters
             for _filter in search_filters:
                 search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+                
            
             raw_event_count = search.count()
 
@@ -919,11 +931,15 @@ class EventListAggregated(Resource):
             # Generate a default signature based off the rule name and the current time
             # signatures are required in the system but user's don't need to supply them
             # these events will remain ungrouped
+            hasher = hashlib.md5()
             if 'signature' not in api2.payload or api2.payload['signature'] == '':
-                hasher = hashlib.md5()
+                
                 date_string = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
                 hasher.update(f"{api2.payload['title']}{date_string}".encode('utf-8'))
                 api2.payload['signature'] = hasher.hexdigest()
+
+            # Add the current users organization to the event signature
+            api2.payload['signature'] = hasher.update(api2.payload['signature']+current_user.organization).hexdigest()
 
             event = Event(**api2.payload)
             event.save()
@@ -931,14 +947,17 @@ class EventListAggregated(Resource):
             if observables:
                 event.add_observable(observables)
 
-            event_rules = EventRule.get_all()
+            event_rules = EventRule.get_all(organization=current_user.organization)
             if event_rules:
                
                 matched = False
                 for event_rule in event_rules:
 
                     # If the event matches the event rule criteria perform the rule actions
-                    matched = event_rule.process_rql(original_payload)
+                    try:
+                        matched = event_rule.process_rql(original_payload)
+                    except EventRuleFailure as e:
+                        log_event(organization=current_user.organization, event_type='Event Rule Processing', source_user="System", event_reference=event.reference, time_taken=0, status="Failed", message=f"Failed to process event rule. {e}")
 
                     # If the rule matched, process the event
                     if matched:
@@ -986,11 +1005,14 @@ class CreateBulkEvents(Resource):
                     # Generate a default signature based off the rule name and the current time
                     # signatures are required in the system but user's don't need to supply them
                     # these events will remain ungrouped
-                    if 'signature' not in raw_event or raw_event['signature'] == '':
-                        hasher = hashlib.md5()
+                    hasher = hashlib.md5()
+                    if 'signature' not in raw_event or raw_event['signature'] == '':                        
                         date_string = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
                         hasher.update(f"{raw_event['title']}{date_string}".encode('utf-8'))
                         raw_event['signature'] = hasher.hexdigest()
+                    
+                    # Add the current users organization to the event signature
+                    raw_event['signature'] = hasher.update(raw_event['signature']+current_user.organization).hexdigest()
 
                     observables = []
                     #added_observables = []
@@ -1185,6 +1207,7 @@ event_stats_parser.add_argument('start', location='args', default=(datetime.date
 event_stats_parser.add_argument('end', location='args', default=datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
 event_stats_parser.add_argument('interval', location='args', default='day', required=False, type=str)
 event_stats_parser.add_argument('metrics', location='args', action='split', default=['title','observable','source','tag','status','severity','data_type'])
+event_stats_parser.add_argument('organization', location='args', action='split', required=False)
 
 @ns_event_v2.route("/stats")
 class EventStats(Resource):
@@ -1217,7 +1240,7 @@ class EventStats(Resource):
                 'value': args.source
             })
 
-        for arg in ['severity','title','tags',]:
+        for arg in ['severity','title','tags','organization']:
             if arg in args and args[arg] not in ['', None, []]:
                 search_filters.append({
                     'type': 'terms',
@@ -1302,6 +1325,10 @@ class EventStats(Resource):
             max_source = args.top if args.top != 10 else 10
             search.aggs['range'].bucket('source', 'terms', field='source.keyword', size=max_source)
 
+        if 'organization' in args.metrics:
+            max_organizations = args.top if args.top != 10 else 10
+            search.aggs['range'].bucket('organization', 'terms', field='organization', size=max_organizations)
+
         if 'observable' in args.metrics:
             search.aggs['range'].bucket('uuids', 'terms', field='uuid', size=10000)
 
@@ -1358,6 +1385,9 @@ class EventStats(Resource):
 
         if 'source' in args.metrics:
             data['source'] = {v['key']: v['doc_count'] for v in events.aggs.range.source.buckets}
+
+        if 'organization' in args.metrics:
+            data['organization'] = {v['key']: v['doc_count'] for v in events.aggs.range.organization.buckets}
 
         if 'observable' in args.metrics:
             data['observable value'] = {v['key']: v['doc_count'] for v in observable_search.aggs.value.buckets}

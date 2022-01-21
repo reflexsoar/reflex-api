@@ -1,3 +1,4 @@
+from email.policy import default
 from ..utils import check_org, token_required, user_has, ip_approved
 from flask_restx import Resource, Namespace, fields
 from ..model import ThreatList, DataType
@@ -54,6 +55,9 @@ mod_list_values = api.model('ListValues', {
 list_parser = api.parser()
 list_parser.add_argument(
     'data_type', location='args', required=False)
+list_parser.add_argument(
+    'organization', location='args', required=False
+)
 
 @api.route("")
 class ThreatListList(Resource):
@@ -69,7 +73,11 @@ class ThreatListList(Resource):
         args = list_parser.parse_args()
 
         if args.data_type:
-            lists = ThreatList.get_by_data_type(data_type=args.data_type)
+
+            if args.organization and current_user.default_org:
+                lists = ThreatList.get_by_data_type(data_type=args.data_type, organization=args.organization)
+            else:
+                lists = ThreatList.get_by_data_type(data_type=args.data_type)
         else:
             lists = ThreatList.search().execute()
 

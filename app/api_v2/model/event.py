@@ -68,6 +68,7 @@ class Event(base.BaseDocument):
     dismiss_comment = Text()
     dismissed_by = Object()
     dismissed_at = Date()
+    dismissed_by_rule = Boolean()
     closed_at = Date()
     time_to_act = Float()
     event_rules = Keyword()
@@ -350,6 +351,12 @@ class EventRule(base.BaseDocument):
     expire_days = Integer() # The number of days before the rule expires
     expire_at = Date()  # Computed from the created_at date of the event + a timedelta in days
     active = Boolean()  # Users can override the alarm and disable it out-right
+    add_tags = Boolean() # When the event rule matches should it add tags
+    tags_to_add = Keyword() # What tags to add when add_tags is True
+    update_severity = Boolean() # When the event rule matches update the severity
+    target_severity = Keyword() # What severity to use when update_severity is True
+    mute_event = Boolean() # If True, any new events with a signature matching won't get into the system
+    mute_period = Integer() # Hour many minutes to mute the event for
     hit_count = Integer() # How many times the event rule has triggered
     last_matched_date = Date() # When the rule last matched on an event
     order = Integer() # What order to process events in, 1 being first
@@ -415,16 +422,31 @@ class EventRule(base.BaseDocument):
 
         event_acted_on = False
 
+        # Dismiss the event
         if self.dismiss:
             reason = c.CloseReason.get_by_name(title='Other')
             event.set_dismissed(reason=reason)
+            event.dismissed_by_rule = True
             event_acted_on = True
 
-        if self.merge_into_case:
-
-            # Add the event to the case
+        # Add the event to the case
+        if self.merge_into_case:            
             case = c.Case.get_by_uuid(self.target_case_uuid)                                
             case.add_event(event)
+            event_acted_on = True
+
+        # Add tags to the event
+        if self.add_tags:            
+            if isinstance(self.tags_to_add, list):
+                event.tags += self.tags_to_add
+            else:
+                event.tags += [self.tags_to_add]
+            event_acted_on = True
+        
+        # Update the severity of the Event Rule calls for it to be updated
+        if self.update_severity:
+            if isinstance(self.target_severity, int):
+                event.severity = self.target_severity
             event_acted_on = True
 
         # If the event was acted on by the signature, watermark the event
