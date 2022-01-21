@@ -40,7 +40,6 @@ class ThreatListPoller(object):
 
     def refresh_lists(self):
         lists = ThreatList.search()
-        lists = lists.filter('exists', field='url')
         lists = lists.filter('exists', field='active')
         lists = lists.filter('match', active=True)
         lists = lists.execute()
@@ -62,9 +61,15 @@ class ThreatListPoller(object):
         try:
             client = Client(f"{self.memcached_config['host']}:{self.memcached_config['port']}")
 
+            # Change a name from "Someone's super awesome list!" to "someones_super_awesome_list"
+            strip_chars = ['!#$%^&*()"\'']
+            for char in strip_chars:
+                list_name = list_name.replace(char, '')
+            list_name = list_name.replace(' ','_').lower()
+
             for value in data:
 
-                key = f"{data_type}:{value}"
+                key = f"{list_name}:{data_type}:{value}"
                 client.set(
                     key,
                     json.dumps({
@@ -97,24 +102,36 @@ class ThreatListPoller(object):
             if l.last_polled is not None:
                 time_since = datetime.datetime.utcnow() - l.last_polled
                 minutes_since = time_since.total_seconds()/60
-                if minutes_since > l.poll_interval:
+
+                # Default to 60 minutes if the list doesn't have a poll interval set
+                interval = 60
+                if l.poll_interval:
+                    interval = l.poll_interval
+
+                if minutes_since > interval:
                     do_poll = True
             else:
                 do_poll = True
 
             if do_poll:
-                response = self.session.get(l.url)
-                self.logger.info(f'Polling {l.url}')
-                if response.status_code == 200:
+                data_from_url = False
+                data = None
+                if l.url:
+                    response = self.session.get(l.url)
+                    self.logger.info(f'Polling {l.url}')
+                    if response.status_code == 200:
 
-                    data = self.parse_data(response.text)
+                        data = self.parse_data(response.text)
+                        data_from_url = True
 
-                    # If memcached is configured and the list calls for the data to be 
-                    # pushed to memcached, push the data
-                    if self.memcached_config and l.to_memcached:                        
-                        self.logger.info(f'Pushing data to memcached')
+                        # Push the values from the URL to the list
+                        l.set_values(data, from_poll=True)
+
+                if self.memcached_config and l.to_memcached:
+                    self.logger.info(f'Pushing data to memcached')
+                    if data_from_url and data:                   
                         self.to_memcached(data, data_type.name, l.name, l.url)
-
-                    # Push the values from the URL to the list
-                    l.set_values(data, from_poll=True)
+                    else:
+                        self.to_memcached(l.values, data_type.name, l.name, 'manual_list')
+                        l.polled()
             

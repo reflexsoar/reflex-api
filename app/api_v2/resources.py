@@ -717,7 +717,8 @@ event_list_parser.add_argument(
     'sort_by', type=str, location='args', default='created_at', required=False)
 event_list_parser.add_argument(
     'sort_direction', type=str, location='args', default="desc", required=False)
-
+event_list_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+event_list_parser.add_argument('end', location='args', default=datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
 
 @ns_event_v2.route("")
 class EventListAggregated(Resource):
@@ -772,6 +773,16 @@ class EventListAggregated(Resource):
                 'value': args.case_uuid
             })
 
+        if args.start and args.end:
+            search_filters.append({
+                'type': 'range',
+                'field': 'created_at',
+                'value': {
+                    'gte': args.start,
+                    'lte': args.end
+                }
+            })
+
         if args.observables:
             event_uuids = []
 
@@ -805,7 +816,7 @@ class EventListAggregated(Resource):
             # Apply all filters
             for _filter in search_filters:
                 search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
-            
+           
             raw_event_count = search.count()
 
             search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=1000000)
@@ -1170,6 +1181,10 @@ event_stats_parser.add_argument('observables', location='args', default=[
 event_stats_parser.add_argument('source', location='args', default=[
 ], type=str, action='split', required=False)
 event_stats_parser.add_argument('top', location='args', default=10, type=int, required=False)
+event_stats_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+event_stats_parser.add_argument('end', location='args', default=datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+event_stats_parser.add_argument('interval', location='args', default='day', required=False, type=str)
+event_stats_parser.add_argument('metrics', location='args', action='split', default=['title','observable','source','tag','status','severity','data_type'])
 
 @ns_event_v2.route("/stats")
 class EventStats(Resource):
@@ -1217,6 +1232,16 @@ class EventStats(Resource):
                 'value': args.signature
             })
 
+        if args.start and args.end:
+            search_filters.append({
+                'type': 'range',
+                'field': 'created_at',
+                'value': {
+                    'gte': args.start,
+                    'lte': args.end
+                }
+            })
+
         event_uuids = []
 
         if args.observables:
@@ -1244,46 +1269,102 @@ class EventStats(Resource):
         for _filter in search_filters:
             search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
-        max_title = args.top if args.top != 10 else 100
-        max_tags = args.top if args.top != 10 else 50
-        max_reasons = args.top if args.top != 10 else 10
-        max_status = args.top if args.top != 10 else 5
-        max_severity = args.top if args.top != 10 else 10
-        max_signature = args.top if args.top != 10 else 100
-        max_source = args.top if args.top != 10 else 10
+        search.aggs.bucket('range', 'filter', range={'created_at': {
+                        'gte': args.start,
+                        'lte': args.end
+                    }})
 
-        search.aggs.bucket('title', 'terms', field='title', size=max_title)
-        search.aggs.bucket('tags', 'terms', field='tags', size=max_tags)
-        search.aggs.bucket('dismiss_reason', 'terms', field='dismiss_reason.keyword', size=max_reasons)
-        search.aggs.bucket('status', 'terms', field='status.name.keyword', size=max_status)
-        search.aggs.bucket('severity', 'terms', field='severity', size=max_severity)
-        search.aggs.bucket('signature', 'terms', field='signature', size=max_signature)
-        search.aggs.bucket('uuids', 'terms', field='uuid', size=10000)
-        search.aggs.bucket('source', 'terms', field='source.keyword', size=max_source)
+        if 'title' in args.metrics:
+            max_title = args.top if args.top != 10 else 100
+            search.aggs['range'].bucket('title', 'terms', field='title', size=max_title)
+
+        if 'tag' in args.metrics:
+            max_tags = args.top if args.top != 10 else 50
+            search.aggs['range'].bucket('tags', 'terms', field='tags', size=max_tags)
+
+        if 'dismiss_reason' in args.metrics:
+            max_reasons = args.top if args.top != 10 else 10
+            search.aggs['range'].bucket('dismiss_reason', 'terms', field='dismiss_reason.keyword', size=max_reasons)
+
+        if 'status' in args.metrics:
+            max_status = args.top if args.top != 10 else 5
+            search.aggs['range'].bucket('status', 'terms', field='status.name.keyword', size=max_status)
+
+        if 'severity' in args.metrics:
+            max_severity = args.top if args.top != 10 else 10
+            search.aggs['range'].bucket('severity', 'terms', field='severity', size=max_severity)
+
+        if 'signature' in args.metrics:
+            max_signature = args.top if args.top != 10 else 100
+            search.aggs['range'].bucket('signature', 'terms', field='signature', size=max_signature)
+
+        if 'source' in args.metrics:
+            max_source = args.top if args.top != 10 else 10
+            search.aggs['range'].bucket('source', 'terms', field='source.keyword', size=max_source)
+
+        if 'observable' in args.metrics:
+            search.aggs['range'].bucket('uuids', 'terms', field='uuid', size=10000)
+
+        search = search[0:0]
 
         events = search.execute()
 
-        observable_search = Observable.search()
-        observable_search = observable_search.filter('exists', field='events')
+        
 
-        observable_search = observable_search.filter('terms', **{'events': [v['key'] for v in events.aggs.uuids.buckets]})
+        if 'observable' in args.metrics:
+            observable_search = Observable.search()
+            observable_search = observable_search.filter('exists', field='events')
 
-        observable_search.aggs.bucket('data_type', 'terms', field='data_type.keyword', size=50)
-        observable_search.aggs.bucket('value', 'terms', field='value', size=100)
+            observable_search = observable_search.filter('terms', **{'events': [v['key'] for v in events.aggs.range.uuids.buckets]})
 
-        observable_search = observable_search.execute()
+            observable_search.aggs.bucket('data_type', 'terms', field='data_type.keyword', size=50)
+            observable_search.aggs.bucket('value', 'terms', field='value', size=100)
 
-        data = {
-            'title': {v['key']: v['doc_count'] for v in events.aggs.title.buckets},
-            'dismiss reason': {v['key']: v['doc_count'] for v in events.aggs.dismiss_reason.buckets},
-            'observable value': {v['key']: v['doc_count'] for v in observable_search.aggs.value.buckets},
-            'source': {v['key']: v['doc_count'] for v in events.aggs.source.buckets},
-            'tag': {v['key']: v['doc_count'] for v in events.aggs.tags.buckets},
-            'status': {v['key']: v['doc_count'] for v in events.aggs.status.buckets},
-            'severity': {v['key']: v['doc_count'] for v in events.aggs.severity.buckets},
-            'signature': {v['key']: v['doc_count'] for v in events.aggs.signature.buckets},
-            'data type': {v['key']: v['doc_count'] for v in observable_search.aggs.data_type.buckets},            
-        }
+            observable_search = observable_search.execute()
+
+        if 'events_over_time' in args.metrics:
+            events_over_time = Event.search()
+       
+            events_over_time = events_over_time[0:0]
+
+            events_over_time.aggs.bucket('range', 'filter', range={'created_at': {
+                        'gte': args.start,
+                        'lte': args.end
+                    }})
+
+            events_over_time.aggs['range'].bucket('events_per_day', 'date_histogram', field='created_at', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
+
+            events_over_time = events_over_time.execute()
+
+        data = {}
+
+        if 'title' in args.metrics:
+            data['title'] = {v['key']: v['doc_count'] for v in events.aggs.range.title.buckets}
+
+        if 'tag' in args.metrics:
+            data['tags'] = {v['key']: v['doc_count'] for v in events.aggs.range.tags.buckets}
+
+        if 'dismiss_reason' in args.metrics:
+            data['dismiss reason'] = {v['key']: v['doc_count'] for v in events.aggs.range.dismiss_reason.buckets}
+
+        if 'status' in args.metrics:
+            data['status'] = {v['key']: v['doc_count'] for v in events.aggs.range.status.buckets}
+
+        if 'severity' in args.metrics:
+            data['severity'] = {v['key']: v['doc_count'] for v in events.aggs.range.severity.buckets}
+
+        if 'signature' in args.metrics:
+            data['signature'] = {v['key']: v['doc_count'] for v in events.aggs.range.signature.buckets}
+
+        if 'source' in args.metrics:
+            data['source'] = {v['key']: v['doc_count'] for v in events.aggs.range.source.buckets}
+
+        if 'observable' in args.metrics:
+            data['observable value'] = {v['key']: v['doc_count'] for v in observable_search.aggs.value.buckets}
+            data['data type'] = {v['key']: v['doc_count'] for v in observable_search.aggs.data_type.buckets}
+            
+        if 'events_over_time' in args.metrics:
+            data['events_over_time'] = {v['key_as_string']: v['doc_count'] for v in events_over_time.aggs.range.events_per_day.buckets}        
 
         return data
 

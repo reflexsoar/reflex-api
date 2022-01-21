@@ -65,6 +65,13 @@ class ThreatList(base.BaseDocument):
             self.last_polled = datetime.datetime.utcnow()
         self.save()
 
+    def polled(self):
+        '''
+        Sets the last_polled date to the current time
+        '''
+        self.last_polled = datetime.datetime.utcnow()
+        self.save()
+
     @classmethod
     def get_by_name(self, name):
         '''
