@@ -508,7 +508,6 @@ class RQLSearch:
         def __init__(self, mutators=[], **target):
 
             super().__init__(mutators=mutators, **target)
-            self.allowed_mutators = []
 
             # Convert any representation of booleans to a true boolean type
             self.value = self.to_boolean(self.value)

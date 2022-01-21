@@ -1,6 +1,9 @@
 import re
 import base64
+import socket
+import ipaddress
 import urllib.parse
+from geolite2 import geolite2
 
 MUTATORS = (
     'lowercase',
@@ -17,7 +20,15 @@ MUTATORS = (
     'min',
     'sum',
     'b64extract',
-    'split'
+    'split',
+    'geo_country',
+    'geo_timezone',
+    'geo_continent',
+    'reverse_lookup',
+    'is_ipv6',
+    'is_multicast',
+    'is_global',
+    'is_private'
 )
 
 def mutate_count(value):
@@ -189,6 +200,91 @@ def mutate_split(value, delimeter=' '):
     except:
         return value
 
+def mutate_geo_country(value):
+    '''
+    Returns the country for an IP
+    '''
+
+    reader = geolite2.reader()
+    match = reader.get(value)
+
+    if match:
+        return match['country']['iso_code']
+    else:
+        return value
+
+def mutate_geo_timezone(value):
+    '''
+    Returns the country for an IP
+    '''
+
+    reader = geolite2.reader()
+    match = reader.get(value)
+
+    if match:
+        return match['location']['time_zone']
+    else:
+        return value
+
+def mutate_geo_continent(value):
+    '''
+    Returns the continent for an IP
+    '''
+
+    reader = geolite2.reader()
+    match = reader.get(value)
+
+    if match:
+        return match['continent']['code']
+    else:
+        return value
+
+def mutate_reverse_lookup(value):
+    '''
+    Returns the reverse lookup value for an IP address
+    '''
+    names = []
+    if isinstance(value, list):
+        [names.append(socket.gethostbyaddr(n)[0] for n in value)]
+    else:
+        names = socket.gethostbyaddr(value)[0]
+    return names
+
+
+def mutate_is_ipv6(value):
+    '''
+    Returns True if the given value is an IPv6 address
+    '''
+
+    ip = ipaddress.ip_address(value)
+    return isinstance(ip, ipaddress.IPv6Address)
+
+def mutate_is_multicast(value):
+    '''
+    Returns True if the given value is a multicast address
+    '''
+
+    ip = ipaddress.ip_address(value)
+    return ip.is_multicast
+
+
+def mutate_is_global(value):
+    '''
+    Returns True if the given value is a global address
+    '''
+
+    ip = ipaddress.ip_address(value)
+    return ip.is_global
+
+
+def mutate_is_private(value):
+    '''
+    Returns True if the given value is a private address
+    '''
+
+    ip = ipaddress.ip_address(value)
+    return ip.is_private
+
 
 MUTATOR_MAP = {
     'lowercase': mutate_lowercase,
@@ -203,5 +299,13 @@ MUTATOR_MAP = {
     'max': mutate_max,
     'min': mutate_min,
     'sum': mutate_sum,
-    'split': mutate_split
+    'split': mutate_split,
+    'geo_country': mutate_geo_country,
+    'geo_timezone': mutate_geo_timezone,
+    'geo_continent': mutate_geo_continent,
+    'reverse_lookup': mutate_reverse_lookup,
+    'is_ipv6': mutate_is_ipv6,
+    'is_multicast': mutate_is_multicast,
+    'is_global': mutate_is_global,
+    'is_private': mutate_is_private
 }

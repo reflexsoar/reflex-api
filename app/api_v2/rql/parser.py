@@ -70,7 +70,7 @@ class QueryLexer(object):
     t_EXISTS = r'Exists|exists|EXISTS'
     t_REGEXP = r'RegExp|regexp|regex|re'
     t_BETWEEN = r'Between|between|InRange|range'
-    t_MUTATOR = r'(\|(count|length|lowercase|uppercase|b64extract|b64decode|refang|urldecode|any|all|avg|max|min|sum|split))'
+    t_MUTATOR = r'(\|(count|length|lowercase|uppercase|b64extract|b64decode|refang|urldecode|any|all|avg|max|min|sum|split|reverse_lookup|geo_country|geo_continent|geo_timezone|is_ipv6|is_multicast|is_global|is_private))'
     t_SWITH = r'StartsWith|startswith'
     t_EWITH = r'EndsWith|endswith'
     t_EXPAND = r'Expand|EXPAND|expand'
@@ -425,8 +425,15 @@ class QueryParser(object):
             p[0] = self.search.RegExp(**{field: target})
 
     def p_expression_is(self, p):
-        'expression : target IS BOOL'
-        p[0] = self.search.Is(**{p[1]: p[3]})
+        '''expression : target IS BOOL
+            | target MUTATOR IS BOOL
+            | target MUTATOR MUTATOR IS BOOL
+            | target MUTATOR MUTATOR MUTATOR IS BOOL
+            | target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+            | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+        '''
+        mutators, field, target, op = self.extract_mutators_and_fields(p)
+        p[0] = self.search.Is(mutators=mutators, **{field: target})
 
     def p_expression_threat(self, p):
         '''expression : INTEL LPAREN target COMMA STRING RPAREN
