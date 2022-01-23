@@ -1336,8 +1336,6 @@ class EventStats(Resource):
 
         events = search.execute()
 
-        
-
         if 'observable' in args.metrics:
             observable_search = Observable.search()
             observable_search = observable_search.filter('exists', field='events')
@@ -1658,27 +1656,39 @@ class EventRuleList(Resource):
     @api2.response('200', 'Successfully created event rule.')
     @token_required
     @user_has('create_event_rule')
+    @check_org
     def post(self, current_user):
-        ''' Creates a new event_rule set '''
+        ''' Creates a new event_rule '''
+        
+        print(api2.payload)
 
-        if 'expire_days' in api2.payload and not isinstance(api2.payload['expire_days'], int):
-            ns_event_rule_v2.abort(400, 'expire_days should be an integer.')
+        if 'organization' in api2.payload:
+            event_rule = EventRule.get_by_name(name=api2.payload['name'], organization=api2.payload['organization'])
+        else:
+            event_rule = EventRule.get_by_name(name=api2.payload['name'])
 
-        # Computer when the rule should expire
-        if 'expire' in api2.payload and api2.payload['expire']:
-            if 'expire_days' in api2.payload:
-                expire_days = api2.payload['expire_days']
+        if not event_rule:
 
-                expire_at = datetime.datetime.utcnow() + datetime.timedelta(days=expire_days)
-                api2.payload['expire_at'] = expire_at
-            else:
-                ns_event_rule_v2.abort(400, 'Missing expire_days field.')
+            if 'expire_days' in api2.payload and not isinstance(api2.payload['expire_days'], int):
+                ns_event_rule_v2.abort(400, 'expire_days should be an integer.')
 
-        event_rule = EventRule(**api2.payload)
-        event_rule.active = True
-        event_rule.save()
+            # Computer when the rule should expire
+            if 'expire' in api2.payload and api2.payload['expire']:
+                if 'expire_days' in api2.payload:
+                    expire_days = api2.payload['expire_days']
 
-        return event_rule
+                    expire_at = datetime.datetime.utcnow() + datetime.timedelta(days=expire_days)
+                    api2.payload['expire_at'] = expire_at
+                else:
+                    ns_event_rule_v2.abort(400, 'Missing expire_days field.')
+
+            event_rule = EventRule(**api2.payload)
+            event_rule.active = True
+            event_rule.save()
+
+            return event_rule
+        else:
+            ns_event_rule_v2.abort(400, 'Event Rule with this title already exists.')
 
 
 @ns_event_rule_v2.route("/<uuid>")
@@ -2066,6 +2076,7 @@ case_parser = pager_parser.copy()
 case_parser.add_argument('title', location='args', required=False, type=str)
 case_parser.add_argument('organization', location='args', required=False, type=str)
 case_parser.add_argument('status', location='args', required=False, type=str)
+case_parser.add_argument('close_reason', location='args', required=False, action="split", type=str)
 case_parser.add_argument('severity', location='args', required=False, action="split", type=str)
 case_parser.add_argument('owner', location='args', required=False, action="split", type=str)
 case_parser.add_argument('tag', location='args', required=False, action="split", type=str)
@@ -2104,8 +2115,20 @@ class CaseList(Resource):
         if 'severity' in args and args['severity']:
             cases = cases.filter('terms', severity=args['severity'])
 
+        if 'tag' in args and args['tag']:
+            cases = cases.filter('terms', tags=args['tag'])
+
         if 'organization' in args and args.organization:
             cases = cases.filter('term', organization=args.organization)
+
+        if 'close_reason' in args and args.close_reason:
+            cases = cases.filter('terms', close_reason__title__keyword=args.close_reason)
+
+        if args.owner and args.owner not in ['', None, []] and not args.my_cases:
+            cases = cases.filter('terms', **{'owner.username__keyword': args.owner})
+
+        if args.my_cases:
+            cases = cases.filter('term', **{'owner.username__keyword': current_user.username})
 
         # Paginate the cases
         page = args.page - 1
@@ -2645,6 +2668,173 @@ class RelateCases(Resource):
             return []
 
 
+case_stats_parser = api2.parser()
+case_stats_parser.add_argument('title', location='args', default=[
+], type=str, action='split', required=False)
+case_stats_parser.add_argument('status', location='args', default=[
+], type=str, action='split', required=False)
+case_stats_parser.add_argument('tags', location='args', default=[
+], type=str, action='split', required=False)
+case_stats_parser.add_argument('owner', location='args', default=[
+], type=str, action='split', required=False)
+case_stats_parser.add_argument('close_reason', location='args', default=[
+], type=str, action='split', required=False)
+case_stats_parser.add_argument('top', location='args', default=10, type=int, required=False)
+case_stats_parser.add_argument('my_cases', location='args', required=False, type=xinputs.boolean)
+case_stats_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+case_stats_parser.add_argument('interval', location='args', default='day', required=False, type=str)
+case_stats_parser.add_argument('end', location='args', default=datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+case_stats_parser.add_argument('metrics', location='args', action='split', default=['title','tag','status','severity','close_reason','owner'])
+case_stats_parser.add_argument('organization', location='args', action='split', required=False)
+
+@ns_case_v2.route('/stats')
+class CaseStats(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(case_stats_parser)
+    @token_required
+    @user_has('view_cases')
+    def get(self, current_user):
+        '''
+        Returns metrics about cases that can be used for easier filtering
+        of cases on the Case List page
+        '''
+
+        args = case_stats_parser.parse_args()
+
+        search_filters = []
+
+        if args.status and args.status != ['']:
+            search_filters.append({
+                'type': 'terms',
+                'field': 'status.name__keyword',
+                'value': args.status
+            })
+
+        if args.close_reason and args.close_reason != ['']:
+            search_filters.append({
+                'type': 'terms',
+                'field': 'close_reason.title__keyword',
+                'value': args.close_reason
+            })
+
+        if args.owner and args.owner not in ['', None, []] and not args.my_cases:
+            search_filters.append({
+                'type': 'terms',
+                'field': 'owner.username__keyword',
+                'value': args.owner
+            })
+
+        if args.my_cases:
+            search_filters.append({
+                'type': 'term',
+                'field': 'owner.username__keyword',
+                'value': current_user.username
+            })
+
+        for arg in ['severity','title','tags','organization']:
+            if arg in args and args[arg] not in ['', None, []]:
+                search_filters.append({
+                    'type': 'terms',
+                    'field': arg,
+                    'value': args[arg]
+                })
+                
+        if args.start and args.end:
+                    search_filters.append({
+                        'type': 'range',
+                        'field': 'created_at',
+                        'value': {
+                            'gte': args.start,
+                            'lte': args.end
+                        }
+                    })
+
+        search = Case.search()
+
+        # Apply all filters
+        for _filter in search_filters:
+            search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+
+        search.aggs.bucket('range', 'filter', range={'created_at': {
+            'gte': args.start,
+            'lte': args.end
+        }})
+
+        if 'title' in args.metrics:
+            max_title = args.top if args.top != 10 else 100
+            search.aggs['range'].bucket('title', 'terms', field='title', size=max_title)
+
+        if 'tag' in args.metrics:
+            max_tags = args.top if args.top != 10 else 50
+            search.aggs['range'].bucket('tags', 'terms', field='tags', size=max_tags)
+
+        if 'close_reason' in args.metrics:
+            max_reasons = args.top if args.top != 10 else 10
+            search.aggs['range'].bucket('close_reason', 'terms', field='close_reason.title.keyword', size=max_reasons)
+
+        if 'status' in args.metrics:
+            max_status = args.top if args.top != 10 else 5
+            search.aggs['range'].bucket('status', 'terms', field='status.name.keyword', size=max_status)
+
+        if 'owner' in args.metrics:
+            max_status = args.top if args.top != 10 else 5
+            search.aggs['range'].bucket('owner', 'terms', field='owner.username.keyword', size=max_status)
+
+        if 'severity' in args.metrics:
+            max_severity = args.top if args.top != 10 else 10
+            search.aggs['range'].bucket('severity', 'terms', field='severity', size=max_severity)
+
+        if 'organization' in args.metrics:
+            max_organizations = args.top if args.top != 10 else 10
+            search.aggs['range'].bucket('organization', 'terms', field='organization', size=max_organizations)
+
+        search = search[0:0]
+
+        cases = search.execute()
+
+        if 'cases_over_time' in args.metrics:
+            cases_over_time = Case.search()
+       
+            cases_over_time = cases_over_time[0:0]
+
+            cases_over_time.aggs.bucket('range', 'filter', range={'created_at': {
+                        'gte': args.start,
+                        'lte': args.end
+                    }})
+
+            cases_over_time.aggs['range'].bucket('cases_per_day', 'date_histogram', field='created_at', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
+
+            cases_over_time = cases_over_time.execute()
+
+        metrics = {}
+
+        if 'title' in args.metrics:
+            metrics['title'] = {v['key']: v['doc_count'] for v in cases.aggs.range.title.buckets}
+
+        if 'tag' in args.metrics:
+            metrics['tags'] = {v['key']: v['doc_count'] for v in cases.aggs.range.tags.buckets}
+
+        if 'close_reason' in args.metrics:
+            metrics['close reason'] = {v['key']: v['doc_count'] for v in cases.aggs.range.close_reason.buckets}
+
+        if 'status' in args.metrics:
+            metrics['status'] = {v['key']: v['doc_count'] for v in cases.aggs.range.status.buckets}
+
+        if 'owner' in args.metrics:
+            metrics['owner'] = {v['key']: v['doc_count'] for v in cases.aggs.range.owner.buckets}
+
+        if 'severity' in args.metrics:
+            metrics['severity'] = {v['key']: v['doc_count'] for v in cases.aggs.range.severity.buckets}
+
+        if 'organization' in args.metrics:
+            metrics['organization'] = {v['key']: v['doc_count'] for v in cases.aggs.range.organization.buckets}
+          
+        if 'cases_over_time' in args.metrics:
+            metrics['cases_over_time'] = {v['key_as_string']: v['doc_count'] for v in cases_over_time.aggs.range.cases_per_day.buckets}        
+
+        return metrics
+
 case_history_parser = api2.parser()
 case_history_parser.add_argument(
     'case_uuid', type=str, location='args', required=True)
@@ -2850,6 +3040,7 @@ class CaseTemplateDetails(Resource):
     @api2.marshal_with(mod_case_template_full)
     @token_required
     @user_has('update_case_template')
+    @check_org
     def put(self, uuid, current_user):
         ''' Updates information for a case_template '''
         case_template = CaseTemplate.get_by_uuid(uuid=uuid)
@@ -3789,7 +3980,6 @@ class PersistentPairingToken(Resource):
         ''' Returns a new API key for the user making the request '''
         settings = Settings.load()
         return settings.generate_persistent_pairing_token()
-
 
 @ns_dashboard_v2.route("")
 class DashboardMetrics(Resource):

@@ -3,6 +3,7 @@ import base64
 import socket
 import ipaddress
 import urllib.parse
+import dns.resolver
 from geolite2 import geolite2
 
 MUTATORS = (
@@ -28,7 +29,12 @@ MUTATORS = (
     'is_ipv6',
     'is_multicast',
     'is_global',
-    'is_private'
+    'is_private',
+    'ns_lookup_a',
+    'ns_lookup_aaaa',
+    'ns_lookup_mx',
+    'ns_lookup_ptr',
+    'ns_lookup_ns'
 )
 
 def mutate_count(value):
@@ -286,6 +292,19 @@ def mutate_is_private(value):
     return ip.is_private
 
 
+def resolve_dns(value, record_type):
+    '''
+    Resolves a hostname record to an IP
+    '''
+    ips = []
+    if isinstance(value, list):
+        for name in value:
+            ips += [a.to_text() for a in dns.resolver.resolve(name, record_type)]
+    else:
+        ips = [a.to_text() for a in dns.resolver.resolve(value, record_type)]
+    return ips
+
+
 MUTATOR_MAP = {
     'lowercase': mutate_lowercase,
     'uppercase': mutate_uppercase,
@@ -307,5 +326,10 @@ MUTATOR_MAP = {
     'is_ipv6': mutate_is_ipv6,
     'is_multicast': mutate_is_multicast,
     'is_global': mutate_is_global,
-    'is_private': mutate_is_private
+    'is_private': mutate_is_private,
+    'ns_lookup_a': lambda x: resolve_dns(x, 'A'),
+    'ns_lookup_aaaa': lambda x: resolve_dns(x, 'AAAA'),
+    'ns_lookup_mx': lambda x: resolve_dns(x, 'MX'),
+    'ns_lookup_ptr': lambda x: resolve_dns(x, 'PTR'),
+    'ns_lookup_ns': lambda x: resolve_dns(x, 'NS')
 }

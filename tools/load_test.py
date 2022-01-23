@@ -62,7 +62,7 @@ def random_title_description():
   return titles[random.randint(0, len(titles)-1)]
 
 def random_severity():
-  return random.randint(0,3)
+  return random.randint(1,4)
 
 def random_host_name():
   names = [

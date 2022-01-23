@@ -70,7 +70,7 @@ class QueryLexer(object):
     t_EXISTS = r'Exists|exists|EXISTS'
     t_REGEXP = r'RegExp|regexp|regex|re'
     t_BETWEEN = r'Between|between|InRange|range'
-    t_MUTATOR = r'(\|(count|length|lowercase|uppercase|b64extract|b64decode|refang|urldecode|any|all|avg|max|min|sum|split|reverse_lookup|geo_country|geo_continent|geo_timezone|is_ipv6|is_multicast|is_global|is_private))'
+    t_MUTATOR = r'(\|(count|length|lowercase|uppercase|b64extract|b64decode|refang|urldecode|any|all|avg|max|min|sum|split|reverse_lookup|geo_country|geo_continent|geo_timezone|is_ipv6|is_multicast|is_global|is_private|ns_lookup_a|ns_lookup_aaaa|ns_lookup_mx|ns_lookup_ptr|ns_lookup_ns))'
     t_SWITH = r'StartsWith|startswith'
     t_EWITH = r'EndsWith|endswith'
     t_EXPAND = r'Expand|EXPAND|expand'

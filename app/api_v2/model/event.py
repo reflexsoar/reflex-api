@@ -455,6 +455,23 @@ class EventRule(base.BaseDocument):
         
         return event_acted_on
 
+    @classmethod
+    def get_by_name(self, name, organization=None):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search()
+        
+        response = response.filter('term', name=name)
+        if organization:
+            response = response.filter('term', organization=organization)
+            
+        response = response.execute()
+        if response:
+            user = response[0]
+            return user
+        return response
 
     @classmethod
     def get_by_title(self, title):
@@ -495,16 +512,17 @@ class EventRule(base.BaseDocument):
 
         return []
 
-class MutedEvents(base.BaseDocument):
+class MutedEvent(base.BaseDocument):
     '''
     An Event Rule can be set to mute (dismiss) alarms for a certain period
     and then temporarily allow an event to come in after that period expires, resetting
     the clock and once again muting events
     '''
 
-    event_rule = Keyword()
-    last_event_processed = Date()
-    event_uuid = Keyword()
+    event_rule = Keyword() # The event rule that triggered the mute
+    event_signature = Keyword() # The Event signature that is muted
+    last_event_processed = Date() # The last this signature was processed
+    event_uuid = Keyword() # The sourve event that triggered the mute
 
     def mute_expired(self, time_interval: int):
         '''

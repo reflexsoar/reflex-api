@@ -845,6 +845,7 @@ mod_case_template_task_create = Model('CaseTemplateTaskCreate', {
 
 mod_case_template_create = Model('CaseTemplateCreate', {
     'title': fields.String(required=True),
+    'organization': fields.String,
     'owner_uuid': fields.String,
     'description': fields.String(required=True),
     'tags': fields.List(fields.String),
@@ -867,10 +868,11 @@ mod_case_template_task_full = Model('CaseTemplateTaskList', {
 
 mod_case_template_full = Model('CaseTemplateList', {
     'uuid': fields.String,
+    'organization': fields.String,
     'title': fields.String,
     #'owner': fields.Nested(mod_user_list),
     'description': fields.String,
-    'tags': fields.List(fields.String),
+    'tags': FormatTags(attribute='tags'),
     'tlp': fields.Integer,
     'severity': fields.Integer,
     #'status': fields.Nested(mod_event_status),
