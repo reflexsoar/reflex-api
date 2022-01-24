@@ -71,6 +71,8 @@ class Event(base.BaseDocument):
     dismissed_by_rule = Boolean()
     closed_at = Date()
     time_to_act = Float()
+    time_to_close = Float()
+    time_to_dismiss = Float()
     event_rules = Keyword()
     raw_log = Text()
     sla_breach_time = Date()
@@ -147,7 +149,7 @@ class Event(base.BaseDocument):
         self.status = EventStatus.get_by_name(name='New')
         self.save()
 
-    def set_dismissed(self, reason, comment=None):
+    def set_dismissed(self, reason, by_rule=False, comment=None):
         '''
         Sets the event as dismissed
         '''
@@ -157,7 +159,8 @@ class Event(base.BaseDocument):
         self.dismiss_reason = reason.title
         self.dismissed_by = utils._current_user_id_or_none()
         self.dismissed_at = datetime.datetime.utcnow()
-        self.time_to_act = (self.dismissed_at - self.created_at).seconds
+        self.time_to_dismiss = (self.dismissed_at - self.created_at).seconds
+        self.dismissed_by_rule = by_rule
         self.save()
 
     def set_closed(self):
@@ -166,6 +169,7 @@ class Event(base.BaseDocument):
         '''
         self.status = EventStatus.get_by_name(name='Closed')
         self.closed_at = datetime.datetime.utcnow()
+        self.time_to_close = (self.closed_at - self.created_at).seconds
         self.save()
 
     def set_case(self, uuid):
@@ -401,6 +405,7 @@ class EventRule(base.BaseDocument):
                 # Process the event
                 if len(results) > 0:
                     self.last_matched_date = datetime.datetime.utcnow()
+                    self.hit_count += 1
                     self.save()
                     return True
             except Exception as e:
@@ -414,19 +419,12 @@ class EventRule(base.BaseDocument):
         """
         # Check if the should be expired, disable the rule if it expired
         
-        if self.hit_count:
-            self.hit_count += 1
-        else:
-            self.hit_count = 1
-        self.save()
-
         event_acted_on = False
 
         # Dismiss the event
         if self.dismiss:
             reason = c.CloseReason.get_by_name(title='Other')
-            event.set_dismissed(reason=reason)
-            event.dismissed_by_rule = True
+            event.set_dismissed(reason=reason, by_rule=True)
             event_acted_on = True
 
         # Add the event to the case

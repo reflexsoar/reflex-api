@@ -1,4 +1,5 @@
 import base64
+from calendar import calendar
 import math
 import copy
 import datetime
@@ -1005,14 +1006,17 @@ class CreateBulkEvents(Resource):
                     # Generate a default signature based off the rule name and the current time
                     # signatures are required in the system but user's don't need to supply them
                     # these events will remain ungrouped
-                    hasher = hashlib.md5()
-                    if 'signature' not in raw_event or raw_event['signature'] == '':                        
+                    
+                    if 'signature' not in raw_event or raw_event['signature'] == '':         
+                        hasher = hashlib.md5()               
                         date_string = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
                         hasher.update(f"{raw_event['title']}{date_string}".encode('utf-8'))
                         raw_event['signature'] = hasher.hexdigest()
                     
                     # Add the current users organization to the event signature
-                    raw_event['signature'] = hasher.update(raw_event['signature']+current_user.organization).hexdigest()
+                    hasher_b = hashlib.md5()
+                    hasher_b.update(raw_event['signature'].encode('utf-8')+current_user.organization.encode('utf-8'))
+                    raw_event['signature'] = hasher_b.hexdigest()
 
                     observables = []
                     #added_observables = []
@@ -1057,6 +1061,8 @@ class CreateBulkEvents(Resource):
                             event.set_new()
                     else:
                         event.set_new()
+
+                    print(event)
 
                     end_event_process_dt = datetime.datetime.utcnow().timestamp()
                     event_process_time = end_event_process_dt - start_event_process_dt
@@ -1108,7 +1114,7 @@ class EventBulkUpdate(Resource):
                 related_events = Event.get_by_signature_and_status(signature=e.signature, status='New', all_events=True)
                 if len(related_events) > 0:
                     for evt in related_events:
-                        if evt.uuid not in api2.payload['events']:
+                        if hasattr(evt, 'uuid') and evt.uuid not in api2.payload['events']:
                             evt.set_dismissed(reason=reason, comment=comment)
 
         time.sleep(1)
@@ -1332,6 +1338,9 @@ class EventStats(Resource):
         if 'observable' in args.metrics:
             search.aggs['range'].bucket('uuids', 'terms', field='uuid', size=10000)
 
+        if 'time_per_status' in args.metrics:
+            search.aggs['range'].buckets('time_per_status', 'terms', field='status.name.keyword', size=max_status)
+
         search = search[0:0]
 
         events = search.execute()
@@ -1360,6 +1369,24 @@ class EventStats(Resource):
             events_over_time.aggs['range'].bucket('events_per_day', 'date_histogram', field='created_at', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
 
             events_over_time = events_over_time.execute()
+
+        if 'time_per_status_over_time' in args.metrics:
+            time_per_status_over_time = Event.search()
+
+            time_per_status_over_time = time_per_status_over_time[0:0]
+            
+            time_per_status_over_time.aggs.bucket('range', 'filter', range={'created_at': {
+                        'gte': args.start,
+                        'lte': args.end
+                    }})
+            
+            time_per_status_over_time.aggs['range'].bucket('per_day', 'date_histogram', field='created_at', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
+            time_per_status_over_time.aggs['range']['per_day'].bucket('status', 'terms', field='status.name.keyword', size=10)
+            time_per_status_over_time.aggs['range']['per_day']['status'].bucket('avg_time_to_dismiss', 'avg', field='time_to_dismiss')
+            time_per_status_over_time.aggs['range']['per_day']['status'].bucket('avg_time_to_act', 'avg', field='time_to_act')
+            time_per_status_over_time.aggs['range']['per_day']['status'].bucket('avg_time_to_close', 'avg', field='time_to_close')
+
+            time_per_status_over_time = time_per_status_over_time.execute()
 
         data = {}
 
@@ -1390,9 +1417,17 @@ class EventStats(Resource):
         if 'observable' in args.metrics:
             data['observable value'] = {v['key']: v['doc_count'] for v in observable_search.aggs.value.buckets}
             data['data type'] = {v['key']: v['doc_count'] for v in observable_search.aggs.data_type.buckets}
+
+        if 'time_per_status' in args.metrics:
+            data['time_per_status'] = {v['key']: v['doc_count'] for v in observable_search.aggs.time_per_status.buckets}
             
         if 'events_over_time' in args.metrics:
-            data['events_over_time'] = {v['key_as_string']: v['doc_count'] for v in events_over_time.aggs.range.events_per_day.buckets}        
+            data['events_over_time'] = {v['key_as_string']: v['doc_count'] for v in events_over_time.aggs.range.events_per_day.buckets}
+
+        if 'time_per_status_over_time' in args.metrics:
+            data['avg_time_to_act']  = {v['key_as_string']: {x['key']: x['avg_time_to_act']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
+            data['avg_time_to_dismiss']  = {v['key_as_string']: {x['key']: x['avg_time_to_dismiss']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
+            data['avg_time_to_close']  = {v['key_as_string']: {x['key']: x['avg_time_to_close']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
 
         return data
 

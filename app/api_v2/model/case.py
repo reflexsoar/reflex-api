@@ -269,7 +269,6 @@ class CloseReason(base.BaseDocument):
         return response
 
 
-
 class Case(base.BaseDocument):
     '''
     A case contains all the investigative work related to a
@@ -546,7 +545,6 @@ class Case(base.BaseDocument):
         self.save()
 
         return True
-
 
 
 class CaseTemplateTask(InnerDoc):

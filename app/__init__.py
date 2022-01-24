@@ -2,8 +2,6 @@ import os
 import ssl
 import atexit
 import logging
-from datetime import datetime
-from typing import Set
 from app.api_v2.model.system import Settings
 from app.services.sla_monitor.base import SLAMonitor
 from flask import Flask
@@ -17,7 +15,7 @@ from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
 
 import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning) 
+warnings.filterwarnings("ignore", category=DeprecationWarning,OpenSearchWarning,) 
 
 from app.api_v2.model import (
     Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
