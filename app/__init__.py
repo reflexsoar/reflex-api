@@ -15,7 +15,7 @@ from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
 
 import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning,OpenSearchWarning,) 
+warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
 from app.api_v2.model import (
     Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
