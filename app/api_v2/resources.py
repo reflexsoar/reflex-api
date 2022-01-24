@@ -709,6 +709,9 @@ event_list_parser.add_argument('search', type=str, action='split', default=[
 ], location='args', required=False)
 #event_list_parser.add_argument('rql', type=str, default="", location="args", required=False)
 event_list_parser.add_argument(
+    'title__like', type=str, location='args', required=False
+)
+event_list_parser.add_argument(
     'title', type=str, location='args', action='split', required=False)
 event_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
@@ -738,6 +741,13 @@ class EventListAggregated(Resource):
         end = (args.page * args.page_size)
 
         search_filters = []
+
+        if args.title__like and args.title__like != '':
+            search_filters.append({
+                'type': 'wildcard',
+                'field': 'title',
+                'value': "*"+args.title__like+"*"
+            })
 
         if args.status and args.status != ['']:
             search_filters.append({
@@ -806,7 +816,7 @@ class EventListAggregated(Resource):
             observables = observables.execute()
 
             #observables = Observable.get_by_value(args.observables)
-            event_uuids = [o.events[0] for o in observables if o.events]
+            event_uuids = [o.events[0] for o in observables if o.events if o.events[0] is not None]
             
             search_filters.append({
                 'type': 'terms',
@@ -829,7 +839,6 @@ class EventListAggregated(Resource):
             for _filter in search_filters:
                 search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
                 
-           
             raw_event_count = search.count()
 
             search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=1000000)
@@ -1062,8 +1071,6 @@ class CreateBulkEvents(Resource):
                     else:
                         event.set_new()
 
-                    print(event)
-
                     end_event_process_dt = datetime.datetime.utcnow().timestamp()
                     event_process_time = end_event_process_dt - start_event_process_dt
                     #log_event(event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=event_process_time, status="Success", message="Event Inserted.", event_id=event.uuid)
@@ -1204,6 +1211,9 @@ event_stats_parser.add_argument(
     'severity', action='split', location='args', required=False)
 event_stats_parser.add_argument(
     'title', type=str, location='args', action='split', required=False)
+event_stats_parser.add_argument(
+    'title__like', type=str, location='args', required=False
+)
 event_stats_parser.add_argument('observables', location='args', default=[
 ], type=str, action='split', required=False)
 event_stats_parser.add_argument('source', location='args', default=[
@@ -1231,6 +1241,13 @@ class EventStats(Resource):
         args = event_stats_parser.parse_args()
         
         search_filters = []
+
+        if args.title__like and args.title__like != '':
+            search_filters.append({
+                'type': 'wildcard',
+                'field': 'title',
+                'value': "*"+args.title__like+"*"
+            })
 
         if args.status and args.status != ['']:
             search_filters.append({
@@ -1284,7 +1301,7 @@ class EventStats(Resource):
                         event_uuids += [o.events[0] for o in response]
             else:
                 observables = Observable.get_by_value(args.observables)
-                event_uuids = [o.events[0] for o in observables if o.events]
+                event_uuids = [o.events[0] for o in observables if o.events if o.events[0] != None]
             
             search_filters.append({
                 'type': 'terms',
@@ -1394,7 +1411,7 @@ class EventStats(Resource):
             data['title'] = {v['key']: v['doc_count'] for v in events.aggs.range.title.buckets}
 
         if 'tag' in args.metrics:
-            data['tags'] = {v['key']: v['doc_count'] for v in events.aggs.range.tags.buckets}
+            data['tag'] = {v['key']: v['doc_count'] for v in events.aggs.range.tags.buckets}
 
         if 'dismiss_reason' in args.metrics:
             data['dismiss reason'] = {v['key']: v['doc_count'] for v in events.aggs.range.dismiss_reason.buckets}
@@ -1529,6 +1546,13 @@ event_bulk_select_parser.add_argument('search', type=str, action='split', defaul
 #event_list_parser.add_argument('rql', type=str, default="", location="args", required=False)
 event_bulk_select_parser.add_argument(
     'title', type=str, location='args', action='split', required=False)
+event_bulk_select_parser.add_argument(
+    'title__like', type=str, location='args', required=False
+)
+event_bulk_select_parser.add_argument('organization', location='args', action='split', required=False)
+event_bulk_select_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+event_bulk_select_parser.add_argument('end', location='args', default=datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+
 @ns_event_v2.route("/bulk_select_all")
 class BulkSelectAll(Resource):
 
@@ -1542,6 +1566,13 @@ class BulkSelectAll(Resource):
         args = event_bulk_select_parser.parse_args()
         search_filters = []
 
+        if args.title__like and args.title__like != '':
+            search_filters.append({
+                'type': 'wildcard',
+                'field': 'title',
+                'value': "*"+args.title__like+"*"
+            })
+        
         if args.status and args.status != ['']:
             search_filters.append({
                     'type': 'terms',
@@ -1556,7 +1587,7 @@ class BulkSelectAll(Resource):
                 'value': args.source
             })
 
-        for arg in ['severity','title','tags']:
+        for arg in ['severity','title','tags','organization']:
             if arg in args and args[arg] not in ['', None, []]:
                 search_filters.append({
                     'type': 'terms',
@@ -1576,6 +1607,16 @@ class BulkSelectAll(Resource):
                 'type': 'match',
                 'field': 'case',
                 'value': args.case_uuid
+            })
+
+        if args.start and args.end:
+            search_filters.append({
+                'type': 'range',
+                'field': 'created_at',
+                'value': {
+                    'gte': args.start,
+                    'lte': args.end
+                }
             })
 
         if args.observables:
@@ -1695,8 +1736,6 @@ class EventRuleList(Resource):
     def post(self, current_user):
         ''' Creates a new event_rule '''
         
-        print(api2.payload)
-
         if 'organization' in api2.payload:
             event_rule = EventRule.get_by_name(name=api2.payload['name'], organization=api2.payload['organization'])
         else:
