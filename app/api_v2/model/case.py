@@ -52,6 +52,8 @@ class CaseComment(base.BaseDocument):
     is_closure_comment = Boolean()  # Is this comment related to closing the case
     edited = Boolean()  # Should be True when the comment is edited, Default: False
     closure_reason = Object()
+    cross_organization = Boolean()
+    other_organization = Keyword()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

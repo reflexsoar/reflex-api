@@ -34,7 +34,7 @@ class BaseDocument(Document):
     @classmethod
     def search(cls, using=None, index=None):
         """
-        Creates an :class:`~elasticsearch_dsl.Search` instnace that will search 
+        Creates an :class:`~elasticsearch_dsl.Search` instance that will search 
         over this ``Document``
         """
 

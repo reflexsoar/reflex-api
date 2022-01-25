@@ -6,6 +6,7 @@ import datetime
 import os
 from queue import Queue
 import threading
+from unicodedata import name
 import uuid
 import json
 import hashlib
@@ -1108,6 +1109,8 @@ class EventBulkUpdate(Resource):
 
         if 'dismiss_reason_uuid' in api2.payload:
             reason = CloseReason.get_by_uuid(uuid=api2.payload['dismiss_reason_uuid'])
+            if len(reason) == 0:
+                ns_event_v2.abort(400, 'A dismiss reason is required.')                
         else:
             ns_event_v2.abort(400, 'A dismiss reason is required.')
 
@@ -1644,6 +1647,8 @@ class BulkSelectAll(Resource):
 
         search = search[:0]
 
+        org_uuids = {}
+
         # Apply all filters
         for _filter in search_filters:
             search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
@@ -1653,18 +1658,35 @@ class BulkSelectAll(Resource):
             search.aggs['signature'].metric('max_date', 'max', field='created_at')
             search.aggs['signature'].bucket('uuid', 'terms', field='uuid', size=1, order={'max_date': 'desc'})
             search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
+            if hasattr(current_user,'default_org') and current_user.default_org:
+                search.aggs['signature']['uuid'].bucket('organization', 'terms', field='organization', size=1)
 
             events = search.execute()
             event_uuids = []
             for signature in events.aggs.signature.buckets:
+                
                 event_uuids.append(signature.uuid.buckets[0]['key'])
+                if hasattr(current_user,'default_org') and current_user.default_org:
+                    org_uuid = signature.uuid.buckets[0].organization.buckets[0]['key']
+                    if org_uuid not in org_uuids:
+                        org_uuids[org_uuid] = [signature.uuid.buckets[0]['key']]
+                    else:
+                        org_uuids[org_uuid].append(signature.uuid.buckets[0]['key'])
+
         else:
             events = search.scan()
             event_uuids = [e.uuid for e in events]
+            org_uuids = [e.organization for e in events]
 
-        return {
-            'events': event_uuids
-        }
+        if hasattr(current_user,'default_org') and current_user.default_org:
+            return {
+                'events': event_uuids,
+                'organizations': org_uuids
+            }
+        else:
+            return {
+                'events': event_uuids
+            }
 
 @ns_event_v2.route("/<signature>/new_related_events")
 class EventNewRelatedEvents(Resource):
@@ -2955,8 +2977,14 @@ class CaseCommentList(Resource):
 
         if 'case_uuid' in args:
             comments = CaseComment.get_by_case(uuid=args['case_uuid'])
+
+            for comment in comments:
+                if comment.cross_organization:
+                    organization = Organization.get_by_uuid(comment.other_organization)
+                    comment.__dict__['other_organization_name'] = organization.name
+
             if comments:
-                return [c for c in comments]
+                return list(comments)
             else:
                 return []
         else:
@@ -2977,6 +3005,16 @@ class CaseCommentList(Resource):
 
         case = Case.get_by_uuid(uuid=api2.payload['case_uuid'])
         if case:
+
+            # Append the organization of the case to the comment
+            api2.payload['organization'] = case.organization
+
+            # Appends the commenters organization if commenting across organizations
+            # useful when the default tenant comments on a sub-tenants cases
+            if current_user.organization != case.organization:
+                api2.payload['cross_organization'] = True
+                api2.payload['other_organization'] = current_user.organization
+
             case_comment = CaseComment(**api2.payload)
             case_comment.save()
             case.add_history(message="Comment added to case")

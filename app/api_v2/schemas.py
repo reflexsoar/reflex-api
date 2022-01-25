@@ -787,7 +787,8 @@ mod_comment = Model('CommentDetails', {
     'closure_reason': fields.Nested(mod_case_close_reason),
     'created_by': fields.Nested(mod_user_list),
     'created_at': ISO8601(attribute='created_at'),
-    'case_uuid': fields.String
+    'case_uuid': fields.String,
+    'other_organization_name': fields.String
 })
 
 mod_comment_create = Model('CommentCreate', {
@@ -1028,7 +1029,8 @@ mod_create_backup = Model('CreateBackup', {
 })
 
 mod_bulk_event_uuids = Model('BulkEventUUIDs', {
-    'events': fields.List(fields.String)
+    'events': fields.List(fields.String),
+    'organizations': JSONField(attribute='organizations')
 })
 
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full,

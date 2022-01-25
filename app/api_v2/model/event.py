@@ -153,6 +153,7 @@ class Event(base.BaseDocument):
         '''
         Sets the event as dismissed
         '''
+        print(reason)
         self.status = EventStatus.get_by_name(name='Dismissed')
         if comment:
             self.dismiss_comment = comment
