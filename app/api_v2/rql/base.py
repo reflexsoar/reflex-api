@@ -557,9 +557,11 @@ class RQLSearch:
                 threat_list = threat_list.filter('term', organization=self.organization)
 
             threat_list = threat_list.execute()
+
+            print(threat_list)
             
             if threat_list:
                 threat_list = threat_list[0]
-                return self.target_value in threat_list.values
+                return threat_list.check_value(self.target_value) > 0
             else:
                 return False

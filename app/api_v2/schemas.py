@@ -372,7 +372,8 @@ mod_observable_list_paged = Model('PagedObservableList', {
 })
 
 mod_bulk_add_observables = Model('BulkObservables', {
-    'observables': fields.List(fields.Nested(mod_observable_create))
+    'observables': fields.List(fields.Nested(mod_observable_create)),
+    'organization': fields.String
 })
 
 mod_observable_brief = Model('ShortObservableDetails', {
@@ -724,7 +725,8 @@ mod_event_rule_create = Model('CreateEventRule', {
     'dismiss_comment': fields.String,
     'expire': fields.Boolean,
     'expire_days': fields.Integer,
-    'active': fields.Boolean
+    'active': fields.Boolean,
+    'global_rule': fields.Boolean
 })
 
 mod_event_rule_list = Model('EventRuleList', {
@@ -755,7 +757,8 @@ mod_event_rule_list = Model('EventRuleList', {
     'expire_at': ISO8601(attribute='expire_at'),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
-    'last_matched_date': ISO8601(attribute='last_matched_date')
+    'last_matched_date': ISO8601(attribute='last_matched_date'),
+    'global_rule': fields.Boolean
 })
 
 mod_event_rule_list_paged = Model('PagedEventRuleList', {
@@ -957,6 +960,7 @@ mod_case_list = Model('CaseList', {
     #'total_tasks': ValueCount(attribute='tasks'),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
+    'case_template_uuid': fields.String
     #'created_by': fields.Nested(mod_user_list),
     #'updated_by': fields.Nested(mod_user_list),
     #'observable_count': ValueCount(attribute='observables'),
@@ -981,11 +985,12 @@ mod_case_details = Model('CaseDetails', {
     'open_tasks': fields.Integer,
     #'total_tasks': ValueCount(attribute='tasks'),
     'total_tasks': fields.Integer,
+    'case_template_uuid': fields.String,
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
     'created_by': fields.Nested(mod_user_list),
     'updated_by': fields.Nested(mod_user_list),
-    'observable_count': ValueCount(attribute='observables')
+    'observable_count': ValueCount(attribute='observables')    
     #'close_reason': fields.Nested(mod_close_reason_list),
     #'case_template': fields.Nested(mod_case_template_brief)
 })

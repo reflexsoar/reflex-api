@@ -63,7 +63,15 @@ from app.api_v2.model.utils import escape_special_characters
 
 from .utils import ip_approved, check_org, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
 
-from .resource import ns_playbook_v2, ns_audit_log_v2, ns_list_v2, ns_organization_v2
+from .resource import (
+    ns_playbook_v2,
+    ns_audit_log_v2,
+    ns_list_v2,
+    ns_organization_v2,
+    ns_event_v2,
+    ns_auth_v2,
+    ns_event_rule_v2
+)
 
 # Instantiate a new API object
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
@@ -74,10 +82,6 @@ ns_user_v2 = api2.namespace(
     'User', description='User operations', path='/user')
 ns_role_v2 = api2.namespace(
     'Role', description='Role operations', path='/role')
-ns_auth_v2 = api2.namespace(
-    'Auth', description='Authentication operations', path='/auth')
-ns_event_v2 = api2.namespace(
-    'Event', description='Event operations', path='/event')
 ns_settings_v2 = api2.namespace(
     'Settings', description='Settings operations', path='/settings')
 ns_credential_v2 = api2.namespace(
@@ -86,10 +90,6 @@ ns_input_v2 = api2.namespace(
     'Input', description='Input operations', path='/input')
 ns_agent_v2 = api2.namespace(
     'Agent', description='Agent operations', path='/agent')
-#ns_list_v2 = api2.namespace(
-#    'List', description='Lists API endpoints for managing indicator lists, lists may be string values or regular expressions', path='/list', validate=True)
-ns_event_rule_v2 = api2.namespace(
-    'EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
 ns_agent_group_v2 = api2.namespace(
     'AgentGroup', description='Agent Group operations', path='/agent_group')
 ns_data_type_v2 = api2.namespace(
@@ -117,6 +117,9 @@ api2.add_namespace(ns_playbook_v2)
 api2.add_namespace(ns_audit_log_v2)
 api2.add_namespace(ns_list_v2)
 api2.add_namespace(ns_organization_v2)
+api2.add_namespace(ns_event_v2)
+api2.add_namespace(ns_auth_v2)
+api2.add_namespace(ns_event_rule_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -147,104 +150,6 @@ def save_tags(tags):
         if not _tag:
             tag = Tag(name=tag)
             tag.save()
-
-@ns_auth_v2.route('/mfa')
-class MultiFactor(Resource):
-
-    @api2.expect(mod_mfa_challenge)
-    @api2.response(200, 'Success', mod_auth_success_token)
-    @api2.response(401, 'Incorrect token')
-    def post(self):
-        '''Check the users challenge against their TOTP'''
-
-        user = check_password_reset_token(api2.payload['mfa_challenge_token'])
-        if user:
-            if user.verify_totp(api2.payload['token']):
-                # Generate an access token
-                _access_token = user.create_access_token()
-
-                # Generate a refresh tokenn
-                _refresh_token = user.create_refresh_token(
-                request.user_agent.string.encode('utf-8'))
-                log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Successful MFA Check.", status="Success")
-                return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
-            log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Failed MFA Challenge", status="Failure")
-
-        ns_auth_v2.abort(401, 'Invalid TOTP token')
-
-@ns_auth_v2.route("/login")
-class Login(Resource):
-
-    @api2.expect(mod_auth)
-    @api2.response(200, 'Success', mod_auth_success_token)
-    @api2.response(401, 'Incorrect username or password')
-    def post(self):
-        '''
-        Log a user in to the platform and provide them with an access_token a refresh_token
-        '''
-
-        # Find the user based on their username, if their account is locked don't return a user
-        # object to prevent processing any more failed logons
-        #user = User.get_by_username(api2.payload['username'])
-        user = User.get_by_email(api2.payload['email'])
-        if not user:
-            ns_auth_v2.abort(401, 'Incorrect username or password')
-
-        if user.check_password(api2.payload['password']):
-
-            # Generate an access token
-            _access_token = user.create_access_token()
-
-            # Generate a refresh tokenn
-            _refresh_token = user.create_refresh_token(
-                request.user_agent.string.encode('utf-8'))
-
-            # Update the users failed_logons and last_logon entries
-            user.update(failed_logons=0, last_logon=datetime.datetime.utcnow())
-       
-            log_event(organization=user.organization, event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Successful Authentication.", status="Success")
-
-            if user.mfa_enabled:
-                return {'mfa_challenge_token': user.create_mfa_challenge_token()}
-            else:
-                return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
-
-        if user.failed_logons == None:
-            user.update(failed_logons=0)
-
-        if user.failed_logons >= Settings.load().logon_password_attempts:
-            user.update(locked=True)
-            log_event(organization=user.organization, event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Account Locked.", status="Failed")
-        else:
-            user.update(failed_logons=user.failed_logons+1)
-            log_event(organization=user.organization, event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Bad username or password.", status="Failed")
-
-        ns_auth_v2.abort(401, 'Incorrect username or password')
-
-
-@ns_auth_v2.route('/logout')
-class Logout(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.response(200, 'Successfully logged out.')
-    @api2.response(401, 'Not logged in.')
-    @token_required
-    def get(self, current_user):
-        '''
-        Logs a user out of the platform and invalidates their access_token
-        so that they can't use it again.  The token is stored in a blocked token
-        index for lookup when calling the API
-        '''
-        try:
-            auth_header = request.headers.get('Authorization')
-            access_token = auth_header.split(' ')[1]
-            b_token = ExpiredToken(token=access_token)
-            b_token.save()
-            return {'message': 'Successfully logged out.'}, 200
-        except:
-            return {'message': 'Not logged in.'}, 401
-
-        ns_auth_v2.abort(401, 'Not logged in.')
 
 
 @ns_user_v2.route("/me")
@@ -634,15 +539,26 @@ class RoleDetails(Resource):
             ns_role_v2.abort(404, 'Role not found.')
 
 
+data_type_parser = api2.parser()
+data_type_parser.add_argument('organization', location='args', required=False)
+
 @ns_data_type_v2.route("")
 class DataTypeList(Resource):
 
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_data_type_list)
     @token_required
+    @check_org
     def get(self, current_user):
         ''' Gets a list of all the data types '''
+
+        args = data_type_parser.parse_args()
+
         data_types = DataType.search()
+
+        if args.organization and hasattr(current_user,'default_org') and current_user.default_org:
+            data_types = data_types.filter('term', organization=args.organization)
+
         data_types = data_types[0:data_types.count()]
         data_types = data_types.execute()
         if data_types:
@@ -691,1218 +607,6 @@ class DataTypeDetails(Resource):
             ns_data_type_v2.abort(404, 'Data type not found.')
 
 
-event_list_parser = api2.parser()
-event_list_parser.add_argument('status', location='args', default=[
-], type=str, action='split', required=False)
-event_list_parser.add_argument('tags', location='args', default=[
-], type=str, action='split', required=False)
-event_list_parser.add_argument('observables', location='args', default=[
-], type=str, action='split', required=False)
-event_list_parser.add_argument('signature', location='args', required=False)
-event_list_parser.add_argument('source', action='split', location='args', required=False)
-event_list_parser.add_argument(
-    'severity', action='split', location='args', required=False)
-event_list_parser.add_argument(
-    'grouped', type=xinputs.boolean, location='args', required=False)
-event_list_parser.add_argument(
-    'case_uuid', type=str, location='args', required=False)
-event_list_parser.add_argument('search', type=str, action='split', default=[
-], location='args', required=False)
-#event_list_parser.add_argument('rql', type=str, default="", location="args", required=False)
-event_list_parser.add_argument(
-    'title__like', type=str, location='args', required=False
-)
-event_list_parser.add_argument(
-    'title', type=str, location='args', action='split', required=False)
-event_list_parser.add_argument(
-    'page', type=int, location='args', default=1, required=False)
-event_list_parser.add_argument(
-    'page_size', type=int, location='args', default=10, required=False)
-event_list_parser.add_argument(
-    'sort_by', type=str, location='args', default='created_at', required=False)
-event_list_parser.add_argument(
-    'sort_direction', type=str, location='args', default="desc", required=False)
-event_list_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
-event_list_parser.add_argument('end', location='args', default=datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
-event_list_parser.add_argument('organization', location='args', action='split', required=False)
-
-@ns_event_v2.route("")
-class EventListAggregated(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_event_paged_list)
-    @api2.expect(event_list_parser)
-    @token_required
-    @user_has('view_events')
-    def get(self, current_user):
-
-        args = event_list_parser.parse_args()
-
-        start = (args.page - 1)*args.page_size
-        end = (args.page * args.page_size)
-
-        search_filters = []
-
-        if args.title__like and args.title__like != '':
-            search_filters.append({
-                'type': 'wildcard',
-                'field': 'title',
-                'value': "*"+args.title__like+"*"
-            })
-
-        if args.status and args.status != ['']:
-            search_filters.append({
-                    'type': 'terms',
-                    'field': 'status.name__keyword',
-                    'value': args.status
-                })
-
-        if args.source and args.source != ['']:
-            search_filters.append({
-                'type': 'terms',
-                'field': 'source__keyword',
-                'value': args.source
-            })
-
-        for arg in ['severity','title','tags','organization']:
-            if arg in args and args[arg] not in ['', None, []]:
-                search_filters.append({
-                    'type': 'terms',
-                    'field': arg,
-                    'value': args[arg]
-                })
-        
-        if args.signature:
-            search_filters.append({
-                    'type': 'term',
-                    'field': 'signature',
-                    'value': args.signature
-                })
-
-        if args.case_uuid:
-            search_filters.append({
-                'type': 'match',
-                'field': 'case',
-                'value': args.case_uuid
-            })
-
-        if args.start and args.end:
-            search_filters.append({
-                'type': 'range',
-                'field': 'created_at',
-                'value': {
-                    'gte': args.start,
-                    'lte': args.end
-                }
-            })
-
-        if args.observables:
-            event_uuids = []
-
-            #if any('|' in o for o in args.observables):
-            #    for observable in args.observables:
-            #        if '|' in observable:
-            #            value,field = observable.split('|')
-            #            response = Observable.get_by_value_and_field(value, field)
-            #            event_uuids += [o.events[0] for o in response]
-            #else:
-            observables = Observable.search()
-
-            for _filter in search_filters:
-                if _filter['type'] == 'range':
-                    observables = observables.filter(_filter['type'], **{_filter['field']: _filter['value']})
-
-            observables = observables.filter('terms', value=args.observables)
-
-            observables = observables.execute()
-
-            #observables = Observable.get_by_value(args.observables)
-            event_uuids = [o.events[0] for o in observables if o.events if o.events[0] is not None]
-            
-            search_filters.append({
-                'type': 'terms',
-                'field': 'uuid',
-                'value': list(set(event_uuids))
-            })
-
-        observables = {}
-
-        raw_event_count = 0
-        
-        # If not filtering by a signature
-        if not args.signature:
-            
-            search = Event.search()
-
-            search = search[:0]
-
-            # Apply all filters
-            for _filter in search_filters:
-                search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
-                
-            raw_event_count = search.count()
-
-            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=1000000)
-            search.aggs['signature'].metric('max_date', 'max', field='created_at')
-            search.aggs['signature'].bucket('uuid', 'terms', field='uuid', size=1, order={'max_date': 'desc'})
-            search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
-
-            events = search.execute()
-            event_uuids = []
-            for signature in events.aggs.signature.buckets:
-                event_uuids.append(signature.uuid.buckets[0]['key'])
-            
-            search = Event.search()
-            search = search[start:end]
-
-            if args.sort_direction:
-                if args.sort_direction == "asc":
-                    args.sort_by = f"-{args.sort_by}"
-                else:
-                    args.sort_by = f"{args.sort_by}"
-
-            search = search.sort(args.sort_by)
-            search = search.filter('terms', uuid=event_uuids)
-
-            total_events = search.count()
-            pages = math.ceil(float(total_events / args.page_size))
-
-            events = search.execute()
-
-            # SLATED FOR FUTURE RELEASE - BC
-            # if args.rql:
-            #    qp = QueryParser()
-            #    parsed_query = qp.parser.parse(args.rql)
-            #    events = [r for r in qp.run_search(list(events), parsed_query, marshaller=mod_event_rql)]
-        
-        # If filtering by a signature
-        else:
-
-            search = Event.search()
-            search = search[start:end]
-
-            # Apply all filters
-            for _filter in search_filters:
-                search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
-
-            if args.sort_direction:
-                if args.sort_direction == "asc":
-                    args.sort_by = f"-{args.sort_by}"
-                else:
-                    args.sort_by = f"{args.sort_by}"
-
-            search = search.sort(args.sort_by)
-            search = search.filter('term', signature=args.signature)
-
-            total_events = search.count()
-
-            raw_event_count = total_events
-
-            pages = math.ceil(float(total_events / args.page_size))
-
-            events = search.execute()            
-
-        for event in events:
-            event.set_filters(filters=search_filters)
-            observables[event.uuid] = [o.to_dict() for o in event.observables]
-        
-        response = {
-            'events': events,
-            'observables': json.loads(json.dumps(observables, default=str)),
-            'pagination': {
-                'total_results': raw_event_count,
-                'pages': pages,
-                'page': args['page'],
-                'page_size': args['page_size']
-            }
-        }
-        return response
-
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_event_create)
-    @token_required
-    @user_has('add_event')
-    def post(self, current_user):
-        ''' Creates a new event '''
-
-        observables = []
-
-        original_payload = copy.copy(api2.payload)
-
-        # If the event has an observables pop them off the request payload
-        # so that the Event can be generated using the remaining dictionary values
-        if 'observables' in api2.payload:
-            observables = api2.payload.pop('observables')
-
-        event = Event.get_by_reference(api2.payload['reference'])
-
-        if not event:
-
-            # Generate a default signature based off the rule name and the current time
-            # signatures are required in the system but user's don't need to supply them
-            # these events will remain ungrouped
-            hasher = hashlib.md5()
-            if 'signature' not in api2.payload or api2.payload['signature'] == '':
-                
-                date_string = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                hasher.update(f"{api2.payload['title']}{date_string}".encode('utf-8'))
-                api2.payload['signature'] = hasher.hexdigest()
-
-            # Add the current users organization to the event signature
-            api2.payload['signature'] = hasher.update(api2.payload['signature']+current_user.organization).hexdigest()
-
-            event = Event(**api2.payload)
-            event.save()
-
-            if observables:
-                event.add_observable(observables)
-
-            event_rules = EventRule.get_all(organization=current_user.organization)
-            if event_rules:
-               
-                matched = False
-                for event_rule in event_rules:
-
-                    # If the event matches the event rule criteria perform the rule actions
-                    try:
-                        matched = event_rule.process_rql(original_payload)
-                    except EventRuleFailure as e:
-                        log_event(organization=current_user.organization, event_type='Event Rule Processing', source_user="System", event_reference=event.reference, time_taken=0, status="Failed", message=f"Failed to process event rule. {e}")
-
-                    # If the rule matched, process the event
-                    if matched:
-                        event_rule.process_event(event)
-                        
-                        # TODO: Allow for matching on multiple rules that don't have overlapping
-                        # actions, e.g. one rule to move it to a case but a different rule to apply
-                        # tags to the event
-                        # Break out of the loop, we don't want to match on any more rules
-                        break
-                
-                if not matched:
-                    event.set_new()
-            else:
-                event.set_new()
-
-            return {'message': 'Successfully created the event.'}
-        else:
-            return {'message': 'Event already exists'}, 409
-
-
-@ns_event_v2.route('/_bulk')
-class CreateBulkEvents(Resource):
-
-    # TODO: This needs some serious love but it should work let's test it
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_event_create_bulk)
-    @token_required
-    @user_has('add_event')
-    def post(self, current_user):
-        event_queue = Queue()
-
-        workers = []
-
-        request_id = str(uuid.uuid4())
-      
-        def process_event(queue, request_id, organization=None):
-            while not queue.empty():
-                raw_event = queue.get()
-                event = Event.get_by_reference(raw_event['reference'], organization=organization)
-
-                if not event:
-
-                    # Generate a default signature based off the rule name and the current time
-                    # signatures are required in the system but user's don't need to supply them
-                    # these events will remain ungrouped
-                    
-                    if 'signature' not in raw_event or raw_event['signature'] == '':         
-                        hasher = hashlib.md5()               
-                        date_string = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                        hasher.update(f"{raw_event['title']}{date_string}".encode('utf-8'))
-                        raw_event['signature'] = hasher.hexdigest()
-                    
-                    # Add the current users organization to the event signature
-                    hasher_b = hashlib.md5()
-                    hasher_b.update(raw_event['signature'].encode('utf-8')+current_user.organization.encode('utf-8'))
-                    raw_event['signature'] = hasher_b.hexdigest()
-
-                    observables = []
-                    #added_observables = []
-
-                    # Start clocking event creation
-                    start_event_process_dt = datetime.datetime.utcnow().timestamp()
-
-                    original_payload = copy.copy(raw_event)
-
-                    if 'observables' in raw_event:
-                        observables = raw_event.pop('observables')
-
-                    event = Event(**raw_event, organization=organization)
-                    event.save()
-
-                    if observables:
-                        event.add_observable(observables)
-
-                    event_rules = EventRule.get_all(organization=organization)
-                    if event_rules:
-                    
-                        matched = False
-                        for event_rule in event_rules:
-
-                            # If the event matches the event rule criteria perform the rule actions
-                            try:
-                                matched = event_rule.process_rql(original_payload)
-                            except EventRuleFailure as e:
-                                log_event(organization=organization, event_type='Event Rule Processing', source_user="System", event_reference=event.reference, time_taken=0, status="Failed", message=f"Failed to process event rule. {e}")
-
-                            # If the rule matched, process the event
-                            if matched:
-                                event_rule.process_event(event)
-                                
-                                # TODO: Allow for matching on multiple rules that don't have overlapping
-                                # actions, e.g. one rule to move it to a case but a different rule to apply
-                                # tags to the event
-                                # Break out of the loop, we don't want to match on any more rules
-                                break
-                        
-                        if not matched:
-                            event.set_new()
-                    else:
-                        event.set_new()
-
-                    end_event_process_dt = datetime.datetime.utcnow().timestamp()
-                    event_process_time = end_event_process_dt - start_event_process_dt
-                    #log_event(event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=event_process_time, status="Success", message="Event Inserted.", event_id=event.uuid)
-                else:
-                    log_event(organization=organization, event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=0, status="Failed", message="Event Already Exists.")
-
-        
-        start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
-        if 'events' in api2.payload and len(api2.payload['events']) > 0:
-            [event_queue.put(e) for e in api2.payload['events']]
-
-        for i in range(0,current_app.config['EVENT_PROCESSING_THREADS']):
-            p = threading.Thread(target=process_event, daemon=True, args=(event_queue,request_id,current_user.organization))
-            workers.append(p)
-        [t.start() for t in workers]
-
-        end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
-        total_process_time = end_bulk_process_dt - start_bulk_process_dt
-
-        log_event(event_type="Bulk Event Insert", request_id=request_id, time_taken=total_process_time, status="Success", message="Bulk request finished.")
-
-        return {"request_id": request_id, "response_time": total_process_time}
-
-
-@ns_event_v2.route("/bulk_dismiss")
-class EventBulkUpdate(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_event_bulk_dismiss)
-    @api2.marshal_with(mod_event_details, as_list=True)
-    @token_required
-    @user_has('update_event')
-    def put(self, current_user):
-        ''' Dismiss multiple events at the same time '''
-
-        if 'dismiss_reason_uuid' in api2.payload:
-            reason = CloseReason.get_by_uuid(uuid=api2.payload['dismiss_reason_uuid'])
-            if len(reason) == 0:
-                ns_event_v2.abort(400, 'A dismiss reason is required.')                
-        else:
-            ns_event_v2.abort(400, 'A dismiss reason is required.')
-
-        if 'events' in api2.payload:
-
-            comment = api2.payload['dismiss_comment'] if api2.payload['dismiss_comment'] != "" else None
-
-            for event in api2.payload['events']:
-                e = Event.get_by_uuid(uuid=event)
-                e.set_dismissed(reason=reason, comment=comment)
-                related_events = Event.get_by_signature_and_status(signature=e.signature, status='New', all_events=True)
-                if len(related_events) > 0:
-                    for evt in related_events:
-                        if hasattr(evt, 'uuid') and evt.uuid not in api2.payload['events']:
-                            evt.set_dismissed(reason=reason, comment=comment)
-
-        time.sleep(1)
-
-        return []
-
-
-@ns_event_v2.route("/<uuid>")
-class EventDetails(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_event_details)
-    @token_required
-    @user_has('view_events')
-    def get(self, uuid, current_user):
-
-        event = Event.get_by_uuid(uuid)
-        if event:
-            return event
-        else:
-            ns_event_v2.abort(404, 'Event not found.')
-
-    @api2.doc(security="Bearer")
-    @token_required
-    @user_has('update_event')
-    def put(self, uuid, current_user):
-        '''Updates an event
-
-        Parameters:
-            uuid (str): The unique identifier of the Event
-            current_user (User): The current user making the API request
-        '''
-
-        if 'dismiss_reason_uuid' in api2.payload:
-            reason = CloseReason.get_by_uuid(uuid=api2.payload['dismiss_reason_uuid'])
-            event = Event.get_by_uuid(uuid=uuid)
-
-            comment = None
-            if 'dismiss_comment' in api2.payload and api2.payload['dismiss_comment'] != '':
-                comment = api2.payload['dismiss_comment']
-            
-            event.set_dismissed(reason, comment=comment)
-            return {'message':'Successfully dismissed event'}, 200
-        else:
-            return {}
-
-    @api2.doc(security="Bearer")
-    @token_required
-    @user_has('delete_event')
-    def delete(self, uuid, current_user):
-        '''
-        Deletes an event and any related artifacts from the system
-
-        Parameters:
-            uuid (str): The unique identifier of the Event
-            current_user (User): The current user making the API request
-        '''
-
-        event = Event.get_by_uuid(uuid=uuid)
-
-        # Only support deleting events that are not in cases right now
-        if event and not event.case:
-        
-            # Remove this event from any cases it may be associated with
-            #if event.case:
-            #    case = Case.get_by_uuid(uuid=event.case)
-
-            # Delete any observables from the observables index related to this event
-            observables = Observable.get_by_event_uuid(uuid=uuid)
-            for observable in observables:
-                observable.delete()
-
-            # Delete the event
-            event.delete()
-
-            return {'message': 'Successfully deleted the event.', 'uuid': uuid}, 200
-        else:
-            return {'message': 'Event not found'}, 404
-
-event_stats_parser = api2.parser()
-event_stats_parser.add_argument('status', location='args', default=[
-], type=str, action='split', required=False)
-event_stats_parser.add_argument('tags', location='args', default=[
-], type=str, action='split', required=False)
-event_stats_parser.add_argument('signature', location='args', required=False)
-event_stats_parser.add_argument(
-    'severity', action='split', location='args', required=False)
-event_stats_parser.add_argument(
-    'title', type=str, location='args', action='split', required=False)
-event_stats_parser.add_argument(
-    'title__like', type=str, location='args', required=False
-)
-event_stats_parser.add_argument('observables', location='args', default=[
-], type=str, action='split', required=False)
-event_stats_parser.add_argument('source', location='args', default=[
-], type=str, action='split', required=False)
-event_stats_parser.add_argument('top', location='args', default=10, type=int, required=False)
-event_stats_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
-event_stats_parser.add_argument('end', location='args', default=datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
-event_stats_parser.add_argument('interval', location='args', default='day', required=False, type=str)
-event_stats_parser.add_argument('metrics', location='args', action='split', default=['title','observable','source','tag','status','severity','data_type'])
-event_stats_parser.add_argument('organization', location='args', action='split', required=False)
-
-@ns_event_v2.route("/stats")
-class EventStats(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.expect(event_stats_parser)
-    @token_required
-    @user_has('view_events')
-    def get(self, current_user):
-        '''
-        Returns metrics about events that can be used for easier filtering
-        of events on the Events List page
-        '''
-
-        args = event_stats_parser.parse_args()
-        
-        search_filters = []
-
-        if args.title__like and args.title__like != '':
-            search_filters.append({
-                'type': 'wildcard',
-                'field': 'title',
-                'value': "*"+args.title__like+"*"
-            })
-
-        if args.status and args.status != ['']:
-            search_filters.append({
-                'type': 'terms',
-                'field': 'status.name__keyword',
-                'value': args.status
-            })
-
-        if args.source and args.source != ['']:
-            search_filters.append({
-                'type': 'terms',
-                'field': 'source.keyword',
-                'value': args.source
-            })
-
-        for arg in ['severity','title','tags','organization']:
-            if arg in args and args[arg] not in ['', None, []]:
-                search_filters.append({
-                    'type': 'terms',
-                    'field': arg,
-                    'value': args[arg]
-                })
-        
-        if args.signature:
-            search_filters.append({
-                'type': 'term',
-                'field': 'signature',
-                'value': args.signature
-            })
-
-        if args.start and args.end:
-            search_filters.append({
-                'type': 'range',
-                'field': 'created_at',
-                'value': {
-                    'gte': args.start,
-                    'lte': args.end
-                }
-            })
-
-        event_uuids = []
-
-        if args.observables:
-            event_uuids = []
-
-            if any('|' in o for o in args.observables):
-                for observable in args.observables:
-                    if '|' in observable:
-                        value,field = observable.split('|')
-                        response = Observable.get_by_value_and_field(value, field)
-                        event_uuids += [o.events[0] for o in response]
-            else:
-                observables = Observable.get_by_value(args.observables)
-                event_uuids = [o.events[0] for o in observables if o.events if o.events[0] != None]
-            
-            search_filters.append({
-                'type': 'terms',
-                'field': 'uuid',
-                'value': list(set(event_uuids))
-            })
-
-        search = Event.search()
-
-        # Apply all filters
-        for _filter in search_filters:
-            search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
-
-        search.aggs.bucket('range', 'filter', range={'created_at': {
-                        'gte': args.start,
-                        'lte': args.end
-                    }})
-
-        if 'title' in args.metrics:
-            max_title = args.top if args.top != 10 else 100
-            search.aggs['range'].bucket('title', 'terms', field='title', size=max_title)
-
-        if 'tag' in args.metrics:
-            max_tags = args.top if args.top != 10 else 50
-            search.aggs['range'].bucket('tags', 'terms', field='tags', size=max_tags)
-
-        if 'dismiss_reason' in args.metrics:
-            max_reasons = args.top if args.top != 10 else 10
-            search.aggs['range'].bucket('dismiss_reason', 'terms', field='dismiss_reason.keyword', size=max_reasons)
-
-        if 'status' in args.metrics:
-            max_status = args.top if args.top != 10 else 5
-            search.aggs['range'].bucket('status', 'terms', field='status.name.keyword', size=max_status)
-
-        if 'severity' in args.metrics:
-            max_severity = args.top if args.top != 10 else 10
-            search.aggs['range'].bucket('severity', 'terms', field='severity', size=max_severity)
-
-        if 'signature' in args.metrics:
-            max_signature = args.top if args.top != 10 else 100
-            search.aggs['range'].bucket('signature', 'terms', field='signature', size=max_signature)
-
-        if 'source' in args.metrics:
-            max_source = args.top if args.top != 10 else 10
-            search.aggs['range'].bucket('source', 'terms', field='source.keyword', size=max_source)
-
-        if 'organization' in args.metrics:
-            max_organizations = args.top if args.top != 10 else 10
-            search.aggs['range'].bucket('organization', 'terms', field='organization', size=max_organizations)
-
-        if 'observable' in args.metrics:
-            search.aggs['range'].bucket('uuids', 'terms', field='uuid', size=10000)
-
-        if 'time_per_status' in args.metrics:
-            search.aggs['range'].buckets('time_per_status', 'terms', field='status.name.keyword', size=max_status)
-
-        search = search[0:0]
-
-        events = search.execute()
-
-        if 'observable' in args.metrics:
-            observable_search = Observable.search()
-            observable_search = observable_search.filter('exists', field='events')
-
-            observable_search = observable_search.filter('terms', **{'events': [v['key'] for v in events.aggs.range.uuids.buckets]})
-
-            observable_search.aggs.bucket('data_type', 'terms', field='data_type.keyword', size=50)
-            observable_search.aggs.bucket('value', 'terms', field='value', size=100)
-
-            observable_search = observable_search.execute()
-
-        if 'events_over_time' in args.metrics:
-            events_over_time = Event.search()
-       
-            events_over_time = events_over_time[0:0]
-
-            events_over_time.aggs.bucket('range', 'filter', range={'created_at': {
-                        'gte': args.start,
-                        'lte': args.end
-                    }})
-
-            events_over_time.aggs['range'].bucket('events_per_day', 'date_histogram', field='created_at', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
-
-            events_over_time = events_over_time.execute()
-
-        if 'time_per_status_over_time' in args.metrics:
-            time_per_status_over_time = Event.search()
-
-            time_per_status_over_time = time_per_status_over_time[0:0]
-            
-            time_per_status_over_time.aggs.bucket('range', 'filter', range={'created_at': {
-                        'gte': args.start,
-                        'lte': args.end
-                    }})
-            
-            time_per_status_over_time.aggs['range'].bucket('per_day', 'date_histogram', field='created_at', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
-            time_per_status_over_time.aggs['range']['per_day'].bucket('status', 'terms', field='status.name.keyword', size=10)
-            time_per_status_over_time.aggs['range']['per_day']['status'].bucket('avg_time_to_dismiss', 'avg', field='time_to_dismiss')
-            time_per_status_over_time.aggs['range']['per_day']['status'].bucket('avg_time_to_act', 'avg', field='time_to_act')
-            time_per_status_over_time.aggs['range']['per_day']['status'].bucket('avg_time_to_close', 'avg', field='time_to_close')
-
-            time_per_status_over_time = time_per_status_over_time.execute()
-
-        data = {}
-
-        if 'title' in args.metrics:
-            data['title'] = {v['key']: v['doc_count'] for v in events.aggs.range.title.buckets}
-
-        if 'tag' in args.metrics:
-            data['tag'] = {v['key']: v['doc_count'] for v in events.aggs.range.tags.buckets}
-
-        if 'dismiss_reason' in args.metrics:
-            data['dismiss reason'] = {v['key']: v['doc_count'] for v in events.aggs.range.dismiss_reason.buckets}
-
-        if 'status' in args.metrics:
-            data['status'] = {v['key']: v['doc_count'] for v in events.aggs.range.status.buckets}
-
-        if 'severity' in args.metrics:
-            data['severity'] = {v['key']: v['doc_count'] for v in events.aggs.range.severity.buckets}
-
-        if 'signature' in args.metrics:
-            data['signature'] = {v['key']: v['doc_count'] for v in events.aggs.range.signature.buckets}
-
-        if 'source' in args.metrics:
-            data['source'] = {v['key']: v['doc_count'] for v in events.aggs.range.source.buckets}
-
-        if 'organization' in args.metrics:
-            data['organization'] = {v['key']: v['doc_count'] for v in events.aggs.range.organization.buckets}
-
-        if 'observable' in args.metrics:
-            data['observable value'] = {v['key']: v['doc_count'] for v in observable_search.aggs.value.buckets}
-            data['data type'] = {v['key']: v['doc_count'] for v in observable_search.aggs.data_type.buckets}
-
-        if 'time_per_status' in args.metrics:
-            data['time_per_status'] = {v['key']: v['doc_count'] for v in observable_search.aggs.time_per_status.buckets}
-            
-        if 'events_over_time' in args.metrics:
-            data['events_over_time'] = {v['key_as_string']: v['doc_count'] for v in events_over_time.aggs.range.events_per_day.buckets}
-
-        if 'time_per_status_over_time' in args.metrics:
-            data['avg_time_to_act']  = {v['key_as_string']: {x['key']: x['avg_time_to_act']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
-            data['avg_time_to_dismiss']  = {v['key_as_string']: {x['key']: x['avg_time_to_dismiss']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
-            data['avg_time_to_close']  = {v['key_as_string']: {x['key']: x['avg_time_to_close']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
-
-        return data
-
-@ns_event_v2.route("/bulk_delete")
-class BulkDeleteEvent(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_event_bulk_dismiss)
-    @token_required
-    @user_has('delete_event')
-    def delete(self, current_user):
-        '''
-        Deletes an event and any related artifacts from the system
-
-        Parameters:
-            uuid (str): The unique identifier of the Event
-            current_user (User): The current user making the API request
-        '''
-
-        if api2.payload['events']:
-            for _event in api2.payload['events']:
-
-                event = Event.get_by_uuid(uuid=_event)
-
-                # Only support deleting events that are not in cases right now
-                if event and not event.case:
-                
-                    # TODO: Add this back if we want to allow deleting events that are in cases
-                    # Remove this event from any cases it may be associated with
-                    #if event.case:
-                    #    case = Case.get_by_uuid(uuid=event.case)
-                    #    case.remove_event(uuid=event.uuid)
-
-                    # Delete any observables from the observables index related to this event
-                    observables = Observable.get_by_event_uuid(uuid=event.uuid)
-                    for observable in observables:
-                        observable.delete()
-
-                    # Delete the event
-                    event.delete()
-
-        time.sleep(1)
-
-        return {'message': 'Successfully deleted Events.'}, 200
-
-"""
-@ns_event_v2.route("/<uuid>/update_case")
-class EventUpdateCase(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_event_update_case)
-    @api2.response('200', 'Success')
-    @token_required
-    @user_has('update_event')
-    def put(self, uuid, current_user):
-
-        if 'action' in api2.payload:
-            action = api2.payload.pop('action')
-
-            if action in ['remove','transfer']:
-
-                event = Event.get_by_uuid()
-
-                if action == 'remove':
-                    
-                    event.remove_from_case()
-
-                if action == 'transfer':
-                    if 'target_case_uuid' in api2.payload:
-                        event.set_case()
-                    else:
-                        ns_event_v2(400, 'Missing target case details.')
-            
-                print('a')
-            else:
-                ns_event_v2.abort(400, 'Missing or invalid action.')
-        else:
-            ns_event_v2.abort(400, 'Missing or invalid action.')
-"""
-
-
-event_bulk_select_parser = api2.parser()
-event_bulk_select_parser.add_argument('status', location='args', default=[
-], type=str, action='split', required=False)
-event_bulk_select_parser.add_argument('tags', location='args', default=[
-], type=str, action='split', required=False)
-event_bulk_select_parser.add_argument('observables', location='args', default=[
-], type=str, action='split', required=False)
-event_bulk_select_parser.add_argument('signature', location='args', required=False)
-event_bulk_select_parser.add_argument('source', action='split', location='args', required=False)
-event_bulk_select_parser.add_argument(
-    'severity', action='split', location='args', required=False)
-event_bulk_select_parser.add_argument(
-    'grouped', type=xinputs.boolean, location='args', required=False)
-event_bulk_select_parser.add_argument(
-    'case_uuid', type=str, location='args', required=False)
-event_bulk_select_parser.add_argument('search', type=str, action='split', default=[
-], location='args', required=False)
-#event_list_parser.add_argument('rql', type=str, default="", location="args", required=False)
-event_bulk_select_parser.add_argument(
-    'title', type=str, location='args', action='split', required=False)
-event_bulk_select_parser.add_argument(
-    'title__like', type=str, location='args', required=False
-)
-event_bulk_select_parser.add_argument('organization', location='args', action='split', required=False)
-event_bulk_select_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
-event_bulk_select_parser.add_argument('end', location='args', default=datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
-
-@ns_event_v2.route("/bulk_select_all")
-class BulkSelectAll(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_bulk_event_uuids)
-    @api2.expect(event_bulk_select_parser)
-    @api2.response('200','Success')
-    @token_required
-    @user_has('view_events')
-    def get(self, current_user):
-        args = event_bulk_select_parser.parse_args()
-        search_filters = []
-
-        if args.title__like and args.title__like != '':
-            search_filters.append({
-                'type': 'wildcard',
-                'field': 'title',
-                'value': "*"+args.title__like+"*"
-            })
-        
-        if args.status and args.status != ['']:
-            search_filters.append({
-                    'type': 'terms',
-                    'field': 'status.name__keyword',
-                    'value': args.status
-                })
-
-        if args.source and args.source != ['']:
-            search_filters.append({
-                'type': 'terms',
-                'field': 'source__keyword',
-                'value': args.source
-            })
-
-        for arg in ['severity','title','tags','organization']:
-            if arg in args and args[arg] not in ['', None, []]:
-                search_filters.append({
-                    'type': 'terms',
-                    'field': arg,
-                    'value': args[arg]
-                })
-        
-        if args.signature:
-            search_filters.append({
-                    'type': 'term',
-                    'field': 'signature',
-                    'value': args.signature
-                })
-
-        if args.case_uuid:
-            search_filters.append({
-                'type': 'match',
-                'field': 'case',
-                'value': args.case_uuid
-            })
-
-        if args.start and args.end:
-            search_filters.append({
-                'type': 'range',
-                'field': 'created_at',
-                'value': {
-                    'gte': args.start,
-                    'lte': args.end
-                }
-            })
-
-        if args.observables:
-            event_uuids = []
-
-            if any('|' in o for o in args.observables):
-                for observable in args.observables:
-                    if '|' in observable:
-                        value,field = observable.split('|')
-                        response = Observable.get_by_value_and_field(value, field)
-                        event_uuids += [o.events[0] for o in response]
-            else:
-                observables = Observable.get_by_value(args.observables)
-                event_uuids = [o.events[0] for o in observables if o.events]
-            
-            search_filters.append({
-                'type': 'terms',
-                'field': 'uuid',
-                'value': list(set(event_uuids))
-            })
-
-        observables = {}        
-        
-        search = Event.search()
-
-        search = search[:0]
-
-        org_uuids = {}
-
-        # Apply all filters
-        for _filter in search_filters:
-            search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
-
-        if not args.signature:
-            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=1000000)
-            search.aggs['signature'].metric('max_date', 'max', field='created_at')
-            search.aggs['signature'].bucket('uuid', 'terms', field='uuid', size=1, order={'max_date': 'desc'})
-            search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
-            if hasattr(current_user,'default_org') and current_user.default_org:
-                search.aggs['signature']['uuid'].bucket('organization', 'terms', field='organization', size=1)
-
-            events = search.execute()
-            event_uuids = []
-            for signature in events.aggs.signature.buckets:
-                
-                event_uuids.append(signature.uuid.buckets[0]['key'])
-                if hasattr(current_user,'default_org') and current_user.default_org:
-                    org_uuid = signature.uuid.buckets[0].organization.buckets[0]['key']
-                    if org_uuid not in org_uuids:
-                        org_uuids[org_uuid] = [signature.uuid.buckets[0]['key']]
-                    else:
-                        org_uuids[org_uuid].append(signature.uuid.buckets[0]['key'])
-
-        else:
-            events = search.scan()
-            event_uuids = [e.uuid for e in events]
-            org_uuids = [e.organization for e in events]
-
-        if hasattr(current_user,'default_org') and current_user.default_org:
-            return {
-                'events': event_uuids,
-                'organizations': org_uuids
-            }
-        else:
-            return {
-                'events': event_uuids
-            }
-
-@ns_event_v2.route("/<signature>/new_related_events")
-class EventNewRelatedEvents(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_related_events)
-    @api2.response('200', 'Success')
-    @api2.response('404', 'Event not found')
-    @token_required
-    @user_has('view_events')
-    def get(self, signature, current_user):
-        ''' Returns the UUIDs of all related events that are Open '''
-        events = Event.get_by_signature(signature=signature, all_events=True)
-        related_events = [e.uuid for e in events if hasattr(e.status,'name') and e.status.name == 'New']
-        return {"events": related_events}
-
-
-event_rule_list_parser = pager_parser.copy()
-event_rule_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
-event_rule_list_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
-event_rule_list_parser.add_argument('page_size', type=int, location='args', default=25, required=False)
-
-@ns_event_rule_v2.route("")
-class EventRuleList(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_event_rule_list_paged)
-    @api2.expect(event_rule_list_parser)
-    @token_required
-    @user_has('view_event_rules')
-    def get(self, current_user):
-        ''' Gets a list of all the event rules '''
-
-        args = event_rule_list_parser.parse_args()
-
-        event_rules = EventRule.search()
-        event_rules = event_rules.sort('-last_matched_date','-created_at')
-
-        # Paginate the cases
-        page = args.page - 1
-        total_cases = event_rules.count()
-        pages = math.ceil(float(total_cases / args.page_size))
-
-        start = page*args.page_size
-        end = args.page*args.page_size
-        event_rules = event_rules[start:end]
-
-        event_rules = event_rules.execute()
-
-        response = {
-            'event_rules': list(event_rules),
-            'pagination': {
-                'total_results': total_cases,
-                'pages': pages,
-                'page': page+1,
-                'page_size': args.page_size
-            }
-        }
-
-        return response
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_event_rule_create)
-    @api2.marshal_with(mod_event_rule_list)
-    @api2.response('200', 'Successfully created event rule.')
-    @token_required
-    @user_has('create_event_rule')
-    @check_org
-    def post(self, current_user):
-        ''' Creates a new event_rule '''
-        
-        if 'organization' in api2.payload:
-            event_rule = EventRule.get_by_name(name=api2.payload['name'], organization=api2.payload['organization'])
-        else:
-            event_rule = EventRule.get_by_name(name=api2.payload['name'])
-
-        if not event_rule:
-
-            if 'expire_days' in api2.payload and not isinstance(api2.payload['expire_days'], int):
-                ns_event_rule_v2.abort(400, 'expire_days should be an integer.')
-
-            # Computer when the rule should expire
-            if 'expire' in api2.payload and api2.payload['expire']:
-                if 'expire_days' in api2.payload:
-                    expire_days = api2.payload['expire_days']
-
-                    expire_at = datetime.datetime.utcnow() + datetime.timedelta(days=expire_days)
-                    api2.payload['expire_at'] = expire_at
-                else:
-                    ns_event_rule_v2.abort(400, 'Missing expire_days field.')
-
-            event_rule = EventRule(**api2.payload)
-            event_rule.active = True
-            event_rule.save()
-
-            return event_rule
-        else:
-            ns_event_rule_v2.abort(400, 'Event Rule with this title already exists.')
-
-
-@ns_event_rule_v2.route("/<uuid>")
-class EventRuleDetails(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_event_rule_list)
-    @token_required
-    @user_has('view_event_rules')
-    def get(self, uuid, current_user):
-        ''' Gets a event rule '''
-        event_rule = EventRule.get_by_uuid(uuid=uuid)
-        if event_rule:
-            return event_rule
-        else:
-            ns_event_rule_v2.abort(404, 'Event rule not found.')
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_event_rule_create)
-    @api2.marshal_with(mod_event_rule_list)
-    @token_required
-    @user_has('update_event_rule')
-    def put(self, uuid, current_user):
-        ''' Updates the event rule '''
-        event_rule = EventRule.get_by_uuid(uuid=uuid)
-
-        if event_rule:
-
-            if 'expire_days' in api2.payload and not isinstance(api2.payload['expire_days'], int):
-                ns_event_rule_v2.abort(400, 'expire_days should be an integer.')
-
-            # Computer when the rule should expire
-            if 'expire' in api2.payload and api2.payload['expire']:
-                if 'expire_days' in api2.payload:
-                    expire_days = api2.payload['expire_days']
-
-                    expire_at = datetime.datetime.utcnow() + datetime.timedelta(days=expire_days)
-                    api2.payload['expire_at'] = expire_at
-                else:
-                    ns_event_rule_v2.abort(400, 'Missing expire_days field.')
-
-            if len(api2.payload) > 0:
-                event_rule.update(**api2.payload)
-
-            return event_rule
-        else:
-            ns_event_rule_v2.abort(404, 'Event rule not found.')
-
-    @api2.doc(security="Bearer")
-    @token_required
-    @user_has('delete_event_rule')
-    def delete(self, uuid, current_user):
-        ''' Removes an event rule '''
-        event_rule = EventRule.get_by_uuid(uuid=uuid)
-        if event_rule:
-            event_rule.delete(refresh=True)
-            return {'message': 'Sucessfully deleted the event rule.'}
-
-
-@ns_event_rule_v2.route("/test_rule_rql")
-class TestEventRQL(Resource):
-
-    @api2.expect(mod_event_rule_test)
-    @token_required
-    @user_has('create_event_rule')
-    def post(self, current_user):
-        ''' Tests an RQL query against a target event to see if the RQL is valid '''
-
-        date_filtered = False
-
-        if api2.payload['query'] == '' or 'query' not in api2.payload:
-            return {'message':'Missing RQL query.', "success": False}, 400
-
-        if 'uuid' in api2.payload and api2.payload['uuid'] not in [None, '']:
-            event = Event.get_by_uuid(uuid=api2.payload['uuid'])
-            event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
-        else:
-
-            # A date filter is required when not supplying a single event UUID
-            if 'start_date' in api2.payload and 'end_date' in api2.payload:
-                date_filtered = True
-            else:
-                return {'message': 'A date range is required', "succes": False}, 400
-
-            search = Event.search()
-            if api2.payload['organization']:
-                search = search.filter('term', organization=api2.payload['organization'])
-            else:
-                search = search.filter('term', organization=current_user.organization)
-            search = search.sort('-created_at')
-            search = search[0:api2.payload['event_count']]
-
-            # Apply a date filter
-            if date_filtered:
-                search = search.filter('range', **{'created_at': {
-                    'gte': api2.payload['start_date'],
-                    'lte': api2.payload['end_date']
-                }})
-
-            events = search.execute()
-            
-            event_data = [json.loads(json.dumps(marshal(e, mod_event_rql))) for e in events]
-       
-        try:
-            qp = QueryParser(organization=current_user.organization)
-            parsed_query = qp.parser.parse(api2.payload['query'])
-            result = [r for r in qp.run_search(event_data, parsed_query)]
-            hits = len(result)
-
-            if hits > 0:
-                if 'return_results' in api2.payload and api2.payload['return_results']:
-                    return {"message": f"Query matched {hits} Events", "success": True, "hits": [result]}, 200
-                return {"message": f"Query matched {hits} Events", "success": True}, 200
-            else:
-                return {"message": "Query did not match target Event", "success": False}, 200
-        except ValueError as e:
-            return {"message":f"Invalid RQL query. {e}", "success": False}, 400
-        
 
 @ns_observable_v2.route("/history/<value>")
 class ObservableHistory(Resource):
@@ -1995,14 +699,13 @@ class CaseStatusList(Resource):
         ''' Returns a list of case_statuss '''
 
         args = case_status_parser.parse_args()
-
         
         statuses = CaseStatus.search()
 
         if args.name is not None:
             statuses = statuses.filter('term', name=args.name)
 
-        if args.organization is not None:
+        if hasattr(current_user,'default_org') and args.organization is not None:
             statuses = statuses.filter('term', organization=args.organization)
 
         statuses = statuses.execute()
@@ -2265,9 +968,7 @@ class CaseList(Resource):
 
         settings = Settings.load()
 
-        if 'case_template_uuid' in api2.payload:
-            case_template = CaseTemplate.get_by_uuid(
-                uuid=api2.payload.pop('case_template_uuid'))
+        
 
         if 'owner_uuid' in api2.payload:
             owner_uuid = api2.payload.pop('owner_uuid')
@@ -2354,24 +1055,25 @@ and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.valu
 
         # If the user selected a case template, take the template items
         # and copy them over to the case
-        if case_template:
+        if 'case_template_uuid' in api2.payload:
+            case.apply_template(api2.payload['case_template_uuid'])
 
             # Append the default tags
-            for tag in case_template.tags:
+            #for tag in case_template.tags:
 
                 # If the tag does not already exist
-                if tag not in case.tags:
-                    case.tags.append(tag)
+            #    if tag not in case.tags:
+            #        case.tags.append(tag)
 
             # Append the default tasks
-            for task in case_template.tasks:
-                case.add_task(title=task.title, description=task.description,
-                              order=task.order, from_template=True)
+            #for task in case_template.tasks:
+            #    case.add_task(title=task.title, description=task.description,
+            #                  order=task.order, from_template=True)
 
             # Set the default severity
-            case.severity = case_template.severity
-            case.tlp = case_template.tlp
-            case.save()
+            #case.severity = case_template.severity
+            #case.tlp = case_template.tlp
+            #case.save()
 
         case.save()
 
@@ -2394,7 +1096,7 @@ class CaseDetails(Resource):
     @user_has('view_cases')
     def get(self, uuid, current_user):
         ''' Returns information about a case '''
-        case = Case.get_by_uuid(uuid=uuid)           
+        case = Case.get_by_uuid(uuid=uuid)
 
         if case:
             tasks = CaseTask.get_by_case(uuid=uuid)
@@ -2482,58 +1184,10 @@ class CaseDetails(Resource):
             if 'tags' in api2.payload:
                 save_tags(api2.payload['tags'])
 
-            """ TODO: MIGRATE THIS
-             if 'case_template_uuid' in api.payload:
-
-                # If the case already has a template, and none of the tasks have been started, remove the
-                # old template and its tasks/tags and add the new stuff
-                tasks_started = False
-                if case.case_template and api.payload['case_template_uuid'] != case.case_template:
-                    
-                    for task in case.tasks:
-
-                        # If any task is already started, don't apply a new template
-                        if task.status != 0 and task.from_template:
-                            tasks_started = True
-                            break
-                        else:
-                            if task.from_template:
-                                task.delete()
-
-                    # Remove the tags from the case that were assigned by the 
-                    # template
-                    for tag in case.case_template.tags:
-                        if tag in case.tags:
-                            case.tags = [tag for tag in case.tags if tag.name not in [t.name for t in case.case_template.tags]]
-
-                    case.case_template_uuid = None
-                    case.save()
-                    
-                # If there was an old template or no template at all
-                # apply the new template
-                if not tasks_started and api.payload['case_template_uuid'] != case.case_template_uuid:
-
-                    case_template = CaseTemplate.query.filter_by(uuid=api.payload['case_template_uuid'], organization_uuid=current_user.organization.uuid).first()
-                    if case_template:
-
-                        # Append the default tags
-                        for tag in case_template.tags:
-
-                            # If the tag does not already exist
-                            if tag not in case.tags:
-                                case.tags.append(tag)
-
-                        # Append the default tasks
-                        for task in case_template.tasks:
-                            case_task = CaseTask(title=task.title, description=task.description,
-                                                order=task.order, owner=task.owner, group=task.group,
-                                                from_template=True,
-                                                organization_uuid=current_user.organization.uuid)
-                            case.tasks.append(case_task)
-                        case.save()
-                        message = 'The case template **{}** was applied'.format(case_template.title)
-                        case.add_history(message=message)
-                """
+            if 'case_template_uuid' in api2.payload:
+                remove_successful = case.remove_template()
+                if remove_successful:
+                    case.apply_template(api2.payload['case_template_uuid'])
 
             case.update(**api2.payload)
 
@@ -2548,18 +1202,24 @@ class CaseDetails(Resource):
         ''' Deletes a case '''
         case = Case.get_by_uuid(uuid=uuid)
         if case:
-
-            # TODO: MIGRATE THIS
+            
             # Set any associated events back to New status
-            # for event in case.events:
-            #    event.status = EventStatus.query.filter_by(organization_uuid=current_user.organization.uuid, name='New').first()
-            #    event.save()
+            for event_uuid in case.events:
+                event = Event.get_by_uuid(event_uuid)
+                event.case = None
+                event.set_new()
 
-            # TODO: MIGRATE THIS
-            # case.events = []
-            # case.save()
-            # case.observables = []
-            # case.save()
+            observables = Observable.get_by_case_uuid(uuid=uuid)
+            [o.delete() for o in observables]
+
+            tasks = CaseTask.get_by_case(uuid=uuid, all_results=True)
+            [t.delete() for t in tasks]
+
+            comments = CaseComment.get_by_case(uuid=uuid)
+            [c.delete() for c in comments]
+
+            history = CaseHistory.get_by_case(uuid=uuid)
+            [h.delete() for h in history]
 
             case.delete()
             return {'message': 'Sucessfully deleted case.'}
@@ -2665,13 +1325,18 @@ class CaseAddObservables(Resource):
     @api2.marshal_with(mod_case_observables)
     @token_required
     @user_has('update_case')
+    @check_org
     def post(self, uuid, current_user):
         ''' Adds multiple observables to a case '''
         case = Case.get_by_uuid(uuid=uuid)
 
+        organization = None
+        if 'organization' in api2.payload:
+            organization = api2.payload['organization']            
+
         if case:
             observables = api2.payload['observables']
-            case.add_observables(observables, case.uuid)
+            case.add_observables(observables, case.uuid, organization=organization)
             case.add_history(f"Added {len(observables)} observables")
             
             return {'observables': [o for o in observables]}
@@ -2779,7 +1444,7 @@ case_stats_parser.add_argument('top', location='args', default=10, type=int, req
 case_stats_parser.add_argument('my_cases', location='args', required=False, type=xinputs.boolean)
 case_stats_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
 case_stats_parser.add_argument('interval', location='args', default='day', required=False, type=str)
-case_stats_parser.add_argument('end', location='args', default=datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+case_stats_parser.add_argument('end', location='args', default=(datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
 case_stats_parser.add_argument('metrics', location='args', action='split', default=['title','tag','status','severity','close_reason','owner'])
 case_stats_parser.add_argument('organization', location='args', action='split', required=False)
 
@@ -3296,7 +1961,7 @@ class CaseTaskDetails(Resource):
                     if api2.payload['status'] == 1:
 
                         # If set, automatically assign the task to the user starting the task
-                        if task.owner == [] and settings.assign_task_on_start:
+                        if task.owner == [] and settings and settings.assign_task_on_start:
                             task.start_task(current_user.uuid)
                         else:
                             task.start_task()
@@ -3510,7 +2175,7 @@ class AgentList(Resource):
             role = Role.get_by_name(name='Agent')
             role.add_user_to_role(agent.uuid)
 
-            token = generate_token(str(agent.uuid), 86400, token_type='agent')
+            token = generate_token(str(agent.uuid), 525600*5, token_type='agent', organization=current_user['organization'])
 
             return {'message': 'Successfully created the agent.', 'uuid': str(agent.uuid), 'token': token}
         else:

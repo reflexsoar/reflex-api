@@ -9,7 +9,8 @@ from ..model import (
     CaseTemplate,
     CloseReason,
     DataType,
-    EventStatus
+    EventStatus,
+    Settings
 )
 from .shared import ISO8601, ValueCount, AsNewLineDelimited, mod_pagination
 from ..schemas import JSONField, mod_user_create
@@ -21,7 +22,8 @@ from ...defaults import (
     create_default_case_templates,
     create_default_closure_reasons,
     create_default_data_types,
-    create_default_event_status
+    create_default_event_status,
+    initial_settings
 )
 
 api = Namespace('Organizations',
@@ -148,6 +150,7 @@ class OrganizationList(Resource):
                 create_default_closure_reasons(CloseReason, organization.uuid)
                 create_default_data_types(DataType, organization.uuid)
                 create_default_event_status(EventStatus, organization.uuid)
+                initial_settings(Settings, organization.uuid)
 
                 return organization
             else:

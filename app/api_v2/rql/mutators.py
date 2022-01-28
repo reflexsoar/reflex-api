@@ -34,7 +34,9 @@ MUTATORS = (
     'ns_lookup_aaaa',
     'ns_lookup_mx',
     'ns_lookup_ptr',
-    'ns_lookup_ns'
+    'ns_lookup_ns',
+    'to_integer',
+    'to_string'
 )
 
 def mutate_count(value):
@@ -304,6 +306,24 @@ def resolve_dns(value, record_type):
         ips = [a.to_text() for a in dns.resolver.resolve(value, record_type)]
     return ips
 
+def to_string(value):
+    '''
+    Casts a value as a string
+    '''
+    try:
+        return str(value)
+    except Exception as e:
+        return value
+
+def to_integer(value):
+    '''
+    Casts a value as an integer
+    '''
+    try:
+        return int(value)
+    except Exception as e:
+        return value
+
 
 MUTATOR_MAP = {
     'lowercase': mutate_lowercase,
@@ -331,5 +351,7 @@ MUTATOR_MAP = {
     'ns_lookup_aaaa': lambda x: resolve_dns(x, 'AAAA'),
     'ns_lookup_mx': lambda x: resolve_dns(x, 'MX'),
     'ns_lookup_ptr': lambda x: resolve_dns(x, 'PTR'),
-    'ns_lookup_ns': lambda x: resolve_dns(x, 'NS')
+    'ns_lookup_ns': lambda x: resolve_dns(x, 'NS'),
+    'to_integer': to_integer,
+    'to_string': to_string
 }

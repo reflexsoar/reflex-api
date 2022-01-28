@@ -32,12 +32,19 @@ class EventStatus(base.BaseDocument):
         name = 'reflex-event-statuses'
 
     @classmethod
-    def get_by_name(self, name):
+    def get_by_name(self, name, organization=None):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = self.search().query('term', name=name).execute()
+        response = self.search()
+        
+        response = response.filter('term', name=name)
+
+        if organization:
+            response = response.filter('term', organization=organization)
+            
+        response = response.execute()
         if response:
             status = response[0]
             return status
@@ -103,11 +110,10 @@ class Event(base.BaseDocument):
         Adds the UUID of an event rule to the event so that metrics and troubleshooting
         can be performed on the event
         '''
-        if self.event_rules and isinstance(self.event_rules, list):
-            self.event_rules += [uuid]
+        if self.event_rules:
+            self.event_rules.append(uuid)
         else:
             self.event_rules = [uuid]
-        self.save()
 
     def add_observable(self, content):
         '''
@@ -153,7 +159,6 @@ class Event(base.BaseDocument):
         '''
         Sets the event as dismissed
         '''
-        print(reason)
         self.status = EventStatus.get_by_name(name='Dismissed')
         if comment:
             self.dismiss_comment = comment
@@ -365,6 +370,7 @@ class EventRule(base.BaseDocument):
     hit_count = Integer() # How many times the event rule has triggered
     last_matched_date = Date() # When the rule last matched on an event
     order = Integer() # What order to process events in, 1 being first
+    global_rule = Boolean() # Is it a global rule that should be processed on everything
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -406,8 +412,11 @@ class EventRule(base.BaseDocument):
                 # Process the event
                 if len(results) > 0:
                     self.last_matched_date = datetime.datetime.utcnow()
-                    self.hit_count += 1
-                    self.save()
+                    #if self.hit_count != None:
+                    #    self.hit_count += 1
+                    #else:
+                    #    self.hit_count = 1
+                    #self.save()
                     return True
             except Exception as e:
                 raise EventRuleFailure(e)
@@ -435,11 +444,13 @@ class EventRule(base.BaseDocument):
             event_acted_on = True
 
         # Add tags to the event
-        if self.add_tags:            
-            if isinstance(self.tags_to_add, list):
-                event.tags += self.tags_to_add
+        if self.add_tags:
+
+            if event.tags is None:
+                event.tags = self.tags_to_add
             else:
-                event.tags += [self.tags_to_add]
+                [event.tags.append(t) for t in self.tags_to_add]
+
             event_acted_on = True
         
         # Update the severity of the Event Rule calls for it to be updated
@@ -502,7 +513,12 @@ class EventRule(base.BaseDocument):
         query = self.search()
 
         if organization:
-            query = query.filter('term', organization=organization)
+            query = query.query('bool', should=[{'match': {'organization': organization}},{'match': {'global_rule': True}}])
+        else:
+            query = query.query('bool', should=[{'match': {'global_rule': True}}])
+
+        query = query.filter('term', active=True)
+        query = query.sort('global_rule','-created_at')
 
         query = query[0:query.count()]
         response = query.execute()

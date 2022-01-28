@@ -76,7 +76,7 @@ def check_org(f):
     def wrapper(*args, **kwargs):
         if 'current_user' in kwargs:
             current_user = kwargs['current_user']
-            if hasattr(current_user,'default_org') and not current_user.default_org and 'organization' in args[0].api.payload:
+            if current_user and not hasattr(current_user,'default_org') and args[0].api.payload and 'organization' in args[0].api.payload:
                 args[0].api.payload.pop('organization')
         return f(*args, **kwargs)
     wrapper.__doc__ = f.__doc__
@@ -207,8 +207,7 @@ def _check_token():
     current_user = None
     if auth_header:
         try:
-            access_token = auth_header.split(' ')[1]   
-
+            access_token = auth_header.split(' ')[1]
 
             expired = ExpiredToken.search().filter('term', token=access_token).execute()
             if expired:
@@ -242,7 +241,7 @@ def _check_token():
 
                     # If the user is currently locked
                     # reject the accesss_token and expire it
-                    if current_user.locked:
+                    if hasattr(current_user,'locked') and current_user.locked:
                         expired = ExpiredToken(token=access_token)
                         expired.save()
                         abort(401, 'Unauthorized')

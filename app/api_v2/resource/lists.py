@@ -1,4 +1,3 @@
-from email.policy import default
 from ..utils import check_org, token_required, user_has, ip_approved
 from flask_restx import Resource, Namespace, fields
 from ..model import ThreatList, DataType
