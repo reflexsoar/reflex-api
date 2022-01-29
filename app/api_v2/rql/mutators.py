@@ -129,8 +129,6 @@ def mutate_avg(*value):
         if isinstance(value, list):
             total_items = len(value)
             target_items = [i for i in value if isinstance(i, (int, float))]
-            print(total_items)
-            print(target_items)
             if len(target_items) == total_items:
                 value = sum(target_items)/total_items
                 return value

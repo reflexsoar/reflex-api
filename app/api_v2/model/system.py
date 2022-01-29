@@ -193,10 +193,10 @@ class Settings(base.BaseDocument):
         reason there are more than one settings documents, return the most recent
         '''
         settings = self.search()
-        
+
         if organization:
             settings = settings.filter('term', organization=organization)
-            
+           
         settings = settings.execute()
         if settings:
             return settings[0]
@@ -388,7 +388,6 @@ class Observable(base.BaseDocument):
         if value is not None:
             if isinstance(value, list):
                 response = self.search().query('terms', value=value).query('match', source_field=field)
-                print(response.to_dict())
                 if all_docs:
                     response = response[0:response.count()]
                     response.execute()
@@ -397,7 +396,6 @@ class Observable(base.BaseDocument):
                 documents = list(response)
             else:
                 response = self.search().query('term', value=value).query('match', source_field=field)
-                print(response.to_dict())
                 if all_docs:
                     response = response[0:response.count()]
                     response.execute()

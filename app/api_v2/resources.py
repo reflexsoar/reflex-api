@@ -61,7 +61,7 @@ from .model import (
 
 from app.api_v2.model.utils import escape_special_characters
 
-from .utils import ip_approved, check_org, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
+from .utils import default_org, ip_approved, check_org, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
 
 from .resource import (
     ns_playbook_v2,
@@ -2643,17 +2643,31 @@ class PluginUpload(Resource):
                 plugins.append(plugin)
         return plugins
 
+settings_parser = api2.parser()
+settings_parser.add_argument('organization', location='args', required=False)
 
 @ns_settings_v2.route("")
 class GlobalSettings(Resource):
 
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_settings)
+    @api2.expect(settings_parser)
     @token_required
+    @default_org
     @user_has('view_settings')
-    def get(self, current_user):
+    def get(self, user_in_default_org, current_user):
         ''' Retrieves the global settings for the system '''
-        settings = Settings.load()
+
+        args = settings_parser.parse_args()
+
+        if user_in_default_org:
+            if args.organization:
+                settings = Settings.load(organization=args.organization)
+            else:
+                settings = Settings.load(organization=current_user.organization)
+        else:
+            settings = Settings.load(organization=current_user.organization)
+            
         return settings
 
     @api2.doc(security="Bearer")
@@ -2665,7 +2679,7 @@ class GlobalSettings(Resource):
 
         organization = None
         if 'organization' in api2.payload:
-            organization=organization
+            organization=api2.payload.pop('organization')
 
         if 'agent_pairing_token_valid_minutes' in api2.payload:
             if int(api2.payload['agent_pairing_token_valid_minutes']) > 365:

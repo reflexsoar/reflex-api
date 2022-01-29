@@ -34,7 +34,7 @@ mod_organization_list = api.model('OrganizationList', {
     'name': fields.String,
     'description': fields.String,
     'url': fields.String,
-    #'logon_domains': fields.List(fields.String),
+    'logon_domains': AsNewLineDelimited(attribute='logon_domains'),
     'default_org': fields.Boolean()
 })
 
@@ -65,18 +65,76 @@ class OrganizationDetails(Resource):
     @default_org
     @user_has('view_organizations')    
     def get(self, uuid, user_in_default_org, current_user):
+        '''
+        Returns the details about a single organization
+        Members of the default organization can see the details of any organization
+        '''
 
         organization = Organization.get_by_uuid(uuid=uuid)
 
-        # If the user is the default tenant allow them to view any organization
+        # If the user is the default organization allow them to view any organization
         if user_in_default_org:
             return organization      
         
-        # If the user is not the default tenant and they try to access a different organization
+        # If the user is not the default organization and they try to access a different organization
         if not user_in_default_org and organization.uuid != current_user.organization:
             api.abort(404, 'Organization not found.')
 
         return organization
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_organization_create)
+    @api.marshal_with(mod_organization_list)
+    @token_required
+    @default_org
+    @user_has('update_organization')
+    def put(self, uuid, user_in_default_org, current_user):
+        '''
+        Updates an organization
+        Only members of the default organization with update_organization permissions
+        can perform this action
+        '''
+
+        # If the user is not in the default organization reject them with 404
+        if not user_in_default_org:
+            api.abort(404, 'Organization not found.')
+
+        organization = Organization.get_by_uuid(uuid=uuid)
+
+        # Don't make updates to the default user
+        if 'admin_user' in api.payload:
+            api.payload.pop('admin_user')
+        
+        # Check to see if other organizations already use these logon domains
+        if 'logon_domains' in api.payload:
+            api.payload['logon_domains'] = api.payload['logon_domains'].split(',')
+            org = Organization.get_by_logon_domain(api.payload['logon_domains'])
+            if org and org.uuid != organization.uuid:
+
+                # Providing this feedback is probably a security issue but this action
+                # can only be performed by the default tenants admin, an attacker would win
+                # if they had this level of access anyway
+                api.abort(400, 'Invalid logon domain provided.')
+
+        organization.update(**api.payload)
+
+        return organization
+
+    @api.doc(security="Bearer")
+    @token_required
+    @default_org
+    @user_has('delete_organization')
+    def delete(self, uuid, user_in_default_org, current_user):
+        '''
+        Deletes the organization from the platform
+        Only admins from the default organization with delete_organization 
+        permissions can perform this action
+        '''
+
+        if not user_in_default_org:
+            api.abort(404, 'Organization not found.')
+
+        api.abort(501, 'Action not implemented yet.')
 
 
 org_parser = api.parser()
