@@ -48,6 +48,7 @@ class BaseDocument(Document):
             is_default_org = 'default_org' in current_user and current_user['default_org']
 
             if cls.Index.name != 'reflex-organizations':
+                
                 if not is_default_org:
                     s = s.filter('term', organization=current_user['organization'])
             
@@ -55,7 +56,7 @@ class BaseDocument(Document):
 
 
     @classmethod
-    def get_by_uuid(self, uuid, all_results=False, **kwargs):
+    def get_by_uuid(self, uuid, all_results=False, organization=None, **kwargs):
         '''
         Fetches a document by the uuid field
         '''
@@ -64,13 +65,18 @@ class BaseDocument(Document):
         if uuid is not None:
             if isinstance(uuid, (AttrList, list)):
                 response = self.search()
+                if organization:
+                    response = response.filter(organization=organization)
                 response = response.query('terms', uuid=uuid, **kwargs)
                 if all_results:
                     response = response[0:response.count()]
                 response = response.execute()
                 documents = list(response)
             else:
-                response = self.search().query('term', uuid=uuid, **kwargs).execute()
+                response = self.search()
+                if organization:
+                    response = response.filter(organization=organization)
+                response = response.query('term', uuid=uuid, **kwargs).execute()
                 if response:
                     documents = response[0]
                 else:

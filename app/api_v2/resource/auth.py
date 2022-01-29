@@ -2,7 +2,7 @@ import datetime
 from flask import request, current_app
 from flask_restx import Resource, Namespace, fields
 from ..model import User, ExpiredToken, Settings
-from ..utils import log_event, token_required, check_password_reset_token
+from ..utils import log_event, token_required, check_password_reset_token, ip_approved
 
 api = Namespace('Auth', description='Authentication operations', path='/auth')
 
@@ -50,6 +50,7 @@ class Login(Resource):
     @api.expect(mod_auth)
     @api.response(200, 'Success', mod_auth_success_token)
     @api.response(401, 'Incorrect username or password')
+    @ip_approved
     def post(self):
         '''
         Log a user in to the platform and provide them with an access_token a refresh_token

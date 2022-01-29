@@ -291,6 +291,8 @@ class Case(base.BaseDocument):
     case_template_uuid = Keyword()
     files = Keyword()  # The UUIDs of case files
     events = Keyword()
+    sla_breach_time = Date()
+    sla_violated = Boolean()
     _open_tasks = 0
     _total_tasks = 0
 

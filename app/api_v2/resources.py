@@ -158,6 +158,7 @@ class UserInfo(Resource):
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_user_self)
     @token_required
+    @ip_approved
     def get(self, current_user):
         ''' Returns information about the currently logged in user '''
         role = Role.get_by_member(current_user.uuid)
@@ -966,9 +967,11 @@ class CaseList(Resource):
         owner_uuid = None
         case_template = None
 
-        settings = Settings.load()
-
+        organization = None
+        if 'organization' in api2.payload:
+            organization = api2.payload['organization']
         
+        settings = Settings.load(organization=organization)
 
         if 'owner_uuid' in api2.payload:
             owner_uuid = api2.payload.pop('owner_uuid')
@@ -1948,8 +1951,10 @@ class CaseTaskDetails(Resource):
     def put(self, uuid, current_user):
         ''' Updates information for a case_task '''
 
-        settings = Settings.load()
+        
         task = CaseTask.get_by_uuid(uuid=uuid)
+
+        settings = Settings.load(organization=task.organization)
 
         if task:
             if 'name' in api2.payload and CaseTask.get_by_title(title=api2.payload['title'], case_uuid=api2.payload['case_uuid']):
@@ -2655,7 +2660,12 @@ class GlobalSettings(Resource):
     @api2.expect(mod_settings)
     @token_required
     @user_has('update_settings')
+    @check_org
     def put(self, current_user):
+
+        organization = None
+        if 'organization' in api2.payload:
+            organization=organization
 
         if 'agent_pairing_token_valid_minutes' in api2.payload:
             if int(api2.payload['agent_pairing_token_valid_minutes']) > 365:
@@ -2668,7 +2678,7 @@ class GlobalSettings(Resource):
         if 'disallowed_password_keywords' in api2.payload and api2.payload['disallowed_password_keywords'] is not None:
             api2.payload['disallowed_password_keywords'] = api2.payload['disallowed_password_keywords'].split('\n')
              
-        settings = Settings.load()
+        settings = Settings.load(organization=organization)
         settings.update(**api2.payload)
 
         return {'message': 'Succesfully updated settings'}

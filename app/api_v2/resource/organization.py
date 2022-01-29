@@ -1,5 +1,5 @@
 import math
-from ..utils import token_required, user_has, ip_approved
+from ..utils import token_required, user_has, ip_approved, default_org
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import (
     Organization,
@@ -52,6 +52,33 @@ mod_organization_create = api.model('CreateOrganization', {
 })
 
 
+@api.route("/<uuid>")
+class OrganizationDetails(Resource):
+    '''
+    Controls information about a specified Organization, retrieve details about
+    the single organization, update the organization or delete it from the system
+    '''
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_organization_list)
+    @token_required
+    @default_org
+    @user_has('view_organizations')    
+    def get(self, uuid, user_in_default_org, current_user):
+
+        organization = Organization.get_by_uuid(uuid=uuid)
+
+        # If the user is the default tenant allow them to view any organization
+        if user_in_default_org:
+            return organization      
+        
+        # If the user is not the default tenant and they try to access a different organization
+        if not user_in_default_org and organization.uuid != current_user.organization:
+            api.abort(404, 'Organization not found.')
+
+        return organization
+
+
 org_parser = api.parser()
 org_parser.add_argument('page_size', location='args',
                         required=False, type=int, default=25)
@@ -60,7 +87,6 @@ org_parser.add_argument('page', location='args',
 org_parser.add_argument('sort_by', type=str, location='args',
                         default='created_at', required=False)
 org_parser.add_argument('all', type=xinputs.boolean, default=False, location='args', required=False)
-
 
 @api.route("")
 class OrganizationList(Resource):
@@ -158,3 +184,5 @@ class OrganizationList(Resource):
 
         else:
             api.abort(400, 'Organization with supplied name already exists.')
+
+

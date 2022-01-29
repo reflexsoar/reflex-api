@@ -1,3 +1,5 @@
+from app.api_v2.model.user import Organization
+import json
 import jwt
 import base64
 import datetime
@@ -86,15 +88,39 @@ def check_org(f):
 
 def ip_approved(f):
     '''
-    Returns 401 Unauthorized if the requestor 
-    is not in the approved IP list
+    Returns 401 Unauthorized if the requestors IP is not in the approved IP list
     '''
 
     def wrapper(*args, **kwargs):
 
-        settings = Settings.load()
+        settings = None
+      
+        # If the user is current logged in to the system if they are just 
+        # load their settings
+        if 'current_user' in kwargs:
+            current_user = kwargs['current_user']
 
-        if hasattr(settings, 'require_approved_ips') and settings.require_approved_ips:
+            # Load the settings for the current user
+            settings = Settings.load(organization=current_user.organization)
+        else:
+            # If this is a logon post, take the users email and split it so that the users
+            # organization can be found, and subsequently that organizations Settings
+            if 'email' in args[0].api.payload:
+
+                # Calculate the logon domain for the user attempting to login
+                logon_domain = args[0].api.payload['email'].split('@')[1]
+
+                # Get the organization by the logon domain
+                organization = Organization.get_by_logon_domain([logon_domain])
+
+                # Find the appropriate settings for the user and their organization
+                settings = Settings.load(organization=organization.uuid)
+
+                # If there are no settings found reject the user
+                if not settings:
+                    abort(401, "Unauthorized")
+
+        if settings and hasattr(settings, 'require_approved_ips') and settings.require_approved_ips:
 
             ip_list = settings.approved_ips
             if request.headers.getlist('X-Forwarded-For'):
@@ -118,8 +144,7 @@ def ip_approved(f):
             if not approved:
                 abort(401, "Unauthorized")
 
-        return f(*args, **kwargs)
-        
+        return f(*args, **kwargs)        
     
     wrapper.__doc__ = f.__doc__
     wrapper.__name__ = f.__name__
@@ -139,6 +164,26 @@ def token_required(f):
     return wrapper
 
 
+def default_org(f):
+
+    def wrapper(*args, **kwargs):
+        if 'current_user' in kwargs:
+            current_user = kwargs['current_user']
+        else:
+            current_user = None
+
+        if current_user and hasattr(current_user, 'default_org') and current_user.default_org:
+            kwargs['user_in_default_org'] = True
+        else:
+            kwargs['user_in_default_org'] = False
+        
+        return f(*args, **kwargs)
+
+    wrapper.__doc__ = f.__doc__
+    wrapper.__name__ = f.__name__
+    return wrapper
+
+
 def user_has(permission: str):
     '''
     Route decorator that takes a permission as a string and determines if the
@@ -150,6 +195,7 @@ def user_has(permission: str):
         def wrapper(*args, **kwargs):
             if(current_app.config['PERMISSIONS_DISABLED']):
                 return f(*args, **kwargs)
+                
             current_user = kwargs['current_user']
 
             # If this is a pairing token and its the add_agent permission

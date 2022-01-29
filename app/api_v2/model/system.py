@@ -155,6 +155,8 @@ class Settings(base.BaseDocument):
     minimum_password_length = Integer()
     enforce_password_complexity = Boolean()
     disallowed_password_keywords = Keyword()
+    case_sla_days = Integer() # The number of days a case can stay open before it's in SLA breach
+    event_sla_minutes = Integer() # The number of minutes an event can be New before its SLA breach
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -184,13 +186,18 @@ class Settings(base.BaseDocument):
         return super().save(**kwargs)
 
     @classmethod
-    def load(self):
+    def load(self, organization=None):
         '''
         Loads the settings, there should only be one entry
         in the index so execute should only return one entry, if for some
         reason there are more than one settings documents, return the most recent
         '''
-        settings = self.search().execute()
+        settings = self.search()
+        
+        if organization:
+            settings = settings.filter('term', organization=organization)
+            
+        settings = settings.execute()
         if settings:
             return settings[0]
         return None

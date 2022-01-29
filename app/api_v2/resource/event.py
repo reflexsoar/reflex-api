@@ -1103,19 +1103,27 @@ class BulkSelectAll(Resource):
                 if hasattr(current_user,'default_org') and current_user.default_org:
                     org_uuid = signature.uuid.buckets[0].organization.buckets[0]['key']
                     if org_uuid not in org_uuids:
-                        org_uuids[org_uuid] = [signature.uuid.buckets[0]['key']]
+                        org_uuids[org_uuid] = {}
+                        org_uuids[org_uuid]['events'] = [signature.uuid.buckets[0]['key']]
                     else:
-                        org_uuids[org_uuid].append(signature.uuid.buckets[0]['key'])
+                        org_uuids[org_uuid]['events'].append(signature.uuid.buckets[0]['key'])
 
         else:
-            events = search.scan()
+            events = list(search.scan())
             event_uuids = [e.uuid for e in events]
             org_uuids = [e.organization for e in events]
 
         if hasattr(current_user,'default_org') and current_user.default_org:
             return {
                 'events': event_uuids,
-                'organizations': org_uuids
+                'organizations': {
+                    uuid: {
+                        'events': org_uuids[uuid]['events'],
+                        'dismiss_reason': '',
+                        'dismiss_comment': ''
+                    } for uuid in org_uuids
+                }
+                
             }
         else:
             return {

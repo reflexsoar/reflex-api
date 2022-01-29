@@ -365,7 +365,9 @@ def initial_settings(cls, org_id):
         'events_per_page': 10,
         'require_approved_ips': False,
         'data_types': ['ip','user','host','fqdn','sha1','md5','sha256','imphash','ssdeep','vthash','network','domain','url','mail','sid','mac'],
-        'organization': org_id
+        'organization': org_id,
+        'case_sla_days': 14,
+        'event_sla_minutes': 5
     }
 
     settings = cls(**settings_content)
