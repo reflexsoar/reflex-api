@@ -105,7 +105,7 @@ def ip_approved(f):
         else:
             # If this is a logon post, take the users email and split it so that the users
             # organization can be found, and subsequently that organizations Settings
-            if 'email' in args[0].api.payload:
+            if args[0].api.payload and 'email' in args[0].api.payload:
 
                 # Calculate the logon domain for the user attempting to login
                 logon_domain = args[0].api.payload['email'].split('@')[1]
