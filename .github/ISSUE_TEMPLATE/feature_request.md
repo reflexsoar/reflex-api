@@ -18,9 +18,3 @@ A clear and concise description of any alternative solutions or features you've 
 
 **Additional context**
 Add any other context or screenshots about the feature request here.
-
-**Sponsor Feature**
-Would you be willing to sponsor this feature to increase it's development speed.  Feature sponsors pay an hourly rate for the feature to be implemented.  Non-sponsored features will be implemented in alignment with current roadmap objectives
-
-- [ ] Yes
-- [ ] No
