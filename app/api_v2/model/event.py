@@ -10,6 +10,7 @@ from . import (
     Keyword,
     Text,
     Boolean,
+    Float,
     Integer,
     Object,
     Date,
@@ -31,12 +32,19 @@ class EventStatus(base.BaseDocument):
         name = 'reflex-event-statuses'
 
     @classmethod
-    def get_by_name(self, name):
+    def get_by_name(self, name, organization=None):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = self.search().query('term', name=name).execute()
+        response = self.search()
+        
+        response = response.filter('term', name=name)
+
+        if organization:
+            response = response.filter('term', organization=organization)
+            
+        response = response.execute()
         if response:
             status = response[0]
             return status
@@ -63,11 +71,19 @@ class Event(base.BaseDocument):
     status = Object()
     signature = Keyword()
     dismissed = Boolean()
-    dismiss_reason = Text()
+    dismiss_reason = Text(fields={'keyword':Keyword()})
     dismiss_comment = Text()
     dismissed_by = Object()
+    dismissed_at = Date()
+    dismissed_by_rule = Boolean()
+    closed_at = Date()
+    time_to_act = Float()
+    time_to_close = Float()
+    time_to_dismiss = Float()
     event_rules = Keyword()
     raw_log = Text()
+    sla_breach_time = Date()
+    sla_violated = Boolean()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -87,18 +103,17 @@ class Event(base.BaseDocument):
         Event observables
         '''
         self.event_observables = value
-        self.save
+        self.save()
 
     def append_event_rule_uuid(self, uuid):
         '''
         Adds the UUID of an event rule to the event so that metrics and troubleshooting
         can be performed on the event
         '''
-        if self.event_rules and isinstance(self.event_rules, list):
-            self.event_rules += [uuid]
+        if self.event_rules:
+            self.event_rules.append(uuid)
         else:
             self.event_rules = [uuid]
-        self.save()
 
     def add_observable(self, content):
         '''
@@ -109,14 +124,17 @@ class Event(base.BaseDocument):
         added_observables = []
         for o in content:
 
-            observable = system.Observable(**o)
+            # FIX: Don't create observables with empty or placeholder values
+            if o['value'] not in [None,'','-']:
 
-            observable.add_event_uuid(self.uuid)
-            observable.auto_data_type()
-            observable.check_threat_list()
-            observable.enrich()
-            observable.save()
-            added_observables.append(observable)
+                observable = system.Observable(**o, organization=self.organization)
+
+                observable.add_event_uuid(self.uuid)
+                observable.auto_data_type()
+                observable.check_threat_list()
+                observable.enrich()
+                observable.save()
+                added_observables.append(observable)
 
         return added_observables
 
@@ -127,6 +145,7 @@ class Event(base.BaseDocument):
         analyst in a case
         '''
         self.status = EventStatus.get_by_name(name='Open')
+        self.time_to_act = (datetime.datetime.utcnow() - self.created_at).seconds
         self.save()
 
     def set_new(self):
@@ -136,15 +155,18 @@ class Event(base.BaseDocument):
         self.status = EventStatus.get_by_name(name='New')
         self.save()
 
-    def set_dismissed(self, reason, comment=None):
+    def set_dismissed(self, reason, by_rule=False, comment=None):
         '''
         Sets the event as dismissed
         '''
         self.status = EventStatus.get_by_name(name='Dismissed')
         if comment:
             self.dismiss_comment = comment
-            self.dismiss_reason = reason.title
-            self.dismissed_by = utils._current_user_id_or_none()
+        self.dismiss_reason = reason.title
+        self.dismissed_by = utils._current_user_id_or_none()
+        self.dismissed_at = datetime.datetime.utcnow()
+        self.time_to_dismiss = (self.dismissed_at - self.created_at).seconds
+        self.dismissed_by_rule = by_rule
         self.save()
 
     def set_closed(self):
@@ -152,6 +174,8 @@ class Event(base.BaseDocument):
         Sets the event as closed
         '''
         self.status = EventStatus.get_by_name(name='Closed')
+        self.closed_at = datetime.datetime.utcnow()
+        self.time_to_close = (self.closed_at - self.created_at).seconds
         self.save()
 
     def set_case(self, uuid):
@@ -206,15 +230,31 @@ class Event(base.BaseDocument):
         return False
 
     @classmethod
-    def get_by_reference(self, reference):
+    def get_by_reference(self, reference, organization=None):
         '''
         Fetches an event by its source reference value
         '''
-        response = self.search().query('match', reference=reference).execute()
+        response = self.search()
+
+        if organization:
+            response = response.filter('term', organization=organization)
+        
+        response = response.query('match', reference=reference).execute()
         if response:
             document = response[0]
             return document
         return response
+
+    @classmethod
+    def get_by_status(self, status):
+        '''
+        Fetches an event based on the string representation of it's status
+        '''
+        search = self.search()
+        search = search.filter('term', **{"status.name__keyword": status})
+        results = search.scan()
+        return results
+        
 
     @classmethod
     def get_by_signature(self, signature, all_events=False):
@@ -315,12 +355,22 @@ class EventRule(base.BaseDocument):
     merge_into_case = Boolean()
     query = Text() # The RQL query to run against events
     dismiss = Boolean()
+    dismiss_reason = Text() # The text description for why this was dismissed
+    dismiss_comment = Text() # A custom reason for why this was dismissed
     expire = Boolean()  # If not set the rule will never expire, Default: True
+    expire_days = Integer() # The number of days before the rule expires
     expire_at = Date()  # Computed from the created_at date of the event + a timedelta in days
     active = Boolean()  # Users can override the alarm and disable it out-right
+    add_tags = Boolean() # When the event rule matches should it add tags
+    tags_to_add = Keyword() # What tags to add when add_tags is True
+    update_severity = Boolean() # When the event rule matches update the severity
+    target_severity = Keyword() # What severity to use when update_severity is True
+    mute_event = Boolean() # If True, any new events with a signature matching won't get into the system
+    mute_period = Integer() # Hour many minutes to mute the event for
     hit_count = Integer() # How many times the event rule has triggered
     last_matched_date = Date() # When the rule last matched on an event
     order = Integer() # What order to process events in, 1 being first
+    global_rule = Boolean() # Is it a global rule that should be processed on everything
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -335,6 +385,7 @@ class EventRule(base.BaseDocument):
 
         self.order = order
         self.save()
+
     
     def process_rql(self, event):
         '''
@@ -348,7 +399,7 @@ class EventRule(base.BaseDocument):
         else:
 
             try:
-                qp = QueryParser()
+                qp = QueryParser(organization=self.organization)
 
                 if self.query:
                     
@@ -361,7 +412,11 @@ class EventRule(base.BaseDocument):
                 # Process the event
                 if len(results) > 0:
                     self.last_matched_date = datetime.datetime.utcnow()
-                    self.save()
+                    #if self.hit_count != None:
+                    #    self.hit_count += 1
+                    #else:
+                    #    self.hit_count = 1
+                    #self.save()
                     return True
             except Exception as e:
                 raise EventRuleFailure(e)
@@ -374,24 +429,34 @@ class EventRule(base.BaseDocument):
         """
         # Check if the should be expired, disable the rule if it expired
         
-        if self.hit_count:
-            self.hit_count += 1
-        else:
-            self.hit_count = 1
-        self.save()
-
         event_acted_on = False
 
+        # Dismiss the event
         if self.dismiss:
             reason = c.CloseReason.get_by_name(title='Other')
-            event.set_dismissed(reason=reason)
+            event.set_dismissed(reason=reason, by_rule=True)
             event_acted_on = True
 
-        if self.merge_into_case:
-
-            # Add the event to the case
+        # Add the event to the case
+        if self.merge_into_case:            
             case = c.Case.get_by_uuid(self.target_case_uuid)                                
             case.add_event(event)
+            event_acted_on = True
+
+        # Add tags to the event
+        if self.add_tags:
+
+            if event.tags is None:
+                event.tags = self.tags_to_add
+            else:
+                [event.tags.append(t) for t in self.tags_to_add]
+
+            event_acted_on = True
+        
+        # Update the severity of the Event Rule calls for it to be updated
+        if self.update_severity:
+            if isinstance(self.target_severity, int):
+                event.severity = self.target_severity
             event_acted_on = True
 
         # If the event was acted on by the signature, watermark the event
@@ -400,6 +465,23 @@ class EventRule(base.BaseDocument):
         
         return event_acted_on
 
+    @classmethod
+    def get_by_name(self, name, organization=None):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search()
+        
+        response = response.filter('term', name=name)
+        if organization:
+            response = response.filter('term', organization=organization)
+            
+        response = response.execute()
+        if response:
+            user = response[0]
+            return user
+        return response
 
     @classmethod
     def get_by_title(self, title):
@@ -423,15 +505,53 @@ class EventRule(base.BaseDocument):
         return rule
 
     @classmethod
-    def get_all(self):
+    def get_all(self, organization=None):
         """
         Returns all the event rules
         """
 
         query = self.search()
+
+        if organization:
+            query = query.query('bool', should=[{'match': {'organization': organization}},{'match': {'global_rule': True}}])
+        else:
+            query = query.query('bool', should=[{'match': {'global_rule': True}}])
+
+        query = query.filter('term', active=True)
+        query = query.sort('global_rule','-created_at')
+
         query = query[0:query.count()]
         response = query.execute()
         if response:
             return list(response)
 
         return []
+
+class MutedEvent(base.BaseDocument):
+    '''
+    An Event Rule can be set to mute (dismiss) alarms for a certain period
+    and then temporarily allow an event to come in after that period expires, resetting
+    the clock and once again muting events
+    '''
+
+    event_rule = Keyword() # The event rule that triggered the mute
+    event_signature = Keyword() # The Event signature that is muted
+    last_event_processed = Date() # The last this signature was processed
+    event_uuid = Keyword() # The sourve event that triggered the mute
+
+    def mute_expired(self, time_interval: int):
+        '''
+        Returns if the timespan has expired between the current date
+        and the last time an event was allowed in to the event queue
+        
+        Parameters:
+            time_interval: int - The time in minutes to mute for
+            
+        Return:
+            boolean
+        '''
+        now = datetime.datetime.utcnow()
+        
+        time_difference = (now - self.last_event_processed)
+        minutes_since = time_difference.total_seconds/60
+        return minutes_since > time_interval

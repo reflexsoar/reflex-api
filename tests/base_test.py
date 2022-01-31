@@ -28,10 +28,10 @@ class BaseTest(unittest.TestCase):
         self.client = self.app.test_client()
         self.login()
 
-    def login(self, username='admin', password='reflex'):
+    def login(self, email='admin@reflexsoar.com', password='reflex'):
 
         body = {
-            'username': username,
+            'email': email,
             'password': password
         }
         rv = self.client.post('/api/'+API_VERSION+'/auth/login', data=json.dumps(body))

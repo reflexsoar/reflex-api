@@ -94,11 +94,11 @@ class UserTests(BaseTest):
         self.assertEqual(rv.status_code, 200)
         
         user_auth = {
-            'username': f'test-user-{self.current_timestamp}',
+            'email': f'test-user-{self.current_timestamp}',
             'password': 'foobar'
         }
 
-        time.sleep(1)
+        time.sleep(2)
 
         rv = self.client.post(f'/api/{API_VERSION}/auth/login', data=json.dumps(user_auth))
         self.assertEqual(rv.status_code, 200)

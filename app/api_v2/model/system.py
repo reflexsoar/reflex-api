@@ -86,23 +86,32 @@ class DataType(base.BaseDocument):
         name = 'reflex-data-types'
 
     @classmethod
-    def get_by_name(self, name):
+    def get_by_name(self, name, organization=None):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = self.search().query('term', name=name).execute()
+        response = self.search()
+        
+        if organization:
+            response = response.filter('term', organization=organization)
+            
+        response = response.query('term', name=name).execute()
         if response:
             user = response[0]
             return user
         return response
 
     @classmethod
-    def get_all(self):
+    def get_all(self, organization):
         '''
         Fetches all the configured DataTypes in the system
         '''
         response = self.search()
+
+        if organization:
+            response = response.filter('term', organization=organization)
+        
         response = response[0:response.count()]
         response = response.execute()
         if response:
@@ -146,6 +155,8 @@ class Settings(base.BaseDocument):
     minimum_password_length = Integer()
     enforce_password_complexity = Boolean()
     disallowed_password_keywords = Keyword()
+    case_sla_days = Integer() # The number of days a case can stay open before it's in SLA breach
+    event_sla_minutes = Integer() # The number of minutes an event can be New before its SLA breach
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -175,13 +186,18 @@ class Settings(base.BaseDocument):
         return super().save(**kwargs)
 
     @classmethod
-    def load(self):
+    def load(self, organization=None):
         '''
         Loads the settings, there should only be one entry
         in the index so execute should only return one entry, if for some
         reason there are more than one settings documents, return the most recent
         '''
-        settings = self.search().execute()
+        settings = self.search()
+
+        if organization:
+            settings = settings.filter('term', organization=organization)
+           
+        settings = settings.execute()
         if settings:
             return settings[0]
         return None
@@ -325,7 +341,7 @@ class Observable(base.BaseDocument):
         Checks the value of the observable against all threat
         lists for this type
         '''
-        theat_lists = threat.ThreatList.get_by_data_type(self.data_type)
+        theat_lists = threat.ThreatList.get_by_data_type(self.data_type, organization=self.organization)
         for l in theat_lists:
             if l.active:
                 hits = l.check_value(self.value)
@@ -340,7 +356,7 @@ class Observable(base.BaseDocument):
         expressions
         '''
 
-        data_types = DataType.get_all()
+        data_types = DataType.get_all(organization=self.organization)
         if self.data_type == "auto":
             matched = False
             for dt in data_types:
@@ -372,7 +388,6 @@ class Observable(base.BaseDocument):
         if value is not None:
             if isinstance(value, list):
                 response = self.search().query('terms', value=value).query('match', source_field=field)
-                print(response.to_dict())
                 if all_docs:
                     response = response[0:response.count()]
                     response.execute()
@@ -381,7 +396,6 @@ class Observable(base.BaseDocument):
                 documents = list(response)
             else:
                 response = self.search().query('term', value=value).query('match', source_field=field)
-                print(response.to_dict())
                 if all_docs:
                     response = response[0:response.count()]
                     response.execute()

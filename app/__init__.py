@@ -2,9 +2,8 @@ import os
 import ssl
 import atexit
 import logging
-from datetime import datetime
-from typing import Set
 from app.api_v2.model.system import Settings
+from app.services.sla_monitor.base import SLAMonitor
 from flask import Flask
 from app.services import housekeeper
 from app.services.threat_list_poller.base import ThreatListPoller
@@ -15,15 +14,18 @@ from flask_mail import Mail
 from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning) 
+
 from app.api_v2.model import (
     Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
-        Settings,Input
+        Settings,Input, Organization
 )
 
 from .defaults import (
-    create_default_case_status, create_admin_role, initial_settings, create_agent_role,
+    create_default_case_status, create_admin_role, create_default_organization, initial_settings, create_agent_role,
     create_default_closure_reasons, create_default_case_templates, create_default_data_types,
     create_default_event_status, create_analyst_role,create_admin_user
 )
@@ -90,7 +92,8 @@ def upgrade_indices():
     models = [
         Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
-        TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,Input
+        TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
+        Input,Organization
         ]
 
     for model in models:
@@ -118,16 +121,17 @@ def setup():
     Performs initial setup by setting defaults
     '''
 
-    admin_id = create_admin_user(User)
-    create_admin_role(Role, admin_id)
-    create_analyst_role(Role)
-    create_agent_role(Role)
-    create_default_data_types(DataType)
-    create_default_closure_reasons(CloseReason)
-    create_default_case_status(CaseStatus)
-    create_default_event_status(EventStatus)
-    create_default_case_templates(CaseTemplate)
-    initial_settings(Settings)
+    org_id = create_default_organization(Organization)
+    admin_id = create_admin_user(User, org_id)
+    create_admin_role(Role, admin_id, org_id, org_perms=True)
+    create_analyst_role(Role, org_id)
+    create_agent_role(Role,org_id)
+    create_default_data_types(DataType,org_id)
+    create_default_closure_reasons(CloseReason, org_id)
+    create_default_case_status(CaseStatus,org_id )
+    create_default_event_status(EventStatus,org_id)
+    create_default_case_templates(CaseTemplate, org_id)
+    initial_settings(Settings, org_id)
     return 
 
 
@@ -145,12 +149,25 @@ def create_app(environment='development'):
 
     if not app.config['SCHEDULER_DISABLED']:
         if not app.config['THREAT_POLLER_DISABLED']:
-            threat_list_poller = ThreatListPoller(app, log_level=app.config['THREAT_POLLER_LOG_LEVEL'])
+
+            memcached_config = None
+            if app.config['THREAT_POLLER_MEMCACHED_HOST'] and app.config['THREAT_POLLER_MEMCACHED_PORT']:
+                memcached_config = {
+                    'host': app.config['THREAT_POLLER_MEMCACHED_HOST'],
+                    'port': app.config['THREAT_POLLER_MEMCACHED_PORT'],
+                    'ttl': app.config['THREAT_POLLER_MEMCACHED_TTL']
+                }
+
+            threat_list_poller = ThreatListPoller(app, memcached_config=memcached_config, log_level=app.config['THREAT_POLLER_LOG_LEVEL'])
             scheduler.add_job(func=threat_list_poller.run, trigger="interval", seconds=app.config['THREAT_POLLER_INTERVAL'])
 
         if not app.config['HOUSEKEEPER_DISABLED']:
             housekeeper = HouseKeeper(app, log_level=app.config['HOUSEKEEPER_LOG_LEVEL'])
             scheduler.add_job(func=housekeeper.prune_old_agents, trigger="interval", seconds=app.config['AGENT_PRUNE_INTERVAL'])
+
+        if not app.config['SLAMONITOR_DISABLED']:
+            sla_monitor = SLAMonitor(app, log_level=app.config['SLAMONITOR_LOG_LEVEL'])
+            scheduler.add_job(func=sla_monitor.check_event_slas, trigger="interval", seconds=app.config['SLAMONITOR_INTERVAL'])
 
         scheduler.start()
         atexit.register(lambda: scheduler.shutdown())      
@@ -194,13 +211,14 @@ def create_app(environment='development'):
     # created empty
     recovery_mode = app.config['REFLEX_RECOVERY_MODE'] if 'REFLEX_RECOVERY_MODE' in app.config else os.getenv('REFLEX_RECOVERY_MODE') if os.getenv('REFLEX_RECOVERY_MODE') else False
 
-    if setup_complete() != True:
-        print("Running setup")
-        upgrade_indices()
-        if not recovery_mode:
-            setup()
-    else:
-        print("Setup already run")
-        upgrade_indices()
+    if os.getenv('FLASK_CONFIG') != 'testing':
+        if setup_complete() != True:
+            print("Running setup")
+            upgrade_indices()
+            if not recovery_mode:
+                setup()
+        else:
+            print("Setup already run")
+            upgrade_indices()
 
     return app

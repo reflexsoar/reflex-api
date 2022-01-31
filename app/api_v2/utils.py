@@ -1,3 +1,5 @@
+from app.api_v2.model.user import Organization
+import json
 import jwt
 import base64
 import datetime
@@ -7,7 +9,6 @@ import ipaddress
 
 from flask import request, current_app, abort
 from .model import EventLog, User, ExpiredToken, Settings, Agent
-
 
 def escape_special_characters_rql(value):
     '''
@@ -38,13 +39,17 @@ def log_event(event_type, *args, **kwargs):
 
     raw_event.update(kwargs)
 
+    if 'organization' in kwargs:
+        raw_event['organization'] = kwargs['organization']
+
     log = EventLog(**raw_event)
     log.save()
 
 
-def generate_token(uuid, duration=10, token_type='agent'):
+def generate_token(uuid, duration=10, organization=None, token_type='agent'):
     token_data = {
         'uuid': uuid,
+        'organization': organization,
         'iat': datetime.datetime.utcnow(),
         'type': token_type
     }
@@ -56,17 +61,66 @@ def generate_token(uuid, duration=10, token_type='agent'):
     return _access_token
 
 
+def org_check(current_user, payload):
+    '''
+    Checks to see if the current user is not a member of the default organization and if they are not
+    remove the organization field
+    '''
+    if 'organization' in payload and hasattr(current_user,'default_org') and not current_user.default_org:
+        payload.pop('organization')
+    return payload
+
+
+def check_org(f):
+    '''
+    Returns a stripped api payload if the user violates organization guidelines
+    '''
+    def wrapper(*args, **kwargs):
+        if 'current_user' in kwargs:
+            current_user = kwargs['current_user']
+            if current_user and not hasattr(current_user,'default_org') and args[0].api.payload and 'organization' in args[0].api.payload:
+                args[0].api.payload.pop('organization')
+        return f(*args, **kwargs)
+    wrapper.__doc__ = f.__doc__
+    wrapper.__name__ = f.__name__
+    return wrapper  
+
+
 def ip_approved(f):
     '''
-    Returns 401 Unauthorized if the requestor 
-    is not in the approved IP list
+    Returns 401 Unauthorized if the requestors IP is not in the approved IP list
     '''
 
     def wrapper(*args, **kwargs):
 
-        settings = Settings.load()
+        settings = None
+      
+        # If the user is current logged in to the system if they are just 
+        # load their settings
+        if 'current_user' in kwargs:
+            current_user = kwargs['current_user']
 
-        if hasattr(settings, 'require_approved_ips') and settings.require_approved_ips:
+            # Load the settings for the current user
+            settings = Settings.load(organization=current_user.organization)
+        else:
+            # If this is a logon post, take the users email and split it so that the users
+            # organization can be found, and subsequently that organizations Settings
+            if args[0].api.payload and 'email' in args[0].api.payload:
+
+                # Calculate the logon domain for the user attempting to login
+                logon_domain = args[0].api.payload['email'].split('@')[1]
+
+                # Get the organization by the logon domain
+                organization = Organization.get_by_logon_domain([logon_domain])
+
+                # Find the appropriate settings for the user and their organization
+                settings = Settings.load(organization=organization.uuid)
+
+                # If there are no settings found reject the user
+                if not settings:
+                    abort(401, "Unauthorized")
+
+        if settings and hasattr(settings, 'require_approved_ips') and settings.require_approved_ips:
 
             ip_list = settings.approved_ips
             if request.headers.getlist('X-Forwarded-For'):
@@ -90,8 +144,7 @@ def ip_approved(f):
             if not approved:
                 abort(401, "Unauthorized")
 
-        return f(*args, **kwargs)
-        
+        return f(*args, **kwargs)        
     
     wrapper.__doc__ = f.__doc__
     wrapper.__name__ = f.__name__
@@ -111,6 +164,26 @@ def token_required(f):
     return wrapper
 
 
+def default_org(f):
+
+    def wrapper(*args, **kwargs):
+        if 'current_user' in kwargs:
+            current_user = kwargs['current_user']
+        else:
+            current_user = None
+
+        if current_user and hasattr(current_user, 'default_org') and current_user.default_org:
+            kwargs['user_in_default_org'] = True
+        else:
+            kwargs['user_in_default_org'] = False
+        
+        return f(*args, **kwargs)
+
+    wrapper.__doc__ = f.__doc__
+    wrapper.__name__ = f.__name__
+    return wrapper
+
+
 def user_has(permission: str):
     '''
     Route decorator that takes a permission as a string and determines if the
@@ -122,6 +195,7 @@ def user_has(permission: str):
         def wrapper(*args, **kwargs):
             if(current_app.config['PERMISSIONS_DISABLED']):
                 return f(*args, **kwargs)
+                
             current_user = kwargs['current_user']
 
             # If this is a pairing token and its the add_agent permission
@@ -179,8 +253,7 @@ def _check_token():
     current_user = None
     if auth_header:
         try:
-            access_token = auth_header.split(' ')[1]   
-
+            access_token = auth_header.split(' ')[1]
 
             expired = ExpiredToken.search().filter('term', token=access_token).execute()
             if expired:
@@ -214,10 +287,14 @@ def _check_token():
 
                     # If the user is currently locked
                     # reject the accesss_token and expire it
-                    if current_user.locked:
+                    if hasattr(current_user,'locked') and current_user.locked:
                         expired = ExpiredToken(token=access_token)
                         expired.save()
                         abort(401, 'Unauthorized')
+
+                if 'default_org' in token and token['default_org']:
+                    current_user.default_org = True
+
 
             except ValueError:
                 abort(401, 'Token retired.')
@@ -226,6 +303,7 @@ def _check_token():
             except (jwt.DecodeError, jwt.InvalidTokenError) as e:
                 abort(401, 'Invalid access token.')
             except Exception as e:
+                print(e)
                 abort(401, 'Unknown token error.')
 
         except IndexError:

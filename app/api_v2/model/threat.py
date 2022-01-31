@@ -26,6 +26,7 @@ class ThreatList(base.BaseDocument):
     url = Text() # A url to pull threat information from
     poll_interval = Integer() # How often to pull from this list
     last_polled = Date() # The time that the list was last fetched
+    to_memcached = Boolean() # Push the contents of the list to memcached periodically
     active = Boolean()
 
     class Index: # pylint: disable=too-few-public-methods
@@ -58,10 +59,17 @@ class ThreatList(base.BaseDocument):
         Sets the values of the threat list from a list of values
         '''
         if len(values) > 0:
-            self.values = values
+            self.values = [v for v in values if v not in ('')]
 
         if from_poll:
             self.last_polled = datetime.datetime.utcnow()
+        self.save()
+
+    def polled(self):
+        '''
+        Sets the last_polled date to the current time
+        '''
+        self.last_polled = datetime.datetime.utcnow()
         self.save()
 
     @classmethod
@@ -77,14 +85,19 @@ class ThreatList(base.BaseDocument):
         return response
 
     @classmethod
-    def get_by_data_type(self, data_type):
+    def get_by_data_type(self, data_type, organization=None):
         '''
         Fetches the threat list by the data_type
         it should be associated with
         '''
-        data_type = system.DataType.get_by_name(name=data_type)
+        data_type = system.DataType.get_by_name(name=data_type, organization=organization)
         try:
-            response = self.search().query('term', data_type_uuid=data_type.uuid).execute()
+            response = self.search()
+            
+            if organization:
+                response = response.filter('term', organization=organization)
+
+            response = response.query('term', data_type_uuid=data_type.uuid).execute()
         except AttributeError:
             return []
         if response:

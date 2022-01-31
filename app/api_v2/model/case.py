@@ -52,6 +52,8 @@ class CaseComment(base.BaseDocument):
     is_closure_comment = Boolean()  # Is this comment related to closing the case
     edited = Boolean()  # Should be True when the comment is edited, Default: False
     closure_reason = Object()
+    cross_organization = Boolean()
+    other_organization = Keyword()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -168,7 +170,6 @@ class CaseTask(base.BaseDocument):
         '''
         response = self.search().query('match', case=case_uuid).query(
             'term', title=title)
-        print(response.to_dict())
         response = response.execute()
         if response:
             document = response[0]
@@ -269,7 +270,6 @@ class CloseReason(base.BaseDocument):
         return response
 
 
-
 class Case(base.BaseDocument):
     '''
     A case contains all the investigative work related to a
@@ -288,8 +288,11 @@ class Case(base.BaseDocument):
     closed_at = Date()
     close_reason = Object()
     case_template = Object()
+    case_template_uuid = Keyword()
     files = Keyword()  # The UUIDs of case files
     events = Keyword()
+    sla_breach_time = Date()
+    sla_violated = Boolean()
     _open_tasks = 0
     _total_tasks = 0
 
@@ -317,7 +320,7 @@ class Case(base.BaseDocument):
     def open_tasks(self, value):
         self._open_tasks = value
 
-    def add_observables(self, observable, case_uuid=None):
+    def add_observables(self, observable, case_uuid=None, organization=None):
         '''
         Adds an observable to the case by adding it to the observables index
         and linking the case
@@ -334,7 +337,8 @@ class Case(base.BaseDocument):
                         spotted=obs['spotted'],
                         tlp=obs['tlp'],
                         safe=obs['safe'],
-                        case=case_uuid
+                        case=case_uuid,
+                        organization=organization
                     )
                     _observable.check_threat_list()
                     _observable.enrich()
@@ -379,6 +383,61 @@ class Case(base.BaseDocument):
             username = owner_data['username']
             self.add_history(f'Owner changed to **{username}**')
         self.save()
+
+    def apply_template(self, uuid):
+        '''
+        Applies a case template
+
+        Parameters:
+            uuid(str): The UUID of the case template
+        '''
+
+        template = CaseTemplate.get_by_uuid(uuid=uuid)
+
+        if template:
+
+            for tag in template.tags:
+                if self.tags:
+                    if tag not in self.tags:
+                        self.tags.append(tag)
+                else:
+                    self.tags = [tag]
+
+            for task in template.tasks:
+                self.add_task(title=task.title, description=task.description,
+                            order=task.order, from_template=True, organization=self.organization)
+
+            self.severity = template.severity
+            self.tlp = template.tlp
+            self.save()
+
+    def remove_template(self):
+        '''
+        Removes a case template from a case, but only if no tasks have been
+        started
+
+        Return:
+            True|False - True if removal was successful, False if it was not
+        '''
+
+        if self.case_template_uuid:
+            
+            tasks_started = False
+            template = CaseTemplate.get_by_uuid(self.case_template_uuid)
+            tasks = CaseTask.get_by_case(uuid=self.uuid)
+            if tasks:
+                tasks_started = any([task.status != 0 and task.from_template for task in tasks])
+
+            if not tasks_started:
+                [task.delete() for task in tasks if task.from_template]
+                if self.tags:
+                    self.tags = [t for t in self.tags if t not in template.tags]
+                self.case_template_uuid = None
+                self.save()
+                return True
+            return False
+        return True
+
 
     def set_template(self, uuid):
         '''
@@ -546,7 +605,6 @@ class Case(base.BaseDocument):
         self.save()
 
         return True
-
 
 
 class CaseTemplateTask(InnerDoc):

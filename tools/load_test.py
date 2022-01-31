@@ -8,9 +8,15 @@ import time
 
 host = 'http://localhost'
 
+AUTH_TOKEN = None
+
+USERNAME = ''
+PASSWORD = ''
+
+
 def auth():
     response = requests.post('{}/api/v2.0/auth/login'.format(host),
-                             data=json.dumps({'username':'admin', 'password':'reflex'}),
+                             data=json.dumps({'email':USERNAME, 'password':PASSWORD}),
                              headers={'Content-Type': 'application/json'}, verify=False)
     if response.status_code == 200:
         token = response.json()['access_token']
@@ -51,16 +57,16 @@ def case_templates():
 
 def random_title_description():
   titles = [
-    {'User added to local admins': 'Someone added a normal user to local admins'},
-    {'Suspicious DNS hit': 'A machine made a request for a suspicious DNS record'},
-    {'Local account discovery': 'A machine exhibited enumeration behavior'},
-    {'CVE-2021-40444': 'Remote code execution via malicious document in word'}
+    {'User added to local admins2': 'Someone added a normal user to local admins'},
+    #{'Suspicious DNS hit': 'A machine made a request for a suspicious DNS record'},
+    #{'Local account discovery': 'A machine exhibited enumeration behavior'},
+    #{'CVE-2021-40444': 'Remote code execution via malicious document in word'}
   ]
 
   return titles[random.randint(0, len(titles)-1)]
 
 def random_severity():
-  return random.randint(0,3)
+  return random.randint(1,4)
 
 def random_host_name():
   names = [
@@ -78,17 +84,18 @@ def random_host_name():
 def random_username():
   users = [
     'brian',
-    'joe',
-    'jonathan',
-    'dave',
-    'molly',
-    'stevie',
-    'justin',
-    'josh',
-    'adam',
-    'matthew',
-    'administrator',
-    'system'
+    #'bro',
+    #'joe',
+    #'jonathan',
+    #'dave',
+    #'molly',
+    #'stevie',
+    #'justin',
+    #'josh',
+    #'adam',
+    #'matthew',
+    #'administrator',
+    #'system'
   ]
 
   return users[random.randint(0, len(users)-1)]
@@ -113,7 +120,8 @@ def random_powershell_command():
     'javascript:/*--></title></style></textarea></script></xmp><svg/onload=\'+/"/+/onmouseover=1/+/[*/[]/+alert(1)//\'>',
     '<IMG SRC="javascript:alert(\'XSS\');">',
     '<IMG SRC=javascript:alert(\'XSS\')>',
-    '<IMG SRC=javascript:alert(&quot;XSS&quot;)>'
+    '<IMG SRC=javascript:alert(&quot;XSS&quot;)>',
+    '<script>alert(\'xss\')</script>'
   ]
 
   return commands[random.randint(0, len(commands)-1)]
@@ -213,7 +221,7 @@ def random_event():
 
 while True:
   events = []
-  for i in range(0,25):
+  for i in range(0,5):
     headers = {
       'Content-Type': 'application/json'
     }
@@ -228,3 +236,4 @@ while True:
   print("Sending {} events...".format(len(events)))
   bulk(events)
   time.sleep(5)
+  break

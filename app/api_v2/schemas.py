@@ -64,7 +64,7 @@ mod_pagination = Model('Pagination', {
 })
 
 mod_auth = Model('AuthModel', {
-    'username': fields.String(default='admin'),
+    'email': fields.String(default='admin@reflexsoar.com'),
     'password': fields.String(default='reflex')
 })
 
@@ -161,7 +161,7 @@ mod_permissions = Model('Permissions', {
     'delete_credential': fields.Boolean,
     'view_credentials': fields.Boolean,
     'add_organization': fields.Boolean,
-    'view_organizatons': fields.Boolean,
+    'view_organizations': fields.Boolean,
     'update_organization': fields.Boolean,
     'delete_organization': fields.Boolean,
     'add_list': fields.Boolean,
@@ -223,6 +223,7 @@ mod_role_list = Model('Role', {
 
 mod_user_full = Model('UserFull', {
     'uuid': fields.String,
+    'organization': fields.String,
     'username': fields.String,
     'email': fields.String,
     'first_name': fields.String,
@@ -267,7 +268,8 @@ mod_user_self = Model('UserSelf', {
     'last_name': fields.String,
     'email': fields.String,
     'role': fields.Nested(mod_user_role_no_members),
-    'mfa_enabled': fields.Boolean
+    'mfa_enabled': fields.Boolean,
+    'default_org': fields.Boolean
 })
 
 mod_tag_list = Model('TagList', {
@@ -370,7 +372,8 @@ mod_observable_list_paged = Model('PagedObservableList', {
 })
 
 mod_bulk_add_observables = Model('BulkObservables', {
-    'observables': fields.List(fields.Nested(mod_observable_create))
+    'observables': fields.List(fields.Nested(mod_observable_create)),
+    'organization': fields.String
 })
 
 mod_observable_brief = Model('ShortObservableDetails', {
@@ -406,6 +409,7 @@ mod_event_create = Model('EventCreate', {
 
 mod_event_list = Model('EventList', {
     'uuid': fields.String,
+    'organization': fields.String,
     'title': fields.String(required=True),
     'reference': fields.String(required=True),
     'description': fields.String(required=True),
@@ -482,6 +486,7 @@ mod_event_rql = Model('EventDetailsRQLFormatted', {
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'source': fields.String,
+    'status': fields.Nested(mod_event_status),
     'tags': fields.List(fields.String),
     'observables': fields.List(fields.Nested(mod_observable_list)),
     'case': fields.String,
@@ -540,11 +545,13 @@ mod_credential_update = Model('CredentialUpdate', {
     'username': fields.String,
     'secret': fields.String,
     'name': fields.String,
-    'description': fields.String
+    'description': fields.String,
+    'organization': fields.String
 })
 
 mod_credential_full = Model('Credential', {
     'uuid': fields.String,
+    'organization': fields.String,
     'username': fields.String,
     'name': fields.String,
     'description': fields.String
@@ -552,6 +559,7 @@ mod_credential_full = Model('Credential', {
 
 mod_credential_list = Model('CredentialLIst', {
     'uuid': fields.String,
+    'organization': fields.String,
     'name': fields.String,
     'username': fields.String,
     'description': fields.String
@@ -563,6 +571,7 @@ mod_credential_return = Model('CredentialReturn', {
 
 mod_input_list = Model('InputList', {
     'uuid': fields.String,
+    'organization': fields.String,
     'name': fields.String,
     'plugin': fields.String,
     'description': fields.String,
@@ -577,6 +586,7 @@ mod_input_list = Model('InputList', {
 
 mod_input_create = Model('CreateInput', {
     'name': fields.String,
+    'organization': fields.String,
     'description': fields.String,
     'plugin': fields.String,
     'enabled': fields.Boolean,
@@ -596,6 +606,7 @@ mod_agent_create = Model('AgentCreate', {
 
 mod_agent_list = Model('AgentList', {
     'uuid': fields.String,
+    'organization': fields.String,
     'name': fields.String,
     'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
     'roles': fields.List(fields.String),
@@ -653,6 +664,7 @@ mod_add_events_response = Model('AddEventsToCaseResponse', {
 
 mod_list_list = Model('ListView', {
     'uuid': fields.String,
+    'organization': fields.String,
     'name': fields.String,
     'list_type': fields.String,
     'tag_on_match': fields.Boolean,
@@ -670,6 +682,7 @@ mod_list_list = Model('ListView', {
 
 mod_list_create = Model('ListCreate', {
     'name': fields.String(required=True, example='SpamHaus eDROP'),
+    'organization': fields.String,
     'list_type': fields.String(required=True, example='values'),
     'tag_on_match': fields.Boolean(example=False),
     'data_type_uuid': fields.String(required=True),
@@ -679,44 +692,73 @@ mod_list_create = Model('ListCreate', {
     'active': fields.Boolean(example=True)
 })
 
+mod_list_values = Model('ListValues', {
+    'values': fields.List(fields.String)
+})
+
 mod_event_rule_test = Model('TestEventRuleQuery', {
-    'query': fields.String,
+    'query': fields.String(required=True),
+    'organization': fields.String(required=True),
     'uuid': fields.String,
-    'event_count': fields.Integer,
-    'return_results': fields.Boolean
+    'event_count': fields.Integer(required=True),
+    'return_results': fields.Boolean,
+    'start_date': fields.String,
+    'end_date': fields.String,
 })
 
 mod_event_rule_create = Model('CreateEventRule', {
     'name': fields.String,
+    'organization': fields.String,
     'description': fields.String,
     'event_signature': fields.String,
     'merge_into_case': fields.Boolean,
     'target_case_uuid': fields.String,
+    'add_tags': fields.Boolean,
+    'tags_to_add': fields.List(fields.String),
+    'update_severity': fields.Boolean,
+    'target_severity': fields.Integer,
+    'mute_event': fields.Boolean,
+    'mute_period': fields.Integer,
     'query': fields.String,
     'dismiss': fields.Boolean,
+    'dismiss_reason': fields.String,
+    'dismiss_comment': fields.String,
     'expire': fields.Boolean,
     'expire_days': fields.Integer,
-    'active': fields.Boolean
+    'active': fields.Boolean,
+    'global_rule': fields.Boolean
 })
 
 mod_event_rule_list = Model('EventRuleList', {
     'uuid': fields.String,
+    'organization': fields.String,
     'name': fields.String,
     'description': fields.String,
     'event_signature': fields.String,
+    'dismiss_comment': fields.String,
+    'dismiss_reason': fields.String,
     'rule_signature': fields.String,
     'merge_into_case': fields.Boolean,
     'target_case_uuid': fields.String,
+    'add_tags': fields.Boolean,
+    'tags_to_add': FormatTags(attribute='tags_to_add'),
+    'update_severity': fields.Boolean,
+    'target_severity': fields.Integer,
+    'mute_event': fields.Boolean,
+    'mute_period': fields.Integer,
     'dismiss': fields.Boolean,
     'expire': fields.Boolean,
+    'expire_days': fields.Integer,
     'active': fields.Boolean,
     'query': fields.String,
     'hits': fields.Integer,
+    'hits_last_24': fields.Integer,
     'observables': fields.List(fields.Nested(mod_observable_brief)),
     'expire_at': ISO8601(attribute='expire_at'),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
-    'last_matched_date': ISO8601(attribute='last_matched_date')
+    'last_matched_date': ISO8601(attribute='last_matched_date'),
+    'global_rule': fields.Boolean
 })
 
 mod_event_rule_list_paged = Model('PagedEventRuleList', {
@@ -748,7 +790,8 @@ mod_comment = Model('CommentDetails', {
     'closure_reason': fields.Nested(mod_case_close_reason),
     'created_by': fields.Nested(mod_user_list),
     'created_at': ISO8601(attribute='created_at'),
-    'case_uuid': fields.String
+    'case_uuid': fields.String,
+    'other_organization_name': fields.String
 })
 
 mod_comment_create = Model('CommentCreate', {
@@ -806,6 +849,7 @@ mod_case_template_task_create = Model('CaseTemplateTaskCreate', {
 
 mod_case_template_create = Model('CaseTemplateCreate', {
     'title': fields.String(required=True),
+    'organization': fields.String,
     'owner_uuid': fields.String,
     'description': fields.String(required=True),
     'tags': fields.List(fields.String),
@@ -828,10 +872,11 @@ mod_case_template_task_full = Model('CaseTemplateTaskList', {
 
 mod_case_template_full = Model('CaseTemplateList', {
     'uuid': fields.String,
+    'organization': fields.String,
     'title': fields.String,
     #'owner': fields.Nested(mod_user_list),
     'description': fields.String,
-    'tags': fields.List(fields.String),
+    'tags': FormatTags(attribute='tags'),
     'tlp': fields.Integer,
     'severity': fields.Integer,
     #'status': fields.Nested(mod_event_status),
@@ -902,6 +947,7 @@ mod_case_create = Model('CaseCreate', {
 mod_case_list = Model('CaseList', {
     #'id': fields.String,
     'uuid': fields.String,
+    'organization': fields.String,
     'title': fields.String,
     'owner': fields.Nested(mod_user_list),
     #'description': fields.String,
@@ -914,6 +960,7 @@ mod_case_list = Model('CaseList', {
     #'total_tasks': ValueCount(attribute='tasks'),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
+    'case_template_uuid': fields.String
     #'created_by': fields.Nested(mod_user_list),
     #'updated_by': fields.Nested(mod_user_list),
     #'observable_count': ValueCount(attribute='observables'),
@@ -925,6 +972,7 @@ mod_case_list = Model('CaseList', {
 mod_case_details = Model('CaseDetails', {
     #'id': fields.String,
     'uuid': fields.String,
+    'organization': fields.String,
     'title': fields.String,
     'owner': fields.Nested(mod_user_list),
     'description': fields.String,
@@ -937,11 +985,12 @@ mod_case_details = Model('CaseDetails', {
     'open_tasks': fields.Integer,
     #'total_tasks': ValueCount(attribute='tasks'),
     'total_tasks': fields.Integer,
+    'case_template_uuid': fields.String,
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
     'created_by': fields.Nested(mod_user_list),
     'updated_by': fields.Nested(mod_user_list),
-    'observable_count': ValueCount(attribute='observables')
+    'observable_count': ValueCount(attribute='observables')    
     #'close_reason': fields.Nested(mod_close_reason_list),
     #'case_template': fields.Nested(mod_case_template_brief)
 })
@@ -957,6 +1006,7 @@ mod_link_cases = Model('LinkCases', {
 
 mod_audit_log = Model('AuditLog', {
     'created_at': ISO8601(),
+    'organization': fields.String,
     'event_type': fields.String,
     'message': fields.String,
     'source_user': fields.String,
@@ -983,6 +1033,11 @@ mod_create_backup = Model('CreateBackup', {
     'password': fields.String
 })
 
+mod_bulk_event_uuids = Model('BulkEventUUIDs', {
+    'events': fields.List(fields.String),
+    'organizations': JSONField(attribute='organizations')
+})
+
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full,
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create,
 mod_observable_brief, mod_observable_create, mod_observable_update, mod_raw_log, mod_permissions,
@@ -1004,4 +1059,5 @@ mod_case_task_note_create, mod_case_task_note_details, mod_audit_log, mod_audit_
 mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_events_response,
 mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plugin_manifest_action,
 mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql,
-mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_event_rule_list_paged]
+mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_event_rule_list_paged, mod_bulk_event_uuids,
+mod_list_values]

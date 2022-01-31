@@ -11,6 +11,7 @@ class QueryLexer(object):
         'FLOAT',
         'LPAREN',
         'RPAREN',
+        'COMMA',
         'EQUALS',
         'STRING',
         'ARRAY',
@@ -35,7 +36,8 @@ class QueryLexer(object):
         'EWITH',
         'NOT',
         'EXPAND',
-        'NOTEQUALS'
+        'NOTEQUALS',
+        'INTEL'
     )
 
     precedence = (
@@ -49,6 +51,7 @@ class QueryLexer(object):
 
     t_LPAREN = r'\('
     t_RPAREN = r'\)'
+    t_COMMA = r','
     t_EQUALS = r'=|eq|Eq|EQ'
     t_NOTEQUALS = r'!=|ne|NE|ne'
     t_CIDR = r'cidr|InCIDR'
@@ -67,10 +70,11 @@ class QueryLexer(object):
     t_EXISTS = r'Exists|exists|EXISTS'
     t_REGEXP = r'RegExp|regexp|regex|re'
     t_BETWEEN = r'Between|between|InRange|range'
-    t_MUTATOR = r'(\|(count|length|lowercase|uppercase|b64extract|b64decode|refang|urldecode|any|all|avg|max|min|sum|split))'
+    t_MUTATOR = r'(\|(count|length|lowercase|uppercase|b64extract|b64decode|refang|urldecode|any|all|avg|max|min|sum|split|reverse_lookup|geo_country|geo_continent|geo_timezone|is_ipv6|is_multicast|is_global|is_private|ns_lookup_a|ns_lookup_aaaa|ns_lookup_mx|ns_lookup_ptr|ns_lookup_ns|to_integer|to_string))'
     t_SWITH = r'StartsWith|startswith'
     t_EWITH = r'EndsWith|endswith'
     t_EXPAND = r'Expand|EXPAND|expand'
+    t_INTEL = r'ThreatLookup|threatlookup|threat_lookup|threatlist|ThreatList|threat|threat_list|intel_list|intel|IntelList'
     t_ignore = ' \t.'
    
     def t_NUMBER(self, t):
@@ -84,7 +88,7 @@ class QueryLexer(object):
         return t        
 
     def t_STRING(self, t):
-        r'[\"\'].*[\"\']'
+        r'[\"\'](.*?)[\"\']'
         t.value = ast.literal_eval(t.value)
         return t
 
@@ -99,7 +103,7 @@ class QueryLexer(object):
     def t_target(self, t):
         # TODO: Define all the fields a user can access here
         r'''observables(\.([^\s\|]+))?|value|tlp|tags|spotted|safe|source_field|description
-        |data_type|ioc|original_source_field|title|severity|status|reference|source
+        |data_type|ioc|original_source_field|title|severity|status(\.([^\s\|]+))?|reference|source
         |signature|tags|raw_log(\.([^\s\|]+))?
         '''
         return t
@@ -120,7 +124,12 @@ class QueryParser(object):
     tokens = QueryLexer.tokens
     search = RQLSearch()
 
-    def extract_mutators_and_fields(self, p):
+    def __init__(self, organization=None):
+        self.lexer = QueryLexer()
+        self.parser = yacc.yacc(module=self)
+        self.organization = organization
+
+    def extract_mutators_and_fields(self, p, parenthesis=False):
         mutators = []
         for part in p:
 
@@ -130,8 +139,13 @@ class QueryParser(object):
             if part in MUTATORS:
                 mutators.append(part)
 
-        field = p[1]
-        target = p[-1:][0]
+        
+        if parenthesis:
+            field = p[3]
+            target = p[-2:][0]
+        else:
+            field = p[1]
+            target = p[-1:][0]
         operator = p[-2:][0]
 
         return (mutators, field, target, operator)
@@ -160,10 +174,10 @@ class QueryParser(object):
         'expression : LPAREN expression OR expression RPAREN'
         p[0] = self.search.Or(p[2], p[4])
 
-    def p_expression_each_and_group(self, p):
-        'expression : EXPAND target LPAREN expression AND expression RPAREN'
-        p[0] = self.search.Expand(self.search.And(p[4], p[6]), key=p[2])
-    
+    def p_expression_expand(self, p):
+        'expression : EXPAND target expression'
+        p[0] = self.search.Expand(p[3], key=p[2])
+  
     def p_expression_startswith(self, p):
         """expression : target SWITH STRING
                     | target MUTATOR SWITH STRING
@@ -377,7 +391,6 @@ class QueryParser(object):
             p[0] = self.search.Not(self.search.InCIDR(**{field: target}))
         else:    
             p[0] = self.search.InCIDR(**{field: target})
-
         
 
     def p_expression_exists(self, p):
@@ -412,8 +425,29 @@ class QueryParser(object):
             p[0] = self.search.RegExp(**{field: target})
 
     def p_expression_is(self, p):
-        'expression : target IS BOOL'
-        p[0] = self.search.Is(**{p[1]: p[3]})
+        '''expression : target IS BOOL
+            | target MUTATOR IS BOOL
+            | target MUTATOR MUTATOR IS BOOL
+            | target MUTATOR MUTATOR MUTATOR IS BOOL
+            | target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+            | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+        '''
+        mutators, field, target, op = self.extract_mutators_and_fields(p)
+        p[0] = self.search.Is(mutators=mutators, **{field: target})
+
+    def p_expression_threat(self, p):
+        '''expression : INTEL LPAREN target COMMA STRING RPAREN
+            | INTEL LPAREN target MUTATOR COMMA STRING RPAREN
+            | INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
+            | INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+            | INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+            | INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+        '''
+        
+        mutators, field, target, op = self.extract_mutators_and_fields(p, parenthesis=True)
+        list_name = p[-2:][0]
+        source_field = p[3]
+        p[0] = self.search.ThreatLookup(organization=self.organization, mutators=mutators, **{source_field: list_name})       
 
     def p_expression_between(self, p):
         """expression : target BETWEEN STRING
@@ -433,10 +467,6 @@ class QueryParser(object):
 
     def p_error(self, p):
         raise ValueError("Syntax error in input")
-
-    def __init__(self):
-        self.lexer = QueryLexer()
-        self.parser = yacc.yacc(module=self)
 
     def run_search(self, data, parsed_query, marshaller=None):
      

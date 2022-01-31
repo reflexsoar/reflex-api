@@ -16,7 +16,7 @@ class AuthenticationTests(BaseTest):
 
     def test_auth_bad_username(self):
 
-        rv = self.login(username='foobar@reflexsoar.com')
+        rv = self.login(email='foobar@reflexsoar.com')
         self.assertNotEqual(rv.status_code, 200)
         self.assertEqual(rv.json['message'], 'Incorrect username or password')
 
