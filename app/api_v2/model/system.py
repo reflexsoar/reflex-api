@@ -210,6 +210,7 @@ class Settings(base.BaseDocument):
 
         _api_key = jwt.encode({
             'iat': datetime.datetime.utcnow(),
+            'organization': self.organization,
             'type': 'pairing'
         }, current_app.config['SECRET_KEY'])
 
