@@ -10,8 +10,8 @@ host = 'http://localhost'
 
 AUTH_TOKEN = None
 
-USERNAME = ''
-PASSWORD = ''
+USERNAME = 'admin@reflexsoar.com'
+PASSWORD = 'reflex'
 
 
 def auth():

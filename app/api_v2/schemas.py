@@ -596,7 +596,6 @@ mod_input_create = Model('CreateInput', {
     'field_mapping': fields.String
 })
 
-
 mod_agent_create = Model('AgentCreate', {
     'name': fields.String,
     'roles': fields.List(fields.String),
@@ -604,11 +603,16 @@ mod_agent_create = Model('AgentCreate', {
     'inputs': fields.List(fields.String)
 })
 
+mod_input_list_brief = Model('InputBrief', {
+    'uuid': fields.String,
+    'name': fields.String
+})
+
 mod_agent_list = Model('AgentList', {
     'uuid': fields.String,
     'organization': fields.String,
     'name': fields.String,
-    'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
+    'inputs': fields.List(fields.Nested(mod_input_list_brief), attribute="_inputs"),
     'roles': fields.List(fields.String),
     'groups': fields.List(fields.String),
     'active': fields.Boolean,
@@ -618,8 +622,10 @@ mod_agent_list = Model('AgentList', {
 
 mod_agent_group_list = Model('AgentGroupList', {
     'uuid': fields.String,
+    'organization': fields.String,
     'name': fields.String,
-    'description': fields.String
+    'inputs': fields.List(fields.Nested(mod_input_list_brief), attribute="_inputs"),
+    'description': fields.String,
 })
 
 mod_paged_agent_group_list = Model('PagedAgentGroupList', {
@@ -629,8 +635,10 @@ mod_paged_agent_group_list = Model('PagedAgentGroupList', {
 
 mod_agent_group_create = Model('AgentGroupList', {
     'uuid': fields.String,
+    'organization': fields.String,
     'name': fields.String,
-    'description': fields.String
+    'description': fields.String,
+    'inputs': fields.List(fields.String)
 })
 
 mod_data_type_list = Model('DataTypeList', {

@@ -72,10 +72,16 @@ class AgentGroup(base.BaseDocument):
     name = Keyword()
     description = Text()
     agents = Keyword()
+    inputs = Keyword() # A list of UUIDs of which inputs to run
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-agent-groups'
+
+    @property
+    def _inputs(self):
+        inputs = inout.Input.get_by_uuid(uuid=self.inputs)
+        return list(inputs)
 
     def add_agent(self, uuid):
         '''

@@ -2025,16 +2025,30 @@ class TagList(Resource):
             ns_tag_v2.abort(409, 'Tag already exists.')
 
 
+input_list_parser = api2.parser()
+input_list_parser.add_argument('organization', location='args', required=False)
+
 @ns_input_v2.route("")
 class InputList(Resource):
 
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_input_list, as_list=True)
+    @api2.expect(input_list_parser)
     @token_required
+    @default_org
     @user_has('view_inputs')
-    def get(self, current_user):
+    def get(self, user_in_default_org, current_user):
         ''' Returns a list of inputs '''
-        inputs = Input.search().execute()
+
+        args = input_list_parser.parse_args()
+
+        inputs = Input.search()
+
+        if user_in_default_org:
+            if args.organization:
+                inputs = inputs.filter('term', organization=args.organization)
+
+        inputs = inputs.execute()
         if inputs:
             return [i for i in inputs]
         else:
@@ -2177,7 +2191,7 @@ class AgentList(Resource):
 
             agent = Agent(**api2.payload)
             agent.save()
-            role = Role.get_by_name(name='Agent')
+            role = Role.get_by_name(name='Agent', organization=agent.organization)
             role.add_user_to_role(agent.uuid)
 
             token = generate_token(str(agent.uuid), 525600*5, token_type='agent', organization=current_user['organization'])
@@ -2235,7 +2249,7 @@ class AgentDetails(Resource):
         ''' Removes a Agent '''
         agent = Agent.get_by_uuid(uuid=uuid)
         if agent:
-            role = Role.get_by_name(name='Agent')
+            role = Role.get_by_name(name='Agent', organization=agent.organization)
             role.remove_user_from_role(uuid)
             agent.delete()
             return {'message': 'Agent successfully delete.'}
@@ -2770,16 +2784,29 @@ class BackupData(Resource):
         else:
             ns_settings_v2.abort(400, 'Password missing.')
 
+persistent_token_parser = api2.parser()
+persistent_token_parser.add_argument('organization', location='args', required=False, type=str)
+
 @ns_settings_v2.route("/generate_persistent_pairing_token")
 class PersistentPairingToken(Resource):
 
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_persistent_pairing_token)
+    @api2.expect(persistent_token_parser)
     @token_required
+    @default_org
     @user_has('create_persistent_pairing_token')
-    def get(self, current_user):
+    def get(self, user_in_default_org, current_user):
         ''' Returns a new API key for the user making the request '''
-        settings = Settings.load()
+
+        args = persistent_token_parser.parse_args()
+
+        if user_in_default_org:
+            if args.organization:
+                settings = Settings.load(organization=args.organization)
+            else:
+                settings = Settings.load(organization=current_user.organization)
+                
         return settings.generate_persistent_pairing_token()
 
 @ns_dashboard_v2.route("")

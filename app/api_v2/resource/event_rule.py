@@ -219,23 +219,24 @@ class EventRuleList(Resource):
                 event_queue = Queue()
                 [event_queue.put(e) for e in events]
 
-            for i in range(0,5):
-                if hasattr(current_user,'default_org') and current_user.default_org:
-                    p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, api.payload['organization'], matches))
-                else:
-                    p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches))
-                workers.append(p)
+            if event_queue: 
+                for i in range(0,5):
+                    if hasattr(current_user,'default_org') and current_user.default_org:
+                        p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, api.payload['organization'], matches))
+                    else:
+                        p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches))
+                    workers.append(p)
 
-            [t.start() for t in workers]
-            [t.join() for t in workers]
+                [t.start() for t in workers]
+                [t.join() for t in workers]
 
-            if matches:
-                event_rule.last_matched_date = datetime.datetime.utcnow()
-                if event_rule.hit_count != None:
-                    event_rule.hit_count += len(matches)
-                else:
-                    event_rule.hit_count = len(matches)
-                event_rule.save()
+                if matches:
+                    event_rule.last_matched_date = datetime.datetime.utcnow()
+                    if event_rule.hit_count != None:
+                        event_rule.hit_count += len(matches)
+                    else:
+                        event_rule.hit_count = len(matches)
+                    event_rule.save()
 
             return event_rule
         else:
