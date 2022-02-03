@@ -367,6 +367,7 @@ class EventRule(base.BaseDocument):
     target_severity = Keyword() # What severity to use when update_severity is True
     mute_event = Boolean() # If True, any new events with a signature matching won't get into the system
     mute_period = Integer() # Hour many minutes to mute the event for
+    mute_start_date = Date() # When did the mute period start
     hit_count = Integer() # How many times the event rule has triggered
     last_matched_date = Date() # When the rule last matched on an event
     order = Integer() # What order to process events in, 1 being first
@@ -459,6 +460,18 @@ class EventRule(base.BaseDocument):
                 event.severity = self.target_severity
             event_acted_on = True
 
+        # Set a mute period for the Event and dismiss it
+        if self.mute_event:
+
+            # If this is the first time a matching event is being muted, set the mute_start_date
+            if not self.mute_start_date:
+                self.mute_start_date = datetime.datetime.utcnow()
+
+            # If the mute period has not expired, dismiss the event
+            if not (datetime.datetime.utcnow()-self.mute_start_date).seconds/60 > self.mute_period:
+                event.set_dismissed(reason=reason, by_rule=True)
+                event_acted_on = True
+
         # If the event was acted on by the signature, watermark the event
         if event_acted_on:
             event.append_event_rule_uuid(self.uuid)
@@ -526,32 +539,3 @@ class EventRule(base.BaseDocument):
             return list(response)
 
         return []
-
-class MutedEvent(base.BaseDocument):
-    '''
-    An Event Rule can be set to mute (dismiss) alarms for a certain period
-    and then temporarily allow an event to come in after that period expires, resetting
-    the clock and once again muting events
-    '''
-
-    event_rule = Keyword() # The event rule that triggered the mute
-    event_signature = Keyword() # The Event signature that is muted
-    last_event_processed = Date() # The last this signature was processed
-    event_uuid = Keyword() # The sourve event that triggered the mute
-
-    def mute_expired(self, time_interval: int):
-        '''
-        Returns if the timespan has expired between the current date
-        and the last time an event was allowed in to the event queue
-        
-        Parameters:
-            time_interval: int - The time in minutes to mute for
-            
-        Return:
-            boolean
-        '''
-        now = datetime.datetime.utcnow()
-        
-        time_difference = (now - self.last_event_processed)
-        minutes_since = time_difference.total_seconds/60
-        return minutes_since > time_interval

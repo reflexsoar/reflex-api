@@ -109,6 +109,7 @@ def ip_approved(f):
 
                 # Calculate the logon domain for the user attempting to login
                 logon_domain = args[0].api.payload['email'].split('@')[1]
+                print(logon_domain)
 
                 # Get the organization by the logon domain
                 organization = Organization.get_by_logon_domain([logon_domain])

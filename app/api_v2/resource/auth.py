@@ -93,7 +93,6 @@ class Login(Resource):
 
         api.abort(401, 'Incorrect username or password')
 
-
 @api.route('/logout')
 class Logout(Resource):
 

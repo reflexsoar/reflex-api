@@ -3,7 +3,8 @@ def create_default_organization(cls):
     data = {
         'name': 'Default Organization',
         'description': 'The first Reflex Organization/Tenant',
-        'default_org': True
+        'default_org': True,
+        'logon_domains': ['reflexsoar.com']
     }
 
     org = cls(**data)
@@ -367,7 +368,7 @@ def initial_settings(cls, org_id):
         'data_types': ['ip','user','host','fqdn','sha1','md5','sha256','imphash','ssdeep','vthash','network','domain','url','mail','sid','mac'],
         'organization': org_id,
         'case_sla_days': 14,
-        'event_sla_minutes': 5
+        'event_sla_minutes': 5,
     }
 
     settings = cls(**settings_content)
