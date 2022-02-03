@@ -59,4 +59,4 @@ services:
 7. Bring the containers up
 8. Run `docker exec reflex-api sh -c "pipenv run python setup.py"` to perform initial setup
 8. Navigate to https://localhost
-9. Login as admin\reflex
+9. Login as admin@reflexsoar.com\reflex
