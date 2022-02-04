@@ -356,6 +356,7 @@ class Permission(InnerDoc):
     # EVENTS
     add_event = Boolean()  # Allows a user to add an event
     view_events = Boolean()  # Allows a user to view/list events
+    view_case_events = Boolean() # Allows a user to see the events on a case
     update_event = Boolean()  # Allows a user to update an events mutable properties
     delete_event = Boolean()  # Allows a user to delete an event
 

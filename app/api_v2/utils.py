@@ -108,14 +108,17 @@ def ip_approved(f):
             if args[0].api.payload and 'email' in args[0].api.payload:
 
                 # Calculate the logon domain for the user attempting to login
-                logon_domain = args[0].api.payload['email'].split('@')[1]
-                print(logon_domain)
+                if '@' in args[0].api.payload['email']:
+                    logon_domain = args[0].api.payload['email'].split('@')[1]
+                else:
+                    abort(401, "Unauthorized")
 
                 # Get the organization by the logon domain
                 organization = Organization.get_by_logon_domain([logon_domain])
 
                 # Find the appropriate settings for the user and their organization
-                settings = Settings.load(organization=organization.uuid)
+                if organization:
+                    settings = Settings.load(organization=organization.uuid)
 
                 # If there are no settings found reject the user
                 if not settings:

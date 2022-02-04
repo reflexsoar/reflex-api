@@ -1,3 +1,4 @@
+from re import search
 import uuid
 import copy
 import math
@@ -408,6 +409,56 @@ class EventListAggregated(Resource):
         else:
             return {'message': 'Event already exists'}, 409
 
+
+@api.route("/case_events/<uuid>")
+class EventsByCase(Resource):
+    '''
+    Returns only the events for a specified case the user must have the 
+    "view_case_events" permission.  This is useful for having user Roles that 
+    only have access to Cases and the related Events for that case
+    '''
+
+    @api.doc(security="Bearer")
+    @api.expect(event_list_parser)
+    @api.marshal_with(mod_event_paged_list)
+    @token_required
+    @user_has('view_case_events')
+    def get(self, uuid, current_user):
+
+        args = event_list_parser.parse_args()
+
+        start = (args.page - 1)*args.page_size
+        end = (args.page * args.page_size)
+
+        search = Event.search()
+        search = search.filter('term', case=uuid)
+
+        search = search[start:end]
+
+        total_events = search.count()
+
+        raw_event_count = total_events
+
+        pages = math.ceil(float(total_events / args.page_size))
+
+        events = search.execute() 
+        observables = {}
+
+        for event in events:
+            observables[event.uuid] = [o.to_dict() for o in event.observables]
+
+        response = {
+            'events': events,
+            'observables': json.loads(json.dumps(observables, default=str)),
+            'pagination': {
+                'total_results': raw_event_count,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
+            }
+        }
+
+        return response
 
 @api.route('/_bulk')
 class CreateBulkEvents(Resource):
