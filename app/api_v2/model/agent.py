@@ -33,11 +33,10 @@ class Agent(base.BaseDocument):
         name = 'reflex-agents'
 
     @property
-    def _inputs(self,test=False):
+    def _inputs(self):
         '''
         Fetches the details of the inputs assigned to this agent
         '''
-        print(test)
         #inputs = []
         #if self.groups and len(self.groups) > 0:
             #groups = AgentGroup.get_by_uuid(uuid=self.groups)
@@ -51,7 +50,6 @@ class Agent(base.BaseDocument):
     @property
     def _groups(self):
         groups = AgentGroup.get_by_uuid(uuid=self.groups)
-        print(groups)
         return list(groups)
 
     def has_right(self, permission):
@@ -67,12 +65,21 @@ class Agent(base.BaseDocument):
         return bool(getattr(role.permissions, permission))
 
     @classmethod
-    def get_by_name(cls, name):
+    def get_by_name(cls, name, organization=None):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = cls.search().query('term', name=name).execute()
+        response = cls.search()
+
+        if isinstance(name, list):
+            response = response.filter('terms', name=name)
+        else:
+            response = response.filter('term', name=name)
+        if organization:
+            response = response.filter('term', organization=organization)
+            
+        response = response.execute()
         if response:
             usr = response[0]
             return usr
@@ -109,3 +116,24 @@ class AgentGroup(base.BaseDocument):
         else:
             self.agents = [uuid]
         self.save()
+
+    @classmethod
+    def get_by_name(cls, name, organization=None):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = cls.search()
+
+        if isinstance(name, list):
+            response = response.filter('terms', name=name)
+        else:
+            response = response.filter('term', name=name)
+        if organization:
+            response = response.filter('term', organization=organization)
+            
+        response = response.execute()
+        if response:
+            usr = response[0]
+            return usr
+        return response

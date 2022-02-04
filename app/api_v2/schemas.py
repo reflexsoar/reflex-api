@@ -599,6 +599,7 @@ mod_input_create = Model('CreateInput', {
 mod_agent_create = Model('AgentCreate', {
     'name': fields.String,
     'roles': fields.List(fields.String),
+    'groups': fields.List(fields.String),
     'ip_address': fields.String,
     'inputs': fields.List(fields.String)
 })

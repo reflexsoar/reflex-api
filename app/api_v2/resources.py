@@ -2189,6 +2189,15 @@ class AgentList(Resource):
         agent = Agent.get_by_name(name=api2.payload['name'])
         if not agent:
 
+            if 'groups' in api2.payload:
+                groups = api2.payload.pop('groups')
+                groups = AgentGroup.get_by_name(name=groups, organization=current_user['organization'])
+                if groups:
+                    if isinstance(groups, AgentGroup):
+                        api2.payload['groups'] = [groups.uuid]
+                    else:
+                        api2.payload['groups'] = [g.uuid for g in groups]
+
             agent = Agent(**api2.payload)
             agent.save()
             role = Role.get_by_name(name='Agent', organization=agent.organization)
