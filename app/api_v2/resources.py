@@ -2705,7 +2705,7 @@ class GlobalSettings(Resource):
             organization=api2.payload.pop('organization')
 
         if 'agent_pairing_token_valid_minutes' in api2.payload:
-            if int(api2.payload['agent_pairing_token_valid_minutes']) > 365:
+            if int(api2.payload['agent_pairing_token_valid_minutes']) > 525600:
                 ns_settings_v2.abort(
                     400, 'agent_pairing_token_valid_minutes can not be greated than 365 days.')
 
