@@ -45,6 +45,9 @@ class Input(base.BaseDocument):
         ''' Defines the index to use '''
         name = 'reflex-inputs'
 
+    def __hash__(self) -> int:
+        return hash(('uuid', self.uuid, 'name', self.name))
+
     @property
     def _config(self):
         ''' Returns the configuration as a dict '''

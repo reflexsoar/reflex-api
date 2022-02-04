@@ -608,13 +608,18 @@ mod_input_list_brief = Model('InputBrief', {
     'name': fields.String
 })
 
+mod_agent_group_brief = Model('AgentGroupBrief', {
+    'uuid': fields.String,
+    'name': fields.String
+})
+
 mod_agent_list = Model('AgentList', {
     'uuid': fields.String,
     'organization': fields.String,
     'name': fields.String,
-    'inputs': fields.List(fields.Nested(mod_input_list_brief), attribute="_inputs"),
+    'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
     'roles': fields.List(fields.String),
-    'groups': fields.List(fields.String),
+    'groups': fields.List(fields.Nested(mod_agent_group_brief), attribute="_groups"),
     'active': fields.Boolean,
     'ip_address': fields.String,
     'last_heartbeat': ISO8601(attribute='last_heartbeat')

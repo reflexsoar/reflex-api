@@ -33,9 +33,26 @@ class Agent(base.BaseDocument):
         name = 'reflex-agents'
 
     @property
-    def _inputs(self):
+    def _inputs(self,test=False):
+        '''
+        Fetches the details of the inputs assigned to this agent
+        '''
+        print(test)
+        #inputs = []
+        #if self.groups and len(self.groups) > 0:
+            #groups = AgentGroup.get_by_uuid(uuid=self.groups)
+            #for group in groups:
+                #if group.inputs and len(group.inputs) > 0:
+                    #[inputs.append(i) for i in group._inputs]
         inputs = inout.Input.get_by_uuid(uuid=self.inputs)
+        #inputs = list(set(inputs))
         return list(inputs)
+
+    @property
+    def _groups(self):
+        groups = AgentGroup.get_by_uuid(uuid=self.groups)
+        print(groups)
+        return list(groups)
 
     def has_right(self, permission):
         '''
