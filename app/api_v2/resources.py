@@ -2824,11 +2824,12 @@ class PersistentPairingToken(Resource):
 
         args = persistent_token_parser.parse_args()
 
+        
+        settings = Settings.load(organization=current_user.organization)
+
         if user_in_default_org:
             if args.organization:
-                settings = Settings.load(organization=args.organization)
-            else:
-                settings = Settings.load(organization=current_user.organization)
+                settings = Settings.load(organization=args.organization)           
                 
         return settings.generate_persistent_pairing_token()
 
