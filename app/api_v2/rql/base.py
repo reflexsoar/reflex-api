@@ -1,6 +1,6 @@
 import re
 import ipaddress
-from app.api_v2.model import ThreatList
+from app.api_v2.model import ThreatList, threat
 
 from flask_restx import marshal
 from .mutators import MUTATOR_MAP, MUTATORS
@@ -557,8 +557,6 @@ class RQLSearch:
                 threat_list = threat_list.filter('term', organization=self.organization)
 
             threat_list = threat_list.execute()
-
-            print(threat_list)
             
             if threat_list:
                 threat_list = threat_list[0]

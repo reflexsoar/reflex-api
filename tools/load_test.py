@@ -10,8 +10,8 @@ host = 'http://localhost'
 
 AUTH_TOKEN = None
 
-USERNAME = 'admin@reflexsoar.com'
-PASSWORD = 'reflex'
+USERNAME = ''
+PASSWORD = ''
 
 
 def auth():
@@ -83,7 +83,7 @@ def random_host_name():
 
 def random_username():
   users = [
-    'brian',
+    'justin',
     #'bro',
     #'joe',
     #'jonathan',

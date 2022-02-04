@@ -330,10 +330,12 @@ class TestEventRQL(Resource):
                 return {'message': 'A date range is required', "succes": False}, 400
 
             search = Event.search()
-            if api.payload['organization']:
+            
+            if 'organization' in api.payload and api.payload['organization']:
                 search = search.filter('term', organization=api.payload['organization'])
             else:
-                search = search.filter('term', organization=current_user.organization)
+                if not current_user.default_org:
+                    search = search.filter('term', organization=current_user.organization)
             search = search.sort('-created_at')
             search = search[0:api.payload['event_count']]
 

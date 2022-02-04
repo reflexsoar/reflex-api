@@ -129,11 +129,9 @@ class AgentGroup(base.BaseDocument):
             response = response.filter('terms', name=name)
         else:
             response = response.filter('term', name=name)
-        if organization:
-            response = response.filter('term', organization=organization)
-            
+          
         response = response.execute()
         if response:
-            usr = response[0]
+            usr = response
             return usr
         return response
