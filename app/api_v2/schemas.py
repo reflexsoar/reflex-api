@@ -274,6 +274,7 @@ mod_user_self = Model('UserSelf', {
     'email': fields.String,
     'role': fields.Nested(mod_user_role_no_members),
     'mfa_enabled': fields.Boolean,
+    'organization': fields.String,
     'default_org': fields.Boolean
 })
 

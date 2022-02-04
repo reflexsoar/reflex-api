@@ -458,16 +458,30 @@ class UserDetails(Resource):
             ns_user_v2.abort(404, 'User not found.')
 
 
+role_list_parser = api2.parser()
+role_list_parser.add_argument('organization', location='args', required=False)
+
 @ns_role_v2.route("")
 class RoleList(Resource):
 
     @api2.doc(security="Bearer")
+    @api2.expect(role_list_parser)
     @api2.marshal_with(mod_role_list, as_list=True)
     @token_required
+    @default_org
     @user_has('view_roles')
-    def get(self, current_user):
+    def get(self, user_in_default_org, current_user):
         ''' Returns a list of Roles '''
-        roles = Role.search().execute()
+
+        args = role_list_parser.parse_args()
+
+        roles = Role.search()
+
+        if user_in_default_org:
+            if args.organization:
+                roles = roles.filter('term', organization=args.organization)
+
+        roles = roles.execute()
         if roles:
             return [r for r in roles]
         else:
