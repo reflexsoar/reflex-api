@@ -34,7 +34,9 @@ class HouseKeeper(object):
         
         self.app = app
 
-    def prune_old_agents(self, days_back=7):
+        self.agent_prune_liftime = self.app.config['AGENT_PRUNE_LIFETIME']
+
+    def prune_old_agents(self):
         ''' Automatically removes any agents that have not actively
         talked to the system in a number of days
         
@@ -46,7 +48,7 @@ class HouseKeeper(object):
         search = search[0:search.count()]
         agents = search.execute()
 
-        threshold = days_back * 86400
+        threshold = self.agent_prune_liftime * 86400
 
         for agent in agents:
             delta = datetime.datetime.utcnow() - agent.last_heartbeat
@@ -62,6 +64,15 @@ class HouseKeeper(object):
         
         Parameters:
             days_back (int): How long since the user last used the account
+        '''
+        raise NotImplementedError
+
+    def force_password_change(self, days_since=90):
+        ''' Sets the password reset required flag on a user in the system
+        if the last time they set their password is greater than days_since
+
+        Parameters:
+            days_since (int): How long its been since they set their password
         '''
         raise NotImplementedError
 
