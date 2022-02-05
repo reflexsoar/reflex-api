@@ -334,7 +334,7 @@ class TestEventRQL(Resource):
             if 'organization' in api.payload and api.payload['organization']:
                 search = search.filter('term', organization=api.payload['organization'])
             else:
-                if not current_user.default_org:
+                if hasattr(current_user, 'default_org') and not current_user.default_org:
                     search = search.filter('term', organization=current_user.organization)
             search = search.sort('-created_at')
             search = search[0:api.payload['event_count']]

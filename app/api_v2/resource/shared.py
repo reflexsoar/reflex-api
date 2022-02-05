@@ -1,3 +1,4 @@
+import json
 from flask_restx import Model, fields
 
 class ISO8601(fields.Raw):

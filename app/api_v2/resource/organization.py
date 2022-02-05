@@ -217,6 +217,7 @@ class OrganizationList(Resource):
             if not org:
 
                 organization = Organization(**api.payload)
+                organization.default_org = False
                 organization.save()
 
                 admin_details['organization'] = organization.uuid

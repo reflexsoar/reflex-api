@@ -1178,7 +1178,14 @@ class BulkSelectAll(Resource):
             }
         else:
             return {
-                'events': event_uuids
+                'events': event_uuids,
+                'organizations': {
+                    current_user.organization: {
+                        'events': event_uuids,
+                        'dismiss_reason': '',
+                        'dismiss_comment': ''
+                    }
+                }
             }
 
 @api.route("/<signature>/new_related_events")

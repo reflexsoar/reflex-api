@@ -33,18 +33,19 @@ class Agent(base.BaseDocument):
         name = 'reflex-agents'
 
     @property
+    def _input_count(self):
+        inputs = self._inputs
+        [inputs.append(g.inputs) for g in self.groups]
+        print(inputs)
+        return 0
+
+    @property
     def _inputs(self):
         '''
         Fetches the details of the inputs assigned to this agent
         '''
-        #inputs = []
-        #if self.groups and len(self.groups) > 0:
-            #groups = AgentGroup.get_by_uuid(uuid=self.groups)
-            #for group in groups:
-                #if group.inputs and len(group.inputs) > 0:
-                    #[inputs.append(i) for i in group._inputs]
+
         inputs = inout.Input.get_by_uuid(uuid=self.inputs)
-        #inputs = list(set(inputs))
         return list(inputs)
 
     @property
@@ -101,7 +102,7 @@ class AgentGroup(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-agent-groups'
-
+    
     @property
     def _inputs(self):
         inputs = inout.Input.get_by_uuid(uuid=self.inputs)
