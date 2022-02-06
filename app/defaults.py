@@ -133,6 +133,7 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False):
         'name': 'Admin',
         'description': 'Administrator',
         'permissions': perms,
+        'system_generated': True,
         'members': [admin_id],
         'organization': org_id
     }
@@ -205,6 +206,7 @@ def create_analyst_role(cls, org_id):
         'name': 'Analyst',
         'description': 'A normal analyst user',
         'permissions': perms,
+        'system_generated': True,
         'members': [],
         'organization': org_id
     }
@@ -237,6 +239,7 @@ def create_agent_role(cls, org_id):
         'name': 'Agent',
         'description': 'Reserved for agents',
         'permissions': perms,
+        'system_generated': True,
         'members': [],
         'organization': org_id
     }

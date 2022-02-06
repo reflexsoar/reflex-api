@@ -70,7 +70,8 @@ from .resource import (
     ns_organization_v2,
     ns_event_v2,
     ns_auth_v2,
-    ns_event_rule_v2
+    ns_event_rule_v2,
+    ns_role_v2
 )
 
 # Instantiate a new API object
@@ -80,8 +81,8 @@ api2 = Api(api_v2)
 # All the API namespaces
 ns_user_v2 = api2.namespace(
     'User', description='User operations', path='/user')
-ns_role_v2 = api2.namespace(
-    'Role', description='Role operations', path='/role')
+#ns_role_v2 = api2.namespace(
+ #   'Role', description='Role operations', path='/role')
 ns_settings_v2 = api2.namespace(
     'Settings', description='Settings operations', path='/settings')
 ns_credential_v2 = api2.namespace(
@@ -120,6 +121,7 @@ api2.add_namespace(ns_organization_v2)
 api2.add_namespace(ns_event_v2)
 api2.add_namespace(ns_auth_v2)
 api2.add_namespace(ns_event_rule_v2)
+api2.add_namespace(ns_role_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -457,101 +459,6 @@ class UserDetails(Resource):
         else:
             ns_user_v2.abort(404, 'User not found.')
 
-
-role_list_parser = api2.parser()
-role_list_parser.add_argument('organization', location='args', required=False)
-
-@ns_role_v2.route("")
-class RoleList(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.expect(role_list_parser)
-    @api2.marshal_with(mod_role_list, as_list=True)
-    @token_required
-    @default_org
-    @user_has('view_roles')
-    def get(self, user_in_default_org, current_user):
-        ''' Returns a list of Roles '''
-
-        args = role_list_parser.parse_args()
-
-        roles = Role.search()
-
-        if user_in_default_org:
-            if args.organization:
-                roles = roles.filter('term', organization=args.organization)
-
-        roles = roles.execute()
-        if roles:
-            return [r for r in roles]
-        else:
-            return []
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_role_create)
-    @api2.response('409', 'Role already exists.')
-    @api2.response('200', "Successfully created the role.")
-    @token_required
-    @user_has('add_role')
-    def post(self, current_user):
-        ''' Creates a new Role '''
-        role = Role.get_by_name(name=api2.payload['name'])
-        if not role:
-            role = Role(**api2.payload)
-            role.save()
-            return {'message': 'Successfully created the role.', 'uuid': str(role.uuid)}
-        else:
-            ns_role_v2.abort(409, "Role already exists.")
-
-
-@ns_role_v2.route("/<uuid>")
-class RoleDetails(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_role_create)
-    @api2.marshal_with(mod_role_list)
-    @token_required
-    @user_has('update_role')
-    def put(self, uuid, current_user):
-        ''' Updates an Role '''
-        role = Role.get_by_uuid(uuid=uuid)
-        if role:
-            exists = Role.get_by_name(name=api2.payload['name'])
-            if 'name' in api2.payload and exists and exists.uuid != role.uuid:
-                ns_role_v2.abort(409, 'Role with that name already exists.')
-            else:
-                role.update(**api2.payload)
-                return role
-        else:
-            ns_role_v2.abort(404, 'Role not found.')
-
-    @api2.doc(security="Bearer")
-    @token_required
-    @user_has('delete_role')
-    def delete(self, uuid, current_user):
-        ''' Removes a Role '''
-        role = Role.get_by_uuid(uuid=uuid)
-        if role:
-            if role.members and len(role.members) > 0:
-                ns_role_v2.abort(
-                    400, 'Can not delete a role with assigned users.  Assign the users to a new role first.')
-            else:
-                role.delete()
-                return {'message': 'Role successfully delete.'}
-        else:
-            ns_role_v2.abort(404, 'Role not found.')
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_role_list)
-    @token_required
-    @user_has('view_roles')
-    def get(self, uuid, current_user):
-        ''' Gets the details of a Role '''
-        role = Role.get_by_uuid(uuid=uuid)
-        if role:
-            return role
-        else:
-            ns_role_v2.abort(404, 'Role not found.')
 
 
 data_type_parser = api2.parser()

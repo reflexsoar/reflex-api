@@ -6,6 +6,7 @@ from .event import api as ns_event_v2
 from .organization import api as ns_organization_v2
 from .event_rule import api as ns_event_rule_v2
 from .auth import api as ns_auth_v2
+from .role import api as ns_role_v2
 
 __all__ = [
     'ns_playbook_v2',
@@ -15,6 +16,7 @@ __all__ = [
     'ns_event_v2',
     'ns_auth_v2',
     'ns_event_rule_v2',
+    'ns_role_v2',
     'mod_pagination',
     'ISO8601'
 ]

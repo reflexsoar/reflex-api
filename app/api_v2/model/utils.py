@@ -60,7 +60,8 @@ def _current_user_id_or_none(organization_only=False):
             user = u.User.get_by_uuid(uuid=current_user)
             current_user = {
                 'username': user.username,
-                'uuid': user.uuid
+                'uuid': user.uuid,
+                'organization': user.organization
             }
 
         return current_user

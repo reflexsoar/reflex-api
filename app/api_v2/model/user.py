@@ -500,6 +500,7 @@ class Role(base.BaseDocument):
     description = Text()  # A brief description of the role
     members = Keyword()  # Contains a list of user IDs
     permissions = Nested(Permission)
+    system_generated = Boolean() # If this is a default Role in the system
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

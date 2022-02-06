@@ -189,7 +189,8 @@ mod_role_create = Model('RoleCreate', {
 
 mod_user_list = Model('UserList', {
     'username': fields.String,
-    'uuid': fields.String
+    'uuid': fields.String,
+    'organization': fields.String
 })
 
 mod_user_role = Model('UserRole', {

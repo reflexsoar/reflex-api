@@ -8,6 +8,7 @@ import logging
 import ipaddress
 
 from flask import request, current_app, abort
+from flask_restx import fields
 from .model import EventLog, User, ExpiredToken, Settings, Agent
 
 def escape_special_characters_rql(value):
