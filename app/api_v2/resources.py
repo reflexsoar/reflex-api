@@ -61,7 +61,7 @@ from .model import (
 
 from app.api_v2.model.utils import escape_special_characters
 
-from .utils import default_org, ip_approved, check_org, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
+from .utils import default_org, ip_approved, check_org, page_results, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
 
 from .resource import (
     ns_playbook_v2,
@@ -126,7 +126,6 @@ api2.add_namespace(ns_role_v2)
 # Register all the schemas from flask-restx
 for model in schema_models:
     api2.models[model.name] = model
-
 
 # Generic parsers
 pager_parser = api2.parser()
@@ -1948,12 +1947,16 @@ class TagList(Resource):
 
 input_list_parser = api2.parser()
 input_list_parser.add_argument('organization', location='args', required=False)
+input_list_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+input_list_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
 
 @ns_input_v2.route("")
 class InputList(Resource):
 
     @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_input_list, as_list=True)
+    @api2.marshal_with(mod_input_list_paged, as_list=True)
     @api2.expect(input_list_parser)
     @token_required
     @default_org
@@ -1969,11 +1972,22 @@ class InputList(Resource):
             if args.organization:
                 inputs = inputs.filter('term', organization=args.organization)
 
+        inputs, total_results, pages = page_results(inputs, args.page, args.page_size)
+
         inputs = inputs.execute()
-        if inputs:
-            return [i for i in inputs]
-        else:
-            return []
+
+        response = {
+            'inputs': list(inputs),
+            'pagination': {
+                'total_results': total_results,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
+            }
+        }
+
+        return response
+        
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_input_create)
@@ -2238,22 +2252,46 @@ class AgentGroupDetails(Resource):
         return {'message': f'Successfully deleted Agent Group {group.name}'}, 200
 
 
+agent_group_list_parser = api2.parser()
+agent_group_list_parser.add_argument('organization', location='args', required=False)
+agent_group_list_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+agent_group_list_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
+
 @ns_agent_group_v2.route("")
 class AgentGroupList(Resource):
 
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_paged_agent_group_list)
+    @api2.expect(mod_agent_group_list_paged)
     @token_required
+    @default_org
     @user_has('view_agent_groups')
-    def get(self, current_user):
+    def get(self, user_in_default_org, current_user):
+
+        args = agent_group_list_parser.parse_args()
+
         groups = AgentGroup.search()
-        total_groups = groups.count()
+
+        if user_in_default_org:
+            if args.organization:
+                groups = groups.filter('term', organization=args.organization)
+
+        groups, total_results, pages = page_results(groups, args.page, args.page_size)
         groups = groups.execute()
-        if groups:
-            groups = [g for g in groups]
-        else:
-            groups = []
-        return {'groups': groups, 'pagination': {'total_results': total_groups}}
+
+        response = {
+            'groups': list(groups),
+            'pagination': {
+                'total_results': total_results,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
+            }
+        }
+
+        return response
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_agent_group_create)
