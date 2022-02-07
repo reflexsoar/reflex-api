@@ -175,8 +175,8 @@ class QueryParser(object):
         p[0] = self.search.Or(p[2], p[4])
 
     def p_expression_expand(self, p):
-        'expression : EXPAND target expression'
-        p[0] = self.search.Expand(p[3], key=p[2])
+        'expression : EXPAND target LPAREN expression RPAREN'
+        p[0] = self.search.Expand(p[4], key=p[2])
   
     def p_expression_startswith(self, p):
         """expression : target SWITH STRING
@@ -410,7 +410,17 @@ class QueryParser(object):
 
     def p_expression_regexp(self, p):
         """expression : target REGEXP STRING
+                    | target MUTATOR REGEXP STRING
+                    | target MUTATOR MUTATOR REGEXP STRING
+                    | target MUTATOR MUTATOR MUTATOR REGEXP STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
                     | target NOT REGEXP STRING
+                    | target MUTATOR NOT REGEXP STRING
+                    | target MUTATOR MUTATOR NOT REGEXP STRING
+                    | target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+                    | target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
         """
 
         contains_not = False
