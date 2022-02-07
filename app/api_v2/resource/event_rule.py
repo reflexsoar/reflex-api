@@ -316,12 +316,13 @@ class TestEventRQL(Resource):
 
         date_filtered = False
 
+        event = None
+
         if api.payload['query'] == '' or 'query' not in api.payload:
             return {'message':'Missing RQL query.', "success": False}, 400
 
         if 'uuid' in api.payload and api.payload['uuid'] not in [None, '']:
             event = Event.get_by_uuid(uuid=api.payload['uuid'])
-            print(event)
             event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
         else:
 
@@ -355,8 +356,12 @@ class TestEventRQL(Resource):
         try:
             organization = current_user.organization
 
-            if user_in_default_org and event.organization != current_user.organization:
-                organization = event.organization
+            if event:
+                if user_in_default_org and event.organization != current_user.organization:
+                    organization = event.organization
+            else:
+                if user_in_default_org and 'organization' in api.payload:
+                    organization = api.payload['organization']
             
             qp = QueryParser(organization=organization)
             parsed_query = qp.parser.parse(api.payload['query'])
