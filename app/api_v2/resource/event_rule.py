@@ -44,7 +44,8 @@ mod_event_rule_create = api.model('CreateEventRule', {
     'expire': fields.Boolean,
     'expire_days': fields.Integer,
     'active': fields.Boolean,
-    'global_rule': fields.Boolean
+    'global_rule': fields.Boolean,
+    'run_retroactively': fields.Boolean(optional=True)
 })
 
 mod_event_rule_list = api.model('EventRuleList', {
@@ -187,56 +188,58 @@ class EventRuleList(Resource):
             event_rule.active = True
             event_rule.save()
 
-            events = Event.search()
-
-            if 'organization' in api.payload and api.payload['organization']:
-                events = events.filter('term', organization=api.payload['organization'])
-            else:
-                events = events.filter('term', organization=current_user.organization)
+            if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
                 
-            events = events.filter('term', status__name__keyword='New')
-            events = [e for e in events.scan()]
+                events = Event.search()
 
-            matches = []
-            def lookbehind(queue, event_rule, organization, matches):
-                while not queue.empty():
-                    event = queue.get()
-                    matched = False
-                    try:
-                        raw_event = json.loads(json.dumps(marshal(event, mod_event_rql)))
-                        matched = event_rule.process_rql(raw_event)
-                    except EventRuleFailure as e:
-                        log_event(organization=organization, event_type='Event Rule Processing', source_user="System", event_reference=event.reference, time_taken=0, status="Failed", message=f"Failed to process event rule. {e}")
+                if 'organization' in api.payload and api.payload['organization']:
+                    events = events.filter('term', organization=api.payload['organization'])
+                else:
+                    events = events.filter('term', organization=current_user.organization)
+                    
+                events = events.filter('term', status__name__keyword='New')
+                events = [e for e in events.scan()]
 
-                    # If the rule matched, process the event
-                    if matched:
-                        event_rule.process_event(event)
-                        event.save()
-                        matches.append(event.uuid)
+                matches = []
+                def lookbehind(queue, event_rule, organization, matches):
+                    while not queue.empty():
+                        event = queue.get()
+                        matched = False
+                        try:
+                            raw_event = json.loads(json.dumps(marshal(event, mod_event_rql)))
+                            matched = event_rule.process_rql(raw_event)
+                        except EventRuleFailure as e:
+                            log_event(organization=organization, event_type='Event Rule Processing', source_user="System", event_reference=event.reference, time_taken=0, status="Failed", message=f"Failed to process event rule. {e}")
 
-            if events:
-                workers = []
-                event_queue = Queue()
-                [event_queue.put(e) for e in events]
+                        # If the rule matched, process the event
+                        if matched:
+                            event_rule.process_event(event)
+                            event.save()
+                            matches.append(event.uuid)
 
-            if event_queue: 
-                for i in range(0,5):
-                    if hasattr(current_user,'default_org') and current_user.default_org:
-                        p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, api.payload['organization'], matches))
-                    else:
-                        p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches))
-                    workers.append(p)
+                if events:
+                    workers = []
+                    event_queue = Queue()
+                    [event_queue.put(e) for e in events]
 
-                [t.start() for t in workers]
-                [t.join() for t in workers]
+                if event_queue: 
+                    for i in range(0,5):
+                        if hasattr(current_user,'default_org') and current_user.default_org:
+                            p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, api.payload['organization'], matches))
+                        else:
+                            p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches))
+                        workers.append(p)
 
-                if matches:
-                    event_rule.last_matched_date = datetime.datetime.utcnow()
-                    if event_rule.hit_count != None:
-                        event_rule.hit_count += len(matches)
-                    else:
-                        event_rule.hit_count = len(matches)
-                    event_rule.save()
+                    [t.start() for t in workers]
+                    [t.join() for t in workers]
+
+                    if matches:
+                        event_rule.last_matched_date = datetime.datetime.utcnow()
+                        if event_rule.hit_count != None:
+                            event_rule.hit_count += len(matches)
+                        else:
+                            event_rule.hit_count = len(matches)
+                        event_rule.save()
 
             return event_rule
         else:
@@ -324,6 +327,7 @@ class TestEventRQL(Resource):
         if 'uuid' in api.payload and api.payload['uuid'] not in [None, '']:
             event = Event.get_by_uuid(uuid=api.payload['uuid'])
             event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
+            
         else:
 
             # A date filter is required when not supplying a single event UUID
@@ -365,6 +369,7 @@ class TestEventRQL(Resource):
             
             qp = QueryParser(organization=organization)
             parsed_query = qp.parser.parse(api.payload['query'])
+            print(parsed_query)
             result = [r for r in qp.run_search(event_data, parsed_query)]
             hits = len(result)
 

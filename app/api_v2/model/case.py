@@ -341,7 +341,8 @@ class Case(base.BaseDocument):
                         organization=organization
                     )
                     _observable.check_threat_list()
-                    _observable.enrich()
+                    # REMOVED 2022-02-07 Use Threat List matching instead
+                    # _observable.enrich()
                     _observable.save()
         else:
             obs = observable
@@ -357,7 +358,8 @@ class Case(base.BaseDocument):
                     case=case_uuid
                 )
                 _observable.check_threat_list()
-                _observable.enrich()
+                # REMOVED 2022-02-07 Use Threat List matching instead
+                # _observable.enrich()
                 _observable.save()
 
     def get_observable_by_value(self, value):

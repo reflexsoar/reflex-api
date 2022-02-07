@@ -15,7 +15,8 @@ from . import (
     Object,
     Date,
     system,
-    utils
+    utils,
+    Nested
 )
 
 class EventStatus(base.BaseDocument):
@@ -67,7 +68,7 @@ class Event(base.BaseDocument):
     tlp = Integer()
     severity = Integer()
     tags = Keyword()
-    #event_observables = Nested(Observable)
+    event_observables = Nested()
     status = Object()
     signature = Keyword()
     dismissed = Boolean()
@@ -132,9 +133,20 @@ class Event(base.BaseDocument):
                 observable.add_event_uuid(self.uuid)
                 observable.auto_data_type()
                 observable.check_threat_list()
-                observable.enrich()
+                # REMOVED 2022-02-07 Use Threat List matching instead
+                # observable.enrich()
                 observable.save()
                 added_observables.append(observable)
+
+                if not self.event_observables:
+                    self.event_observables = {}
+
+                if observable.data_type in self.event_observables:
+                    self.event_observables[observable.data_type].append(observable.value)
+                else:
+                    self.event_observables[observable.data_type] = [observable.value]
+
+        self.save()
 
         return added_observables
 
