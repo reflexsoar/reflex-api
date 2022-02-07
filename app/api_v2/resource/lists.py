@@ -1,7 +1,7 @@
-from ..utils import check_org, token_required, user_has, ip_approved
+from ..utils import check_org, default_org, token_required, user_has, ip_approved, page_results
 from flask_restx import Resource, Namespace, fields
 from ..model import ThreatList, DataType
-from .shared import ISO8601, ValueCount, AsNewLineDelimited
+from .shared import ISO8601, ValueCount, AsNewLineDelimited, mod_pagination
 
 api = Namespace('Lists', description="Intel List operations", path="/list")
 
@@ -34,6 +34,11 @@ mod_list_list = api.model('ListView', {
     'updated_at': ISO8601(attribute='updated_at')
 })
 
+mod_list_list_paged = api.model('ListViewPaged', {
+    'lists': fields.Nested(mod_list_list),
+    'pagination': fields.Nested(mod_pagination)
+})
+
 mod_list_create = api.model('ListCreate', {
     'name': fields.String(required=True, example='SpamHaus eDROP'),
     'organization': fields.String,
@@ -57,33 +62,48 @@ list_parser.add_argument(
 list_parser.add_argument(
     'organization', location='args', required=False
 )
+list_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+list_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
 
 @api.route("")
 class ThreatListList(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_list_list, as_list=True)
+    @api.marshal_with(mod_list_list_paged, as_list=True)
     @api.expect(list_parser)
     @token_required
+    @default_org
     @user_has('view_lists')
-    def get(self, current_user):
+    def get(self, user_in_default_org, current_user):
         ''' Returns a list of ThreatLists '''
 
         args = list_parser.parse_args()
 
+        lists = ThreatList.search()
+
         if args.data_type:
+            lists = lists.filter('term', data_type=args.data_type)
 
-            if args.organization and current_user.default_org:
-                lists = ThreatList.get_by_data_type(data_type=args.data_type, organization=args.organization)
-            else:
-                lists = ThreatList.get_by_data_type(data_type=args.data_type)
-        else:
-            lists = ThreatList.search().execute()
+        if user_in_default_org and args.organization:
+            lists = lists.filter('term', organization=args.organization)
 
-        if lists:
-            return list(lists)
-        else:
-            return []
+        lists, total_results, pages = page_results(lists, args.page, args.page_size)
+
+        lists = lists.execute()
+
+        response = {
+            'lists': list(lists),
+            'pagination': {
+                'total_results': total_results,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
+            }
+        }
+        
+        return response
 
     @api.doc(security="Bearer")
     @api.expect(mod_list_create, validate=True)

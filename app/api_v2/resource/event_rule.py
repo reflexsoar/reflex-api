@@ -1,3 +1,4 @@
+from email.policy import default
 import math
 import json
 import datetime
@@ -7,7 +8,7 @@ from flask_restx import Resource, Namespace, fields, marshal
 from ..rql.parser import QueryParser
 from ..model import EventRule, Event
 from ..model.exceptions import EventRuleFailure
-from ..utils import token_required, user_has, check_org, log_event
+from ..utils import token_required, user_has, check_org, log_event, default_org
 from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict
 from .event import mod_event_status
 
@@ -196,7 +197,6 @@ class EventRuleList(Resource):
             events = events.filter('term', status__name__keyword='New')
             events = [e for e in events.scan()]
 
-
             matches = []
             def lookbehind(queue, event_rule, organization, matches):
                 while not queue.empty():
@@ -309,8 +309,9 @@ class TestEventRQL(Resource):
 
     @api.expect(mod_event_rule_test)
     @token_required
+    @default_org
     @user_has('create_event_rule')
-    def post(self, current_user):
+    def post(self, user_in_default_org, current_user):
         ''' Tests an RQL query against a target event to see if the RQL is valid '''
 
         date_filtered = False
@@ -320,6 +321,7 @@ class TestEventRQL(Resource):
 
         if 'uuid' in api.payload and api.payload['uuid'] not in [None, '']:
             event = Event.get_by_uuid(uuid=api.payload['uuid'])
+            print(event)
             event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
         else:
 
@@ -351,7 +353,12 @@ class TestEventRQL(Resource):
             event_data = [json.loads(json.dumps(marshal(e, mod_event_rql))) for e in events]
        
         try:
-            qp = QueryParser(organization=current_user.organization)
+            organization = current_user.organization
+
+            if user_in_default_org and event.organization != current_user.organization:
+                organization = event.organization
+            
+            qp = QueryParser(organization=organization)
             parsed_query = qp.parser.parse(api.payload['query'])
             result = [r for r in qp.run_search(event_data, parsed_query)]
             hits = len(result)
