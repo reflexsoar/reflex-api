@@ -11,7 +11,7 @@ mod_role_create = api.model('RoleCreate', {
     'name': fields.String,
     'organization': fields.String(optional=True),
     'description': fields.String,
-    'permissions': fields.Nested(mod_permissions, validate=True)
+    'permissions': fields.Nested(mod_permissions)
 }, strict=True)
 
 mod_role_list = api.model('Role', {
@@ -111,7 +111,7 @@ class RoleList(Resource):
 class RoleDetails(Resource):
 
     @api.doc(security="Bearer")
-    @api.expect(mod_role_create, validate=True)
+    @api.expect(mod_role_create)
     @api.marshal_with(mod_role_list)
     @token_required
     @ip_approved
