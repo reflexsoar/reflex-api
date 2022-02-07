@@ -159,6 +159,8 @@ class EventRuleList(Resource):
     @check_org
     def post(self, current_user):
         ''' Creates a new event_rule '''
+
+        print(api.payload)
         
         if 'organization' in api.payload:
             event_rule = EventRule.get_by_name(name=api.payload['name'], organization=api.payload['organization'])
@@ -189,7 +191,7 @@ class EventRuleList(Resource):
             event_rule.save()
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
-                
+
                 events = Event.search()
 
                 if 'organization' in api.payload and api.payload['organization']:
@@ -217,6 +219,7 @@ class EventRuleList(Resource):
                             event.save()
                             matches.append(event.uuid)
 
+                event_queue = None
                 if events:
                     workers = []
                     event_queue = Queue()
@@ -225,7 +228,10 @@ class EventRuleList(Resource):
                 if event_queue: 
                     for i in range(0,5):
                         if hasattr(current_user,'default_org') and current_user.default_org:
-                            p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, api.payload['organization'], matches))
+                            if 'organization' in api.payload:
+                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, api.payload['organization'], matches))
+                            else:
+                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches))
                         else:
                             p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches))
                         workers.append(p)
