@@ -6,10 +6,23 @@ import datetime
 import smtplib
 import logging
 import ipaddress
+import math
 
 from flask import request, current_app, abort
 from flask_restx import fields
 from .model import EventLog, User, ExpiredToken, Settings, Agent
+
+def page_results(search_object, page, page_size):
+    '''
+    Calculates the pagination information and applies a slice to
+    the search_object
+    '''
+    start = (page - 1)*page_size
+    end = (page * page_size)
+    search_object = search_object[start:end]
+    total_results = search_object.count()
+    pages = math.ceil(float(total_results / page_size))
+    return search_object, total_results, pages
 
 def escape_special_characters_rql(value):
     '''

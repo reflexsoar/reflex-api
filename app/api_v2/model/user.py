@@ -45,6 +45,8 @@ class User(base.BaseDocument):
     auth_realm = Keyword() # Which authentication realm to log in to
     otp_secret = Keyword()
     mfa_enabled = Boolean()
+    notification_options = Nested() # When does the user want to be notified
+    notification_methods = Keyword() # How does the user want to be notified
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

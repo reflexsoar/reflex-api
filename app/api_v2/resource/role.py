@@ -1,7 +1,8 @@
-from ..utils import token_required, user_has, ip_approved, default_org, check_org
+import math
+from ..utils import page_results, token_required, user_has, ip_approved, default_org, check_org
 from flask_restx import Resource, Namespace, fields
 from ..model import Role
-from .shared import mod_permissions, mod_user_list, ISO8601
+from .shared import mod_pagination, mod_permissions, mod_user_list, ISO8601
 
 api = Namespace('Roles',
                 description="Role operations", path="/role")
@@ -24,15 +25,24 @@ mod_role_list = api.model('Role', {
     'created_at': ISO8601(attribute='created_at')
 })
 
+mod_role_list_paged = api.model('RolesPaged', {
+    'roles': fields.Nested(mod_role_list),
+    'pagination': fields.Nested(mod_pagination)
+})
+
 role_list_parser = api.parser()
 role_list_parser.add_argument('organization', location='args', required=False)
+role_list_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+role_list_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
 
 @api.route("")
 class RoleList(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(role_list_parser)
-    @api.marshal_with(mod_role_list, as_list=True)
+    @api.marshal_with(mod_role_list_paged)
     @token_required
     @ip_approved
     @default_org    
@@ -50,11 +60,22 @@ class RoleList(Resource):
 
         roles = roles.exclude('term', name='Agent')
 
+        # Do the pagination stuff
+        roles, total_results, pages = page_results(roles, args.page, args.page_size)
+
         roles = roles.execute()
-        if roles:
-            return [r for r in roles]
-        else:
-            return []
+
+        response = {
+            'roles': list(roles),
+            'pagination': {
+                'total_results': total_results,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
+            }
+        }
+
+        return response
 
     @api.doc(security="Bearer")
     @api.expect(mod_role_create)
@@ -101,7 +122,7 @@ class RoleDetails(Resource):
         role = Role.get_by_uuid(uuid=uuid)
 
         if role:
-            exists = Role.get_by_name(name=api.payload['name'])
+            exists = Role.get_by_name(name=api.payload['name'], organization=api.payload['organization'])
 
             if 'name' in api.payload and exists and exists.uuid != role.uuid:
                 api.abort(409, 'Role with that name already exists.')
