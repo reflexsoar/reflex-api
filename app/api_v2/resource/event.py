@@ -233,7 +233,7 @@ class EventListAggregated(Resource):
 
             observables = observables.filter('terms', value=args.observables)
 
-            observables = observables.execute()
+            observables = observables.scan()
 
             event_uuids = [o.events[0] for o in observables if o.events if o.events[0] is not None]
             
