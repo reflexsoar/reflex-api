@@ -232,10 +232,11 @@ class EventListAggregated(Resource):
                     observables = observables.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
             observables = observables.filter('terms', value=args.observables)
+            observables = observables.filter('exists', field='events')
 
-            observables = observables.scan()
+            observables = observables.params(size=10000).scan()
 
-            event_uuids = [o.events[0] for o in observables if o.events if o.events[0] is not None]
+            event_uuids = [o.events[0] for o in observables]
             
             search_filters.append({
                 'type': 'terms',
@@ -284,6 +285,8 @@ class EventListAggregated(Resource):
 
             total_events = search.count()
             pages = math.ceil(float(total_events / args.page_size))
+            
+            
 
             events = search.execute()
        
