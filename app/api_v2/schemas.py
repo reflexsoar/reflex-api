@@ -572,6 +572,11 @@ mod_credential_list = Model('CredentialLIst', {
     'description': fields.String
 })
 
+mod_credential_list_paged = Model('CredentialListPaged', {
+    'credentials': fields.Nested(mod_credential_list),
+    'pagination': fields.Nested(mod_pagination)
+})
+
 mod_credential_return = Model('CredentialReturn', {
     'secret': fields.String
 })
@@ -649,6 +654,11 @@ mod_agent_list = Model('AgentList', {
     'active': fields.Boolean,
     'ip_address': fields.String,
     'last_heartbeat': ISO8601(attribute='last_heartbeat')
+})
+
+mod_agent_list_paged = Model('AgentListPaged', {
+    'agents': fields.Nested(mod_agent_list),
+    'pagination': fields.Nested(mod_pagination)
 })
 
 mod_paged_agent_group_list = Model('PagedAgentGroupList', {
@@ -1091,4 +1101,4 @@ mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_eve
 mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plugin_manifest_action,
 mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql,
 mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_event_rule_list_paged, mod_bulk_event_uuids,
-mod_list_values, mod_input_list_paged, mod_agent_group_list_paged]
+mod_list_values, mod_input_list_paged, mod_agent_group_list_paged, mod_credential_list_paged]

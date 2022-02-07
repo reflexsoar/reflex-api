@@ -2097,20 +2097,47 @@ class AgentPairToken(Resource):
         return generate_token(None, settings.agent_pairing_token_valid_minutes, current_user.organization, 'pairing')
 
 
+agent_list_parser = api2.parser()
+agent_list_parser.add_argument('organization', location='args', required=False)
+agent_list_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+agent_list_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
+
+
 @ns_agent_v2.route("")
 class AgentList(Resource):
 
     @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_agent_list, as_list=True)
+    @api2.marshal_with(mod_agent_list_paged, as_list=True)
+    @api2.expect(agent_list_parser)
     @token_required
+    @default_org
     @user_has('view_agents')
-    def get(self, current_user):
+    def get(self, user_in_default_org, current_user):
         ''' Returns a list of Agents '''
-        agents = Agent.search().execute()
-        if agents:
-            return [agent for agent in agents]
-        else:
-            return []
+
+        args = agent_list_parser.parse_args()
+
+        agents = Agent.search()
+
+        if user_in_default_org:
+            if args.organization:
+                agents = agents.filter('term', organization=args.organization)
+
+        agents, total_results, pages = page_results(agents, args.page, args.page_size)
+
+        response = {
+            'agents': list(agents),
+            'pagination': {
+                'total_results': total_results,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
+            }
+        }
+
+        return response
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_agent_create)
@@ -2346,7 +2373,7 @@ cred_parser.add_argument('page_size', type=int, location='args', default=10, req
 class CredentialList(Resource):
 
     @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_credential_list)
+    @api2.marshal_with(mod_credential_list_paged)
     @api2.expect(cred_parser)
     @token_required
     @user_has('view_credentials')
@@ -2364,33 +2391,21 @@ class CredentialList(Resource):
 
         credentials = credentials.sort(args.sort_by)
 
-        total_creds = credentials.count()
+        credentials, total_results, pages = page_results(credentials, args.page, args.page_size)
 
-        page = args.page - 1
-        pages = math.ceil(float(total_creds / args['page_size']))
-
-        start = page*args.page_size
-        end = start+args.page_size
-
-        credentials = credentials[start:end]
         credentials = credentials.execute()
 
-        """ TODO: Make this the new return for credentials
-        return {
-            'logs': credentials,
+        response = {
+            'credentials': list(credentials),
             'pagination': {
-                'page': args.page,
-                'page_size': args.page_size,
-                'total_results': total_cred,
-                'pages': pages
+                'total_results': total_results,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
             }
         }
-        """
 
-        if credentials:
-            return list(credentials)
-        else:
-            return []
+        return response
 
 
 @ns_credential_v2.route('/decrypt/<uuid>')
