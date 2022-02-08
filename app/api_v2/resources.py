@@ -1,12 +1,10 @@
 import base64
-from calendar import calendar
 import math
 import copy
 import datetime
 import os
 from queue import Queue
 import threading
-from unicodedata import name
 import uuid
 import json
 import hashlib
@@ -1946,6 +1944,7 @@ class TagList(Resource):
 
 
 input_list_parser = api2.parser()
+input_list_parser.add_argument('name', location='args', required=False)
 input_list_parser.add_argument('organization', location='args', required=False)
 input_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
@@ -1972,6 +1971,9 @@ class InputList(Resource):
             if args.organization:
                 inputs = inputs.filter('term', organization=args.organization)
 
+        if args.name:
+            inputs = inputs.filter('wildcard', name=args.name+'*')
+
         inputs, total_results, pages = page_results(inputs, args.page, args.page_size)
 
         inputs = inputs.execute()
@@ -1994,11 +1996,19 @@ class InputList(Resource):
     @api2.response('409', 'Input already exists.')
     @api2.response('200', 'Successfully create the input.')
     @token_required
+    @default_org
     @user_has('add_input')
-    def post(self, current_user):
+    def post(self, user_in_default_org, current_user):
         ''' Creates a new input '''
         _tags = []
-        inp = Input.get_by_name(name=api2.payload['name'])
+
+        if user_in_default_org:
+            if 'organization' in api2.payload:
+                inp = Input.get_by_name(name=api2.payload['name'], organization=api2.payload['organization'])
+            else:
+                inp = Input.get_by_name(name=api2.payload['name'], organization=current_user.organization)
+        else:
+            inp = Input.get_by_name(name=api2.payload['name'], organization=current_user.organization)
 
         if not inp:
 
@@ -2259,10 +2269,24 @@ class AgentGroupDetails(Resource):
     @api2.expect(mod_agent_group_create)
     @api2.marshal_with(mod_agent_group_list)
     @token_required
+    @default_org
     @user_has('update_agent_group')
-    def put(self, uuid, current_user):
+    def put(self, uuid, user_in_default_org, current_user):
 
         group = AgentGroup.get_by_uuid(uuid)
+
+        exists = None
+        if 'name' in api2.payload:
+            if user_in_default_org:
+                if 'organization' in api2.payload:
+                    exists = AgentGroup.get_by_name(api2.payload['name'], organization=api2.payload['organization'])
+                else:
+                    exists = AgentGroup.get_by_name(api2.payload['name'])
+            else:
+                exists = AgentGroup.get_by_name(api2.payload['name'])
+       
+        if exists and exists.uuid != uuid:
+            ns_agent_group_v2.abort(409, "Group with this name already exists")
 
         if group:
             group.update(**api2.payload, refresh=True)
@@ -2306,6 +2330,8 @@ class AgentGroupList(Resource):
                 groups = groups.filter('term', organization=args.organization)
 
         groups, total_results, pages = page_results(groups, args.page, args.page_size)
+
+        print(groups, total_results, pages)
         groups = groups.execute()
 
         response = {
@@ -2326,14 +2352,28 @@ class AgentGroupList(Resource):
     @api2.response('200', 'Successfully created agent group.')
     @api2.response('409', 'Agent group already exists.')
     @token_required
+    @default_org
     @user_has('add_agent_group')
-    def post(self, current_user):
+    def post(self, user_in_default_org, current_user):
         '''
         Creates a new agent group that can be used to assign 
         certain stack features to specific agents
         '''
-        group = AgentGroup(**api2.payload)
-        group.save()
+       
+        if user_in_default_org:
+            if 'organization' in api2.payload:
+                group = AgentGroup.get_by_name(name=api2.payload['name'], organization=api2.payload['organization'])
+            else:
+                group = AgentGroup.get_by_name(name=api2.payload['name'])
+        else:
+            group = AgentGroup.get_by_name(name=api2.payload['name'])
+
+        if not group:
+
+            group = AgentGroup(**api2.payload)
+            group.save()
+        else:
+            ns_agent_group_v2.abort(409, 'Group with that name already exists.')
         return group
 
 

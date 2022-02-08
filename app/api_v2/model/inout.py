@@ -63,12 +63,18 @@ class Input(base.BaseDocument):
         return self.field_mapping.to_dict()
 
     @classmethod
-    def get_by_name(self, name):
+    def get_by_name(self, name, organization=None):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = self.search().query('term', name=name).execute()
+        response = self.search()
+        response = response.filter('term', name=name)
+        
+        if organization:
+            response = response.filter('term', organization=organization)
+            
+        response = response.execute()
         if response:
             user = response[0]
             return user
