@@ -24,6 +24,5 @@ class SLAMonitor(object):
         now = datetime.datetime.utcnow()
 
         events = Event.get_by_status(status='New')
-        print(events)
         raise NotImplementedError
     

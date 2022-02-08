@@ -67,9 +67,11 @@ class BaseDocument(Document):
                 response = self.search()
                 if organization:
                     response = response.filter(organization=organization)
+                    
                 response = response.query('terms', uuid=uuid, **kwargs)
                 if all_results:
                     response = response[0:response.count()]
+
                 response = response.execute()
                 documents = list(response)
             else:

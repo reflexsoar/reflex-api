@@ -36,7 +36,6 @@ class Agent(base.BaseDocument):
     def _input_count(self):
         inputs = self._inputs
         [inputs.append(g.inputs) for g in self.groups]
-        print(inputs)
         return 0
 
     @property
@@ -105,7 +104,11 @@ class AgentGroup(base.BaseDocument):
     
     @property
     def _inputs(self):
-        inputs = inout.Input.get_by_uuid(uuid=self.inputs)
+        inputs = []
+
+        if self.inputs:
+            inputs = inout.Input.get_by_uuid(uuid=self.inputs, all_results=True)        
+
         return list(inputs)
 
     def add_agent(self, uuid):

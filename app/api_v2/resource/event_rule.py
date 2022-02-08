@@ -160,7 +160,6 @@ class EventRuleList(Resource):
     def post(self, current_user):
         ''' Creates a new event_rule '''
 
-        print(api.payload)
         
         if 'organization' in api.payload:
             event_rule = EventRule.get_by_name(name=api.payload['name'], organization=api.payload['organization'])
@@ -375,7 +374,6 @@ class TestEventRQL(Resource):
             
             qp = QueryParser(organization=organization)
             parsed_query = qp.parser.parse(api.payload['query'])
-            print(parsed_query)
             result = [r for r in qp.run_search(event_data, parsed_query)]
             hits = len(result)
 

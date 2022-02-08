@@ -2331,7 +2331,6 @@ class AgentGroupList(Resource):
 
         groups, total_results, pages = page_results(groups, args.page, args.page_size)
 
-        print(groups, total_results, pages)
         groups = groups.execute()
 
         response = {

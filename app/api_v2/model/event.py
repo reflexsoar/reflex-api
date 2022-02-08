@@ -425,11 +425,7 @@ class EventRule(base.BaseDocument):
                 # Process the event
                 if len(results) > 0:
                     self.last_matched_date = datetime.datetime.utcnow()
-                    #if self.hit_count != None:
-                    #    self.hit_count += 1
-                    #else:
-                    #    self.hit_count = 1
-                    #self.save()
+                    
                     return True
             except Exception as e:
                 raise EventRuleFailure(e)
