@@ -45,6 +45,7 @@ pymemcache = "*"
 python-geoip-python3 = "*"
 python-geoip-geolite2 = "*"
 maxminddb-geolite2 = "*"
+ndjson = "*"
 
 [requires]
 python_version = "3.8"

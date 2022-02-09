@@ -13,8 +13,8 @@ host = 'http://localhost'
 
 AUTH_TOKEN = None
 
-USERNAME = ''
-PASSWORD = ''
+USERNAME = 'user'
+PASSWORD = 'pass'
 
 
 def auth():
@@ -86,7 +86,7 @@ def random_host_name():
 
 def random_username():
   users = [
-    'justin',
+    'svc_justin',
     #'bro',
     #'joe',
     #'jonathan',
@@ -231,9 +231,23 @@ def random_event():
             "firewall",
             "source-ip"
           ]
+        },
+        {
+          "value": random_ip(),
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "ip",
+          "source_field": "source_ip",
+          "tags": [
+            "firewall",
+            "destination-ip"
+          ]
         }
       ],
-      "raw_log": json.dumps({"destination":{"ip": ip}})
+      #"raw_log": json.dumps({"destination":{"ip": ip}})
+      "raw_log": json.dumps({'raw_log': {'match_body': {'event_data': {'TargetUserName': 'svc_justin'}}}})
       
     }
   ]

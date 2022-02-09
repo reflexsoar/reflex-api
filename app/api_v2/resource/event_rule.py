@@ -1,10 +1,14 @@
-from email.policy import default
+from distutils.command.upload import upload
 import math
 import json
+import ndjson
 import datetime
 import threading
 from queue import Queue
+from flask import Response
 from flask_restx import Resource, Namespace, fields, marshal
+from werkzeug.datastructures import FileStorage
+from werkzeug.utils import secure_filename
 from ..rql.parser import QueryParser
 from ..model import EventRule, Event
 from ..model.exceptions import EventRuleFailure
@@ -310,6 +314,68 @@ class EventRuleDetails(Resource):
         if event_rule:
             event_rule.delete(refresh=True)
             return {'message': 'Sucessfully deleted the event rule.'}
+
+
+export_rule_parser = api.parser()
+export_rule_parser.add_argument('organizations', type=str, action='split', location='args', required=False)
+
+@api.route('/export')
+class ExportEventRules(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(export_rule_parser)
+    @api.header('Content-Type', 'application/x-ndjson')
+    @token_required
+    @check_org
+    @user_has('view_event_rules')
+    def get(self, current_user):
+        '''
+        Takes a list of organizations and exports all the Event Rules for the supplied organizations
+        as NDJSON, if no organizations are provided, just dump the rules for the users current
+        organization.
+        '''
+
+        args = export_rule_parser.parse_args()
+
+        event_rules = EventRule.search()
+
+        if args.organizations:
+            print(args.organizations)
+        else:   
+            event_rules = event_rules.filter('term', organization=current_user.organization)
+            
+        event_rules = event_rules.scan()
+
+        
+
+        output = ndjson.dumps([marshal(e, mod_event_rule_list) for e in event_rules])
+        resp = Response(output,headers={'Content-Type': 'application/x-ndjson', 'Content-disposition':'attachment; filename=event_rules.ndjson'})
+        
+        return resp
+
+upload_parser = api.parser()
+upload_parser.add_argument('files', location='files',
+                           type=FileStorage, required=True, action="append")
+
+@api.route('/import')
+class ImportEventRules(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(upload_parser)
+    @token_required
+    @default_org
+    @user_has('create_event_rule')
+    def post(self, user_in_default_org, current_user):
+
+        args = upload_parser.parse_args()
+
+        def allowed_file(filename):
+            return '.' in filename and filename.rsplit('.', 1)[1].lower() in ['.ndjson']
+
+        uploaded_files = args.files
+        for uploaded_file in uploaded_files:
+            print(uploaded_file)
+        return ""
 
 
 @api.route("/test_rule_rql")

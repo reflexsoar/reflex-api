@@ -84,12 +84,17 @@ class ThreatListList(Resource):
         lists = ThreatList.search()
 
         if args.data_type:
-            lists = lists.filter('term', data_type=args.data_type)
+            data_type = DataType.get_by_name(name=args.data_type)
+            if data_type:
+                lists = lists.filter('term', data_type_uuid=data_type.uuid)
 
         if user_in_default_org and args.organization:
             lists = lists.filter('term', organization=args.organization)
 
         lists, total_results, pages = page_results(lists, args.page, args.page_size)
+
+        import json
+        print(json.dumps(lists.to_dict()))
 
         lists = lists.execute()
 
