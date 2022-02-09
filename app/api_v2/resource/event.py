@@ -960,22 +960,12 @@ class BulkDeleteEvent(Resource):
 
                 event = Event.get_by_uuid(uuid=_event)
 
-                # Only support deleting events that are not in cases right now
-                if event and not event.case:
-                
-                    # TODO: Add this back if we want to allow deleting events that are in cases
-                    # Remove this event from any cases it may be associated with
-                    #if event.case:
-                    #    case = Case.get_by_uuid(uuid=event.case)
-                    #    case.remove_event(uuid=event.uuid)
-
-                    # Delete any observables from the observables index related to this event
-                    observables = Observable.get_by_event_uuid(uuid=event.uuid)
-                    for observable in observables:
-                        observable.delete()
-
-                    # Delete the event
-                    event.delete()
+                related_events = Event.get_by_signature_and_status(signature=event.signature, status='New', all_events=True)
+                if len(related_events) > 0:
+                    for evt in related_events:
+                        if hasattr(evt, 'uuid') and evt.uuid not in api.payload['events']:
+                            evt.delete()
+                event.delete()
 
         time.sleep(1)
 
