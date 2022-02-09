@@ -175,16 +175,12 @@ class EventListAggregated(Resource):
     @user_has('view_events')
     def get(self, current_user):
 
-        #start_request = datetime.datetime.utcnow()
-
         args = event_list_parser.parse_args()
 
         start = (args.page - 1)*args.page_size
         end = (args.page * args.page_size)
 
         search_filters = []
-
-        #start_filters = datetime.datetime.utcnow()
 
         if args.title__like and args.title__like != '':
             search_filters.append({
@@ -239,32 +235,12 @@ class EventListAggregated(Resource):
                 }
             })
 
-        # OBSERVABLESFIX
         if args.observables:
-            event_uuids = []
-
-            observables = Observable.search()
-
-            for _filter in search_filters:
-                if _filter['type'] == 'range':
-                    observables = observables.filter(_filter['type'], **{_filter['field']: _filter['value']})
-
-            observables = observables.filter('terms', value=args.observables)
-            observables = observables.filter('exists', field='events')
-
-            observables = observables.params(size=10000).scan()
-
-            event_uuids = [o.events[0] for o in observables]
-            
             search_filters.append({
                 'type': 'terms',
-                'field': 'uuid',
-                'value': list(set(event_uuids))
+                'field': 'event_observables.value',
+                'value': args.observables
             })
-
-        #end_filters = datetime.datetime.utcnow()
-
-        #filter_total_time = (end_filters - start_filters).total_seconds()
 
         observables = {}
 
@@ -296,11 +272,6 @@ class EventListAggregated(Resource):
             for signature in events.aggs.signature.buckets:
                 event_uuids.append(signature.uuid.buckets[0]['key'])
 
-            #agg_end = datetime.datetime.utcnow()
-            #agg_total_time = (agg_end - agg_start).total_seconds()
-
-            #search_start = datetime.datetime.utcnow()
-
             search = Event.search()
             search = search[start:end]
 
@@ -317,15 +288,9 @@ class EventListAggregated(Resource):
             pages = math.ceil(float(total_events / args.page_size))
             
             events = search.execute()
-
-            #search_end = datetime.datetime.utcnow()
-
-            #search_total_time = (search_end - search_start).total_seconds()
        
         # If filtering by a signature
         else:
-
-            #sig_filtered_search_start = datetime.datetime.utcnow()
 
             search = Event.search()
             search = search[start:end]
@@ -350,27 +315,8 @@ class EventListAggregated(Resource):
             pages = math.ceil(float(total_events / args.page_size))
 
             events = search.execute()
-
-            #sig_filtered_search_end = datetime.datetime.utcnow()
-
-            #sig_filtered_search_total_time = (sig_filtered_search_end - sig_filtered_search_start).total_seconds()
-
-            #print(f'sig_filtered_search_total_time: {sig_filtered_search_total_time}s')
-
-        
-        #response_start = datetime.datetime.utcnow()
         
         for event in events:
-
-            # DISABLED 2022-02-08 - BC/JH - Testing
-            #event.set_filters(filters=search_filters)
-            #observables[event.uuid] = [o.to_dict() for o in event.observables]
-            #print(observables)
-
-            #observables[event.uuid] = []
-            #for k in event.event_observables:
-            #    for v in event.event_observables[k]:
-            #        observables[event.uuid].append({'data_type': k, 'value': v })
             observables[event.uuid] = event.observables
                    
         response = {
@@ -383,21 +329,6 @@ class EventListAggregated(Resource):
                 'page_size': args['page_size']
             }
         }
-
-        #response_end = datetime.datetime.utcnow()
-
-        #response_total_time = (response_end - response_start).total_seconds()
-
-        #end_request = datetime.datetime.utcnow()
-
-        #request_total_time = (end_request - start_request).total_seconds()
-
-        #print(f'filter_total_time: {filter_total_time}s')
-        #print(f'agg_total_time: {agg_total_time}s')
-        #print(f'search_total_time: {search_total_time}s')
-        
-        #print(f'response_total_time: {response_total_time}s')
-        #print(f'request_total_time: {request_total_time}s')
 
         return response
 
@@ -844,26 +775,11 @@ class EventStats(Resource):
                 }
             })
 
-        event_uuids = []
-
-        # OBSERVABLESFIX
         if args.observables:
-            event_uuids = []
-
-            if any('|' in o for o in args.observables):
-                for observable in args.observables:
-                    if '|' in observable:
-                        value,field = observable.split('|')
-                        response = Observable.get_by_value_and_field(value, field)
-                        event_uuids += [o.events[0] for o in response]
-            else:
-                observables = Observable.get_by_value(args.observables)
-                event_uuids = [o.events[0] for o in observables if o.events if o.events[0] != None]
-            
             search_filters.append({
                 'type': 'terms',
-                'field': 'uuid',
-                'value': list(set(event_uuids))
+                'field': 'event_observables.value',
+                'value': args.observables
             })
 
         search = Event.search()

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "04398f0f8e4bcbfeb77dc8771de9382c8fd927a52e2aa54940a81f5a4fbef078"
+            "sha256": "57629a40dade06a9abd6ff0446e167b3b113979a3bf1063795c5ba1d2ce3e7ae"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -584,13 +584,6 @@
             ],
             "index": "pypi",
             "version": "==1.0.0"
-        },
-        "opentracing": {
-            "hashes": [
-                "sha256:a173117e6ef580d55874734d1fa7ecb6f3655160b8b8974a2a1e98e5ec9c840d"
-            ],
-            "index": "pypi",
-            "version": "==2.4.0"
         },
         "packaging": {
             "hashes": [

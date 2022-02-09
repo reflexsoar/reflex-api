@@ -68,7 +68,6 @@ class Config(object):
     ELASTIC_APM_TOKEN = os.getenv('REFLEX_ELASTIC_APM_TOKEN') if os.getenv('REFLEX_ELASTIC_APM_TOKEN') else None
     ELASTIC_APM_HOSTNAME = os.getenv('REFLEX_ELASTIC_APM_HOST') if os.getenv('REFLEX_ELASTIC_APM_HOST') else None
     ELASTIC_APM_ENVIRONMENT = os.getenv('REFLEX_ELASTIC_APM_ENV') if os.getenv('REFLEX_ELASTIC_APM_ENV') else 'dev'
-    ELASTIC_APM_TRACING = as_bool(os.getenv('REFLEX_ELASTIC_APM_TRACING')) if os.getenv('REFLEX_ELASTIC_APM_TRACING') else False
 
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
 

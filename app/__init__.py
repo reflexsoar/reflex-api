@@ -14,7 +14,6 @@ from flask_mail import Mail
 from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
 from elasticapm.contrib.flask import ElasticAPM
-from elasticapm.contrib.opentracing import Tracer
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
@@ -160,9 +159,6 @@ def create_app(environment='development'):
             'SERVER_URL': app.config['ELASTIC_APM_HOSTNAME']
         }
         apm.init_app(app, logging=True)
-
-        if app.config['ELASTIC_APM_TRACING']:
-            tracert = Tracer(client_instance=apm)
 
     if not app.config['SCHEDULER_DISABLED']:
         if not app.config['THREAT_POLLER_DISABLED']:
