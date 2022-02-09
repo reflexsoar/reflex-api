@@ -329,5 +329,10 @@ def _check_token():
             raise jwt.InvalidTokenError
     else:
         abort(403, 'Access token required.')
+
+    if current_app.config['ELASTIC_APM_ENABLED']:
+        import elasticapm
+        elasticapm.set_user_context(username=current_user.username+'-'+current_user.organization, user_id=current_user.uuid, email=current_user.email)
+
     return current_user
 

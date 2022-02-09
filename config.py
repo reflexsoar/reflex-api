@@ -4,6 +4,9 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 load_dotenv()
 
+def as_bool(value):
+    return value.lower() in ['true', '1', 't']
+
 class Config(object):
     DEBUG = False
     SECURITY_PASSWORD_HASH = 'pbkdf2_sha512'
@@ -58,6 +61,14 @@ class Config(object):
 
     # SCHEDULER CONFIG
     SCHEDULER_DISABLED = bool(os.getenv('REFLEX_DISABLE_SCHEDULER')) if os.getenv('REFLEX_DISABLE_SCHEDULER') else False
+
+    # ELASTIC APM CONFIG
+    ELASTIC_APM_ENABLED = as_bool(os.getenv('REFLEX_ELASTIC_APM_ENABLED')) if os.getenv('REFLEX_ELASTIC_APM_ENABLED') else False
+    ELASTIC_APM_SERVICE_NAME = 'reflex-api'
+    ELASTIC_APM_TOKEN = os.getenv('REFLEX_ELASTIC_APM_TOKEN') if os.getenv('REFLEX_ELASTIC_APM_TOKEN') else None
+    ELASTIC_APM_HOSTNAME = os.getenv('REFLEX_ELASTIC_APM_HOST') if os.getenv('REFLEX_ELASTIC_APM_HOST') else None
+    ELASTIC_APM_ENVIRONMENT = os.getenv('REFLEX_ELASTIC_APM_ENV') if os.getenv('REFLEX_ELASTIC_APM_ENV') else 'dev'
+    ELASTIC_APM_TRACING = as_bool(os.getenv('REFLEX_ELASTIC_APM_TRACING')) if os.getenv('REFLEX_ELASTIC_APM_TRACING') else False
 
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
 

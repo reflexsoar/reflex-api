@@ -59,7 +59,7 @@ class Event(base.BaseDocument):
     '''
 
     uuid = Keyword()
-    title = Keyword()
+    title = Keyword(fields={'text':Text()})
     description = Text()
     reference = Keyword()
     case = Keyword()
@@ -95,8 +95,15 @@ class Event(base.BaseDocument):
         '''
         Event observables
         '''
-        observables = system.Observable.get_by_event_uuid(self.uuid)
-        return [r for r in observables]
+        #observables = system.Observable.get_by_event_uuid(self.uuid)
+        observables = []
+        #for k in self.event_observables:
+        #    for v in self.event_observables[k]:
+        #        observables.append({'data_type': k, 'value': v })
+        if self.event_observables:
+            return list(self.event_observables)
+        else:
+            return []
 
     @observables.setter
     def observables(self, value):
@@ -135,16 +142,17 @@ class Event(base.BaseDocument):
                 observable.check_threat_list()
                 # REMOVED 2022-02-07 Use Threat List matching instead
                 # observable.enrich()
-                observable.save()
-                added_observables.append(observable)
+                #observable.save()
+                #added_observables.append(observable)
 
+                observables_fields = ['uuid','data_type','value','tags','safe','tlp','spotted',
+                                      'ioc','source_field','original_source_field']
+
+                observable_dict = {key: getattr(observable, key) for key in observables_fields}
                 if not self.event_observables:
-                    self.event_observables = {}
-
-                if observable.data_type in self.event_observables:
-                    self.event_observables[observable.data_type].append(observable.value)
+                    self.event_observables = [observable_dict]
                 else:
-                    self.event_observables[observable.data_type] = [observable.value]
+                    self.event_observables.append(observable_dict)
 
         self.save()
 

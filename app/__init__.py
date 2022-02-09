@@ -13,6 +13,8 @@ from flask_cors import CORS
 from flask_mail import Mail
 from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
+from elasticapm.contrib.flask import ElasticAPM
+from elasticapm.contrib.opentracing import Tracer
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
@@ -45,6 +47,7 @@ cors = CORS()
 mail = Mail()
 cache = Cache(config={'CACHE_TYPE': 'simple'})
 scheduler = BackgroundScheduler()
+apm = ElasticAPM()
 
 
 def migrate(ALIAS, move_data=True, update_alias=True):
@@ -146,6 +149,20 @@ def create_app(environment='development'):
     cache.init_app(app)
 
     authorizations = {"Bearer": {"type": "apiKey", "in": "header", "name":"Authorization"}}
+
+    if app.config['ELASTIC_APM_ENABLED']:
+        print(app.config['ELASTIC_APM_SERVICE_NAME'],app.config['ELASTIC_APM_TOKEN'],app.config['ELASTIC_APM_HOSTNAME'],app.config['ELASTIC_APM_ENVIRONMENT'])
+        app.config['ELASTIC_APM'] = {
+            'SERVICE_NAME': app.config['ELASTIC_APM_SERVICE_NAME'],
+            'SECRET_TOKEN': app.config['ELASTIC_APM_TOKEN'],
+            'DEBUG': True,
+            'ENVIRONMENT': app.config['ELASTIC_APM_ENVIRONMENT'],
+            'SERVER_URL': app.config['ELASTIC_APM_HOSTNAME']
+        }
+        apm.init_app(app, logging=True)
+
+        if app.config['ELASTIC_APM_TRACING']:
+            tracert = Tracer(client_instance=apm)
 
     if not app.config['SCHEDULER_DISABLED']:
         if not app.config['THREAT_POLLER_DISABLED']:

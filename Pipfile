@@ -46,6 +46,9 @@ python-geoip-python3 = "*"
 python-geoip-geolite2 = "*"
 maxminddb-geolite2 = "*"
 ndjson = "*"
+elastic-apm = {extras = ["flask"], version = "*"}
+psutil = "*"
+opentracing = "*"
 
 [requires]
 python_version = "3.8"

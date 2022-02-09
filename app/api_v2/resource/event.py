@@ -43,6 +43,19 @@ mod_observable_create = api.model('ObservableCreate', {
     'original_source_field': fields.String
 })
 
+mod_observable_list = api.model('ObservableList', {
+    'uuid': fields.String(),
+    'value': fields.String(required=True),
+    'ioc': fields.Boolean,
+    'tlp': fields.Integer,
+    'spotted': fields.Boolean,
+    'safe': fields.Boolean,
+    'data_type': fields.String(required=True),
+    'tags': fields.List(fields.String),
+    'source_field': fields.String,
+    'original_source_field': fields.String
+})
+
 mod_event_create = api.model('EventCreate', {
     'title': fields.String(required=True),
     'reference': fields.String(required=True),
@@ -69,6 +82,7 @@ mod_event_list = api.model('EventList', {
     'tags': fields.List(fields.String),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
+    'observables': fields.List(fields.Nested(mod_observable_list)),
     'case': fields.String,
     'signature': fields.String,
     'related_events_count': fields.Integer,
@@ -77,7 +91,6 @@ mod_event_list = api.model('EventList', {
 
 mod_event_paged_list = api.model('PagedEventList', {
    'events': fields.List(fields.Nested(mod_event_list)),
-   'observables': JSONField,
    'pagination': fields.Nested(mod_pagination)
 })
 
@@ -226,6 +239,7 @@ class EventListAggregated(Resource):
                 }
             })
 
+        # OBSERVABLESFIX
         if args.observables:
             event_uuids = []
 
@@ -282,10 +296,10 @@ class EventListAggregated(Resource):
             for signature in events.aggs.signature.buckets:
                 event_uuids.append(signature.uuid.buckets[0]['key'])
 
-            agg_end = datetime.datetime.utcnow()
+            #agg_end = datetime.datetime.utcnow()
             #agg_total_time = (agg_end - agg_start).total_seconds()
 
-            search_start = datetime.datetime.utcnow()
+            #search_start = datetime.datetime.utcnow()
 
             search = Event.search()
             search = search[start:end]
@@ -353,10 +367,11 @@ class EventListAggregated(Resource):
             #observables[event.uuid] = [o.to_dict() for o in event.observables]
             #print(observables)
 
-            observables[event.uuid] = []
-            for k in event.event_observables:
-                for v in event.event_observables[k]:
-                    observables[event.uuid].append({'data_type': k, 'value': v })
+            #observables[event.uuid] = []
+            #for k in event.event_observables:
+            #    for v in event.event_observables[k]:
+            #        observables[event.uuid].append({'data_type': k, 'value': v })
+            observables[event.uuid] = event.observables
                    
         response = {
             'events': events,
@@ -831,6 +846,7 @@ class EventStats(Resource):
 
         event_uuids = []
 
+        # OBSERVABLESFIX
         if args.observables:
             event_uuids = []
 
@@ -1150,6 +1166,7 @@ class BulkSelectAll(Resource):
                 }
             })
 
+        # OBSERVABLESFIX
         if args.observables:
             event_uuids = []
 
