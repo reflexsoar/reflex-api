@@ -10,7 +10,7 @@ import threading
 from queue import Queue
 from flask import current_app
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
-from ..model import Event, Observable, EventRule, CloseReason
+from ..model import Event, Observable, EventRule, CloseReason, Nested, Q
 from ..model.exceptions import EventRuleFailure
 from ..utils import check_org, token_required, user_has, log_event
 from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list
@@ -235,13 +235,6 @@ class EventListAggregated(Resource):
                 }
             })
 
-        if args.observables:
-            search_filters.append({
-                'type': 'terms',
-                'field': 'event_observables.value',
-                'value': args.observables
-            })
-
         observables = {}
 
         raw_event_count = 0
@@ -258,6 +251,9 @@ class EventListAggregated(Resource):
             # Apply all filters
             for _filter in search_filters:
                 search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+
+            if args.observables:
+                search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": args.observables}}))            
                 
             raw_event_count = search.count()
 
@@ -775,18 +771,14 @@ class EventStats(Resource):
                 }
             })
 
-        if args.observables:
-            search_filters.append({
-                'type': 'terms',
-                'field': 'event_observables.value',
-                'value': args.observables
-            })
-
         search = Event.search()
 
         # Apply all filters
         for _filter in search_filters:
             search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+
+        if args.observables:
+            search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": args.observables}}))  
 
         search.aggs.bucket('range', 'filter', range={'created_at': {
                         'gte': args.start,

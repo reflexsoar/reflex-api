@@ -21,7 +21,9 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
         Object,
         Float,
         A,
-        Search
+        Search,
+        Nested,
+        Q
     )
 else:
     from elasticsearch_dsl.utils import AttrList
@@ -38,7 +40,9 @@ else:
         Object,
         Float,
         A,
-        Search
+        Search,
+        Nested,
+        Q
     )
 
 from .user import User, Role, ExpiredToken, Organization
