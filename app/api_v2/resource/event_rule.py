@@ -107,7 +107,6 @@ mod_event_rql = api.model('EventDetailsRQLFormatted', {
     'signature': fields.String
 })
 
-
 event_rule_list_parser = api.parser()
 event_rule_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
 event_rule_list_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
@@ -425,7 +424,7 @@ class TestEventRQL(Resource):
                 }})
 
             events = search.execute()
-            
+           
             event_data = [json.loads(json.dumps(marshal(e, mod_event_rql))) for e in events]
        
         try:

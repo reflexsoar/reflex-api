@@ -43,19 +43,6 @@ mod_observable_create = api.model('ObservableCreate', {
     'original_source_field': fields.String
 })
 
-mod_observable_list = api.model('ObservableList', {
-    'uuid': fields.String(),
-    'value': fields.String(required=True),
-    'ioc': fields.Boolean,
-    'tlp': fields.Integer,
-    'spotted': fields.Boolean,
-    'safe': fields.Boolean,
-    'data_type': fields.String(required=True),
-    'tags': fields.List(fields.String),
-    'source_field': fields.String,
-    'original_source_field': fields.String
-})
-
 mod_event_create = api.model('EventCreate', {
     'title': fields.String(required=True),
     'reference': fields.String(required=True),
@@ -129,7 +116,6 @@ mod_event_details = api.model('EventDetails', {
     'dismiss_reason': fields.String,
     'dismiss_comment': fields.String
 })
-
 
 event_list_parser = api.parser()
 event_list_parser.add_argument('status', location='args', default=[

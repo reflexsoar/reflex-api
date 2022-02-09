@@ -62,6 +62,7 @@ mod_data_type_list = Model('DataTypeList', {
 })
 
 mod_observable_list = Model('ObservableList', {
+    'uuid': fields.String,
     'tags': fields.List(fields.String),
     'value': fields.String,
     'ioc': fields.Boolean,
