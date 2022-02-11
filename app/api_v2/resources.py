@@ -10,6 +10,7 @@ import json
 import hashlib
 import re
 
+from app import event_queue, pusher_queue
 from app.api_v2.model.exceptions import EventRuleFailure
 from app.api_v2.model.user import Organization
 from app.api_v2.resource import organization
@@ -2831,6 +2832,17 @@ class PersistentPairingToken(Resource):
                 settings = Settings.load(organization=args.organization)           
                 
         return settings.generate_persistent_pairing_token()
+
+@ns_settings_v2.route("/ingest_stats")
+class IngestStats(Resource):
+
+    def get(self):
+        response = {
+            'event_process_queue': event_queue.qsize(),
+            'event_pusher_queue': pusher_queue.qsize(),
+            #'last_event_process_time_ms': 0.00
+        }
+        return response
 
 @ns_dashboard_v2.route("")
 class DashboardMetrics(Resource):
