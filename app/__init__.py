@@ -140,6 +140,11 @@ def setup():
 def create_app(environment='development'):
 
     app = Flask(__name__, instance_relative_config=True)
+
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
+
     app.config.from_object(app_config[os.getenv('FLASK_CONFIG', environment)])
     app.config.from_pyfile('application.conf', silent=True)
 

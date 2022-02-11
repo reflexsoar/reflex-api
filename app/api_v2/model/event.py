@@ -303,11 +303,9 @@ class Event(base.BaseDocument):
         if all_events:
             response = response[0:response.count()]
             
-        response = response.execute()
-        if len(response) >= 1:
-            return list(response)
-        else:
-            return [response]
+        response = list(response.scan())
+        return response
+
 
     @classmethod
     def get_by_case(self, case):
@@ -450,7 +448,7 @@ class EventRule(base.BaseDocument):
 
         # Dismiss the event
         if self.dismiss:
-            reason = c.CloseReason.get_by_name(title='Other')
+            reason = c.CloseReason.get_by_uuid(uuid=self.dismiss_reason)
             event.set_dismissed(reason=reason, by_rule=True)
             event_acted_on = True
 

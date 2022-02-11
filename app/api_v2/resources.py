@@ -937,6 +937,8 @@ class CaseList(Resource):
                     for related_event in related_events:
                         related_event.set_open()
                         related_event.set_case(uuid=case.uuid)
+
+                        # PERFORMANCE ISSUE FIX ME
                         case_observables += Observable.get_by_event_uuid(related_event.uuid)
                         uuids.append(related_event.uuid)
 
