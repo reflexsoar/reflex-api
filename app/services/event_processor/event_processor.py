@@ -13,6 +13,7 @@ import hashlib
 import datetime
 import logging
 from multiprocessing import Process
+import multiprocessing
 from app.api_v2.model import (
     Event,
     EventRule,
@@ -23,6 +24,7 @@ from app.api_v2.rql import (
     QueryParser,
     RQLSearch
 )
+from ..utils import execution_timer
 
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
@@ -107,6 +109,7 @@ class EventWorker(Process):
     in to Reflex
     '''
 
+    @execution_timer
     def __init__(self, app_config, event_queue, pusher_queue, event_cache):
         super(EventWorker, self).__init__()
         self.app_config = app_config
@@ -119,7 +122,7 @@ class EventWorker(Process):
         self.reasons = []
         self.es = None
 
-
+    @execution_timer
     def build_elastic_connection(self):
         elastic_connection = {
             'hosts': self.app_config['ELASTICSEARCH_URL'],
@@ -141,6 +144,7 @@ class EventWorker(Process):
 
         return connections.create_connection(**elastic_connection)
 
+    @execution_timer
     def load_rules(self):
         '''
         Fetches all the Event Rules in the system to prevent many requests to
@@ -156,6 +160,7 @@ class EventWorker(Process):
 
         self.rules = rules
 
+    @execution_timer
     def load_cases(self):
         '''
         Fetches all the Cases in the system to prevent many requests to
@@ -166,6 +171,7 @@ class EventWorker(Process):
         cases = search.scan()
         self.cases = list(cases)
 
+    @execution_timer
     def load_close_reasons(self):
         '''
         Fetches all the Closure Reasons in the system to prevent many requests to
@@ -175,14 +181,17 @@ class EventWorker(Process):
         reasons = search.scan()
         self.reasons = list(reasons)
 
+    @execution_timer
     def check_cache(self, reference):
         raise NotImplementedError
 
+    @execution_timer
     def reload_meta_info(self):
         self.load_rules()
         self.load_cases()
         self.load_close_reasons()
 
+    @execution_timer
     def run(self):
         ''' Processes events from the Event Queue '''
 
@@ -190,6 +199,56 @@ class EventWorker(Process):
         
         self.reload_meta_info()
         events_processed = 0
+
+        #def process_event(raw_event, rules, cases, reasons):
+#
+            #organization = raw_event['organization']
+#        
+            #if 'signature' not in raw_event or raw_event['signature'] == '':         
+                #hasher = hashlib.md5()               
+                #date_string = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                #hasher.update(f"{raw_event['title']}{date_string}".encode('utf-8'))
+                #raw_event['signature'] = hasher.hexdigest()
+#            
+            ## Add the current users organization to the event signature
+            #hasher_b = hashlib.md5()
+            #hasher_b.update(raw_event['signature'].encode('utf-8')+organization.encode('utf-8'))
+            #raw_event['signature'] = hasher_b.hexdigest()
+#
+            ## Process Global Event Rules
+            #for rule in rules:
+                #matched = False
+                #if rule.global_rule:
+                    ##print('Matched', rule.uuid, raw_event['reference'])
+                    #matched = rule.check_rule(raw_event)
+                    ##matched = rule.process_rql(raw_event)
+#            
+                #if rule.organization == organization and not matched:
+                    #matched = rule.check_rule(raw_event)
+                #else:
+                    #pass
+                    ##print('Skipping rule already matched', rule.uuid, raw_event['reference'])
+#
+                #if matched:
+                    #pass
+                    ##print('updating event data with rule information', rule.uuid, raw_event['reference'])
+#
+            #return raw_event
+#
+#
+        #event_spool = []
+        #while True:
+#
+            #if not self.event_queue.empty() or len(event_spool) != 100:
+                #event = self.event_queue.get()
+                #event_spool.append((event, self.rules, self.cases, self.reasons))
+            #else:
+                #results = []
+                #pool = multiprocessing.Pool(processes=(multiprocessing.cpu_count() -1))
+                #r = pool.starmap_async(process_event, event_spool, callback=results.append)
+                #r.get()
+                #event_spool = []
+
         while True:           
 
             if self.event_queue.empty():
@@ -236,6 +295,8 @@ class EventWorker(Process):
             if matched:
                 pass
                 #print('updating event data with rule information', rule.uuid, raw_event['reference'])
+
+        return raw_event
 
         '''
         event = Event.get_by_reference(raw_event['reference'], organization=organization)
