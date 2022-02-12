@@ -70,7 +70,7 @@ class Config(object):
     ELASTIC_APM_ENVIRONMENT = os.getenv('REFLEX_ELASTIC_APM_ENV') if os.getenv('REFLEX_ELASTIC_APM_ENV') else 'dev'
 
     EVENT_PROCESSOR = {
-        'DISABLED': True, # TODO: Make this an env variable
+        'DISABLED': False, # TODO: Make this an env variable
         'MAX_QUEUE_SIZE': 0,  # TODO: Make this an env variable
         'WORKER_COUNT': 10 # TODO: Make this an env variable
     }

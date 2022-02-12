@@ -109,7 +109,7 @@ class EventWorker(Process):
     in to Reflex
     '''
 
-    @execution_timer
+
     def __init__(self, app_config, event_queue, pusher_queue, event_cache):
         super(EventWorker, self).__init__()
         self.app_config = app_config
@@ -122,7 +122,7 @@ class EventWorker(Process):
         self.reasons = []
         self.es = None
 
-    @execution_timer
+    
     def build_elastic_connection(self):
         elastic_connection = {
             'hosts': self.app_config['ELASTICSEARCH_URL'],
@@ -144,7 +144,7 @@ class EventWorker(Process):
 
         return connections.create_connection(**elastic_connection)
 
-    @execution_timer
+    
     def load_rules(self):
         '''
         Fetches all the Event Rules in the system to prevent many requests to
@@ -160,7 +160,7 @@ class EventWorker(Process):
 
         self.rules = rules
 
-    @execution_timer
+    
     def load_cases(self):
         '''
         Fetches all the Cases in the system to prevent many requests to
@@ -171,7 +171,7 @@ class EventWorker(Process):
         cases = search.scan()
         self.cases = list(cases)
 
-    @execution_timer
+    
     def load_close_reasons(self):
         '''
         Fetches all the Closure Reasons in the system to prevent many requests to
@@ -181,24 +181,24 @@ class EventWorker(Process):
         reasons = search.scan()
         self.reasons = list(reasons)
 
-    @execution_timer
+    
     def check_cache(self, reference):
         raise NotImplementedError
 
-    @execution_timer
+    
     def reload_meta_info(self):
         self.load_rules()
         self.load_cases()
         self.load_close_reasons()
 
-    @execution_timer
+    
     def run(self):
         ''' Processes events from the Event Queue '''
 
         self.build_elastic_connection()
         
         self.reload_meta_info()
-        events_processed = 0
+        
 
         #def process_event(raw_event, rules, cases, reasons):
 #
@@ -249,6 +249,7 @@ class EventWorker(Process):
                 #r.get()
                 #event_spool = []
 
+        events_processed = 0
         while True:           
 
             if self.event_queue.empty():
@@ -259,10 +260,11 @@ class EventWorker(Process):
                 self.process_event(event)
                 events_processed += 1
 
-                if events_processed == 250:
+                if events_processed == 10000:
                     self.reload_meta_info()
                     events_processed = 0
 
+    
     def process_event(self, raw_event):
         
         organization = raw_event['organization']
