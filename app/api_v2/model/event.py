@@ -154,7 +154,7 @@ class Event(base.BaseDocument):
                 else:
                     self.event_observables.append(observable_dict)
 
-        #self.save()
+        self.save()
 
         return added_observables
 
@@ -405,23 +405,6 @@ class EventRule(base.BaseDocument):
         self.order = order
         self.save()
 
-
-    def parse_rule(self):
-        '''
-        Parses the RQL query and converts it from a string to a 
-        chain of comparisons to check the event
-        '''
-        qp = QueryParser(organization=self.organization)
-        self.parsed_rule = qp.parser.parse(self.query)
-       
-
-    def check_rule(self, event):
-        qp = QueryParser(organization=self.organization)
-        results = list(qp.run_search(event, self.parsed_rule))
-        if len(results) > 0:
-            return True
-        return False
-
     
     def process_rql(self, event):
         '''
@@ -443,7 +426,7 @@ class EventRule(base.BaseDocument):
                 else:
                     parsed_query = qp.parser.parse(self.query)
 
-                results = list(qp.run_search(event, parsed_query))
+                results = [r for r in qp.run_search(event, parsed_query)]
                 
                 # Process the event
                 if len(results) > 0:
@@ -477,11 +460,11 @@ class EventRule(base.BaseDocument):
 
         # Add tags to the event
         if self.add_tags:
-            if self.tags_to_add:
-                if event.tags is None:
-                    event.tags = self.tags_to_add
-                else:
-                    [event.tags.append(t) for t in self.tags_to_add]
+
+            if event.tags is None:
+                event.tags = self.tags_to_add
+            else:
+                [event.tags.append(t) for t in self.tags_to_add]
 
             event_acted_on = True
         

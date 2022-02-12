@@ -14,7 +14,6 @@ from ..model import Event, Observable, EventRule, CloseReason, Nested, Q
 from ..model.exceptions import EventRuleFailure
 from ..utils import check_org, token_required, user_has, log_event
 from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list
-from ... import event_queue as test_queue
 
 api = Namespace('Events', description='Event related operations', path='/event')
 
@@ -548,13 +547,8 @@ class CreateBulkEvents(Resource):
 
         start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
         if 'events' in api.payload and len(api.payload['events']) > 0:
-            #[event_queue.put(e) for e in api.payload['events']]
+            [event_queue.put(e) for e in api.payload['events']]
 
-            # Add the organization of the user submitting the events to the event
-            for event in api.payload['events']:
-                event['organization'] = current_user.organization
-            [test_queue.put(e) for e in api.payload['events']]
-            
         for i in range(0,current_app.config['EVENT_PROCESSING_THREADS']):
             p = threading.Thread(target=process_event, daemon=True, args=(event_queue,request_id,current_user.organization))
             workers.append(p)

@@ -20,7 +20,9 @@ class ThreatListPoller(object):
             'DEBUG': logging.DEBUG,
             'ERROR': logging.ERROR,
             'INFO': logging.INFO
-        }        
+        }
+        
+        
 
         ch = logging.StreamHandler()
         ch.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))

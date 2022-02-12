@@ -8,16 +8,12 @@ from flask import Flask, logging as flog
 from app.services import housekeeper
 from app.services.threat_list_poller.base import ThreatListPoller
 from app.services.housekeeper import HouseKeeper
-from app.services.event_processor import EventProcessor
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_mail import Mail
 from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
 from elasticapm.contrib.flask import ElasticAPM
-from multiprocessing import Queue
-import threading
-
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
@@ -51,9 +47,6 @@ mail = Mail()
 cache = Cache(config={'CACHE_TYPE': 'simple'})
 scheduler = BackgroundScheduler()
 apm = ElasticAPM()
-event_processor = EventProcessor()
-event_queue = Queue()
-pusher_queue = Queue()
 
 
 def migrate(ALIAS, move_data=True, update_alias=True):
@@ -144,28 +137,6 @@ def setup():
     return 
 
 
-def build_elastic_connection(app):
-    elastic_connection = {
-        'hosts': app.config['ELASTICSEARCH_URL'],
-        'verify_certs': app.config['ELASTICSEARCH_CERT_VERIFY'],
-        'use_ssl': app.config['ELASTICSEARCH_SCHEME'],
-        'ssl_show_warn': app.config['ELASTICSEARCH_SHOW_SSL_WARN']
-    }
-
-    username = app.config['ELASTICSEARCH_USERNAME'] if 'ELASTICSEARCH_USERNAME' in app.config else os.getenv('REFLEX_ES_USERNAME') if os.getenv('REFLEX_ES_USERNAME') else "elastic"
-    password = app.config['ELASTICSEARCH_PASSWORD'] if 'ELASTICSEARCH_PASSWORD' in app.config else os.getenv('REFLEX_ES_PASSWORD') if os.getenv('REFLEX_ES_PASSWORD') else "password"
-    if app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'http':
-        elastic_connection['http_auth'] = (username,password)
-
-    elif app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'api':
-        elastic_connection['api_key'] = (username,password)
-
-    if app.config['ELASTICSEARCH_CA']:
-        elastic_connection['ca_certs'] = app.config['ELASTICSEARCH_CA']
-
-    connections.create_connection(**elastic_connection)
-
-
 def create_app(environment='development'):
 
     app = Flask(__name__, instance_relative_config=True)
@@ -186,6 +157,7 @@ def create_app(environment='development'):
     authorizations = {"Bearer": {"type": "apiKey", "in": "header", "name":"Authorization"}}
 
     if app.config['ELASTIC_APM_ENABLED']:
+        print(app.config['ELASTIC_APM_SERVICE_NAME'],app.config['ELASTIC_APM_TOKEN'],app.config['ELASTIC_APM_HOSTNAME'],app.config['ELASTIC_APM_ENVIRONMENT'])
         app.config['ELASTIC_APM'] = {
             'SERVICE_NAME': app.config['ELASTIC_APM_SERVICE_NAME'],
             'SECRET_TOKEN': app.config['ELASTIC_APM_TOKEN'],
@@ -219,15 +191,10 @@ def create_app(environment='development'):
 
         if not app.config['SLAMONITOR_DISABLED']:
             sla_monitor = SLAMonitor(app, log_level=app.config['SLAMONITOR_LOG_LEVEL'])
-            scheduler.add_job(func=sla_monitor.check_event_slas, trigger="interval", seconds=app.config['SLAMONITOR_INTERVAL'])          
+            scheduler.add_job(func=sla_monitor.check_event_slas, trigger="interval", seconds=app.config['SLAMONITOR_INTERVAL'])
 
         scheduler.start()
-        atexit.register(lambda: scheduler.shutdown())
-
-    if not app.config['EVENT_PROCESSOR']['DISABLED']:
-        event_processor.init_app(app, event_queue=event_queue, pusher_queue=pusher_queue)
-        event_processor.spawn_workers()
-        
+        atexit.register(lambda: scheduler.shutdown())      
 
     from app.api_v2.resources import api2
     api2.authorizations = authorizations
@@ -244,7 +211,25 @@ def create_app(environment='development'):
 
     FLASK_BCRYPT.init_app(app)
 
-    build_elastic_connection(app)
+    elastic_connection = {
+        'hosts': app.config['ELASTICSEARCH_URL'],
+        'verify_certs': app.config['ELASTICSEARCH_CERT_VERIFY'],
+        'use_ssl': app.config['ELASTICSEARCH_SCHEME'],
+        'ssl_show_warn': app.config['ELASTICSEARCH_SHOW_SSL_WARN']
+    }
+
+    username = app.config['ELASTICSEARCH_USERNAME'] if 'ELASTICSEARCH_USERNAME' in app.config else os.getenv('REFLEX_ES_USERNAME') if os.getenv('REFLEX_ES_USERNAME') else "elastic"
+    password = app.config['ELASTICSEARCH_PASSWORD'] if 'ELASTICSEARCH_PASSWORD' in app.config else os.getenv('REFLEX_ES_PASSWORD') if os.getenv('REFLEX_ES_PASSWORD') else "password"
+    if app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'http':
+        elastic_connection['http_auth'] = (username,password)
+
+    elif app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'api':
+        elastic_connection['api_key'] = (username,password)
+
+    if app.config['ELASTICSEARCH_CA']:
+        elastic_connection['ca_certs'] = app.config['ELASTICSEARCH_CA']
+
+    connections.create_connection(**elastic_connection)
 
     # If Reflex is in recovery mode, initial setup will be skipped and indices will be 
     # created empty
