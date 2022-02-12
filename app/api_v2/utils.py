@@ -47,8 +47,8 @@ def log_event(event_type, *args, **kwargs):
     TODO: Add console handler stream
     '''
 
-    with current_app.app_context():
-        current_app.logger.warning('Event test')
+    #with current_app.app_context():
+    #    current_app.logger.warning('Event test')
 
     raw_event = {
         'event_type': event_type
