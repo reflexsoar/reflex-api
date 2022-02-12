@@ -72,8 +72,8 @@ class Config(object):
 
     EVENT_PROCESSOR = {
         'DISABLED': as_bool(os.getenv('EVENT_PROCESSOR_DISABLED')) if os.getenv('EVENT_PROCESSOR_DISABLED') else False, # TODO: Make this an env variable
-        'MAX_QUEUE_SIZE': int(os.getenv('EVENT_PROCESSOR_MAX_QUEUE_SIZE')) if os.getenv('REFLEX_ELASTIC_APM_ENV') else 0,  # TODO: Make this an env variable
-        'WORKER_COUNT': int(os.getenv('EVENT_PROCESSOR_WORKER_COUNT')) if os.getenv('REFLEX_ELASTIC_APM_ENV') else (multiprocessing.cpu_count()-1) # TODO: Make this an env variable
+        'MAX_QUEUE_SIZE': int(os.getenv('EVENT_PROCESSOR_MAX_QUEUE_SIZE')) if os.getenv('EVENT_PROCESSOR_MAX_QUEUE_SIZE') else 0,  # TODO: Make this an env variable
+        'WORKER_COUNT': int(os.getenv('EVENT_PROCESSOR_WORKER_COUNT')) if os.getenv('EVENT_PROCESSOR_WORKER_COUNT') else (multiprocessing.cpu_count()-1) # TODO: Make this an env variable
     }
 
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
