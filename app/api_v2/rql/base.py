@@ -77,6 +77,7 @@ class RQLSearch:
             return events
         return filter(query, data)
 
+
     class BaseExpression:
         '''
         A base expression that contains a lot of code used by each expression
@@ -164,6 +165,7 @@ class RQLSearch:
             else:
                 return self.has_key and self.target_value.endswith(self.value)
 
+
     class Match(BaseExpression):
         '''
         Detects if a string or list of strings equals a specified value
@@ -185,6 +187,7 @@ class RQLSearch:
                 return self.has_key and self.value in self.target_value
             else:
                 return self.has_key and self.value == self.target_value
+
 
     class Contains(BaseExpression):
         '''
@@ -283,6 +286,7 @@ class RQLSearch:
                     if self.any_mode:
                         return self.has_key and any([a in self.value for a in self.target_value])
 
+
     class Or:
         def __init__(self, *predicates):
             self.predicates = predicates
@@ -297,7 +301,6 @@ class RQLSearch:
 
         def __call__(self, record):
             return all(predicate(record) for predicate in self.predicates)
-
 
     class Not:
         def __init__(self, *predicates):
