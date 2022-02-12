@@ -47,6 +47,10 @@ class ThreatList(base.BaseDocument):
         '''
         hits = 0
 
+        # Cast integers as strings
+        if isinstance(value, int):
+            value = str(value)
+
         if self.list_type == 'values':
             hits = len([v for v in self.values if v.lower() == value.lower()])
         elif self.list_type == 'patterns':

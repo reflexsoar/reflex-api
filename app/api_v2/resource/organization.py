@@ -107,7 +107,7 @@ class OrganizationDetails(Resource):
         
         # Check to see if other organizations already use these logon domains
         if 'logon_domains' in api.payload:
-            api.payload['logon_domains'] = api.payload['logon_domains'].split(',')
+            api.payload['logon_domains'] = api.payload['logon_domains'].split('\n')
             org = Organization.get_by_logon_domain(api.payload['logon_domains'])
             if org and org.uuid != organization.uuid:
 

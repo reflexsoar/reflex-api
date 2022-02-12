@@ -4,7 +4,7 @@ import atexit
 import logging
 from app.api_v2.model.system import Settings
 from app.services.sla_monitor.base import SLAMonitor
-from flask import Flask
+from flask import Flask, logging as flog
 from app.services import housekeeper
 from app.services.threat_list_poller.base import ThreatListPoller
 from app.services.housekeeper import HouseKeeper
@@ -140,7 +140,9 @@ def setup():
 def create_app(environment='development'):
 
     app = Flask(__name__, instance_relative_config=True)
-
+    
+    #app.logger.propagate = False
+    #logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     #gunicorn_logger = logging.getLogger('gunicorn.error')
     #app.logger.handlers = gunicorn_logger.handlers
     #app.logger.setLevel(gunicorn_logger.level)
