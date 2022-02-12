@@ -51,7 +51,6 @@ cache = Cache(config={'CACHE_TYPE': 'simple'})
 scheduler = BackgroundScheduler()
 apm = ElasticAPM()
 event_processor = EventProcessor()
-event_processor2 = EventProcessor()
 event_queue = Queue()
 pusher_queue = Queue()
 
@@ -225,9 +224,6 @@ def create_app(environment='development'):
     if not app.config['EVENT_PROCESSOR']['DISABLED']:
         event_processor.init_app(app, event_queue=event_queue, pusher_queue=pusher_queue)
         event_processor.spawn_workers()
-
-        event_processor2.init_app(app, event_queue=event_queue, pusher_queue=pusher_queue)
-        event_processor2.spawn_workers()
         
 
     from app.api_v2.resources import api2
