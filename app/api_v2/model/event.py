@@ -426,7 +426,7 @@ class EventRule(base.BaseDocument):
                 else:
                     parsed_query = qp.parser.parse(self.query)
 
-                results = [r for r in qp.run_search(event, parsed_query)]
+                results = list(qp.run_search(event, parsed_query))
                 
                 # Process the event
                 if len(results) > 0:
@@ -461,10 +461,11 @@ class EventRule(base.BaseDocument):
         # Add tags to the event
         if self.add_tags:
 
-            if event.tags is None:
-                event.tags = self.tags_to_add
-            else:
-                [event.tags.append(t) for t in self.tags_to_add]
+            if self.tags_to_add:
+                if event.tags is None:
+                    event.tags = self.tags_to_add
+                else:
+                    [event.tags.append(t) for t in self.tags_to_add]
 
             event_acted_on = True
         

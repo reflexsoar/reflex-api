@@ -137,6 +137,28 @@ def setup():
     return 
 
 
+def build_elastic_connection(app):
+    elastic_connection = {
+        'hosts': app.config['ELASTICSEARCH_URL'],
+        'verify_certs': app.config['ELASTICSEARCH_CERT_VERIFY'],
+        'use_ssl': app.config['ELASTICSEARCH_SCHEME'],
+        'ssl_show_warn': app.config['ELASTICSEARCH_SHOW_SSL_WARN']
+    }
+
+    username = app.config['ELASTICSEARCH_USERNAME'] if 'ELASTICSEARCH_USERNAME' in app.config else os.getenv('REFLEX_ES_USERNAME') if os.getenv('REFLEX_ES_USERNAME') else "elastic"
+    password = app.config['ELASTICSEARCH_PASSWORD'] if 'ELASTICSEARCH_PASSWORD' in app.config else os.getenv('REFLEX_ES_PASSWORD') if os.getenv('REFLEX_ES_PASSWORD') else "password"
+    if app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'http':
+        elastic_connection['http_auth'] = (username,password)
+
+    elif app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'api':
+        elastic_connection['api_key'] = (username,password)
+
+    if app.config['ELASTICSEARCH_CA']:
+        elastic_connection['ca_certs'] = app.config['ELASTICSEARCH_CA']
+
+    connections.create_connection(**elastic_connection)
+
+
 def create_app(environment='development'):
 
     app = Flask(__name__, instance_relative_config=True)
@@ -157,7 +179,6 @@ def create_app(environment='development'):
     authorizations = {"Bearer": {"type": "apiKey", "in": "header", "name":"Authorization"}}
 
     if app.config['ELASTIC_APM_ENABLED']:
-        print(app.config['ELASTIC_APM_SERVICE_NAME'],app.config['ELASTIC_APM_TOKEN'],app.config['ELASTIC_APM_HOSTNAME'],app.config['ELASTIC_APM_ENVIRONMENT'])
         app.config['ELASTIC_APM'] = {
             'SERVICE_NAME': app.config['ELASTIC_APM_SERVICE_NAME'],
             'SECRET_TOKEN': app.config['ELASTIC_APM_TOKEN'],
@@ -211,25 +232,7 @@ def create_app(environment='development'):
 
     FLASK_BCRYPT.init_app(app)
 
-    elastic_connection = {
-        'hosts': app.config['ELASTICSEARCH_URL'],
-        'verify_certs': app.config['ELASTICSEARCH_CERT_VERIFY'],
-        'use_ssl': app.config['ELASTICSEARCH_SCHEME'],
-        'ssl_show_warn': app.config['ELASTICSEARCH_SHOW_SSL_WARN']
-    }
-
-    username = app.config['ELASTICSEARCH_USERNAME'] if 'ELASTICSEARCH_USERNAME' in app.config else os.getenv('REFLEX_ES_USERNAME') if os.getenv('REFLEX_ES_USERNAME') else "elastic"
-    password = app.config['ELASTICSEARCH_PASSWORD'] if 'ELASTICSEARCH_PASSWORD' in app.config else os.getenv('REFLEX_ES_PASSWORD') if os.getenv('REFLEX_ES_PASSWORD') else "password"
-    if app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'http':
-        elastic_connection['http_auth'] = (username,password)
-
-    elif app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'api':
-        elastic_connection['api_key'] = (username,password)
-
-    if app.config['ELASTICSEARCH_CA']:
-        elastic_connection['ca_certs'] = app.config['ELASTICSEARCH_CA']
-
-    connections.create_connection(**elastic_connection)
+    build_elastic_connection(app)
 
     # If Reflex is in recovery mode, initial setup will be skipped and indices will be 
     # created empty
