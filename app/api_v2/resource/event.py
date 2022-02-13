@@ -128,6 +128,8 @@ event_list_parser.add_argument('observables', location='args', default=[
 ], type=str, action='split', required=False)
 event_list_parser.add_argument('signature', location='args', required=False)
 event_list_parser.add_argument('source', action='split', location='args', required=False)
+event_list_parser.add_argument('event_rule', location='args', default=[
+], type=str, action='split', required=False)
 event_list_parser.add_argument(
     'severity', action='split', location='args', required=False)
 event_list_parser.add_argument(
@@ -189,6 +191,13 @@ class EventListAggregated(Resource):
                 'type': 'terms',
                 'field': 'source__keyword',
                 'value': args.source
+            })
+
+        if args.event_rule and args.event_rule != ['']:
+            search_filters.append({
+                'type': 'terms',
+                'field': 'event_rules',
+                'value': args.event_rule
             })
 
         for arg in ['severity','title','tags','organization']:
