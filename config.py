@@ -71,14 +71,14 @@ class Config(object):
     ELASTIC_APM_ENVIRONMENT = os.getenv('REFLEX_ELASTIC_APM_ENV') if os.getenv('REFLEX_ELASTIC_APM_ENV') else 'dev'
 
     EVENT_PROCESSOR = {
-        'DISABLED': as_bool(os.getenv('EVENT_PROCESSOR_DISABLED')) if os.getenv('EVENT_PROCESSOR_DISABLED') else False,
-        'MAX_QUEUE_SIZE': int(os.getenv('EVENT_PROCESSOR_MAX_QUEUE_SIZE')) if os.getenv('EVENT_PROCESSOR_MAX_QUEUE_SIZE') else 0,
-        'WORKER_COUNT': int(os.getenv('EVENT_PROCESSOR_WORKER_COUNT')) if os.getenv('EVENT_PROCESSOR_WORKER_COUNT') else (multiprocessing.cpu_count()-1),
-        'META_DATA_REFRESH_INTERVAL': int(os.getenv('EVENT_PROCESSOR_META_DATA_REFRESH_INTERVAL')) if os.getenv('EVENT_PROCESSOR_META_DATA_REFRESH_INTERVAL') else 30,
-        'ES_BULK_SIZE': int(os.getenv('EVENT_PROCESSOR_ES_BULK_SIZE')) if os.getenv('EVENT_PROCESSOR_ES_BULK_SIZE') else 500
+        'DISABLED': as_bool(os.getenv('REFLEX_EVENT_PROCESSOR_DISABLED')) if os.getenv('REFLEX_EVENT_PROCESSOR_DISABLED') else False,
+        'MAX_QUEUE_SIZE': int(os.getenv('REFLEX_EVENT_PROCESSOR_MAX_QUEUE_SIZE')) if os.getenv('REFLEX_EVENT_PROCESSOR_MAX_QUEUE_SIZE') else 0,
+        'WORKER_COUNT': int(os.getenv('REFLEX_EVENT_PROCESSOR_WORKER_COUNT')) if os.getenv('REFLEX_EVENT_PROCESSOR_WORKER_COUNT') else (multiprocessing.cpu_count()-1),
+        'META_DATA_REFRESH_INTERVAL': int(os.getenv('REFLEX_EVENT_PROCESSOR_META_DATA_REFRESH_INTERVAL')) if os.getenv('REFLEX_EVENT_PROCESSOR_META_DATA_REFRESH_INTERVAL') else 30,
+        'ES_BULK_SIZE': int(os.getenv('REFLEX_EVENT_PROCESSOR_ES_BULK_SIZE')) if os.getenv('REFLEX_EVENT_PROCESSOR_ES_BULK_SIZE') else 500
     }
 
-    NEW_EVENT_PIPELINE = as_bool(os.getenv('USE_NEW_EVENT_PROCESSOR')) if os.getenv('USE_NEW_EVENT_PROCESSOR') else False
+    NEW_EVENT_PIPELINE = as_bool(os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR')) if os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR') else False
 
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
 
