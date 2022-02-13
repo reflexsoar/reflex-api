@@ -60,7 +60,7 @@ def case_templates():
 
 def random_title_description():
   titles = [
-    {'User added to local admins': 'Someone added a normal user to local admins'},
+    {'PARALLEL BULK': 'Someone added a normal user to local admins'},
     #{'Suspicious DNS hit': 'A machine made a request for a suspicious DNS record'},
     #{'Local account discovery': 'A machine exhibited enumeration behavior'},
     #{'CVE-2021-40444': 'Remote code execution via malicious document in word'}
@@ -69,7 +69,7 @@ def random_title_description():
   return titles[random.randint(0, len(titles)-1)]
 
 def random_severity():
-  return random.randint(1,4)
+  return random.randint(0,3)
 
 def random_host_name():
   names = [

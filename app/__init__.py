@@ -8,6 +8,8 @@ from flask import Flask, logging as flog
 from app.services import housekeeper
 from app.services.threat_list_poller.base import ThreatListPoller
 from app.services.housekeeper import HouseKeeper
+from app.services.event_processor import EventProcessor
+from multiprocessing import Queue
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_mail import Mail
@@ -47,6 +49,9 @@ mail = Mail()
 cache = Cache(config={'CACHE_TYPE': 'simple'})
 scheduler = BackgroundScheduler()
 apm = ElasticAPM()
+ep = EventProcessor()
+event_queue = Queue()
+pusher_queue = Queue()
 
 
 def migrate(ALIAS, move_data=True, update_alias=True):
@@ -215,7 +220,11 @@ def create_app(environment='development'):
             scheduler.add_job(func=sla_monitor.check_event_slas, trigger="interval", seconds=app.config['SLAMONITOR_INTERVAL'])
 
         scheduler.start()
-        atexit.register(lambda: scheduler.shutdown())      
+        atexit.register(lambda: scheduler.shutdown())
+
+    if not app.config['EVENT_PROCESSOR']['DISABLED']:
+        ep.init_app(app, event_queue=event_queue, pusher_queue=pusher_queue)
+        ep.spawn_workers()
 
     from app.api_v2.resources import api2
     api2.authorizations = authorizations
