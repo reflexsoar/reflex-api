@@ -573,9 +573,13 @@ class CreateBulkEvents(Resource):
 
             return {"request_id": request_id, "response_time": total_process_time}
         else:
+            start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
-            [event_processor_queue.put(e) for e in api.payload['events']]
+                event_processor_queue.put(event)
+            end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
+            total_process_time = end_bulk_process_dt - start_bulk_process_dt
+            return {"request_id": request_id, "response_time": total_process_time}
 
 
 @api.route("/bulk_dismiss")
