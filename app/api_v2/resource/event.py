@@ -14,6 +14,7 @@ from ..model import Event, Observable, EventRule, CloseReason, Nested, Q
 from ..model.exceptions import EventRuleFailure
 from ..utils import check_org, token_required, user_has, log_event
 from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list
+from ... import event_queue as event_processor_queue
 
 api = Namespace('Events', description='Event related operations', path='/event')
 
@@ -545,21 +546,26 @@ class CreateBulkEvents(Resource):
                 else:
                     log_event(organization=organization, event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=0, status="Failed", message="Event Already Exists.")
 
-        start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
-        if 'events' in api.payload and len(api.payload['events']) > 0:
-            [event_queue.put(e) for e in api.payload['events']]
+        if not current_app.config['NEW_EVENT_PIPELINE']:
+            start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
+            if 'events' in api.payload and len(api.payload['events']) > 0:
+                [event_queue.put(e) for e in api.payload['events']]
 
-        for i in range(0,current_app.config['EVENT_PROCESSING_THREADS']):
-            p = threading.Thread(target=process_event, daemon=True, args=(event_queue,request_id,current_user.organization))
-            workers.append(p)
-        [t.start() for t in workers]
+            for i in range(0,current_app.config['EVENT_PROCESSING_THREADS']):
+                p = threading.Thread(target=process_event, daemon=True, args=(event_queue,request_id,current_user.organization))
+                workers.append(p)
+            [t.start() for t in workers]
 
-        end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
-        total_process_time = end_bulk_process_dt - start_bulk_process_dt
+            end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
+            total_process_time = end_bulk_process_dt - start_bulk_process_dt
 
-        log_event(event_type="Bulk Event Insert", request_id=request_id, time_taken=total_process_time, status="Success", message="Bulk request finished.")
+            log_event(event_type="Bulk Event Insert", request_id=request_id, time_taken=total_process_time, status="Success", message="Bulk request finished.")
 
-        return {"request_id": request_id, "response_time": total_process_time}
+            return {"request_id": request_id, "response_time": total_process_time}
+        else:
+            for event in api.payload['events']:
+                event['organization'] = current_user.organization
+            [event_processor_queue.put(e) for e in api.payload['events']]
 
 
 @api.route("/bulk_dismiss")

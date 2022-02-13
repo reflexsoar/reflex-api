@@ -406,6 +406,34 @@ class EventRule(base.BaseDocument):
         self.save()
 
     
+    def parse_rule(self):
+        '''
+        Parses the RQL query and converts it from a string to a 
+        chain of comparisons to check the event
+        '''
+        qp = QueryParser(organization=self.organization)
+        self.parsed_rule = qp.parser.parse(self.query)
+       
+
+    def check_rule(self, event):
+        '''
+        Checks an event against the rule to see if it matches
+        '''
+        time_taken_seconds = 0
+        
+        qp = QueryParser(organization=self.organization)
+        parse_start_time = datetime.datetime.utcnow()
+        results = list(qp.run_search(event, self.parsed_rule))
+        parse_end_time = datetime.datetime.utcnow()
+
+        # FUTURE: Warn on poor performing event rules if they parse slowly
+        time_taken_seconds = (parse_end_time - parse_start_time).total_seconds()
+        
+        if len(results) > 0:
+            return True
+        return False
+
+    
     def process_rql(self, event):
         '''
         Checks an event against an RQL query to see if it matches.  If an event 
