@@ -237,10 +237,12 @@ class EventWorker(Process):
                 if len(events) >= self.config["ES_BULK_SIZE"] or self.event_queue.empty():
                     self.prepare_case_updates(events)
                     # Send Events
-                    streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(events))
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(events)):
+                        pass
 
                     # Update Cases
-                    streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(events))
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(events)):
+                        pass
                     events = []
 
 

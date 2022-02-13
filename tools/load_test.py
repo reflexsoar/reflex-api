@@ -60,7 +60,7 @@ def case_templates():
 
 def random_title_description():
   titles = [
-    {'CASE TEST OLD WAY': 'Someone added a normal user to local admins'},
+    {'CASE TEST NEW WAY': 'Someone added a normal user to local admins'},
     #{'Suspicious DNS hit': 'A machine made a request for a suspicious DNS record'},
     #{'Local account discovery': 'A machine exhibited enumeration behavior'},
     #{'CVE-2021-40444': 'Remote code execution via malicious document in word'}
