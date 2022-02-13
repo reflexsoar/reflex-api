@@ -1005,6 +1005,8 @@ and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.valu
 
         case.add_history(message='Case created')
 
+        time.sleep(0.5)
+
         return {'message': 'Successfully created the case.', 'uuid': str(case.uuid)}
 
 

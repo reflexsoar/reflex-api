@@ -235,11 +235,12 @@ class EventWorker(Process):
                 events.append(self.process_event(event))
 
                 if len(events) >= self.config["ES_BULK_SIZE"] or self.event_queue.empty():
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(events)):
-                        if ok:
-                            successful_inserts += ok
-                        else:
-                            failed_inserts += 1
+                    self.prepare_case_updates(events)
+                    # Send Events
+                    streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(events))
+
+                    # Update Cases
+                    streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(events))
                     events = []
 
 
@@ -248,13 +249,51 @@ class EventWorker(Process):
         Prepares the dictionary for bulk push to Elasticsearch
         '''
         for event in events:
-            event['uuid'] = uuid.uuid4()
             event['created_at'] = datetime.datetime.utcnow()
             if 'observables' in event:
                 event['event_observables'] = event.pop('observables')
             else:
                 event['event_observables'] = []
             yield {'_source': event, '_index': 'reflex-events', '_type': '_doc'}
+
+
+    def prepare_case_updates(self, events):
+        '''
+        If any cases had their cases updated update the case as well
+        '''
+        updated_cases = {}
+        for event in events:
+            uuid = str(event['uuid'])
+            if 'case' in event:
+                case = next((c for c in self.cases if c.uuid == event['case']))
+                if case:
+                    _id = case.meta.id
+
+                    if _id not in updated_cases:
+                        updated_cases[_id] = []
+                        if hasattr(case, 'events') and case.events:
+                            updated_cases[_id] = case.events
+                        else:
+                            updated_cases[_id].append(uuid)
+                    else:
+                        updated_cases[_id].append(uuid)
+        
+        for case in updated_cases:
+            yield {
+                "_id": case,
+                "_type": "_doc",
+                "_index": "reflex-cases",
+                "_op_type": "update",
+                "upsert": {},
+                "scripted_upsert": True,
+                "script": {
+                    "source": "if(ctx._source.events == null) { ctx._source.events = []; } ctx._source.events.add(params.events)",
+                    "params": {
+                        "events": updated_cases[case]
+                    }
+                }
+            }
+                
 
 
     def mutate_event(self, rule, raw_event):
