@@ -93,9 +93,6 @@ class ThreatListList(Resource):
 
         lists, total_results, pages = page_results(lists, args.page, args.page_size)
 
-        import json
-        print(json.dumps(lists.to_dict()))
-
         lists = lists.execute()
 
         response = {
