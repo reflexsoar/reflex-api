@@ -107,12 +107,18 @@ mod_event_rql = api.model('EventDetailsRQLFormatted', {
     'signature': fields.String
 })
 
+mod_event_rule_name_only = api.model('EventRuleNames', {
+    'uuid': fields.String,
+    'name': fields.String
+})
+
 event_rule_list_parser = api.parser()
 event_rule_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
 event_rule_list_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
 event_rule_list_parser.add_argument('page_size', type=int, location='args', default=25, required=False)
 event_rule_list_parser.add_argument('page_size', location='args', required=False, type=int, default=25)
 event_rule_list_parser.add_argument('page', location='args', required=False, type=int, default=1)
+event_rule_list_parser.add_argument('rules', location='args', required=False, type=str, action='split')
 
 @api.route("")
 class EventRuleList(Resource):
@@ -129,6 +135,9 @@ class EventRuleList(Resource):
 
         event_rules = EventRule.search()
         event_rules = event_rules.sort('-last_matched_date','-created_at')
+
+        if args.rules:
+            event_rules = event_rules.filter('terms', uuid=args.rules)
 
         # Paginate the cases
         page = args.page - 1

@@ -115,7 +115,8 @@ mod_event_details = api.model('EventDetails', {
     'raw_log': fields.String,
     'signature': fields.String,
     'dismiss_reason': fields.String,
-    'dismiss_comment': fields.String
+    'dismiss_comment': fields.String,
+    'event_rules': fields.List(fields.String)
 })
 
 event_list_parser = api.parser()
@@ -693,11 +694,13 @@ event_stats_parser.add_argument('observables', location='args', default=[
 ], type=str, action='split', required=False)
 event_stats_parser.add_argument('source', location='args', default=[
 ], type=str, action='split', required=False)
+event_stats_parser.add_argument('event_rule', location='args', default=[
+], type=str, action='split', required=False)
 event_stats_parser.add_argument('top', location='args', default=10, type=int, required=False)
 event_stats_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
 event_stats_parser.add_argument('end', location='args', default=(datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
 event_stats_parser.add_argument('interval', location='args', default='day', required=False, type=str)
-event_stats_parser.add_argument('metrics', location='args', action='split', default=['title','observable','source','tag','status','severity','data_type'])
+event_stats_parser.add_argument('metrics', location='args', action='split', default=['title','observable','source','tag','status','severity','data_type','event_rule'])
 event_stats_parser.add_argument('organization', location='args', action='split', required=False)
 
 @api.route("/stats")
@@ -736,6 +739,13 @@ class EventStats(Resource):
                 'type': 'terms',
                 'field': 'source.keyword',
                 'value': args.source
+            })
+
+        if args.event_rule and args.event_rule != ['']:
+            search_filters.append({
+                'type': 'terms',
+                'field': 'event_rules',
+                'value': args.event_rule
             })
 
         for arg in ['severity','title','tags','organization']:
@@ -805,12 +815,19 @@ class EventStats(Resource):
             max_source = args.top if args.top != 10 else 100
             search.aggs['range'].bucket('source', 'terms', field='source.keyword', size=max_source)
 
+        if 'event_rule' in args.metrics:
+            max_event_rule = args.top if args.top != 10 else 100
+            search.aggs['range'].bucket('event_rule', 'terms', field='event_rules', size=max_event_rule)
+
         if 'organization' in args.metrics:
             max_organizations = args.top if args.top != 10 else 100
             search.aggs['range'].bucket('organization', 'terms', field='organization', size=max_organizations)
 
         if 'observable' in args.metrics:
-            search.aggs['range'].bucket('uuids', 'terms', field='uuid', size=10000)
+            max_observables = args.top if args.top != 10 else 100
+            search.aggs['range'].bucket('observables', 'nested', path="event_observables")
+            search.aggs['range']['observables'].bucket('data_type', 'terms', field='event_observables.data_type.keyword', size=max_observables)
+            search.aggs['range']['observables'].bucket('value', 'terms', field='event_observables.value.keyword', size=max_observables)
 
         if 'time_per_status' in args.metrics:
             search.aggs['range'].buckets('time_per_status', 'terms', field='status.name.keyword', size=max_status)
@@ -819,7 +836,7 @@ class EventStats(Resource):
 
         events = search.execute()
 
-        if 'observable' in args.metrics:
+        """if 'observable' in args.metrics:
             observable_search = Observable.search()
             observable_search = observable_search.filter('exists', field='events')
 
@@ -828,7 +845,7 @@ class EventStats(Resource):
             observable_search.aggs.bucket('data_type', 'terms', field='data_type.keyword', size=50)
             observable_search.aggs.bucket('value', 'terms', field='value', size=100)
 
-            observable_search = observable_search.execute()
+            observable_search = observable_search.execute()"""
 
         if 'events_over_time' in args.metrics:
             events_over_time = Event.search()
@@ -885,15 +902,20 @@ class EventStats(Resource):
         if 'source' in args.metrics:
             data['source'] = {v['key']: v['doc_count'] for v in events.aggs.range.source.buckets}
 
+        if 'event_rule' in args.metrics:
+            data['event rule'] = {v['key']: v['doc_count'] for v in events.aggs.range.event_rule.buckets}
+
         if 'organization' in args.metrics:
             data['organization'] = {v['key']: v['doc_count'] for v in events.aggs.range.organization.buckets}
 
         if 'observable' in args.metrics:
-            data['observable value'] = {v['key']: v['doc_count'] for v in observable_search.aggs.value.buckets}
-            data['data type'] = {v['key']: v['doc_count'] for v in observable_search.aggs.data_type.buckets}
+            data['observable value'] = {v['key']: v['doc_count'] for v in events.aggs.range.observables.value.buckets}
+            data['data type'] = {v['key']: v['doc_count'] for v in events.aggs.range.observables.data_type.buckets}
+            #data['observable value'] = {v['key']: v['doc_count'] for v in observable_search.aggs.value.buckets}
+            #data['data type'] = {v['key']: v['doc_count'] for v in observable_search.aggs.data_type.buckets}
 
-        if 'time_per_status' in args.metrics:
-            data['time_per_status'] = {v['key']: v['doc_count'] for v in observable_search.aggs.time_per_status.buckets}
+        #if 'time_per_status' in args.metrics:
+        #    data['time_per_status'] = {v['key']: v['doc_count'] for v in observable_search.aggs.time_per_status.buckets}
             
         if 'events_over_time' in args.metrics:
             data['events_over_time'] = {v['key_as_string']: v['doc_count'] for v in events_over_time.aggs.range.events_per_day.buckets}
