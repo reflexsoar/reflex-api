@@ -324,6 +324,46 @@ class EventRuleDetails(Resource):
             return {'message': 'Sucessfully deleted the event rule.'}
 
 
+event_rule_stats_parser = api.parser()
+event_rule_stats_parser.add_argument('rules', type=str, location='args', action='split', required=False)
+event_rule_stats_parser.add_argument('metrics', type=str, location='args', action='split', required=False, default=['hits'])
+event_rule_stats_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+event_rule_stats_parser.add_argument('end', location='args', default=(datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+@api.route("/stats")
+class EventRuleStats(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(event_rule_stats_parser)
+    @token_required
+    @user_has('view_event_rules')    
+    def get(self, current_user):
+        args = event_rule_stats_parser.parse_args()
+
+        metrics = {}
+
+        # Compute the number of hits on an event rule
+        if 'hits' in args.metrics:
+            search = Event.search()
+
+            search.aggs.bucket('range', 'filter', range={'created_at': {
+                        'gte': args.start,
+                        'lte': args.end
+                    }})
+            
+            if args.rules:
+                search = search.filter('terms', event_rules=args.rules)
+
+            search.aggs['range'].bucket('event_rules', 'terms', field='event_rules')
+            result = search.execute()
+
+
+        # Prepare the hits metric
+        if 'hits' in args.metrics:
+            metrics['hits'] = {v['key']: v['doc_count'] for v in result.aggs.range.event_rules.buckets}
+
+        return metrics
+
+
 export_rule_parser = api.parser()
 export_rule_parser.add_argument('organizations', type=str, action='split', location='args', required=False)
 

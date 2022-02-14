@@ -64,6 +64,7 @@ class Event(base.BaseDocument):
     reference = Keyword()
     case = Keyword()
     source = Text(fields={'keyword':Keyword()})
+    event_observables = Nested()
     source_uuid = Keyword()
     tlp = Integer()
     severity = Integer()

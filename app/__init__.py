@@ -33,7 +33,7 @@ from .defaults import (
     create_default_event_status, create_analyst_role,create_admin_user
 )
 
-REFLEX_VERSION = '0.1.0'
+REFLEX_VERSION = '0.1.1'
 
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
