@@ -72,10 +72,14 @@ def migrate(ALIAS, move_data=True, update_alias=True):
 
         # Move the data to the new index
         if move_data:
-            es.reindex(
+            result = es.reindex(
                 body={"source": {"index": ALIAS}, "dest": {"index": new_index}},
+                wait_for_completion = True,
                 request_timeout=3600
             )
+            
+            if len(result['failures']) > 0:
+                raise Exception(result)
 
             es.indices.refresh(index=new_index)
 
