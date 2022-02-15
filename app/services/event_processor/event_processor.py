@@ -98,6 +98,7 @@ class EventProcessor(object):
             self.worker_count = config['WORKER_COUNT']
 
     def spawn_workers(self):
+        self.logger.info('Spawning Event Processing workers')
         for i in range(0, self.worker_count):
             w = EventWorker(app_config=self.app.config,
                             event_queue=self.event_queue,

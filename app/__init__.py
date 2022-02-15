@@ -38,8 +38,10 @@ REFLEX_VERSION = '0.1.1'
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
     from opensearch_dsl import connections
+    from opensearchpy.exceptions import RequestError
 else:
     from elasticsearch_dsl import connections
+    from elasticsearch.exceptions import RequestError
 
 from config import app_config
 
@@ -54,7 +56,7 @@ event_queue = Queue()
 pusher_queue = Queue()
 
 
-def migrate(ALIAS, move_data=True, update_alias=True):
+def migrate(app, ALIAS, move_data=True, update_alias=True):
     '''
     Upgrades all the indices in the system when a new version is released
     that requires a schema change
@@ -72,19 +74,21 @@ def migrate(ALIAS, move_data=True, update_alias=True):
 
         # Move the data to the new index
         if move_data:
-            result = es.reindex(
-                body={"source": {"index": ALIAS}, "dest": {"index": new_index}},
-                wait_for_completion = True,
-                request_timeout=3600
-            )
-            
-            if len(result['failures']) > 0:
-                raise Exception(result)
+            app.logger.info(f"Migrating data for {ALIAS} to {new_index}")
+            try:
+                result = es.reindex(
+                    body={"source": {"index": ALIAS}, "dest": {"index": new_index}},
+                    wait_for_completion = True,
+                    request_timeout=3600
+                )
+            except RequestError as e:
+                app.logger.error(f"Failed to migrate {ALIAS} to {new_index}. {e.info['failures']}")
 
             es.indices.refresh(index=new_index)
 
         # Update the index alias
         if update_alias:
+            app.logger.info(f"Updating alias for {ALIAS} to {new_index}")
             es.indices.update_aliases(
                 body={
                     "actions":[
@@ -94,7 +98,7 @@ def migrate(ALIAS, move_data=True, update_alias=True):
                 }
             )
 
-def upgrade_indices():
+def upgrade_indices(app):
     '''
     Performs an upgrade on each index and initializes them if they do not
     exist yet (e.g. first time running the software)
@@ -110,13 +114,16 @@ def upgrade_indices():
     for model in models:
         ALIAS = model.Index.name
         PATTERN = ALIAS+f"-{REFLEX_VERSION}"
+
+        app.logger.info(f"Updating index template for {ALIAS}")
         index_template = model._index.as_template(ALIAS, PATTERN)
         index_template.save()
 
         if not model._index.exists():
-            migrate(ALIAS, move_data=False)
+            app.logger.info(f"Creating index {PATTERN}")
+            migrate(app, ALIAS, move_data=False)
         else:
-            migrate(ALIAS)
+            migrate(app, ALIAS)
 
 
 def setup_complete():
@@ -127,21 +134,32 @@ def setup_complete():
     es = connections.get_connection()
     return es.indices.exists('reflex-settings')
 
-def setup():
+def setup(app):
     '''
     Performs initial setup by setting defaults
     '''
 
+    app.logger.info("Creating default organization")
     org_id = create_default_organization(Organization)
+    app.logger.info("Creating default admin user")
     admin_id = create_admin_user(User, org_id)
+    app.logger.info("Creating default admin role")
     create_admin_role(Role, admin_id, org_id, org_perms=True)
+    app.logger.info("Creating default analyst role")
     create_analyst_role(Role, org_id)
+    app.logger.info("Creating default agent role")
     create_agent_role(Role,org_id)
+    app.logger.info("Creating default data types")
     create_default_data_types(DataType,org_id)
+    app.logger.info("Creating default case and event closure reasons")
     create_default_closure_reasons(CloseReason, org_id)
+    app.logger.info("Creating default case statuses")
     create_default_case_status(CaseStatus,org_id )
+    app.logger.info("Creating default event statuses")
     create_default_event_status(EventStatus,org_id)
+    app.logger.info("Creating default case templates")
     create_default_case_templates(CaseTemplate, org_id)
+    app.logger.info("Creating default settings for default organization")
     initial_settings(Settings, org_id)
     return 
 
@@ -170,22 +188,37 @@ def build_elastic_connection(app):
 
 def create_app(environment='development'):
 
-    app = Flask(__name__, instance_relative_config=True)
-    
-    #app.logger.propagate = False
-    #logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    #gunicorn_logger = logging.getLogger('gunicorn.error')
-    #app.logger.handlers = gunicorn_logger.handlers
-    #app.logger.setLevel(gunicorn_logger.level)
-
+    app = Flask(__name__, instance_relative_config=True)   
     app.config.from_object(app_config[os.getenv('FLASK_CONFIG', environment)])
     app.config.from_pyfile('application.conf', silent=True)
+
+    #app.logger.propagate = False
+    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(app.config['LOG_LEVEL'])
 
     cors.init_app(app)
     mail.init_app(app)
     cache.init_app(app)
 
     authorizations = {"Bearer": {"type": "apiKey", "in": "header", "name":"Authorization"}}
+
+    build_elastic_connection(app)
+
+    # If Reflex is in recovery mode, initial setup will be skipped and indices will be 
+    # created empty
+    recovery_mode = app.config['REFLEX_RECOVERY_MODE'] if 'REFLEX_RECOVERY_MODE' in app.config else os.getenv('REFLEX_RECOVERY_MODE') if os.getenv('REFLEX_RECOVERY_MODE') else False    
+
+    if os.getenv('FLASK_CONFIG') != 'testing':
+        if setup_complete() != True:
+            app.logger.info("Setup already complete")
+            upgrade_indices(app)
+            if not recovery_mode:
+                setup(app)
+        else:
+            app.logger.info("Setup already complete, upgrading indices if required")
+            upgrade_indices(app)
 
     if app.config['ELASTIC_APM_ENABLED']:
         app.config['ELASTIC_APM'] = {
@@ -244,21 +277,5 @@ def create_app(environment='development'):
     app.register_blueprint(api_v2)
 
     FLASK_BCRYPT.init_app(app)
-
-    build_elastic_connection(app)
-
-    # If Reflex is in recovery mode, initial setup will be skipped and indices will be 
-    # created empty
-    recovery_mode = app.config['REFLEX_RECOVERY_MODE'] if 'REFLEX_RECOVERY_MODE' in app.config else os.getenv('REFLEX_RECOVERY_MODE') if os.getenv('REFLEX_RECOVERY_MODE') else False
-
-    if os.getenv('FLASK_CONFIG') != 'testing':
-        if setup_complete() != True:
-            print("Running setup")
-            upgrade_indices()
-            if not recovery_mode:
-                setup()
-        else:
-            print("Setup already run")
-            upgrade_indices()
 
     return app
