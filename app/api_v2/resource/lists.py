@@ -1,9 +1,18 @@
+from app.api_v2.model.threat import ThreatValue
 from ..utils import check_org, default_org, token_required, user_has, ip_approved, page_results
 from flask_restx import Resource, Namespace, fields
 from ..model import ThreatList, DataType
 from .shared import ISO8601, ValueCount, AsNewLineDelimited, mod_pagination
 
+
 api = Namespace('Lists', description="Intel List operations", path="/list")
+
+
+class ThreatValueList(fields.Raw):
+    ''' Extracts just the value from a threat value '''
+    def format(self, values):
+        return '\n'.join([v['value'] for v in values])
+
 
 mod_data_type_list = api.model('DataTypeList', {
     'uuid': fields.String,
@@ -13,6 +22,10 @@ mod_data_type_list = api.model('DataTypeList', {
     'regex': fields.String,
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at')
+})
+
+mod_threat_value = api.model('ThreatValue', {
+    'value': fields.String
 })
 
 mod_list_list = api.model('ListView', {
@@ -25,13 +38,16 @@ mod_list_list = api.model('ListView', {
     'url': fields.String,
     'poll_interval': fields.Integer,
     'last_polled': ISO8601(attribute='last_polled'),
-    'values': AsNewLineDelimited(attribute='values'),
+    'values': ThreatValueList(attribute='values'),
     #'values_list': fields.List(fields.String, attribute='values'),
     'to_memcached': fields.Boolean,
     'active': fields.Boolean,
     'value_count': ValueCount(attribute='values'),
     'created_at': ISO8601(attribute='created_at'),
-    'updated_at': ISO8601(attribute='updated_at')
+    'updated_at': ISO8601(attribute='updated_at'),
+    'csv_headers': fields.String,
+    'csv_headers_data_types': fields.String,
+    'case_sensitive': fields.Boolean
 })
 
 mod_list_list_paged = api.model('ListViewPaged', {
@@ -49,7 +65,10 @@ mod_list_create = api.model('ListCreate', {
     'polling_interval': fields.Integer(example=3600),
     'url': fields.Url(description='A URL to pull threat data from', example='https://www.spamhaus.org/drop/edrop.txt'),
     'to_memcached': fields.Boolean,
-    'active': fields.Boolean(example=True)
+    'active': fields.Boolean(example=True),
+    'csv_headers': fields.String,
+    'csv_headers_data_types': fields.String,
+    'case_sensitive': fields.Boolean
 })
 
 mod_list_values = api.model('ListValues', {
@@ -122,7 +141,7 @@ class ThreatListList(Resource):
         via target URLs or manually entered in to the system, or added to
         via the API. 
 
-        Supported list types: `values|pattern`
+        Supported list types: `values|pattern|csv`
 
         When `url` is populated the `values` field will be ignored.
 
@@ -133,7 +152,7 @@ class ThreatListList(Resource):
         if value_list:
             api.abort(409, "ThreatList already exists.")
 
-        if api.payload['list_type'] not in ['values', 'patterns']:
+        if api.payload['list_type'] not in ['values', 'patterns', 'csv']:
             api.abort(400, "Invalid list type.")
 
         # Remove any values entered by the user as they also want to pull
@@ -149,6 +168,28 @@ class ThreatListList(Resource):
             if int(api.payload['poll_interval']) < 60:
                 api.abort(400, 'Invalid polling interval, must be greater than or equal to 60')
 
+        
+        if api.payload['list_type'] == 'csv':
+            
+            if not 'csv_headers' in api.payload:
+                api.abort(400, 'CSV headers are required')
+
+            if not 'csv_headers_data_types' in api.payload:
+                api.abort(400, 'CSV header to data type mapping is required')
+
+            mapping = {}
+            headers = api.payload['csv_headers'].split(',')
+            data_types = api.payload['csv_headers_data_types'].split(',')
+            for i in range(0, len(headers)-1):
+                if data_types[i] != "nomatch":
+                    if headers[i] not in mapping:
+                        mapping[data_types[i]] = [headers[i]]
+                    else:
+                        mapping[data_types[i]].append(headers[i])
+
+            # Store the data_type to field mapping
+            api.payload['csv_header_map'] = mapping
+
 
         if 'values' in api.payload:
             _values = api.payload.pop('values')
@@ -159,14 +200,19 @@ class ThreatListList(Resource):
                 if value == '':
                     continue
                 values.append(value)
+            
 
-            api.payload['values'] = values
+            #api.payload['values'] = values
 
         if 'data_type_uuid' in api.payload and DataType.get_by_uuid(api.payload['data_type_uuid']) is None:
             api.abort(400, "Invalid data type")
 
         value_list = ThreatList(**api.payload)
         value_list.save()
+
+        if not 'url' in api.payload:
+            value_list.set_values(values)
+
         return value_list            
 
 
@@ -190,44 +236,33 @@ class ThreatListDetails(Resource):
                     api.abort(
                         409, 'ThreatList with that name already exists.')
 
+            if api.payload['list_type'] == 'csv':
+            
+                if not 'csv_headers' in api.payload:
+                    api.abort(400, 'CSV headers are required')
+
+                if not 'csv_headers_data_types' in api.payload:
+                    api.abort(400, 'CSV header to data type mapping is required')
+
+                mapping = {}
+                headers = api.payload['csv_headers'].split(',')
+                data_types = api.payload['csv_headers_data_types'].split(',')
+                for i in range(0, len(headers)-1):
+                    if data_types[i] != "nomatch":
+                        if headers[i] not in mapping:
+                            mapping[data_types[i]] = [headers[i]]
+                        else:
+                            mapping[data_types[i]].append(headers[i])
+
+                # Store the data_type to field mapping
+                api.payload['csv_header_map'] = mapping
+
+                # CSV lists contain multiple values so we don't set a base data_type
+                api.payload['data_type_uuid'] = 'multiple'
+
             if 'values' in api.payload:
 
-                # Get the current values in the list
-                if value_list.values:
-                    current_values = [v for v in value_list.values]
-                else:
-                    current_values = []
-
-                # Determine what the new values should be, current, new or removed
-                _values = api.payload.pop('values')
-
-                # Detect if the user sent it as a list or a \n delimited string
-                if _values and not isinstance(_values, list):
-                    _values = _values.split('\n')
-                else:
-                    _values = []
-
-                removed_values = [
-                    v for v in current_values if v not in _values and v != '']
-                new_values = [
-                    v for v in _values if v not in current_values and v != '']
-
-                # For all values not in the new list
-                # delete them from the database and disassociate them
-                # from the list
-                for v in removed_values:
-                    value_list.values.remove(v)
-
-                for v in new_values:
-                    if value_list.values:
-                        value_list.values.append(v)
-                    else:
-                        value_list.values = [v]
-
-                # Dedupe
-                value_list.values = list(set(value_list.values))
-
-                value_list.save()
+                value_list.set_values(api.payload.pop('values').split('\n'))
 
             # Update the list with all other fields
             if len(api.payload) > 0:
@@ -244,7 +279,11 @@ class ThreatListDetails(Resource):
         ''' Removes a ThreatList '''
         value_list = ThreatList.get_by_uuid(uuid=uuid)
         if value_list:
+            values = ThreatValue.find(list_uuid=value_list.uuid)
             value_list.delete()
+
+            [v.delete() for v in values]
+            
             return {'message': 'ThreatList successfully delete.'}
         else:
             api.abort(404, 'ThreatList not found.')
@@ -263,6 +302,15 @@ class ThreatListDetails(Resource):
             api.abort(404, 'ThreatList not found.')
 
 
+@api.route('/test/<uuid>/<value>')
+class ThreatListTest(Resource):
+
+    def get(self,uuid,value):
+
+        intel_list = ThreatList.get_by_uuid(uuid)
+        intel_list.check_value(value)
+
+
 @api.route("/<uuid>/add_value")
 class AddValueToThreatList(Resource):
 
@@ -276,8 +324,7 @@ class AddValueToThreatList(Resource):
         if value_list:
 
             if 'values' in api.payload and api.payload['values'] not in [None,'']:
-                [value_list.values.append(v) for v in api.payload['values'] if v not in value_list.values]
-                value_list.save()
+                value_list.set_values(api.payload['values'])
                 return {'message': 'Succesfully added values to list.'}
             else:
                 api.abort(400, {'message':'Values are required.'})
@@ -294,14 +341,9 @@ class RemoveValueFromThreatList(Resource):
     @user_has('update_list')
     def delete(self, uuid, current_user):
         ''' Deletes values from a ThreatList '''
-        value_list = ThreatList.get_by_uuid(uuid=uuid)
-        if value_list:
 
-            if 'values' in api.payload and api.payload['values'] not in [None,'']:
-                value_list.values = [v for v in value_list.values if v not in api.payload['values']]
-                value_list.save()
-                return {'message': 'Succesfully removed values from list.'}
-            else:
-                api.abort(400, {'message':'Values are required.'})
-        else:
-            api.abort(404, 'ThreatList not found.')
+        if 'values' in api.payload:
+            values = ThreatValue.find(list_uuid=uuid, values=api.payload['values'])
+            [v.delete() for v in values]
+            return {'message': 'Succesfully removed values from list.'}
+        api.abort(400, {'message':'Values are required.'})

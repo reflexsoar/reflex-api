@@ -6,6 +6,7 @@ Event into the Reflex system.  Events that are done processing are pushed to the
 Pusher queue of the EventPusher service.
 '''
 
+import re
 import os
 import json
 import uuid
@@ -23,6 +24,7 @@ from app.api_v2.model import (
     Case
 )
 from app.api_v2.model.event import EventStatus
+from app.api_v2.model.threat import ThreatList
 from app.api_v2.rql import (
     QueryParser,
     RQLSearch
@@ -128,6 +130,7 @@ class EventWorker(Process):
         self.cases = []
         self.reasons = []
         self.statuses = []
+        self.lists = []
         self.es = None
 
     
@@ -139,8 +142,8 @@ class EventWorker(Process):
             'ssl_show_warn': self.app_config['ELASTICSEARCH_SHOW_SSL_WARN']
         }
 
-        username = self.app_config['ELASTICSEARCH_USERNAME'] if 'ELASTICSEARCH_USERNAME' in self.app_config else os.getenv('REFLEX_ES_USERNAME') if os.getenv('REFLEX_ES_USERNAME') else "elastic"
-        password = self.app_config['ELASTICSEARCH_PASSWORD'] if 'ELASTICSEARCH_PASSWORD' in self.app_config else os.getenv('REFLEX_ES_PASSWORD') if os.getenv('REFLEX_ES_PASSWORD') else "password"
+        username = self.app_config['ELASTICSEARCH_USERNAME']
+        password = self.app_config['ELASTICSEARCH_PASSWORD']
         if self.app_config['ELASTICSEARCH_AUTH_SCHEMA'] == 'http':
             elastic_connection['http_auth'] = (username,password)
 
@@ -151,6 +154,17 @@ class EventWorker(Process):
             elastic_connection['ca_certs'] = self.app_config['ELASTICSEARCH_CA']
 
         return connections.create_connection(**elastic_connection)
+
+   
+    def load_intel_lists(self):
+        '''
+        Fetches all the Intel Lists in the system to prevent too many requests
+        to Elasticsearch
+        '''
+        search = ThreatList.search()
+        search = search.filter('term', active=True)
+        lists = search.scan()
+        self.lists = list(lists)
 
     
     def load_rules(self):
@@ -208,6 +222,7 @@ class EventWorker(Process):
         self.load_cases()
         self.load_close_reasons()
         self.load_statuses()
+        self.load_intel_lists()
         self.last_meta_refresh = datetime.datetime.utcnow()
 
     
@@ -245,6 +260,36 @@ class EventWorker(Process):
                     for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(events)):
                         pass
                     events = []
+
+
+    def check_threat_list(self, observable, organization):
+        '''
+        Checks an observable against a threat list and tags the observable
+        accordingly if it matches
+        '''
+        lists = [l for l in self.lists if l.organization == organization]
+        for l in lists:
+
+            # Assume it doesn't match by default
+            matched = False
+
+            # If dealing with a CSV list
+            if l.list_type == 'csv':
+                if l.check_value(observable['value'], observable['data_type']) > 0:
+                    matched = True
+
+            else:
+                if l.check_value(observable['value']) > 0:
+                    matched = True
+
+            # If there were matches and the list calls for tagging the observable
+            if matched and l.tag_on_match:
+                if 'tags' in observable:
+                    observable['tags'].append(f"list: {l.name}")
+                else:
+                    observable['tags'] = [f"list: {l.name}"]
+
+        return observable
 
 
     def prepare_events(self, events):
@@ -297,7 +342,6 @@ class EventWorker(Process):
                 }
             }
                 
-
 
     def mutate_event(self, rule, raw_event):
         '''
@@ -367,6 +411,9 @@ class EventWorker(Process):
 
         if 'uuid' not in raw_event:
             raw_event['uuid'] = uuid.uuid4()
+
+        if 'observables' in raw_event:
+            raw_event['observables'] = [self.check_threat_list(observable, organization) for observable in raw_event['observables']]
         
         # Add the current users organization to the event signature
         hasher_b = hashlib.md5()
