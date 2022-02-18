@@ -275,12 +275,10 @@ class EventWorker(Process):
 
             # If dealing with a CSV list
             if l.list_type == 'csv':
-                if l.check_value(observable['value'], observable['data_type']) > 0:
-                    matched = True
+                matched = l.check_value(observable['value'], observable['data_type'])
 
             else:
-                if l.check_value(observable['value']) > 0:
-                    matched = True
+                matched = l.check_value(observable['value'])
 
             # If there were matches and the list calls for tagging the observable
             if matched and l.tag_on_match:

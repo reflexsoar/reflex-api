@@ -7,13 +7,6 @@ from .shared import ISO8601, ValueCount, AsNewLineDelimited, mod_pagination
 
 api = Namespace('Lists', description="Intel List operations", path="/list")
 
-
-class ThreatValueList(fields.Raw):
-    ''' Extracts just the value from a threat value '''
-    def format(self, values):
-        return '\n'.join([v['value'] for v in values])
-
-
 mod_data_type_list = api.model('DataTypeList', {
     'uuid': fields.String,
     'organization': fields.String,
@@ -38,11 +31,11 @@ mod_list_list = api.model('ListView', {
     'url': fields.String,
     'poll_interval': fields.Integer,
     'last_polled': ISO8601(attribute='last_polled'),
-    'values': ThreatValueList(attribute='values'),
+    #'values': ThreatValueList(attribute='values'),
     #'values_list': fields.List(fields.String, attribute='values'),
     'to_memcached': fields.Boolean,
     'active': fields.Boolean,
-    'value_count': ValueCount(attribute='values'),
+    #'value_count': ValueCount(attribute='values'),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
     'csv_headers': fields.String,

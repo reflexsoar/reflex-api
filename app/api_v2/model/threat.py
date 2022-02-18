@@ -27,6 +27,7 @@ class ThreatValue(base.BaseDocument):
     '''
 
     value = Keyword()
+    list_name = Keyword()
     list_uuid = Keyword()
     data_type = Keyword()
     expire_at = Date()
@@ -52,7 +53,7 @@ class ThreatValue(base.BaseDocument):
                 'value': value['value'],
                 'data_type': value['data_type'],
                 'organization': value['organization'],
-                'list': value['list']
+                'list_name': value['list_name']
             }
 
             if value['poll_interval']:
@@ -95,7 +96,6 @@ class ThreatValue(base.BaseDocument):
         if values:
             search = search.filter('terms', value=values)
         return list(search.scan())
-
 
 
 class ThreatList(base.BaseDocument):
@@ -164,50 +164,19 @@ class ThreatList(base.BaseDocument):
                 
                 result = client.get(memcached_key)
                 if result:
-                    print("CACHE HIT")
                     found = True
 
         # If the item was not found in memcached check Elasticsearch
         if not found:
-            print("CACHE MISS")
             values = ThreatValue.find(self.uuid, values=[value])
-            print(values)
             if values:
-                print("FOUND IT IN ELASTIC SEARCH!")
-                print(values)
+                found = True
 
                 # We found it, we should probably rehydrate memcached with it
                 client.set(memcached_key, values[0].value)
 
-        if found:
-            return 1
-        else:
-            return 0
+        return found
 
-        # Cast integers as strings
-        if isinstance(value, int):
-            value = str(value)
-
-        if self.list_type == 'values':
-            hits = len([v for v in self.values if v.lower() == value.lower()])
-        elif self.list_type == 'patterns':
-            hits = len([v for v in self.values if re.match(v, value) is not None])
-        elif self.list_type == 'csv':
-            # Determine which fields need to be checked by mapping the data_type of the observable
-            # to the CSV field (actually a JSON key)
-            fields_to_check = []
-            if data_type in self.csv_header_map:
-                fields_to_check = self.csv_header_map[data_type]
-            
-            # Check all values in the list against the dictionary key
-            matched = False
-            for field in fields_to_check:
-                matched = any([json.loads(v)[field] == value for v in self.values])
-
-            if matched:
-                hits = 1            
-
-        return hits
 
     def set_values(self, values: list, from_poll=False):
         '''
@@ -222,7 +191,8 @@ class ThreatList(base.BaseDocument):
                 'data_type': self.data_type.name,
                 'organization': self.organization,
                 'poll_interval': poll_interval,
-                'list': self.name.lower().replace(' ','_')} for v in values if v not in ('')]
+                'list_name': self.name.lower().replace(' ','_'),
+                'list_uuid': self.uuid} for v in values if v not in ('')]
             ThreatValue.bulk_add(values)
 
         if from_poll:
