@@ -126,14 +126,18 @@ class ThreatListPoller(object):
             self.logger.error(f"An error occurred while trying to push ThreatList values to memcached. {e}")
 
 
-    def generate_intel_value(self, values, data_type, list_uuid, poll_interval):
+    def generate_intel_value(self, values, data_type, list_uuid, list_name, poll_interval):
         for value in values:
-            if value is None:
-                pass
+            list_name = list_name.lower().replace(' ','_')
+            if value in (None,''):
+                continue
             yield ThreatValue(
                 value=value,
                 data_type=data_type,
                 list_uuid=list_uuid,
+                list_name=list_name,
+                poll_interval=poll_interval,
+                from_poll=True,
                 created_at=datetime.datetime.utcnow(),
                 expire_at=datetime.datetime.utcnow()+datetime.timedelta(minutes=poll_interval*1.5)
             ).to_dict(True)
@@ -223,7 +227,7 @@ class ThreatListPoller(object):
 
                         # Push the values from the URL to the list
                         if data:
-                            for ok,action in self.streaming_bulk(client=self.es_client, actions=self.generate_intel_value(data, data_type_name, l.uuid, l.poll_interval)):
+                            for ok,action in self.streaming_bulk(client=self.es_client, actions=self.generate_intel_value(data, data_type_name, l.uuid, l.name, l.poll_interval)):
                                 if not ok:
                                     self.logger.warning(f"Failed to push to index. {action}")
                                 pass

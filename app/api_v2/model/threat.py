@@ -30,6 +30,10 @@ class ThreatValue(base.BaseDocument):
     list_name = Keyword()
     list_uuid = Keyword()
     data_type = Keyword()
+    from_poll = Boolean()
+    key_field = Keyword() # If the value came from a CSV or a JSON string which key was it under
+    record_num = Integer() # If the value came from a CSV or JSON list which record number was it
+    poll_interval = Integer()
     expire_at = Date()
 
     class Index: # pylint: disable=too-few-public-methods
@@ -48,12 +52,17 @@ class ThreatValue(base.BaseDocument):
         now = datetime.datetime.utcnow()
 
         for value in values:
+            if value['value'] == '':
+                continue
             doc = {
                 'created_at': now,
                 'value': value['value'],
                 'data_type': value['data_type'],
                 'organization': value['organization'],
-                'list_name': value['list_name']
+                'poll_interval': value['poll_interval'],
+                'from_poll': value['from_poll'],
+                'list_name': value['list_name'],
+                'list_uuid': value['list_uuid']
             }
 
             if value['poll_interval']:
@@ -68,7 +77,7 @@ class ThreatValue(base.BaseDocument):
         '''
         client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
         for value in values:
-            memcached_key = f"{value['organization']}:{value['list']}:{value['data_type']}:{value['value']}"
+            memcached_key = f"{value['organization']}:{value['list_uuid']}:{value['data_type']}:{value['value']}"
             client.set(memcached_key, value['value'])            
         
     
@@ -154,7 +163,6 @@ class ThreatList(base.BaseDocument):
         # Create the memcached client
         client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
         
-        hits = 0       
         found = False
 
         # Check memcached first
@@ -183,6 +191,7 @@ class ThreatList(base.BaseDocument):
         Sets the values of the threat list from a list of values
         '''
         if len(values) > 0:
+            print(self.uuid)
             poll_interval = None
             if self.poll_interval:
                 poll_interval = self.poll_interval
@@ -191,6 +200,7 @@ class ThreatList(base.BaseDocument):
                 'data_type': self.data_type.name,
                 'organization': self.organization,
                 'poll_interval': poll_interval,
+                'from_poll': from_poll,
                 'list_name': self.name.lower().replace(' ','_'),
                 'list_uuid': self.uuid} for v in values if v not in ('')]
             ThreatValue.bulk_add(values)

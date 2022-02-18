@@ -1,6 +1,7 @@
+import datetime
 from app.api_v2.model.threat import ThreatValue
 from ..utils import check_org, default_org, token_required, user_has, ip_approved, page_results
-from flask_restx import Resource, Namespace, fields
+from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import ThreatList, DataType
 from .shared import ISO8601, ValueCount, AsNewLineDelimited, mod_pagination
 
@@ -18,7 +19,14 @@ mod_data_type_list = api.model('DataTypeList', {
 })
 
 mod_threat_value = api.model('ThreatValue', {
-    'value': fields.String
+    'value': fields.String,
+    'from_poll': fields.Boolean,
+    'poll_interval': fields.Integer,
+    'key_field': fields.String,
+    'data_type': fields.String,
+    'list_uuid': fields.String,
+    'list_name': fields.String,
+    'created_at': ISO8601
 })
 
 mod_list_list = api.model('ListView', {
@@ -66,6 +74,17 @@ mod_list_create = api.model('ListCreate', {
 
 mod_list_values = api.model('ListValues', {
     'values': fields.List(fields.String)
+})
+
+mod_list_match = api.model('ListMatch', {
+    'name': fields.String,
+    'value': fields.String,
+    'matched': fields.Boolean
+})
+
+mod_list_values_paged = api.model('ListValuesPaged', {
+    'values': fields.Nested(mod_threat_value),
+    'pagination': fields.Nested(mod_pagination)
 })
 
 list_parser = api.parser()
@@ -193,9 +212,6 @@ class ThreatListList(Resource):
                 if value == '':
                     continue
                 values.append(value)
-            
-
-            #api.payload['values'] = values
 
         if 'data_type_uuid' in api.payload and DataType.get_by_uuid(api.payload['data_type_uuid']) is None:
             api.abort(400, "Invalid data type")
@@ -298,10 +314,215 @@ class ThreatListDetails(Resource):
 @api.route('/test/<uuid>/<value>')
 class ThreatListTest(Resource):
 
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_list_match)
+    @token_required
+    @user_has('view_lists')
     def get(self,uuid,value):
 
         intel_list = ThreatList.get_by_uuid(uuid)
-        intel_list.check_value(value)
+        if intel_list:
+            if intel_list.check_value(value):
+                return {
+                    'name': intel_list.name,
+                    'value': value,
+                    'matched': True
+                }
+            else:
+                return {
+                    'name': intel_list.name,
+                    'value': value,
+                    'matched': False
+                }
+        else:
+            api.abort(404, {'message': 'Intel List not found'})
+
+list_stats_parser = api.parser()
+list_stats_parser.add_argument('list', location='args', type=str, action='split', required=False)
+list_stats_parser.add_argument('value', location='args', type=str, action='split', required=False)
+list_stats_parser.add_argument('value__like', location='args', type=str, required=False)
+list_stats_parser.add_argument('list_name__like', location='args', type=str, required=False)
+list_stats_parser.add_argument('data_type', location='args', type=str, action='split', required=False)
+list_stats_parser.add_argument('from_poll', location='args', type=xinputs.boolean, required=False)
+list_stats_parser.add_argument('top', location='args', default=10, type=int, required=False)
+list_stats_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+list_stats_parser.add_argument('end', location='args', default=(datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+list_stats_parser.add_argument('interval', location='args', default='day', required=False, type=str)
+list_stats_parser.add_argument('metrics', location='args', action='split', default=['list','value','data_type','from_poll'])
+list_stats_parser.add_argument('organization', location='args', action='split', required=False)
+@api.route('/stats')
+class IntelListStats(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(list_stats_parser)
+    @token_required
+    @user_has('view_lists')
+    def get(self, current_user):
+        
+        args = list_stats_parser.parse_args()
+        
+        search_filters = []
+
+        if args.value__like and args.value__like != '':
+            search_filters.append({
+                'type': 'wildcard',
+                'field': 'value',
+                'value': "*"+args.value__like+"*"
+            })
+
+        if args.list_name__like and args.list_name__like != '':
+            search_filters.append({
+                'type': 'wildcard',
+                'field': 'list_name',
+                'value': "*"+args.list_name__like.lower().replace(' ','_')+"*"
+            })
+
+        if args.list and args.list != '':
+            search_filters.append({
+                'type': 'terms',
+                'field': 'list_uuid',
+                'value': args.list
+            })
+
+        if args.value and args.value != '':
+            search_filters.append({
+                'type': 'terms',
+                'field': 'value',
+                'value': args.value
+            })
+
+        if args.data_type and args.data_type != '':
+            search_filters.append({
+                'type': 'terms',
+                'field': 'data_type',
+                'value': args.data_type
+            })
+
+        if args.from_poll and args.from_poll != '':
+            search_filters.append({
+                'type': 'term',
+                'field': 'from_poll',
+                'value': args.from_poll
+            })
+
+        search = ThreatValue.search()        
+
+        # Apply all filters
+        for _filter in search_filters:
+            search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+
+        search.aggs.bucket('range', 'filter', range={'created_at': {
+                        'gte': args.start,
+                        'lte': args.end
+                    }})
+
+        if 'list' in args.metrics:
+            search.aggs['range'].bucket('lists', 'terms', field='list_uuid', size=args.top)
+
+        if 'value' in args.metrics:
+            search.aggs['range'].bucket('values', 'terms', field='value', size=args.top)
+
+        if 'data_type' in args.metrics:
+            search.aggs['range'].bucket('data_types', 'terms', field='data_type', size=args.top)
+
+        if 'from_poll' in args.metrics:
+            search.aggs['range'].bucket('from_poll', 'terms', field='from_poll', size=args.top)
+
+        search = search[0:0]
+        
+        values = search.execute()
+
+        search = ThreatList.search()
+
+        search = search.filter('terms', uuid=[v['key'] for v in values.aggs.range.lists.buckets])
+
+        search = search[0:args.top]
+        lists = list(search.scan())
+
+        data = {}
+
+        if 'list' in args.metrics:
+            data['list'] = {v['key']: v['doc_count'] for v in values.aggs.range.lists.buckets}
+
+        if 'value' in args.metrics:
+            data['value'] = {v['key']: v['doc_count'] for v in values.aggs.range.values.buckets}
+
+        if 'data_type' in args.metrics:
+            data['data_type'] = {v['key']: v['doc_count'] for v in values.aggs.range.data_types.buckets}
+
+        if 'from_poll' in args.metrics:
+            data['from_poll'] = {v['key']: v['doc_count'] for v in values.aggs.range.from_poll.buckets}
+
+        data['lists'] = {l.uuid: l.name for l in lists}
+        
+        return data
+
+list_value_parser = api.parser()
+list_value_parser.add_argument('list', location='args', action='split', required=False)
+list_value_parser.add_argument('value', location='args', action='split', required=False)
+list_value_parser.add_argument('data_type', location='args', action='split', required=False)
+list_value_parser.add_argument('from_poll', location='args', type=xinputs.boolean, required=False)
+list_value_parser.add_argument('value__like', location='args', required=False)
+list_value_parser.add_argument('list_name__like', location='args', required=False)
+list_value_parser.add_argument('organization', location='args', required=False)
+list_value_parser.add_argument('page', type=int, location='args', default=1, required=False)
+list_value_parser.add_argument('page_size', type=int, location='args', default=10, required=False)
+@api.route('/values')
+class IntelListValues(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(list_value_parser)
+    @api.marshal_with(mod_list_values_paged)
+    @token_required
+    @default_org
+    @user_has('view_lists')
+    def get(self, user_in_default_org, current_user):
+
+        args = list_value_parser.parse_args()
+
+        intel_list = ThreatList.search()
+
+        if args.list:
+            intel_list = intel_list.filter('terms', uuid=args.list)
+
+        if args.list_name__like:
+            intel_list = intel_list.filter('wildcard', name=args.list_name__like)
+
+        if user_in_default_org and args.organization:
+            intel_list = intel_list.filter('term', organization=args.organization)
+        
+        if intel_list:
+            values = ThreatValue.search()
+            values = values.filter('terms', list_uuid=[l.uuid for l in intel_list])
+
+            if args.value:
+                values = values.filter('terms', value=args.value)
+
+            if args.data_type:
+                values = values.filter('terms', data_type=args.data_type)
+
+            if args.from_poll:
+                values = values.filter('term', from_poll=args.from_poll)
+
+            values, total_results, pages = page_results(values, args.page, args.page_size)
+
+            values = values.execute()
+
+            response = {
+                'values': list(values),
+                'pagination': {
+                    'total_results': total_results,
+                    'pages': pages,
+                    'page': args['page'],
+                    'page_size': args['page_size']
+                }
+            }
+
+            return response
+        else:
+            api.abort(404, 'Intel List not found')
+
+        return {}
 
 
 @api.route("/<uuid>/add_value")
