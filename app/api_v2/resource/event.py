@@ -254,7 +254,7 @@ class EventListAggregated(Resource):
                 
             raw_event_count = search.count()
 
-            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=1000000)
+            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=args.page_size)
             search.aggs['signature'].metric('max_date', 'max', field='created_at')
             search.aggs['signature'].bucket('uuid', 'terms', field='uuid', size=1, order={'max_date': 'desc'})
             search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
