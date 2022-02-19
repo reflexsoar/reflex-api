@@ -7,6 +7,7 @@ import smtplib
 import logging
 import ipaddress
 import math
+import elasticapm
 
 from flask import request, current_app, abort
 from flask_restx import fields
@@ -334,8 +335,14 @@ def _check_token():
         abort(403, 'Access token required.')
 
     if current_app.config['ELASTIC_APM_ENABLED']:
-        import elasticapm
-        elasticapm.set_user_context(username=current_user.username+'-'+current_user.organization, user_id=current_user.uuid, email=current_user.email)
+
+        username = None
+        if isinstance(current_user, Agent):
+            username = 'Agent'
+        else:
+            username = current_user.username
+        
+        elasticapm.set_user_context(username=username+'-'+current_user.organization, user_id=current_user.uuid, email=current_user.email)
 
     return current_user
 
