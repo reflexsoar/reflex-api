@@ -336,16 +336,18 @@ def _check_token():
 
     if current_app.config['ELASTIC_APM_ENABLED']:
 
-        username = None
-        email = None
-        if isinstance(current_user, Agent):
-            username = 'Agent'
-            email = 'agent'
-        else:
-            username = current_user.username
-            email = current_user.email
         
-        elasticapm.set_user_context(username=username+'-'+current_user.organization, user_id=current_user.uuid, email=email)
+        if isinstance(current_user, (Agent, User)):
+            username = None
+            email = None
+            if isinstance(current_user, Agent):
+                username = 'Agent'
+                email = 'agent'
+            else:
+                username = current_user.username
+                email = current_user.email
+            
+            elasticapm.set_user_context(username=username+'-'+current_user.organization, user_id=current_user.uuid, email=email)
 
     return current_user
 
