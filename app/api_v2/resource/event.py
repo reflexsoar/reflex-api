@@ -15,6 +15,7 @@ from ..model.exceptions import EventRuleFailure
 from ..utils import check_org, token_required, user_has, log_event
 from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list
 from ... import event_queue as event_processor_queue
+from pymemcache.client.base import Client
 
 api = Namespace('Events', description='Event related operations', path='/event')
 
@@ -455,6 +456,49 @@ class EventsByCase(Resource):
 
         return response
 
+
+def check_cache(reference):
+    '''
+    Checks memcached to see if the Event has already been sent
+    Falls back to Elasticsearch.  If an event is found in Elasticsearch, add
+    it back to memcached
+    '''
+
+    found = False
+
+    memcached_enabled = current_app.config['THREAT_POLLER_MEMCACHED_ENABLED']
+    memcached_key = f"event-processing-{reference}"
+
+    if memcached_enabled:
+        client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")   
+
+        # Check memcached first        
+        if not found:
+            result = client.get(memcached_key)
+            if result:
+                found = True
+
+    # If the item was not found in memcached check Elasticsearch
+    if not found:
+        events = Event.search()
+        events = events.filter('term', reference=reference)
+
+        if events.count() > 0:
+            found = True
+
+            # We found it, we should probably rehydrate memcached with it
+            if memcached_enabled:
+                client.set(memcached_key, True)
+        else:
+            # It did not exist in memcached or Elasticsearch, set it but 
+            # mark it as not found
+            found = False
+            if memcached_enabled:
+                client.set(memcached_key, True)
+
+    return found
+
+
 @api.route('/_bulk')
 class CreateBulkEvents(Resource):
 
@@ -558,6 +602,7 @@ class CreateBulkEvents(Resource):
 
         if not current_app.config['NEW_EVENT_PIPELINE']:
             start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
+
             if 'events' in api.payload and len(api.payload['events']) > 0:
                 [event_queue.put(e) for e in api.payload['events']]
 
@@ -576,7 +621,8 @@ class CreateBulkEvents(Resource):
             start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
-                event_processor_queue.put(event)
+                if not check_cache(event['reference']):
+                    event_processor_queue.put(event)
             end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
             total_process_time = end_bulk_process_dt - start_bulk_process_dt
             return {"request_id": request_id, "response_time": total_process_time}
