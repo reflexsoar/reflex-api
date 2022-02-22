@@ -488,13 +488,13 @@ def check_cache(reference):
 
             # We found it, we should probably rehydrate memcached with it
             if memcached_enabled:
-                client.set(memcached_key, True)
+                client.set(memcached_key, True, expire=1440)
         else:
             # It did not exist in memcached or Elasticsearch, set it but 
             # mark it as not found
             found = False
             if memcached_enabled:
-                client.set(memcached_key, True)
+                client.set(memcached_key, True, expire=1440)
 
     return found
 
