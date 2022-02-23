@@ -19,6 +19,8 @@ def page_results(search_object, page, page_size):
     the search_object
     '''
     start = (page - 1)*page_size
+    if start > 0:
+        start -= 1
     end = (page * page_size)
     search_object = search_object[start:end]
     total_results = search_object.count()

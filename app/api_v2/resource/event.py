@@ -169,6 +169,8 @@ class EventListAggregated(Resource):
         args = event_list_parser.parse_args()
 
         start = (args.page - 1)*args.page_size
+        if start > 0:
+            start -= 1
         end = (args.page * args.page_size)
 
         search_filters = []
@@ -428,6 +430,8 @@ class EventsByCase(Resource):
         args = event_list_parser.parse_args()
 
         start = (args.page - 1)*args.page_size
+        if start > 0:
+            start -= 1
         end = (args.page * args.page_size)
 
         search = Event.search()
