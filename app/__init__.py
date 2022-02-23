@@ -2,7 +2,6 @@ import os
 import ssl
 import atexit
 import logging
-import datetime
 from app.api_v2.model.system import Settings
 from app.services.sla_monitor.base import SLAMonitor
 from flask import Flask, logging as flog
@@ -25,7 +24,7 @@ from app.api_v2.model import (
     Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
-        Settings,Input,Organization,ThreatValue
+        Settings,Input, Organization
 )
 
 from .defaults import (
@@ -109,7 +108,7 @@ def upgrade_indices(app):
         Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
-        Input,Organization,ThreatValue
+        Input,Organization
         ]
 
     for model in models:
@@ -174,8 +173,8 @@ def build_elastic_connection(app):
         'timeout': app.config['ELASTICSEARCH_TIMEOUT']
     }
 
-    username = app.config['ELASTICSEARCH_USERNAME']
-    password = app.config['ELASTICSEARCH_PASSWORD']
+    username = app.config['ELASTICSEARCH_USERNAME'] if 'ELASTICSEARCH_USERNAME' in app.config else os.getenv('REFLEX_ES_USERNAME') if os.getenv('REFLEX_ES_USERNAME') else "elastic"
+    password = app.config['ELASTICSEARCH_PASSWORD'] if 'ELASTICSEARCH_PASSWORD' in app.config else os.getenv('REFLEX_ES_PASSWORD') if os.getenv('REFLEX_ES_PASSWORD') else "password"
     if app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'http':
         elastic_connection['http_auth'] = (username,password)
 
@@ -244,7 +243,7 @@ def create_app(environment='development'):
                 }
 
             threat_list_poller = ThreatListPoller(app, memcached_config=memcached_config, log_level=app.config['THREAT_POLLER_LOG_LEVEL'])
-            scheduler.add_job(func=threat_list_poller.run, next_run_time=datetime.datetime.now(), trigger="interval", seconds=app.config['THREAT_POLLER_INTERVAL'])
+            scheduler.add_job(func=threat_list_poller.run, trigger="interval", seconds=app.config['THREAT_POLLER_INTERVAL'])
 
         if not app.config['HOUSEKEEPER_DISABLED']:
             housekeeper = HouseKeeper(app, log_level=app.config['HOUSEKEEPER_LOG_LEVEL'])
