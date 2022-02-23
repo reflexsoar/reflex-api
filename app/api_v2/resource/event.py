@@ -273,12 +273,12 @@ class EventListAggregated(Resource):
             for _filter in search_filters:
                 search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
-            search = search.filter('terms', signature=sigs)
+            search = search.filter('terms', signature=sigs[start:end])
 
             if args.observables:
                 search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": args.observables}}))
 
-            search.aggs.bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=raw_event_count)
+            search.aggs.bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=args.page_size)
             search.aggs['uuid'].metric('max_date', 'max', field='created_at')
 
             events = search.execute()
@@ -291,7 +291,7 @@ class EventListAggregated(Resource):
 
             search = Event.search()
             
-            search = search[start:end]
+            #search = search[start:end]
 
             if args.sort_direction:
                 if args.sort_direction == "asc":
