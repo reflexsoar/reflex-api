@@ -303,7 +303,7 @@ class EventListAggregated(Resource):
             search = search.filter('terms', uuid=event_uuids)
 
             total_events = search.count()
-            pages = math.ceil(float(raw_event_count / args.page_size))
+            pages = math.ceil(float(len(sigs) / args.page_size))
             
             events = search.execute()
        
