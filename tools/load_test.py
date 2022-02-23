@@ -246,6 +246,18 @@ def random_event():
             "firewall",
             "destination-ip"
           ]
+        },
+        {
+            "value": "ee5a10ac5465f16405a95e473653ce4214c95f483732ada5745e9d69fa7c60ed",
+            "ioc": False,
+            "tlp": 2,
+            "spotted": False,
+            "safe": False,
+            "data_type": "sha256",
+            "source_field": "hashes.sha256",
+            "tags": [
+                "process-hash"
+            ]
         }
       ],
       #"raw_log": json.dumps({"destination":{"ip": ip}})
