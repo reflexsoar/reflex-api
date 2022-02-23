@@ -22,7 +22,7 @@ class ThreatListPoller(object):
     lists values
     '''
 
-    def __init__(self, app, threat_lists: list = [], memcached_config=None, log_level="DEBUG", *args, **kwargs):
+    def __init__(self, app, threat_lists: list = None, memcached_config=None, log_level="DEBUG", *args, **kwargs):
 
         log_levels = {
             'DEBUG': logging.DEBUG,
@@ -76,6 +76,9 @@ class ThreatListPoller(object):
         return self.connections.create_connection(**elastic_connection)
 
     def refresh_lists(self):
+        '''
+        Refreshes list data from Elasticsearch
+        '''
         lists = ThreatList.search()
         lists = lists.filter('exists', field='active')
         lists = lists.filter('match', active=True)

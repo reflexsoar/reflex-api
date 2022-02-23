@@ -135,6 +135,9 @@ class ThreatList(base.BaseDocument):
 
     @property
     def data_type(self):
+        '''
+        Return the data type of the threat list
+        '''
         data_type = system.DataType.get_by_uuid(uuid=self.data_type_uuid)
         if data_type:
             return data_type
@@ -153,7 +156,6 @@ class ThreatList(base.BaseDocument):
         return list(search.scan())
 
 
-    @execution_timer
     def check_value(self, value):
         '''
         Checks to see if a value matches a value list or a regular expression
@@ -217,26 +219,26 @@ class ThreatList(base.BaseDocument):
         self.save()
 
     @classmethod
-    def get_by_name(self, name):
+    def get_by_name(cls, name):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = self.search().query('term', name=name).execute()
+        response = cls.search().query('term', name=name).execute()
         if response:
             user = response[0]
             return user
         return response
 
     @classmethod
-    def get_by_data_type(self, data_type, organization=None):
+    def get_by_data_type(cls, data_type, organization=None):
         '''
         Fetches the threat list by the data_type
         it should be associated with
         '''
         data_type = system.DataType.get_by_name(name=data_type, organization=organization)
         try:
-            response = self.search()
+            response = cls.search()
             
             if organization:
                 response = response.filter('term', organization=organization)
