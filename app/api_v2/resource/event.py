@@ -1,3 +1,4 @@
+from re import search
 import uuid
 import copy
 import math
@@ -72,7 +73,7 @@ mod_event_list = api.model('EventList', {
     'observables': fields.List(fields.Nested(mod_observable_list)),
     'case': fields.String,
     'signature': fields.String,
-    #'related_events_count': fields.Integer,
+    'related_events_count': fields.Integer,
     'raw_log': fields.Nested(mod_raw_log, attribute='_raw_log')
 })
 
@@ -249,15 +250,11 @@ class EventListAggregated(Resource):
                 search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
             if args.observables:
-                search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": args.observables}}))
+                search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": args.observables}}))            
                 
             raw_event_count = search.count()
 
-            max_sig_size = args.page_size*(math.ceil(float(raw_event_count / args.page_size)))
-            if max_sig_size == 0:
-                max_sig_size = 10
-
-            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=max_sig_size)
+            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=args.page_size)
             search.aggs['signature'].metric('max_date', 'max', field='created_at')
             search.aggs['signature'].bucket('uuid', 'terms', field='uuid', size=1, order={'max_date': 'desc'})
             search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
@@ -609,39 +606,12 @@ class EventBulkUpdate(Resource):
 
             for event in api.payload['events']:
                 e = Event.get_by_uuid(uuid=event)
-                #e.set_dismissed(reason=reason, comment=comment)
+                e.set_dismissed(reason=reason, comment=comment)
                 related_events = Event.get_by_signature_and_status(signature=e.signature, status='New', all_events=True)
-                
-                event_dict = e.to_dict()
-
-                event_dict['_meta'] = {
-                                'action': 'dismiss',
-                                'dismiss_reason': api.payload['dismiss_reason_uuid'],
-                                'dismiss_comment': comment,
-                                '_id': e.meta.id,
-                                'updated_by': {
-                                    'organization': current_user.organization,
-                                    'username': current_user.username,
-                                    'uuid': current_user.uuid
-                                }
-                            }
-                event_processor_queue.put(event_dict)
-                if related_events:
-                    for related in related_events:
-                        if hasattr(related, 'uuid') and related.uuid not in api.payload['events']:
-                            related_dict = related.to_dict()
-                            related_dict['_meta'] = {
-                                'action': 'dismiss',
-                                'dismiss_reason': api.payload['dismiss_reason_uuid'],
-                                'dismiss_comment': comment,
-                                '_id': related.meta.id,
-                                'updated_by': {
-                                    'organization': current_user.organization,
-                                    'username': current_user.username,
-                                    'uuid': current_user.uuid
-                                }
-                            }
-                            event_processor_queue.put(related_dict)
+                if len(related_events) > 0:
+                    for evt in related_events:
+                        if hasattr(evt, 'uuid') and evt.uuid not in api.payload['events']:
+                            evt.set_dismissed(reason=reason, comment=comment)
 
         time.sleep(1)
 
@@ -743,7 +713,7 @@ event_stats_parser.add_argument('top', location='args', default=10, type=int, re
 event_stats_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
 event_stats_parser.add_argument('end', location='args', default=(datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
 event_stats_parser.add_argument('interval', location='args', default='day', required=False, type=str)
-event_stats_parser.add_argument('metrics', location='args', action='split', default=['title','observable','source','tag','status','severity','data_type','event_rule','signature'])
+event_stats_parser.add_argument('metrics', location='args', action='split', default=['title','observable','source','tag','status','severity','data_type','event_rule'])
 event_stats_parser.add_argument('organization', location='args', action='split', required=False)
 
 @api.route("/stats")
@@ -1187,7 +1157,7 @@ class BulkSelectAll(Resource):
         else:
             events = list(search.scan())
             event_uuids = [e.uuid for e in events]
-            org_uuids = {e.organization: {'events': [evt.uuid for evt in events if evt.organization == e.organization]} for e in events}
+            org_uuids = [e.organization for e in events]
 
         if hasattr(current_user,'default_org') and current_user.default_org:
             return {
