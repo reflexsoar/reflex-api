@@ -43,19 +43,6 @@ class ThreatList(base.BaseDocument):
             return data_type
         return []
 
-      
-    @property
-    def values(self):
-        '''
-        Fetches the lists values from the threat value index
-        Limited to 10,000 records
-        '''
-        search = ThreatValue.search()
-        search = search[0:10000]
-        search = search.filter('term', list=self.uuid)
-        return list(search.scan())
-
-
     def check_value(self, value):
         '''
         Checks to see if a value matches a value list or a regular expression
