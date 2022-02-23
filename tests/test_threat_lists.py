@@ -72,7 +72,7 @@ class ThreatListTests(BaseTest):
 
         rv = self.client.post(f'/api/{API_VERSION}/list', data=json.dumps(threat_list), headers=self.auth_header)
         self.assertEqual(rv.status_code, 400)
-        self.assertEqual(rv.json['message'], 'Missing polling_interval')
+        self.assertEqual(rv.json['message'], 'Missing poll_interval')
 
         threat_list = {
             "name": f"Test List Polling Interval Test {self.list_suffix}",
@@ -80,7 +80,7 @@ class ThreatListTests(BaseTest):
             "tag_on_match": False,
             "data_type_uuid": dt_uuid,
             "url": "https://www.spamhaus.org/drop/edrop.txt",
-            "polling_interval": 59,
+            "poll_interval": 59,
             "values": "a\nb\nc"
         }
 

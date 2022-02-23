@@ -344,9 +344,10 @@ class Observable(base.BaseDocument):
         '''
         theat_lists = threat.ThreatList.get_by_data_type(self.data_type, organization=self.organization)
         for l in theat_lists:
+            found = False
             if l.active:
-                hits = l.check_value(self.value)
-                if hits > 0:
+                found = l.check_value(self.value)
+                if found:
                     if l.tag_on_match:
                         self.add_tag(f"list: {l.name}")
         self.save()
