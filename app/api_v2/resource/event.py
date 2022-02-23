@@ -169,8 +169,6 @@ class EventListAggregated(Resource):
         args = event_list_parser.parse_args()
 
         start = (args.page - 1)*args.page_size
-        if start > 0:
-            start -= 1
         end = (args.page * args.page_size)
 
         search_filters = []
@@ -241,9 +239,7 @@ class EventListAggregated(Resource):
         
         # If not filtering by a signature
         if not args.signature:
-
-            #agg_start = datetime.datetime.utcnow()
-            
+           
             search = Event.search()
 
             search = search[:0]
@@ -257,18 +253,44 @@ class EventListAggregated(Resource):
                 
             raw_event_count = search.count()
 
-            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=args.page_size)
+            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=raw_event_count)
             search.aggs['signature'].metric('max_date', 'max', field='created_at')
-            search.aggs['signature'].bucket('uuid', 'terms', field='uuid', size=1, order={'max_date': 'desc'})
-            search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
 
             events = search.execute()
 
             event_uuids = []
+            sigs = []
+
             for signature in events.aggs.signature.buckets:
-                event_uuids.append(signature.uuid.buckets[0]['key'])
+                sigs.append(signature['key'])
+
+            # START: Second aggregation based on signatures to find first UUID for card display purposes
+            # performance necessary
+            search = Event.search()
+            search = search[:0]
+
+            # Apply all filters
+            for _filter in search_filters:
+                search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+
+            search = search.filter('terms', signature=sigs)
+
+            if args.observables:
+                search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": args.observables}}))
+
+            search.aggs.bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=raw_event_count)
+            search.aggs['uuid'].metric('max_date', 'max', field='created_at')
+
+            events = search.execute()
+
+            for uuid in events.aggs.uuid.buckets:
+                event_uuids.append(uuid['key'])
+
+            # END: Second aggregation based on signatures to find first UUID for card display purposes
+            # performance necessary
 
             search = Event.search()
+            
             search = search[start:end]
 
             if args.sort_direction:
@@ -281,7 +303,7 @@ class EventListAggregated(Resource):
             search = search.filter('terms', uuid=event_uuids)
 
             total_events = search.count()
-            pages = math.ceil(float(total_events / args.page_size))
+            pages = math.ceil(float(raw_event_count / args.page_size))
             
             events = search.execute()
        
@@ -426,8 +448,6 @@ class EventsByCase(Resource):
         args = event_list_parser.parse_args()
 
         start = (args.page - 1)*args.page_size
-        if start > 0:
-            start -= 1
         end = (args.page * args.page_size)
 
         search = Event.search()
