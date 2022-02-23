@@ -609,9 +609,9 @@ class EventBulkUpdate(Resource):
 
             for event in api.payload['events']:
                 e = Event.get_by_uuid(uuid=event)
-                #e.set_dismissed(reason=reason, comment=comment)
+
                 related_events = Event.get_by_signature_and_status(signature=e.signature, status='New', all_events=True)
-                
+
                 event_dict = e.to_dict()
 
                 event_dict['_meta'] = {

@@ -339,4 +339,3 @@ def _check_token():
 
     return current_user
 
-
