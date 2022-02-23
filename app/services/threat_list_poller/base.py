@@ -14,7 +14,7 @@ class ThreatListPoller(object):
     lists values
     '''
 
-    def __init__(self, app, threat_lists: list = [], memcached_config=None, log_level="DEBUG", *args, **kwargs):
+    def __init__(self, app, threat_lists: list = None, memcached_config=None, log_level="DEBUG", *args, **kwargs):
 
         log_levels = {
             'DEBUG': logging.DEBUG,
@@ -22,8 +22,6 @@ class ThreatListPoller(object):
             'INFO': logging.INFO
         }
         
-        
-
         ch = logging.StreamHandler()
         ch.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         
@@ -39,6 +37,9 @@ class ThreatListPoller(object):
         self.memcached_config = memcached_config if memcached_config else None
 
     def refresh_lists(self):
+        '''
+        Refreshes list data from Elasticsearch
+        '''
         lists = ThreatList.search()
         lists = lists.filter('exists', field='active')
         lists = lists.filter('match', active=True)

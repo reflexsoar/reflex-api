@@ -397,7 +397,6 @@ class EventRule(base.BaseDocument):
         name = 'reflex-event-rules'
 
 
-    @classmethod
     def update_order(self, order):
         '''
         Updates the order in which this rule will be processed
@@ -420,7 +419,6 @@ class EventRule(base.BaseDocument):
         '''
         Checks an event against the rule to see if it matches
         '''
-        time_taken_seconds = 0
         
         qp = QueryParser(organization=self.organization)
         parse_start_time = datetime.datetime.utcnow()
@@ -431,6 +429,7 @@ class EventRule(base.BaseDocument):
         time_taken_seconds = (parse_end_time - parse_start_time).total_seconds()
         
         if len(results) > 0:
+            self.last_matched_date = datetime.datetime.utcnow()
             return True
         return False
 
