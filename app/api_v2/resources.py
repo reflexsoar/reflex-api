@@ -2180,7 +2180,10 @@ class AgentList(Resource):
 
             # Add the agent to the groups
             if groups:
-                [group.add_agent(agent.uuid) for group in groups]
+                if isinstance(groups, list):
+                    [group.add_agent(agent.uuid) for group in groups]
+                else:
+                    groups.add_agent(agent.uuid)
             
             # Add the agent to the agent role
             role = Role.get_by_name(name='Agent', organization=agent.organization)
