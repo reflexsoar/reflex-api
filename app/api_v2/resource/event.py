@@ -253,7 +253,7 @@ class EventListAggregated(Resource):
                 
             raw_event_count = search.count()
 
-            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=raw_event_count)
+            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=100000)
             search.aggs['signature'].metric('max_date', 'max', field='created_at')
 
             events = search.execute()
@@ -261,8 +261,12 @@ class EventListAggregated(Resource):
             event_uuids = []
             sigs = []
 
-            for signature in events.aggs.signature.buckets:
-                sigs.append(signature['key'])
+            # Sort the signatures based on what the user has in the sorting options
+            reverse_sort = False
+            if args.sort_direction == 'desc':
+                reverse_sort = True
+
+            sigs = [s['key'] for s in sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'], reverse=reverse_sort)]
 
             # START: Second aggregation based on signatures to find first UUID for card display purposes
             # performance necessary
@@ -273,25 +277,28 @@ class EventListAggregated(Resource):
             for _filter in search_filters:
                 search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
-            search = search.filter('terms', signature=sigs[start:end])
-
             if args.observables:
                 search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": args.observables}}))
 
-            search.aggs.bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=args.page_size)
-            search.aggs['uuid'].metric('max_date', 'max', field='created_at')
+            paged_sigs = sigs[start:end]
+            
+            search = search.filter('terms', signature=paged_sigs)
+
+            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=len(paged_sigs))
+            search.aggs['signature'].metric('max_date', 'max', field='created_at')
+            search.aggs['signature'].bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=len(paged_sigs))
+            search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
 
             events = search.execute()
 
-            for uuid in events.aggs.uuid.buckets:
-                event_uuids.append(uuid['key'])
+            sigs2 = sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'], reverse=reverse_sort)
+            for signature in sigs2:
+                event_uuids.append(signature.uuid.buckets[0]['key'])
 
             # END: Second aggregation based on signatures to find first UUID for card display purposes
             # performance necessary
 
             search = Event.search()
-            
-            #search = search[start:end]
 
             if args.sort_direction:
                 if args.sort_direction == "asc":
