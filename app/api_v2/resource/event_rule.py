@@ -404,9 +404,7 @@ class ExportEventRules(Resource):
         else:   
             event_rules = event_rules.filter('term', organization=current_user.organization)
             
-        event_rules = event_rules.scan()
-
-        
+        event_rules = event_rules.scan()        
 
         output = ndjson.dumps([marshal(e, mod_event_rule_list) for e in event_rules])
         resp = Response(output,headers={'Content-Type': 'application/x-ndjson', 'Content-disposition':'attachment; filename=event_rules.ndjson'})

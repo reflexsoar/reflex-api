@@ -303,9 +303,13 @@ class EventListAggregated(Resource):
            
             search = search.filter('terms', signature=paged_sigs)
 
-            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=len(paged_sigs))
+            number_of_sigs = len(paged_sigs)
+            if number_of_sigs == 0:
+                number_of_sigs = 10000
+
+            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=number_of_sigs)
             search.aggs['signature'].metric('max_date', 'max', field='created_at')
-            search.aggs['signature'].bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=len(paged_sigs))
+            search.aggs['signature'].bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=number_of_sigs)
             search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
 
             events = search.execute()
