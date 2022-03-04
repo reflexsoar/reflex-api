@@ -182,7 +182,7 @@ class EventWorker(Process):
         if len(self.rules) > 0:
             for rule in self.rules:
                 rule.parsed_rule = None
-                rule.save()
+                rule.update(last_matched_date=rule.last_matched_date)
             self.rules = []
 
         search = EventRule.search()
