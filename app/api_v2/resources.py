@@ -875,7 +875,7 @@ class CaseList(Resource):
     @api2.response('200', "Successfully created the case.")
     @token_required
     @user_has('create_case')
-    @check_org
+    #@check_org
     def post(self, current_user):
         ''' Creates a new case '''
 

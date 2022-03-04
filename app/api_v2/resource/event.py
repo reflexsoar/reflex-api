@@ -152,8 +152,8 @@ event_list_parser.add_argument(
     'sort_by', type=str, location='args', default='created_at', required=False)
 event_list_parser.add_argument(
     'sort_direction', type=str, location='args', default="desc", required=False)
-event_list_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
-event_list_parser.add_argument('end', location='args', default=(datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+event_list_parser.add_argument('start', location='args', type=str, required=False)
+event_list_parser.add_argument('end', location='args',  type=str, required=False)
 event_list_parser.add_argument('organization', location='args', action='split', required=False)
 
 @api.route("")
@@ -167,6 +167,13 @@ class EventListAggregated(Resource):
     def get(self, current_user):
 
         args = event_list_parser.parse_args()
+
+        # Set default start/end date filters if they are not set above
+        # We do this here because default= on add_argument() is only calculated when the API is initialized
+        if not args.start:
+            args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+        if not args.end:
+            args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
 
         start = (args.page - 1)*args.page_size
         end = (args.page * args.page_size)
@@ -256,6 +263,15 @@ class EventListAggregated(Resource):
             search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=100000)
             search.aggs['signature'].metric('max_date', 'max', field='created_at')
 
+            # If sorting by name add an additional bucket
+            if args.sort_by == 'title':
+                search.aggs['signature'].bucket('sorter', 'terms', field='title', size=1)
+            elif args.sort_by == 'severity':
+                search.aggs['signature'].bucket('sorter', 'terms', field='severity', size=5)
+                search.aggs['signature']['sorter'].metric('max_severity', 'max', field='severity')
+            elif args.sort_by == 'tlp':
+                search.aggs['signature'].bucket('sorter', 'terms', field='tlp', size=5)
+
             events = search.execute()
 
             event_uuids = []
@@ -266,7 +282,10 @@ class EventListAggregated(Resource):
             if args.sort_direction == 'desc':
                 reverse_sort = True
 
-            sigs = [s['key'] for s in sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'], reverse=reverse_sort)]
+            if args.sort_by == 'created_at':
+                sigs = [s['key'] for s in sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'], reverse=reverse_sort)]
+            else:
+                sigs = [s['key'] for s in sorted(events.aggs.signature.buckets, key=lambda sig: sig['sorter'].buckets[0]['key'], reverse=reverse_sort)]
 
             # START: Second aggregation based on signatures to find first UUID for card display purposes
             # performance necessary
@@ -281,7 +300,7 @@ class EventListAggregated(Resource):
                 search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": args.observables}}))
 
             paged_sigs = sigs[start:end]
-            
+           
             search = search.filter('terms', signature=paged_sigs)
 
             search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=len(paged_sigs))
@@ -308,6 +327,7 @@ class EventListAggregated(Resource):
 
             search = search.sort(args.sort_by)
             search = search.filter('terms', uuid=event_uuids)
+            search = search[0:len(event_uuids)]
 
             total_events = search.count()
             pages = math.ceil(float(len(sigs) / args.page_size))
@@ -814,8 +834,8 @@ event_stats_parser.add_argument('source', location='args', default=[
 event_stats_parser.add_argument('event_rule', location='args', default=[
 ], type=str, action='split', required=False)
 event_stats_parser.add_argument('top', location='args', default=10, type=int, required=False)
-event_stats_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
-event_stats_parser.add_argument('end', location='args', default=(datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+event_stats_parser.add_argument('start', location='args', type=str, required=False)
+event_stats_parser.add_argument('end', location='args', type=str, required=False)
 event_stats_parser.add_argument('interval', location='args', default='day', required=False, type=str)
 event_stats_parser.add_argument('metrics', location='args', action='split', default=['title','observable','source','tag','status','severity','data_type','event_rule','signature'])
 event_stats_parser.add_argument('organization', location='args', action='split', required=False)
@@ -834,6 +854,13 @@ class EventStats(Resource):
         '''
 
         args = event_stats_parser.parse_args()
+
+        # Set default start/end date filters if they are not set above
+        # We do this here because default= on add_argument() is only calculated when the API is initialized
+        if not args.start:
+            args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+        if not args.end:
+            args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
         
         search_filters = []
 

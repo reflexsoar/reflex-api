@@ -1,6 +1,6 @@
-from distutils.command.upload import upload
 import math
 import json
+from app.api_v2.model.system import Settings
 import ndjson
 import datetime
 import threading
@@ -172,6 +172,10 @@ class EventRuleList(Resource):
     def post(self, current_user):
         ''' Creates a new event_rule '''
 
+        if 'organization' in api.payload:
+            settings = Settings.load(organization=api.payload['organization'])
+        else:
+            settings = Settings.load()
         
         if 'organization' in api.payload:
             event_rule = EventRule.get_by_name(name=api.payload['name'], organization=api.payload['organization'])
@@ -181,6 +185,14 @@ class EventRuleList(Resource):
         # Only the default tenant can create global rules
         if 'global_rule' in api.payload and not hasattr(current_user,'default_org'):
             api.payload['global_rule'] = False
+
+        if 'dismiss' in api.payload and api.payload['dismiss']:
+
+            if 'dismiss_reason' not in api.payload or api.payload['dismiss_reason'] == None:
+                api.abort(400, 'A dismiss reason is required')          
+
+            if settings.require_event_dismiss_comment and 'dismiss_comment' not in api.payload:
+                api.abort(400, 'Dismiss comment required')
 
         if not event_rule:
 
