@@ -59,7 +59,10 @@ class Input(base.BaseDocument):
     def _field_mapping(self):
         ''' Returns the field mapping as a dict '''
         if isinstance(self.field_mapping, AttrList):
-            return self.field_mapping[0].to_dict()
+            if self.field_mapping and len(self.field_mapping) >= 1:
+                return self.field_mapping[0].to_dict()
+            else:
+                return {}
         return self.field_mapping.to_dict()
 
     @classmethod
