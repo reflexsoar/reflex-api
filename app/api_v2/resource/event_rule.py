@@ -148,7 +148,7 @@ class EventRuleList(Resource):
         end = args.page*args.page_size
         event_rules = event_rules[start:end]
 
-        event_rules = event_rules.execute()
+        event_rules = list(event_rules.scan())
 
         response = {
             'event_rules': list(event_rules),
@@ -366,7 +366,7 @@ class EventRuleStats(Resource):
                 search = search.filter('terms', event_rules=args.rules)
 
             search.aggs['range'].bucket('event_rules', 'terms', field='event_rules')
-            result = search.execute()
+            result = list(search.scan())
 
 
         # Prepare the hits metric
@@ -484,7 +484,7 @@ class TestEventRQL(Resource):
                     'lte': api.payload['end_date']
                 }})
 
-            events = search.execute()
+            events = list(search.scan())
            
             event_data = [json.loads(json.dumps(marshal(e, mod_event_rql))) for e in events]
        
