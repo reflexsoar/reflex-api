@@ -194,7 +194,8 @@ class EventWorker(Process):
             try:
                 rule.parse_rule()
             except Exception as e:
-                self.logger.error(f"Failed to parse Event Rule {rule.title}.  {e}")
+                rule.update(active=False)
+                self.logger.error(f"Failed to parse Event Rule {rule.title}, rule has been disabled.  {e}.")
 
         self.rules = rules
 
