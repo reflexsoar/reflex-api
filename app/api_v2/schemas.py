@@ -244,6 +244,11 @@ mod_user_full = Model('UserFull', {
     'role': fields.Nested(mod_user_role_no_perms)
 })
 
+mod_user_list_paged = Model('UserListPaged', {
+    'users': fields.List(fields.Nested(mod_user_full)),
+    'pagination': fields.Nested(mod_pagination)
+})
+
 mod_user_create_success = Model('UserCreateSuccess', {
     'message': fields.String,
     'user': fields.Nested(mod_user_full)
@@ -1101,4 +1106,5 @@ mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_eve
 mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plugin_manifest_action,
 mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql,
 mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_event_rule_list_paged, mod_bulk_event_uuids,
-mod_list_values, mod_input_list_paged, mod_agent_group_list_paged, mod_credential_list_paged, mod_agent_list_paged]
+mod_list_values, mod_input_list_paged, mod_agent_group_list_paged, mod_credential_list_paged, mod_agent_list_paged,
+mod_user_list_paged]

@@ -562,7 +562,7 @@ class Case(base.BaseDocument):
             event (Event): The event to pull observables for
         '''
 
-        event_observables = system.Observable.get_by_event_uuid(evt.uuid)
+        event_observables = evt.observables
         case_observables = system.Observable.get_by_case_uuid(self.uuid)
         new_observables = None
         if case_observables:

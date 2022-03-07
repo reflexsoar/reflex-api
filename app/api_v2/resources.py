@@ -296,13 +296,17 @@ user_parser.add_argument('username', location='args', required=False)
 user_parser.add_argument('organization', location='args', required=False)
 user_parser.add_argument('deleted', type=xinputs.boolean, location='args',
                          required=False, default=False)
+user_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+user_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
 
 
 @ns_user_v2.route("")
 class UserList(Resource):
 
     @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_user_full, as_list=True)
+    @api2.marshal_with(mod_user_list_paged, as_list=True)
     @api2.expect(user_parser)
     @token_required
     @user_has('view_users')
@@ -312,21 +316,33 @@ class UserList(Resource):
 
         args = user_parser.parse_args()
 
-        user = User.search()
+        users = User.search()
 
         if args['username']:
-            user = user.filter('term', username=args.username)
+            users = users.filter('term', username=args.username)
 
         if args['organization']:
-            user = user.filter('term', organization=args.organization)
+            users = users.filter('term', organization=args.organization)
 
         if args['deleted']:
-            user = user.filter('match', deleted=False)
+            users = users.filter('match', deleted=False)
 
-        user = user [0:]
-        response = user.execute()
-        [user.load_role() for user in response]
-        return [user for user in response]
+        users, total_results, pages = page_results(users, args.page, args.page_size)
+        
+        users = users.execute()
+        [user.load_role() for user in users]
+
+        response = {
+            'users': list(users),
+            'pagination': {
+                'total_results': total_results,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
+            }
+        }
+        
+        return response
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_user_create)
@@ -939,10 +955,10 @@ class CaseList(Resource):
                         related_event.set_case(uuid=case.uuid)
 
                         # PERFORMANCE ISSUE FIX ME
-                        case_observables += Observable.get_by_event_uuid(related_event.uuid)
+                        case_observables += related_event.observables #Observable.get_by_event_uuid(related_event.uuid)
                         uuids.append(related_event.uuid)
 
-                observables = Observable.get_by_event_uuid(event)
+                observables = e.observables #Observable.get_by_event_uuid(event)
                 case_observables += observables
 
                 # Automatically generates an event rule for the event associated with this case
