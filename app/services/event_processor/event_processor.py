@@ -191,7 +191,10 @@ class EventWorker(Process):
         rules = list(rules)
 
         for rule in rules:
-            rule.parse_rule()
+            try:
+                rule.parse_rule()
+            except Exception as e:
+                self.logger.error(f"Failed to parse Event Rule {rule.title}.  {e}")
 
         self.rules = rules
 
