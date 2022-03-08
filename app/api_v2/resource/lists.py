@@ -66,6 +66,12 @@ list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 list_parser.add_argument(
     'page_size', type=int, location='args', default=10, required=False)
+list_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+list_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
 
 @api.route("")
 class ThreatListList(Resource):
@@ -92,6 +98,12 @@ class ThreatListList(Resource):
             lists = lists.filter('term', organization=args.organization)
 
         lists, total_results, pages = page_results(lists, args.page, args.page_size)
+
+        sort_by = args.sort_by
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
+
+        lists.sort(sort_by)
 
         lists = lists.execute()
 

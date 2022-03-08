@@ -81,7 +81,8 @@ mod_event_rule_list = api.model('EventRuleList', {
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
     'last_matched_date': ISO8601(attribute='last_matched_date'),
-    'global_rule': fields.Boolean
+    'global_rule': fields.Boolean,
+    'disable_reason': fields.String
 })
 
 mod_event_rule_list_paged = api.model('PagedEventRuleList', {
@@ -148,7 +149,7 @@ class EventRuleList(Resource):
         end = args.page*args.page_size
         event_rules = event_rules[start:end]
 
-        event_rules = list(event_rules.scan())
+        event_rules = event_rules.execute()
 
         response = {
             'event_rules': list(event_rules),
@@ -211,6 +212,15 @@ class EventRuleList(Resource):
 
             event_rule = EventRule(**api.payload)
             event_rule.active = True
+
+            # Try to parse the rule and if it fails don't activate it
+            try:
+                event_rule.parse_rule()
+            except Exception as e:
+                event_rule.active = False
+                api.abort(400, f'Invalid RQL Query. {e}')
+                #event_rule.disable_reason = f"Invalid RQL query. {e}"
+
             event_rule.save()
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
@@ -366,8 +376,7 @@ class EventRuleStats(Resource):
                 search = search.filter('terms', event_rules=args.rules)
 
             search.aggs['range'].bucket('event_rules', 'terms', field='event_rules')
-            result = list(search.scan())
-
+            result = search.execute()
 
         # Prepare the hits metric
         if 'hits' in args.metrics:

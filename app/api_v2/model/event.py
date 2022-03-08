@@ -391,6 +391,7 @@ class EventRule(base.BaseDocument):
     last_matched_date = Date() # When the rule last matched on an event
     order = Integer() # What order to process events in, 1 being first
     global_rule = Boolean() # Is it a global rule that should be processed on everything
+    disable_reason = Keyword() # The reason why a rule was disabled (internally set by the system)
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

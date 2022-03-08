@@ -194,8 +194,8 @@ class EventWorker(Process):
             try:
                 rule.parse_rule()
             except Exception as e:
-                rule.update(active=False)
-                self.logger.error(f"Failed to parse Event Rule {rule.title}, rule has been disabled.  {e}.")
+                rule.update(active=False, disable_reason=f"Invalid RQL query. {e}")
+                self.logger.error(f"Failed to parse Event Rule {rule.name}, rule has been disabled.  Invalid RQL query. {e}.")
 
         self.rules = rules
 

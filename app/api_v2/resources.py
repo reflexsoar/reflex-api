@@ -1970,6 +1970,12 @@ input_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 input_list_parser.add_argument(
     'page_size', type=int, location='args', default=10, required=False)
+input_list_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+input_list_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
 
 @ns_input_v2.route("")
 class InputList(Resource):
@@ -1995,6 +2001,12 @@ class InputList(Resource):
             inputs = inputs.filter('wildcard', name=args.name+'*')
 
         inputs, total_results, pages = page_results(inputs, args.page, args.page_size)
+
+        sort_by = args.sort_by
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
+
+        inputs = inputs.sort(sort_by)
 
         inputs = inputs.execute()
 
@@ -2133,7 +2145,12 @@ agent_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 agent_list_parser.add_argument(
     'page_size', type=int, location='args', default=10, required=False)
-
+agent_list_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+agent_list_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
 
 @ns_agent_v2.route("")
 class AgentList(Resource):
@@ -2154,6 +2171,12 @@ class AgentList(Resource):
         if user_in_default_org:
             if args.organization:
                 agents = agents.filter('term', organization=args.organization)
+
+        sort_by = args.sort_by
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
+
+        agents = agents.sort(sort_by)
 
         agents, total_results, pages = page_results(agents, args.page, args.page_size)
 
@@ -2437,6 +2460,12 @@ cred_parser.add_argument('organization', location='args', required=False, type=s
 cred_parser.add_argument('page', type=int, location='args', default=1, required=False)
 cred_parser.add_argument('sort_by', type=str, location='args', default='-created_at', required=False)
 cred_parser.add_argument('page_size', type=int, location='args', default=10, required=False)
+cred_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+cred_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
 
 @ns_credential_v2.route("")
 class CredentialList(Resource):
@@ -2460,7 +2489,13 @@ class CredentialList(Resource):
 
         credentials = credentials.sort(args.sort_by)
 
-        credentials, total_results, pages = page_results(credentials, args.page, args.page_size)
+        sort_by = args.sort_by
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
+
+        credentials = credentials.sort(sort_by)
+
+        credentials, total_results, pages = page_results(credentials, args.page, args.page_size)        
 
         credentials = credentials.execute()
 

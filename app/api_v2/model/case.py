@@ -54,6 +54,7 @@ class CaseComment(base.BaseDocument):
     closure_reason = Object()
     cross_organization = Boolean()
     other_organization = Keyword()
+    interal_comment = Boolean() # Is an internal comment that sub tenants can't see
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
