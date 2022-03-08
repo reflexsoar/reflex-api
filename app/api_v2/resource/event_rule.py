@@ -117,6 +117,7 @@ mod_event_rule_name_only = api.model('EventRuleNames', {
 event_rule_list_parser = api.parser()
 event_rule_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
 event_rule_list_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
+event_rule_list_parser.add_argument('sort_direction', type=str, location='args', default='asc', required=False)
 event_rule_list_parser.add_argument('page_size', type=int, location='args', default=25, required=False)
 event_rule_list_parser.add_argument('page_size', location='args', required=False, type=int, default=25)
 event_rule_list_parser.add_argument('page', location='args', required=False, type=int, default=1)
@@ -136,28 +137,37 @@ class EventRuleList(Resource):
         args = event_rule_list_parser.parse_args()
 
         event_rules = EventRule.search()
-        event_rules = event_rules.sort('-last_matched_date','-created_at')
 
-        if args.rules:
-            event_rules = event_rules.filter('terms', uuid=args.rules)
+        #sort_by = args.sort_by
+
+        #if sort_by not in ['name','merge_into_case','dismiss','expire','global_rule']:
+            #sort_by = "created_at"
+
+        #if args.sort_direction == 'desc':
+            #sort_by = f"-{sort_by}"
+
+        #event_rules = event_rules.sort(sort_by)
+
+        #if args.rules:
+            #event_rules = event_rules.filter('terms', uuid=args.rules)
 
         # Paginate the cases
-        page = args.page - 1
-        total_cases = event_rules.count()
-        pages = math.ceil(float(total_cases / args.page_size))
+        #age = args.page - 1
+        #total_cases = event_rules.count()
+        #pages = math.ceil(float(total_cases / args.page_size))
 
-        start = page*args.page_size
-        end = args.page*args.page_size
-        event_rules = event_rules[start:end]
+        #start = page*args.page_size
+        #end = args.page*args.page_size
+        #event_rules = event_rules[start:end]
 
-        event_rules = event_rules.execute()
+        event_rules = event_rules.scan()
 
         response = {
             'event_rules': list(event_rules),
             'pagination': {
-                'total_results': total_cases,
-                'pages': pages,
-                'page': page+1,
+                'total_results': len(event_rules),
+                'pages': 1,
+                'page': 1,
                 'page_size': args.page_size
             }
         }
