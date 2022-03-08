@@ -2069,6 +2069,10 @@ class InputList(Resource):
                 except Exception:
                     ns_input_v2.abort(
                         400, 'Invalid JSON in field_mapping, check your syntax')
+            else:
+                ns_input_v2.abort(
+                    400, 'Field mappings are required.'
+                )
 
             inp = Input(**api2.payload)
             inp.save()
