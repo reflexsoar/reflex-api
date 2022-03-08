@@ -60,10 +60,10 @@ def case_templates():
 
 def random_title_description():
   titles = [
-    {'CASE TEST NEW WAY': 'Someone added a normal user to local admins'},
-    #{'Suspicious DNS hit': 'A machine made a request for a suspicious DNS record'},
-    #{'Local account discovery': 'A machine exhibited enumeration behavior'},
-    #{'CVE-2021-40444': 'Remote code execution via malicious document in word'}
+    {'User added to local administrators': 'Someone added a normal user to local admins'},
+    {'Suspicious DNS hit': 'A machine made a request for a suspicious DNS record'},
+    {'Local account discovery': 'A machine exhibited enumeration behavior'},
+    {'CVE-2021-40444': 'Remote code execution via malicious document in word'}
   ]
 
   return titles[random.randint(0, len(titles)-1)]
@@ -151,7 +151,8 @@ def random_event():
       "reference": reference(),
       "tags": [
         "enumeration",
-        "T1262"
+        "T1262",
+        "awesome: None"
       ],
       "tlp": 2,
       "source": "load_test.py",

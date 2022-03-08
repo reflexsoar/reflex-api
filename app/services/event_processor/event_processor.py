@@ -454,6 +454,12 @@ class EventWorker(Process):
             if 'uuid' not in raw_event:
                 raw_event['uuid'] = uuid.uuid4()
 
+            if 'observables' in raw_event:
+                raw_event['observables'] = [o for o in raw_event['observables'] if o['value'] not in [None,'','-']]
+
+            if 'tags' in raw_event:
+                raw_event['tags'] = [t for t in raw_event['tags'] if not t.endswith(': None')]
+
             # Add the current users organization to the event signature
             hasher_b = hashlib.md5()
             hasher_b.update(raw_event['signature'].encode(

@@ -2399,6 +2399,13 @@ agent_group_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 agent_group_list_parser.add_argument(
     'page_size', type=int, location='args', default=10, required=False)
+agent_group_list_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+agent_group_list_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
+
 
 @ns_agent_group_v2.route("")
 class AgentGroupList(Resource):
@@ -2418,6 +2425,15 @@ class AgentGroupList(Resource):
         if user_in_default_org:
             if args.organization:
                 groups = groups.filter('term', organization=args.organization)
+
+        sort_by = args.sort_by
+        if sort_by not in ['name']:
+            sort_by = "created_at"
+            
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
+
+        groups = groups.sort(sort_by)
 
         groups, total_results, pages = page_results(groups, args.page, args.page_size)
 
