@@ -160,10 +160,10 @@ class EventRuleList(Resource):
         #end = args.page*args.page_size
         #event_rules = event_rules[start:end]
 
-        event_rules = event_rules.scan()
+        event_rules = list(event_rules.scan())
 
         response = {
-            'event_rules': list(event_rules),
+            'event_rules': event_rules,
             'pagination': {
                 'total_results': len(event_rules),
                 'pages': 1,

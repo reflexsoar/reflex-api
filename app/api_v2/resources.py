@@ -425,6 +425,7 @@ class UserDetails(Resource):
 
             if 'username' in api2.payload:
                 target_user = User.get_by_username(api2.payload['username'])
+                print(target_user)
                 if target_user:
                     if target_user.uuid == uuid:
                         del api2.payload['username']
@@ -2429,7 +2430,7 @@ class AgentGroupList(Resource):
         sort_by = args.sort_by
         if sort_by not in ['name']:
             sort_by = "created_at"
-            
+
         if args.sort_direction == 'desc':
             sort_by = f"-{sort_by}"
 

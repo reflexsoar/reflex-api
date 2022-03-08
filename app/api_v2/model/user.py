@@ -216,7 +216,7 @@ class User(base.BaseDocument):
     @classmethod
     def get_by_username(self, username):
         response = self.search().query(
-            'match', username=username).execute()
+            'term', username__keyword=username).execute()
         if response:
             user = response[0]
             return user
