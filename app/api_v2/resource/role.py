@@ -36,6 +36,12 @@ role_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 role_list_parser.add_argument(
     'page_size', type=int, location='args', default=10, required=False)
+role_list_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+role_list_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
 
 @api.route("")
 class RoleList(Resource):
@@ -60,8 +66,18 @@ class RoleList(Resource):
 
         roles = roles.exclude('term', name='Agent')
 
+        sort_by = args.sort_by
+        # Only allow these fields to be sorted on
+        if sort_by not in ['name']:
+            sort_by = "created_at"
+
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
+
+        roles = roles.sort(sort_by)
+
         # Do the pagination stuff
-        roles, total_results, pages = page_results(roles, args.page, args.page_size)
+        roles, total_results, pages = page_results(roles, args.page, args.page_size)        
 
         roles = roles.execute()
 

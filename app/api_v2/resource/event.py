@@ -75,7 +75,8 @@ mod_event_list = api.model('EventList', {
     'case': fields.String,
     'signature': fields.String,
     #'related_events_count': fields.Integer,
-    'raw_log': fields.Nested(mod_raw_log, attribute='_raw_log')
+    'raw_log': fields.Nested(mod_raw_log, attribute='_raw_log'),
+    'event_rules': fields.List(fields.String)
 })
 
 mod_event_paged_list = api.model('PagedEventList', {

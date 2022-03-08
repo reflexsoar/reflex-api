@@ -100,10 +100,11 @@ class ThreatListList(Resource):
         lists, total_results, pages = page_results(lists, args.page, args.page_size)
 
         sort_by = args.sort_by
+
         if args.sort_direction == 'desc':
             sort_by = f"-{sort_by}"
 
-        lists.sort(sort_by)
+        lists = lists.sort(sort_by)
 
         lists = lists.execute()
 

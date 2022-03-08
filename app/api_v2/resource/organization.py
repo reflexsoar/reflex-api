@@ -1,5 +1,5 @@
 import math
-from ..utils import token_required, user_has, ip_approved, default_org
+from ..utils import token_required, user_has, ip_approved, default_org, page_results
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import (
     Organization,
@@ -145,6 +145,12 @@ org_parser.add_argument('page', location='args',
 org_parser.add_argument('sort_by', type=str, location='args',
                         default='created_at', required=False)
 org_parser.add_argument('all', type=xinputs.boolean, default=False, location='args', required=False)
+org_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+org_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
 
 @api.route("")
 class OrganizationList(Resource):
@@ -162,33 +168,27 @@ class OrganizationList(Resource):
 
         search = Organization.search()
 
-        # PERFORM FILTERING HERE
-        # TODO: Implement filtering
+        search, total_results, pages = page_results(search, args.page, args.page_size)
 
-        # PERFORM PAGINATION HERE
-        page = args.page - 1
-        total_orgs = search.count()
-        pages = math.ceil(float(total_orgs / args.page_size))
+        sort_by = args.sort_by
 
-        start = page*args.page_size
-        end = args.page*args.page_size
+        # Only allow these fields to be sorted on
+        if sort_by not in ['name','url','logon_domains']:
+            sort_by = "created_at"
 
-        # If the user is requesting all the organizations use the scan()
-        # function to retrieve them all
-        if not args['all']:
-            search = search[start:end]
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
 
-            # PERFORM FINAL DOC FETCH HERE
-            organizations = search.execute()
-        else:
-            organizations = search.scan()
+        search = search.sort(sort_by)
 
+        organizations = search.execute()
+        
         return {
             'organizations': organizations,
             'pagination': {
-                'total_results': total_orgs,
+                'total_results': total_results,
                 'pages': pages,
-                'page': page+1,
+                'page': args.page,
                 'page_size': args.page_size
             }
         }

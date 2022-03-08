@@ -300,7 +300,12 @@ user_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 user_parser.add_argument(
     'page_size', type=int, location='args', default=10, required=False)
-
+user_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+user_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
 
 @ns_user_v2.route("")
 class UserList(Resource):
@@ -328,6 +333,17 @@ class UserList(Resource):
             users = users.filter('match', deleted=False)
 
         users, total_results, pages = page_results(users, args.page, args.page_size)
+
+        sort_by = args.sort_by
+
+        # These fields are default Text but can only sort by Keyword so force them to keyword fields
+        if sort_by in ['username','first_name','last_name','email']:
+            sort_by = f"{sort_by}.keyword"
+
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
+
+        users = users.sort(sort_by)
         
         users = users.execute()
         [user.load_role() for user in users]
