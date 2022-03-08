@@ -1,3 +1,4 @@
+import time
 import math
 import json
 from app.api_v2.model.system import Settings
@@ -216,6 +217,7 @@ class EventRuleList(Resource):
             # Try to parse the rule and if it fails don't activate it
             try:
                 event_rule.parse_rule()
+                event_rule.parsed_rule = None
             except Exception as e:
                 event_rule.active = False
                 api.abort(400, f'Invalid RQL Query. {e}')
@@ -343,14 +345,15 @@ class EventRuleDetails(Resource):
         event_rule = EventRule.get_by_uuid(uuid=uuid)
         if event_rule:
             event_rule.delete(refresh=True)
+            time.sleep(1)
             return {'message': 'Sucessfully deleted the event rule.'}
 
 
 event_rule_stats_parser = api.parser()
 event_rule_stats_parser.add_argument('rules', type=str, location='args', action='split', required=False)
 event_rule_stats_parser.add_argument('metrics', type=str, location='args', action='split', required=False, default=['hits'])
-event_rule_stats_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
-event_rule_stats_parser.add_argument('end', location='args', default=(datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+event_rule_stats_parser.add_argument('start', location='args', type=str, required=False)
+event_rule_stats_parser.add_argument('end', location='args', type=str, required=False)
 @api.route("/stats")
 class EventRuleStats(Resource):
 
@@ -362,6 +365,13 @@ class EventRuleStats(Resource):
         args = event_rule_stats_parser.parse_args()
 
         metrics = {}
+
+        # Set default start/end date filters if they are not set above
+        # We do this here because default= on add_argument() is only calculated when the API is initialized
+        if not args.start:
+            args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+        if not args.end:
+            args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
 
         # Compute the number of hits on an event rule
         if 'hits' in args.metrics:
@@ -375,12 +385,16 @@ class EventRuleStats(Resource):
             if args.rules:
                 search = search.filter('terms', event_rules=args.rules)
 
-            search.aggs['range'].bucket('event_rules', 'terms', field='event_rules')
+            search.aggs['range'].bucket('event_rules', 'terms', order={'max_date': 'desc'}, field='event_rules')
+            search.aggs['range']['event_rules'].metric('max_date', 'max', field='created_at')
+            search = search[:0]
+            
             result = search.execute()
 
         # Prepare the hits metric
         if 'hits' in args.metrics:
             metrics['hits'] = {v['key']: v['doc_count'] for v in result.aggs.range.event_rules.buckets}
+            metrics['last_hit'] = {v['key']: v['max_date']['value_as_string'] for v in result.aggs.range.event_rules.buckets}
 
         return metrics
 

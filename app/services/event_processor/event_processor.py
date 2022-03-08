@@ -179,11 +179,12 @@ class EventWorker(Process):
         '''
         
         # Save all the rules to save the last_matched_date information
-        if len(self.rules) > 0:
-            for rule in self.rules:
-                rule.parsed_rule = None
-                rule.update(last_matched_date=rule.last_matched_date)
-            self.rules = []
+        # DISABLED 2022-03-07 - BC - Using a metrics API endpoint in leiu of this
+        #if len(self.rules) > 0:
+        #    for rule in self.rules:
+        #        rule.parsed_rule = None
+        #        rule.update(last_matched_date=rule.last_matched_date)
+        #    self.rules = []
 
         search = EventRule.search()
         search = search.filter('term', active=True)
