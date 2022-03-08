@@ -835,6 +835,9 @@ case_parser.add_argument('my_tasks', location='args', required=False, type=xinpu
 case_parser.add_argument('my_cases', location='args', required=False, type=xinputs.boolean)
 case_parser.add_argument('page', type=int, location='args', default=1, required=False)
 case_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
+case_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
 case_parser.add_argument('page_size', type=int, location='args', default=25, required=False)
 
 @ns_case_v2.route("")
@@ -887,6 +890,20 @@ class CaseList(Resource):
 
         start = page*args.page_size
         end = args.page*args.page_size
+
+        sort_by = args.sort_by
+        # Only allow these fields to be sorted on
+        if sort_by not in ['title','tlp','severity','status']:
+            sort_by = "created_at"
+
+        if sort_by == 'status':
+            sort_by = "status.name.keyword"
+
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
+
+        cases = cases.sort(sort_by)
+
         cases = cases[start:end]
 
         response = {
