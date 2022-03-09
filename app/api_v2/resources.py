@@ -2,6 +2,8 @@ import base64
 import math
 import copy
 import datetime
+import random
+import string
 import os
 from queue import Queue
 import threading
@@ -329,7 +331,9 @@ class UserList(Resource):
         if args['organization']:
             users = users.filter('term', organization=args.organization)
 
-        if args['deleted']:
+        if args.deleted:
+            users = users.filter('match', deleted=True)
+        else:
             users = users.filter('match', deleted=False)
 
         users, total_results, pages = page_results(users, args.page, args.page_size)
@@ -425,7 +429,6 @@ class UserDetails(Resource):
 
             if 'username' in api2.payload:
                 target_user = User.get_by_username(api2.payload['username'])
-                print(target_user)
                 if target_user:
                     if target_user.uuid == uuid:
                         del api2.payload['username']
@@ -435,10 +438,17 @@ class UserDetails(Resource):
             if 'email' in api2.payload:
                 target_user = User.get_by_email(api2.payload['email'])
                 if target_user:
+                    
+                    
                     if target_user.uuid == uuid:
                         del api2.payload['email']
                     else:
                         ns_user_v2.abort(409, 'Email already taken.')
+                organization = Organization.get_by_uuid(user.organization)
+                if organization:
+                    email_domain = api2.payload['email'].split('@')[1]
+                    if email_domain not in organization.logon_domains:
+                        ns_user_v2.abort(400, 'Invalid logon domain.')
 
             if 'password' in api2.payload and not current_user.has_right('reset_user_password'):
                 api2.payload.pop('password')
@@ -483,6 +493,8 @@ class UserDetails(Resource):
                 ns_user_v2.abort(403, 'User can not delete themself.')
             else:
                 user.deleted = True
+                random_identifier = ''.join(random.choice(string.ascii_lowercase) for i in range(5))
+                user.username = f"{user.username}-DELETED-{random_identifier}"
                 user.locked = True
                 user.save()
                 return {'message': 'User successfully deleted.'}
@@ -834,12 +846,15 @@ case_parser.add_argument('tag', location='args', required=False, action="split",
 case_parser.add_argument('search', location='args', required=False, action="split", type=str)
 case_parser.add_argument('my_tasks', location='args', required=False, type=xinputs.boolean)
 case_parser.add_argument('my_cases', location='args', required=False, type=xinputs.boolean)
+case_parser.add_argument('escalated', location='args', required=False, type=xinputs.boolean)
 case_parser.add_argument('page', type=int, location='args', default=1, required=False)
 case_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
 case_parser.add_argument(
     'sort_direction', type=str, location='args', default='desc', required=False
 )
 case_parser.add_argument('page_size', type=int, location='args', default=25, required=False)
+case_parser.add_argument('start', location='args', type=str, required=False)
+case_parser.add_argument('end', location='args', type=str, required=False)
 
 @ns_case_v2.route("")
 class CaseList(Resource):
@@ -855,7 +870,14 @@ class CaseList(Resource):
 
         args = case_parser.parse_args()
 
-        cases = Case.search()
+        # Set default start/end date filters if they are not set above
+        # We do this here because default= on add_argument() is only calculated when the API is initialized
+        if not args.start:
+            args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+        if not args.end:
+            args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
+
+        cases = Case.search()        
 
         cases = cases.sort('-created_at')
 
@@ -881,8 +903,18 @@ class CaseList(Resource):
         if args.owner and args.owner not in ['', None, []] and not args.my_cases:
             cases = cases.filter('terms', **{'owner.username__keyword': args.owner})
 
+        if args.escalated == True:
+            cases = cases.filter('term', escalated=args.escalated)
+
         if args.my_cases:
             cases = cases.filter('term', **{'owner.username__keyword': current_user.username})
+
+        if args.start and args.end:
+            cases = cases.filter('range', created_at={
+                    'gte': args.start,
+                    'lte': args.end
+                }
+            )
 
         # Paginate the cases
         page = args.page - 1
@@ -1094,7 +1126,7 @@ class CaseDetails(Resource):
         case = Case.get_by_uuid(uuid=uuid)
         if case:
 
-            for f in ['severity', 'tlp', 'status_uuid', 'owner', 'description', 'owner_uuid']:
+            for f in ['severity', 'tlp', 'status_uuid', 'owner', 'description', 'owner_uuid', 'escalated']:
                 value = ""
                 message = None
 
@@ -1149,6 +1181,12 @@ class CaseDetails(Resource):
                         else:
                             message = 'Case unassigned'
                             api2.payload['owner'] = None
+
+                    elif f == 'escalated':
+                        if api2.payload[f]:
+                            message = 'Case escalated'
+                        else:
+                            message = 'Case de-escalated'
 
                     if message:
                         case.add_history(message=message)
@@ -1417,10 +1455,11 @@ case_stats_parser.add_argument('close_reason', location='args', default=[
 ], type=str, action='split', required=False)
 case_stats_parser.add_argument('top', location='args', default=10, type=int, required=False)
 case_stats_parser.add_argument('my_cases', location='args', required=False, type=xinputs.boolean)
-case_stats_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+case_stats_parser.add_argument('escalated', location='args', required=False, type=xinputs.boolean)
 case_stats_parser.add_argument('interval', location='args', default='day', required=False, type=str)
-case_stats_parser.add_argument('end', location='args', default=(datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
-case_stats_parser.add_argument('metrics', location='args', action='split', default=['title','tag','status','severity','close_reason','owner'])
+case_stats_parser.add_argument('start', location='args', type=str, required=False)
+case_stats_parser.add_argument('end', location='args', type=str, required=False)
+case_stats_parser.add_argument('metrics', location='args', action='split', default=['title','tag','status','severity','close_reason','owner','organization','escalated'])
 case_stats_parser.add_argument('organization', location='args', action='split', required=False)
 
 @ns_case_v2.route('/stats')
@@ -1437,6 +1476,13 @@ class CaseStats(Resource):
         '''
 
         args = case_stats_parser.parse_args()
+
+        # Set default start/end date filters if they are not set above
+        # We do this here because default= on add_argument() is only calculated when the API is initialized
+        if not args.start:
+            args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+        if not args.end:
+            args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
 
         search_filters = []
 
@@ -1468,6 +1514,13 @@ class CaseStats(Resource):
                 'value': current_user.username
             })
 
+        if args.escalated == True:
+            search_filters.append({
+                'type': 'term',
+                'field': 'escalated',
+                'value': args.escalated
+            })
+
         for arg in ['severity','title','tags','organization']:
             if arg in args and args[arg] not in ['', None, []]:
                 search_filters.append({
@@ -1491,6 +1544,8 @@ class CaseStats(Resource):
         # Apply all filters
         for _filter in search_filters:
             search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+
+        print(json.dumps(search.to_dict()))
 
         search.aggs.bucket('range', 'filter', range={'created_at': {
             'gte': args.start,
@@ -1524,6 +1579,9 @@ class CaseStats(Resource):
         if 'organization' in args.metrics:
             max_organizations = args.top if args.top != 10 else 10
             search.aggs['range'].bucket('organization', 'terms', field='organization', size=max_organizations)
+
+        if 'escalated' in args.metrics:
+            search.aggs['range'].bucket('escalated', 'terms', field='escalated', size=2)
 
         search = search[0:0]
 
@@ -1567,7 +1625,10 @@ class CaseStats(Resource):
             metrics['organization'] = {v['key']: v['doc_count'] for v in cases.aggs.range.organization.buckets}
           
         if 'cases_over_time' in args.metrics:
-            metrics['cases_over_time'] = {v['key_as_string']: v['doc_count'] for v in cases_over_time.aggs.range.cases_per_day.buckets}        
+            metrics['cases_over_time'] = {v['key_as_string']: v['doc_count'] for v in cases_over_time.aggs.range.cases_per_day.buckets}
+
+        if 'escalated' in args.metrics:
+            metrics['escalated'] = {v['key']: v['doc_count'] for v in cases.aggs.range.escalated.buckets}
 
         return metrics
 

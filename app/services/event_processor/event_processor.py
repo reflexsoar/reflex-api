@@ -6,6 +6,7 @@ Event into the Reflex system.  Events that are done processing are pushed to the
 Pusher queue of the EventPusher service.
 '''
 
+import re
 import json
 import os
 import uuid
@@ -17,9 +18,10 @@ from multiprocessing import Process
 from app.api_v2.model import (
     EventRule,
     CloseReason,
-    Case
+    Case,
+    DataType,
+    EventStatus
 )
-from app.api_v2.model.event import EventStatus
 
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
@@ -143,6 +145,7 @@ class EventWorker(Process):
         self.cases = []
         self.reasons = []
         self.statuses = []
+        self.data_types = []
         self.last_meta_refresh = None
 
     def build_elastic_connection(self):
@@ -228,6 +231,14 @@ class EventWorker(Process):
         statuses = search.scan()
         self.statuses = list(statuses)
 
+    def load_data_types(self):
+        '''
+        Fetches all the data types in the system
+        '''
+        search = DataType.search()
+        data_types = search.scan()
+        self.data_types = list(data_types)
+
     def check_cache(self, reference):
         '''
         Determines if the event is already in the Event Processor cache,
@@ -246,6 +257,7 @@ class EventWorker(Process):
         self.load_cases()
         self.load_close_reasons()
         self.load_statuses()
+        self.load_data_types()
         self.last_meta_refresh = datetime.datetime.utcnow()
 
     def run(self):
@@ -456,6 +468,25 @@ class EventWorker(Process):
 
             if 'observables' in raw_event:
                 raw_event['observables'] = [o for o in raw_event['observables'] if o['value'] not in [None,'','-']]
+
+            for observable in raw_event['observables']:
+                if observable['data_type'] == "auto":
+                    matched = False
+                    for dt in [data_type for data_type in self.data_types if data_type.organization == raw_event['organization']]:
+                        if dt.regex:
+                            if dt.regex.startswith('/') and dt.regex.endswith('/'):
+                                expression = dt.regex.lstrip('/').rstrip('/')
+                            else:
+                                expression = dt.regex
+                            try:
+                                pattern = re.compile(expression)
+                                matches = pattern.findall(observable['value'])
+                            except Exception as error:
+                                observable['data_type'] = "generic"
+                                print(dt.regex, error)
+                            if len(matches) > 0:
+                                observable['data_type'] = dt.name
+                                matched = True
 
             if 'tags' in raw_event:
                 raw_event['tags'] = [t for t in raw_event['tags'] if not t.endswith(': None')]

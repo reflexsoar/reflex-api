@@ -80,7 +80,7 @@ class Config(object):
         'ES_BULK_SIZE': int(os.getenv('REFLEX_EVENT_PROCESSOR_ES_BULK_SIZE')) if os.getenv('REFLEX_EVENT_PROCESSOR_ES_BULK_SIZE') else 500
     }
 
-    NEW_EVENT_PIPELINE = as_bool(os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR')) if os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR') else False
+    NEW_EVENT_PIPELINE = True #as_bool(os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR')) if os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR') else False
 
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
 

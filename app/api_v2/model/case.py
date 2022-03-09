@@ -294,6 +294,7 @@ class Case(base.BaseDocument):
     events = Keyword()
     sla_breach_time = Date()
     sla_violated = Boolean()
+    escalated = Boolean()
     _open_tasks = 0
     _total_tasks = 0
 
