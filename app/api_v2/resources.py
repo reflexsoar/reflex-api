@@ -1545,8 +1545,6 @@ class CaseStats(Resource):
         for _filter in search_filters:
             search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
-        print(json.dumps(search.to_dict()))
-
         search.aggs.bucket('range', 'filter', range={'created_at': {
             'gte': args.start,
             'lte': args.end
