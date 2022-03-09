@@ -97,22 +97,15 @@ class ThreatListList(Resource):
         if user_in_default_org and args.organization:
             lists = lists.filter('term', organization=args.organization)
 
-        lists, total_results, pages = page_results(lists, args.page, args.page_size)
+        #lists, total_results, pages = page_results(lists, args.page, args.page_size)
 
-        sort_by = args.sort_by
-
-        if args.sort_direction == 'desc':
-            sort_by = f"-{sort_by}"
-
-        lists = lists.sort(sort_by)
-
-        lists = lists.execute()
+        lists = list(lists.scan())
 
         response = {
-            'lists': list(lists),
+            'lists': lists,
             'pagination': {
-                'total_results': total_results,
-                'pages': pages,
+                'total_results': len(lists),
+                'pages': 1,
                 'page': args['page'],
                 'page_size': args['page_size']
             }

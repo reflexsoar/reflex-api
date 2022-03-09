@@ -1796,9 +1796,9 @@ class CaseTemplateList(Resource):
         if args['organization']:
             case_templates = case_templates.filter('term', organization=args.organization)
         
-        case_templates = case_templates.execute()
+        case_templates = list(case_templates.scan())
         if case_templates:
-            return [c for c in case_templates]
+            return case_templates
         else:
             return []
 
@@ -1815,7 +1815,13 @@ class CaseTemplateList(Resource):
         # return an error indicating as such
         case_template = CaseTemplate.get_by_title(title=api2.payload['title'])
         if case_template:
-            ns_case_template_v2.abort(409, 'Case Template already exists.')
+            if 'organization' in api2.payload:
+                if case_template.organization == api2.payload['organization']:
+                    ns_case_template_v2.abort(409, 'Case Template with that name already exists.')
+
+            elif case_template.organization == current_user.organization:
+                ns_case_template_v2.abort(409, 'Case Template with that name already exists.')
+
         else:
             ''' Creates a new case_template template '''
 
