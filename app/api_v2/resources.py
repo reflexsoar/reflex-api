@@ -2451,6 +2451,11 @@ class AgentGroupDetails(Resource):
     def delete(self, uuid, current_user):
 
         group = AgentGroup.get_by_uuid(uuid)
+
+        # Do not allow for deleting groups with agents assigned
+        if len(group.agents) > 0:
+            ns_agent_group_v2.abort(400, 'Can not delete a group with agents assigned.')
+
         group.delete()
         return {'message': f'Successfully deleted Agent Group {group.name}'}, 200
 
