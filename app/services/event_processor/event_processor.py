@@ -290,7 +290,7 @@ class EventWorker(Process):
                     # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
                     bulk_dismiss = [e for e in events if '_meta' in e and e['_meta']['action'] == 'dismiss']
 
-                    for ok, action in streaming_bulk(client=connection, chunk_size=250, actions=self.prepare_dismiss_events(bulk_dismiss)):
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss)):
                         pass
 
                     events = [e for e in events if e not in bulk_dismiss]
