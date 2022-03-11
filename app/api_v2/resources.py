@@ -2441,8 +2441,8 @@ class AgentGroupDetails(Resource):
             else:
                 exists = AgentGroup.get_by_name(api2.payload['name'])
        
-        if exists and exists.uuid != uuid:
-            ns_agent_group_v2.abort(409, "Group with this name already exists")
+            if exists and exists.uuid != uuid:
+                ns_agent_group_v2.abort(409, "Group with this name already exists")
 
         if group:
             group.update(**api2.payload, refresh=True)
