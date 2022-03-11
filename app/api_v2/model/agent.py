@@ -138,4 +138,7 @@ class AgentGroup(base.BaseDocument):
             response = response.filter('term', organization=organization)
          
         response = response.execute()
-        return list(response)
+        if len(response) > 0:
+            return response[0]
+        else:
+            return response

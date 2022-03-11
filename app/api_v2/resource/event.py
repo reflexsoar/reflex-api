@@ -966,7 +966,7 @@ class EventStats(Resource):
 
         if 'event_rule' in args.metrics:
             max_event_rule = args.top if args.top != 10 else 100
-            search.aggs['range'].bucket('event_rule', 'terms', field='event_rules', size=max_event_rule)
+            search.aggs['range'].bucket('event_rule', 'terms', field='event_rules', size=1000)
 
         if 'organization' in args.metrics:
             max_organizations = args.top if args.top != 10 else 100
