@@ -158,7 +158,7 @@ class EventWorker(Process):
             'verify_certs': self.app_config['ELASTICSEARCH_CERT_VERIFY'],
             'use_ssl': self.app_config['ELASTICSEARCH_SCHEME'],
             'ssl_show_warn': self.app_config['ELASTICSEARCH_SHOW_SSL_WARN'],
-            'timeout': self.app.config['ELASTICSEARCH_TIMEOUT']
+            'timeout': self.app_config['ELASTICSEARCH_TIMEOUT']
         }
 
         username = self.app_config['ELASTICSEARCH_USERNAME'] if 'ELASTICSEARCH_USERNAME' in self.app_config else os.getenv(

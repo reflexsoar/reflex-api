@@ -148,8 +148,8 @@ class EventRuleList(Resource):
 
         #event_rules = event_rules.sort(sort_by)
 
-        #if args.rules:
-            #event_rules = event_rules.filter('terms', uuid=args.rules)
+        if args.rules:
+            event_rules = event_rules.filter('terms', uuid=args.rules)
 
         # Paginate the cases
         #age = args.page - 1
