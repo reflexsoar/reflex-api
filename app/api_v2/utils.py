@@ -25,29 +25,21 @@ def page_results(search_object, page, page_size):
     pages = math.ceil(float(total_results / page_size))
     return search_object, total_results, pages
 
-def escape_special_characters(value):
+def escape_special_characters_rql(value):
     '''
-    Escapes characters in Elasticsearch that might wedge a search
-    and return false matches
+    Escapes characters that may interfere with how an RQL query
+    is created
     '''
 
-    characters = ['.', ' ', ']', '[']
-    if isinstance(value, list):
-        new_list = []
-        for _value in value:
-            for character in characters:
-                if isinstance(_value, str):
-                    _value = _value.replace(character, '\\'+character)
-                else:
-                    _value = value
-            new_list.append(_value)
-        return new_list
-    else:
-        for character in characters:
-            if isinstance(value, str):
-                value = value.replace(character, '\\'+character)
-            else:
-                value = value
+    characters = {
+        '"': '\"',
+        '\\': '\\\\'
+    }
+    for c in characters:
+        if isinstance(value, str):
+            value = value.replace(c, characters[c])
+        else:
+            value = value
     return value
 
 
