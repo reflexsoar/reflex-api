@@ -51,10 +51,11 @@ class HouseKeeper(object):
         threshold = self.agent_prune_liftime * 86400
 
         for agent in agents:
-            delta = datetime.datetime.utcnow() - agent.last_heartbeat
-            if delta.seconds > threshold:
-                self.logger.info(f"Deleting agent {agent.name}, last heartbeat exceeds threshold of {threshold}")
-                agent.delete()
+            if agent.last_heartbeat:
+                delta = datetime.datetime.utcnow() - agent.last_heartbeat
+                if delta.seconds > threshold:
+                    self.logger.info(f"Deleting agent {agent.name}, last heartbeat exceeds threshold of {threshold}")
+                    agent.delete()
 
         return True
 
