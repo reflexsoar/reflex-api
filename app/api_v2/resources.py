@@ -1268,6 +1268,22 @@ class AddEventsToCase(Resource):
                 }
                 events_to_update.append(event_dict)
                 uuids.append(event.uuid)
+
+                if 'include_related_events' in api2.payload and api2.payload['include_related_events'] == True:
+                    related_events = Event.get_by_signature_and_status(signature=event.signature,
+                                                                       status='New',
+                                                                       all_events=True)
+                    if related_events:
+                        for related_event in related_events:
+                            if related_event.uuid != event.uuid:
+                                related_dict = related_event.to_dict()
+                                related_dict['_meta'] = {
+                                    'action': 'add_to_case',
+                                    'case': case.uuid,
+                                    '_id': related_event.meta.id
+                                }
+                                events_to_update.append(related_dict)
+                                uuids.append(related_event.uuid)
             
             if case.events:
                 [case.events.append(uuid) for uuid in uuids]

@@ -695,6 +695,7 @@ mod_data_type_create = Model('CreateDataType', {
 })
 
 mod_add_events_to_case = Model('AddEventsToCase', {
+    'include_related_events': fields.Boolean,
     'events': fields.List(fields.String)
 })
 
