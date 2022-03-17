@@ -8,6 +8,8 @@ import json
 import datetime
 import threading
 from queue import Queue
+
+from attr import has
 from app.api_v2.model.system import ObservableHistory
 from flask import current_app
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
@@ -531,13 +533,15 @@ class EventObservable(Resource):
 
             # Can not flag an observable as safe if it is also flagged as an ioc
             if 'safe' in api.payload:
-                if observable.ioc and (observable.ioc == observable.safe):
-                    api.abort(400, 'An observable can not be safe if it is an ioc.')
+                if hasattr(observable, 'ioc') and hasattr(observable, 'safe'):
+                    if observable.ioc and observable.safe:
+                        api.abort(400, 'An observable can not be safe if it is an ioc.')
                 observable.safe = api.payload['safe']
 
             if 'ioc' in api.payload:
-                if observable.ioc and (observable.ioc == observable.safe):
-                    api.abort(400, 'An observable can not be safe if it is an ioc.')
+                if hasattr(observable, 'ioc') and hasattr(observable, 'safe'):
+                    if observable.ioc and observable.safe:
+                        api.abort(400, 'An observable can not be ioc if it is flagged safe.')
                 observable.ioc = api.payload['ioc']
 
             if 'spotted' in api.payload:

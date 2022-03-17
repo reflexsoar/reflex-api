@@ -161,6 +161,9 @@ class Settings(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-settings'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
 
     def save(self, **kwargs):
@@ -260,7 +263,7 @@ class ObservableHistory(base.BaseDocument):
             self.value = str(self.value)
 
         return super().save(**kwargs)
-        
+
 
 class Observable(base.BaseDocument):
     '''

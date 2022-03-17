@@ -1255,8 +1255,31 @@ class AddEventsToCase(Resource):
 
         case = Case.get_by_uuid(uuid=uuid)
         events = Event.get_by_uuid(uuid=api2.payload['events'])
+        
         if events:
-            case.add_event(list(events))
+            events_to_update = []
+            uuids = []
+            for event in events:
+                event_dict = event.to_dict()
+                event_dict['_meta'] = {
+                    'action': 'add_to_case',
+                    'case': case.uuid,
+                    '_id': event.meta.id
+                }
+                events_to_update.append(event_dict)
+                uuids.append(event.uuid)
+            
+            if case.events:
+                [case.events.append(uuid) for uuid in uuids]
+            else:
+                case.events = uuids
+
+            if len(events_to_update) > 0:
+                [event_processor_queue.put(event) for event in events_to_update]
+
+            case.add_history(message=f'{len(events_to_update)} events added')
+            case.save()
+            #case.add_event(list(events))
             return "YARP"
         return "NARP"
 
@@ -1340,13 +1363,15 @@ class CaseObservable(Resource):
 
             # Can not flag an observable as safe if it is also flagged as an ioc
             if 'safe' in api2.payload:
-                if observable.ioc and (observable.ioc == observable.safe):
-                    ns_case_v2.abort(400, 'An observable can not be safe if it is an ioc.')
+                if hasattr(observable, 'ioc') and hasattr(observable, 'safe'):
+                    if observable.ioc and observable.safe:
+                        ns_case_v2.abort(400, 'An observable can not be safe if it is an ioc.')
                 observable.safe = api2.payload['safe']
 
             if 'ioc' in api2.payload:
-                if observable.ioc and (observable.ioc == observable.safe):
-                    ns_case_v2.abort(400, 'An observable can not be safe if it is an ioc.')
+                if hasattr(observable, 'ioc') and hasattr(observable, 'safe'):
+                    if observable.ioc and observable.safe:
+                        ns_case_v2.abort(400, 'An observable can not be an ioc if it is flagged safe.')
                 observable.ioc = api2.payload['ioc']
 
             if 'spotted' in api2.payload:

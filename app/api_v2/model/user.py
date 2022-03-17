@@ -300,6 +300,9 @@ class Organization(base.BaseDocument):
 
     class Index():
         name = 'reflex-organizations'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     name = Keyword()
     description = Text()
