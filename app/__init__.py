@@ -24,7 +24,7 @@ from app.api_v2.model import (
     Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
-        Settings,Input, Organization
+        Settings,Input, Organization, ObservableHistory
 )
 
 from .defaults import (
@@ -33,7 +33,7 @@ from .defaults import (
     create_default_event_status, create_analyst_role,create_admin_user
 )
 
-REFLEX_VERSION = '0.1.1'
+REFLEX_VERSION = '0.1.3'
 
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
@@ -108,7 +108,7 @@ def upgrade_indices(app):
         Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
-        Input,Organization
+        Input,Organization, ObservableHistory
         ]
 
     for model in models:

@@ -223,6 +223,45 @@ class Settings(base.BaseDocument):
         return {'token': self.peristent_pairing_token}
 
 
+class ObservableHistory(base.BaseDocument):
+    tags = Keyword()
+    data_type = Text(fields={'keyword':Keyword()})
+    value = Keyword()
+    spotted = Boolean()
+    ioc = Boolean()
+    safe = Boolean()
+    tlp = Integer()
+    events = Keyword() # A list of event UUIDs this Observable belongs to
+    case = Keyword() # The case the observable belongs to
+    rule = Keyword() # The rule the Observable belongs to
+    source_type = Keyword() # The type of object from the source field (int, str, ip, bool)
+    source_field = Keyword() # The source field or alias being used
+    original_source_field = Keyword() # The source field where the observable was extracted from
+
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
+        name = 'reflex-observable-history'
+        settings = {
+            'refresh_interval': '1s'
+        }
+
+    def save(self, **kwargs):
+        '''
+        Saves the observable and assigns it a UUID
+        '''
+        self.uuid = uuid.uuid4()
+
+        # Set the original source_field if it doesn't exist
+        if not hasattr(self, 'original_source_field'):
+            self.original_source_field = self.source_field
+
+        # All values should be strings
+        if not isinstance(self.value, str):
+            self.value = str(self.value)
+
+        return super().save(**kwargs)
+        
+
 class Observable(base.BaseDocument):
     '''
     An observable is an artifact on an event that is of importance

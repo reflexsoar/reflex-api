@@ -76,6 +76,12 @@ mod_observable_list = Model('ObservableList', {
     'original_source_field': fields.String
 })
 
+mod_observable_list_paged = Model('PagedObservableList', {
+    'observables': fields.List(fields.Nested(mod_observable_list)),
+    'total_observables': fields.Integer,
+    'pagination': fields.Nested(mod_pagination)
+})
+
 mod_observable_brief = Model('ShortObservableDetails', {
     'uuid': fields.String,
     'value': fields.String,

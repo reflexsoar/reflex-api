@@ -63,7 +63,7 @@ from .case import (
 )
 from .plugin import Plugin, PluginConfig
 from .credential import Credential
-from .system import Tag, DataType, Settings, Observable, EventLog
+from .system import Tag, DataType, Settings, Observable, EventLog, ObservableHistory
 
 VERSION = (2, 0, 0)
 __version__ = VERSION
@@ -97,5 +97,6 @@ __all__ = [
     Credential,
     TaskNote,
     Search,
-    Organization
+    Organization,
+    ObservableHistory
 ]

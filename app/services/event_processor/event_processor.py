@@ -279,7 +279,7 @@ class EventWorker(Process):
                 # Reload all the event rules and other meta information if the refresh timer
                 # has expired
                 if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
-                    self.logger.info('Refreshing Event Processing Meta Data')
+                    self.logger.debug('Refreshing Event Processing Meta Data')
                     self.reload_meta_info()
 
                 # pull all event rules
@@ -290,11 +290,15 @@ class EventWorker(Process):
 
                     # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
                     bulk_dismiss = [e for e in events if '_meta' in e and e['_meta']['action'] == 'dismiss']
+                    add_to_case = [e for e in events if '_meta' in e and e['_meta']['action'] == 'add_to_case']
+
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case)):
+                        pass
 
                     for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss)):
                         pass
 
-                    events = [e for e in events if e not in bulk_dismiss]
+                    events = [e for e in events if e not in bulk_dismiss and e not in add_to_case]
 
                     self.prepare_case_updates(events)
 
@@ -320,6 +324,26 @@ class EventWorker(Process):
                 event['event_observables'] = []
 
             yield {'_source': event, '_index': 'reflex-events', '_type': '_doc'}
+
+    def prepare_add_to_case(self, events):
+        '''
+        Prepares events that are being added to a case for bulk push to Elasticsearch
+        '''
+        now = datetime.datetime.utcnow()
+        for event in events:
+
+            if '_meta' in event:
+                event_meta_data = event.pop('_meta')
+                payload = {}
+
+                status = next((s for s in self.statuses if s.organization ==
+                              event['organization'] and s.name == 'Open'), None)
+                payload['status'] = status.to_dict()
+                payload['case'] = event_meta_data['case']
+                payload['updated_at'] = now
+
+            yield {'doc': payload, '_index': 'reflex-events', '_type': '_doc', '_op_type': 'update', '_id': event_meta_data['_id']}
+
 
     def prepare_dismiss_events(self, events):
         '''

@@ -8,12 +8,13 @@ import json
 import datetime
 import threading
 from queue import Queue
+from app.api_v2.model.system import ObservableHistory
 from flask import current_app
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import Event, Observable, EventRule, CloseReason, Nested, Q
 from ..model.exceptions import EventRuleFailure
 from ..utils import check_org, token_required, user_has, log_event
-from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list
+from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged
 from ... import event_queue as event_processor_queue
 from pymemcache.client.base import Client
 
@@ -119,6 +120,15 @@ mod_event_details = api.model('EventDetails', {
     'dismiss_reason': fields.String,
     'dismiss_comment': fields.String,
     'event_rules': fields.List(fields.String)
+})
+
+mod_observable_update = api.model('ObservableUpdate', {
+    'tags': fields.List(fields.String),
+    'ioc': fields.Boolean,
+    'tlp': fields.Integer,
+    'spotted': fields.Boolean,
+    'safe': fields.Boolean,
+    'data_type': fields.String
 })
 
 event_list_parser = api.parser()
@@ -462,6 +472,137 @@ class EventListAggregated(Resource):
             return {'message': 'Event already exists'}, 409
 
 
+def fetch_observables_from_history(observables):
+
+    search = ObservableHistory.search()
+    search = search.filter('terms', value=[o['value'] for o in observables])
+    search = search[0:0]
+    search.aggs.bucket('values', 'terms', field='value', order={'max_date': 'desc'})
+    search.aggs['values'].bucket('max_date', 'max', field='created_at')
+    search.aggs['values'].bucket('by_uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=1)
+    search.aggs['values']['by_uuid'].bucket('max_date', 'max', field='created_at')
+    search.aggs['values']['by_uuid'].bucket('source', 'top_hits')
+    
+    history = search.execute()
+    observable_history = [bucket['by_uuid'].buckets[0]['source']['hits']['hits'][0]['_source'].to_dict() for bucket in history.aggs.values.buckets]
+    in_history = [o['value'] for o in observable_history]
+    _observables = observable_history
+    [_observables.append(o) for o in observables if o['value'] not in in_history]   
+
+    return _observables
+
+
+@api.route('/<uuid>/observables/<value>')
+class EventObservable(Resource):
+
+    @api.doc(security="Bearer")
+    @api.response('200', 'Success')
+    @api.response('400', 'Observable not found')
+    @api.expect(mod_observable_update)
+    @api.marshal_with(mod_observable_list)
+    @token_required
+    @user_has('update_event')
+    def put(self, uuid, value, current_user):
+        ''' Updates an events observable '''
+
+        observable = None
+        search = Event.search()
+        search = search[0:1]
+        search = search.filter('term', uuid=uuid)
+        search = search.query('nested', path='event_observables', query=Q({"term": {"event_observables.value.keyword": value}}))
+        event = search.execute()[0]
+        if event:
+            search = ObservableHistory.search()
+            search = search.filter('term', value=value)
+            search = search.filter('term', organization=event.organization)
+            search = search.sort('created_at')
+            search = search[0:1]
+            history = search.execute()
+
+            if history:
+                if len(history) >= 1:
+                    observable = history[0]
+                else:
+                    observable = history
+            else:
+                observable = [o for o in event.event_observables if o['value'] == value][0]
+
+        if observable:
+
+            # Can not flag an observable as safe if it is also flagged as an ioc
+            if 'safe' in api.payload:
+                if observable.ioc and (observable.ioc == observable.safe):
+                    api.abort(400, 'An observable can not be safe if it is an ioc.')
+                observable.safe = api.payload['safe']
+
+            if 'ioc' in api.payload:
+                if observable.ioc and (observable.ioc == observable.safe):
+                    api.abort(400, 'An observable can not be safe if it is an ioc.')
+                observable.ioc = api.payload['ioc']
+
+            if 'spotted' in api.payload:
+                observable.spotted = api.payload['spotted']
+
+            observable_dict = observable.to_dict()
+            if 'created_at' in observable_dict:
+                del observable_dict['created_at']
+            if 'created_by' in observable_dict:
+                del observable_dict['created_by']
+            observable_dict['organization'] = event.organization
+
+            observable_history = ObservableHistory(**observable_dict)
+            observable_history.save()
+
+            return observable
+        else:
+            return api.abort(404, 'Observable not found.')
+
+
+@api.route("/observables_by_case/<uuid>")
+class EventObservablesByCase(Resource):
+    '''
+    Returns a list of observables for a specific case UUID by querying 
+    all the Events for that case and returning a deduplicated list
+    '''
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_observable_list_paged)
+    @token_required
+    @user_has('view_case_events')
+    def get(self, uuid, current_user):
+
+        search = Event.search()
+        search = search.filter('term', case=uuid)
+        search = search[:0]
+        search.aggs.bucket('observables', 'nested', path="event_observables")
+        search.aggs['observables'].metric('unique_values', 'cardinality', field="event_observables.value.keyword")
+        search.aggs['observables'].bucket('values', 'top_hits', _source={"includes": [ "event_observables.value",
+                          "event_observables.data_type",
+                          "event_observables.tlp",
+                          "event_observables.ioc",
+                          "event_observables.spotted",
+                          "event_observables.safe",
+                          "event_observables.tags"]}, size=10000)
+        events = search.execute()
+        exists = set()
+        observables = [o.to_dict() for o in events.aggs.observables.values if [(o.value, o.data_type) not in exists, exists.add((o.value, o.data_type))][0]]
+        observables = fetch_observables_from_history(observables)
+        #observables = []
+        #
+        #for event in events:
+        #    observables += [o for o in event.observables if [(o.value, o.data_type) not in exists, exists.add((o.value, o.data_type))][0]]
+        return {
+            'observables': list(observables),
+            'total_observables': events.aggs.observables.unique_values.value,
+            'pagination': {
+                'total_results': len(observables),
+                'pages': 1,
+                'page': 1,
+                'page_size': 25
+            }
+        }
+
+
 @api.route("/case_events/<uuid>")
 class EventsByCase(Resource):
     '''
@@ -530,9 +671,12 @@ def check_cache(reference):
 
         # Check memcached first        
         if not found:
-            result = client.get(memcached_key)
-            if result:
-                found = True
+            try:
+                result = client.get(memcached_key)
+                if result:
+                    found = True
+            except Exception as e:
+                found = False
 
     # If the item was not found in memcached check Elasticsearch
     if not found:
@@ -544,13 +688,19 @@ def check_cache(reference):
 
             # We found it, we should probably rehydrate memcached with it
             if memcached_enabled:
-                client.set(memcached_key, True, expire=1440)
+                try:
+                    client.set(memcached_key, True, expire=1440)
+                except Exception as e:
+                    current_app.logger.error(f'Failed to set event processing record in memcached for {reference}. {e}')
         else:
             # It did not exist in memcached or Elasticsearch, set it but 
             # mark it as not found
             found = False
             if memcached_enabled:
-                client.set(memcached_key, True, expire=1440)
+                try:
+                    client.set(memcached_key, True, expire=1440)
+                except Exception as e:
+                    current_app.logger.error(f'Failed to set event processing record in memcached for {reference}. {e}')
 
     return found
 
@@ -758,6 +908,7 @@ class EventDetails(Resource):
 
         event = Event.get_by_uuid(uuid)
         if event:
+            event.event_observables = fetch_observables_from_history(event.event_observables)
             return event
         else:
             api.abort(404, 'Event not found.')
@@ -801,23 +952,21 @@ class EventDetails(Resource):
         event = Event.get_by_uuid(uuid=uuid)
 
         # Only support deleting events that are not in cases right now
-        if event and not event.case:
-        
-            # Remove this event from any cases it may be associated with
-            #if event.case:
-            #    case = Case.get_by_uuid(uuid=event.case)
+        if event:
+            if event.case:
+                api.abort(400, 'Event is associated with a case and cant not be deleted.')
+            else:
+                # Delete any observables from the observables index related to this event
+                observables = Observable.get_by_event_uuid(uuid=uuid)
+                for observable in observables:
+                    observable.delete()
 
-            # Delete any observables from the observables index related to this event
-            observables = Observable.get_by_event_uuid(uuid=uuid)
-            for observable in observables:
-                observable.delete()
+                # Delete the event
+                event.delete()
 
-            # Delete the event
-            event.delete()
-
-            return {'message': 'Successfully deleted the event.', 'uuid': uuid}, 200
+                return {'message': 'Successfully deleted the event.', 'uuid': uuid}, 200
         else:
-            return {'message': 'Event not found'}, 404
+            api.abort(404, 'Event not found')
 
 event_stats_parser = api.parser()
 event_stats_parser.add_argument('status', location='args', default=[

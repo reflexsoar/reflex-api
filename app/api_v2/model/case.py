@@ -281,6 +281,7 @@ class Case(base.BaseDocument):
     description = Text()
     severity = Integer()
     owner = Object()
+    #observables = Nested()
     tlp = Integer()
     tags = Keyword()
     status = Object()
@@ -304,15 +305,15 @@ class Case(base.BaseDocument):
 
     @property
     def observables(self):
-        observables = system.Observable.get_by_case_uuid(self.uuid)
-        if observables:
-            return list(observables)
+        #observables = system.Observable.get_by_case_uuid(self.uuid)
+    #    if self.case_observables:
+    #        return list(self.case_observables)
         return []
 
     @observables.setter
     def observables(self, value):
         self.case_observables = value
-        self.save
+        self.save()
 
     @property
     def open_tasks(self):

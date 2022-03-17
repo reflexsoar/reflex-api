@@ -1,23 +1,14 @@
 import base64
 import math
-import copy
 import datetime
 import random
 import string
 import os
-from queue import Queue
-import threading
-import uuid
 import json
 import hashlib
-import re
 
-from app.api_v2.model.exceptions import EventRuleFailure
 from app.api_v2.model.user import Organization
-from app.api_v2.resource import organization
-from .rql.parser import QueryParser
 import pyqrcode
-import jwt
 import time
 from io import BytesIO
 from zipfile import ZipFile
@@ -56,10 +47,10 @@ from .model import (
     A,
     Search,
     EventStatus,
-    TaskNote
+    TaskNote,
+    ObservableHistory,
+    Q
 )
-
-from app.api_v2.model.utils import escape_special_characters
 
 from .utils import default_org, ip_approved, check_org, page_results, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
 
@@ -73,6 +64,8 @@ from .resource import (
     ns_event_rule_v2,
     ns_role_v2
 )
+
+from .. import event_queue as event_processor_queue
 
 # Instantiate a new API object
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
@@ -573,7 +566,7 @@ class DataTypeDetails(Resource):
 
 
 @ns_observable_v2.route("/history/<value>")
-class ObservableHistory(Resource):
+class ObservableHistoricalData(Resource):
     '''Provides historical information about an observable so that
     analysts can look at the observable over time and perform correlative
     research into how the observable appears in their environment
@@ -1005,27 +998,42 @@ class CaseList(Resource):
         case.status = CaseStatus.get_by_name(name="New")
         case.set_owner(owner_uuid)
 
+        events_to_update = []
         if isinstance(events, list) and len(events) > 0:
             uuids = []
+            
             for event in events:
                 e = Event.get_by_uuid(event)
-                e.set_open()
-                e.set_case(uuid=case.uuid)
+                event_dict = e.to_dict()
+                event_dict['_meta'] = {
+                    'action': 'add_to_case',
+                    'case': case.uuid,
+                    '_id': e.meta.id
+                }
+                events_to_update.append(event_dict)
+                #e.set_open()
+                #e.set_case(uuid=case.uuid)
                 uuids.append(e.uuid)
 
                 if 'include_related_events' in api2.payload and api2.payload['include_related_events']:
-                    parent_uuid = e.uuid
+                    
                     related_events = Event.get_by_signature_and_status(signature=e.signature, status='New', all_events=True)
                     for related_event in related_events:
-                        related_event.set_open()
-                        related_event.set_case(uuid=case.uuid)
+                        related_dict = related_event.to_dict()
+                        related_dict['_meta'] = {
+                            'action': 'add_to_case',
+                            'case': case.uuid,
+                            '_id': related_event.meta.id
+                        }
+                        events_to_update.append(related_dict)
+                        #related_event.set_open()
+                        #related_event.set_case(uuid=case.uuid)
 
                         # PERFORMANCE ISSUE FIX ME
-                        case_observables += related_event.observables #Observable.get_by_event_uuid(related_event.uuid)
-                        uuids.append(related_event.uuid)
+                        #case_observables += related_event.observables #Observable.get_by_event_uuid(related_event.uuid)
+                        uuids.append(related_event.uuid)            
 
-                observables = e.observables #Observable.get_by_event_uuid(event)
-                case_observables += observables
+                observables = e.observables
 
                 # Automatically generates an event rule for the event associated with this case
                 if 'generate_event_rule' in api2.payload and api2.payload['generate_event_rule']:
@@ -1052,33 +1060,14 @@ and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.valu
                     event_rule.save()
             
             case.events = list(set(uuids))
-
-        # Deduplicate case observables
-        case_observables = list(set([Observable(
-            tags=o.tags, value=o.value, data_type=o.data_type, ioc=o.ioc, spotted=o.spotted, tlp=o.tlp, case=case.uuid, organization=case.organization) for o in case_observables]))
-        [o.save() for o in case_observables]
+        
+        if len(events_to_update) > 0:
+            [event_processor_queue.put(event) for event in events_to_update]
 
         # If the user selected a case template, take the template items
         # and copy them over to the case
         if 'case_template_uuid' in api2.payload:
             case.apply_template(api2.payload['case_template_uuid'])
-
-            # Append the default tags
-            #for tag in case_template.tags:
-
-                # If the tag does not already exist
-            #    if tag not in case.tags:
-            #        case.tags.append(tag)
-
-            # Append the default tasks
-            #for task in case_template.tasks:
-            #    case.add_task(title=task.title, description=task.description,
-            #                  order=task.order, from_template=True)
-
-            # Set the default severity
-            #case.severity = case_template.severity
-            #case.tlp = case_template.tlp
-            #case.save()
 
         case.save()
 
@@ -1217,22 +1206,28 @@ class CaseDetails(Resource):
         if case:
             
             # Set any associated events back to New status
-            for event_uuid in case.events:
-                event = Event.get_by_uuid(event_uuid)
-                event.case = None
-                event.set_new()
+            if case.events:
+                for event_uuid in case.events:
+                    event = Event.get_by_uuid(event_uuid)
+                    if event:
+                        event.case = None
+                        event.set_new()
 
             observables = Observable.get_by_case_uuid(uuid=uuid)
-            [o.delete() for o in observables]
+            if observables and len(observables) > 0:
+                [o.delete() for o in observables]
 
             tasks = CaseTask.get_by_case(uuid=uuid, all_results=True)
-            [t.delete() for t in tasks]
+            if tasks and len(tasks) > 0:
+                [t.delete() for t in tasks]
 
             comments = CaseComment.get_by_case(uuid=uuid)
-            [c.delete() for c in comments]
+            if comments and len(comments) > 0:
+                [c.delete() for c in comments]
 
             history = CaseHistory.get_by_case(uuid=uuid)
-            [h.delete() for h in history]
+            if history and len(history) > 0:
+                [h.delete() for h in history]
 
             case.delete()
             return {'message': 'Sucessfully deleted case.'}
@@ -1299,8 +1294,13 @@ class CaseObservable(Resource):
         case = Case.get_by_uuid(uuid=uuid)
 
         if case:
-            observable = case.get_observable_by_value(value=value)
-            return observable
+            search = Event.search()
+            search = search[0:1]
+            search = search.filter('term', case=uuid)
+            search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": value}}))
+            #print(search.to_dict())
+            #observable = case.get_observable_by_value(value=value)
+            return {}
         else:
             ns_case_v2.abort(404, 'Observable not found.')
 
@@ -1314,15 +1314,53 @@ class CaseObservable(Resource):
     def put(self, uuid, value, current_user):
         ''' Updates a cases observable '''
 
-        observable = Observable.get_by_case_and_value(uuid, value)
+        observable = None
+        search = Event.search()
+        search = search[0:1]
+        search = search.filter('term', case=uuid)
+        search = search.query('nested', path='event_observables', query=Q({"term": {"event_observables.value.keyword": value}}))
+        event = search.execute()[0]
+        if event:
+            search = ObservableHistory.search()
+            search = search.filter('term', value=value)
+            search = search.filter('term', organization=event.organization)
+            search = search.sort('created_at')
+            search = search[0:1]
+            history = search.execute()
+
+            if history:
+                if len(history) >= 1:
+                    observable = history[0]
+                else:
+                    observable = history
+            else:
+                observable = [o for o in event.event_observables if o['value'] == value][0]
 
         if observable:
 
             # Can not flag an observable as safe if it is also flagged as an ioc
-            if observable.ioc and (observable.ioc == observable.safe):
-                ns_case_v2.abort(400, 'An observable can not be safe if it is an ioc.')
+            if 'safe' in api2.payload:
+                if observable.ioc and (observable.ioc == observable.safe):
+                    ns_case_v2.abort(400, 'An observable can not be safe if it is an ioc.')
+                observable.safe = api2.payload['safe']
 
-            observable.update(**api2.payload, refresh=True)
+            if 'ioc' in api2.payload:
+                if observable.ioc and (observable.ioc == observable.safe):
+                    ns_case_v2.abort(400, 'An observable can not be safe if it is an ioc.')
+                observable.ioc = api2.payload['ioc']
+
+            if 'spotted' in api2.payload:
+                observable.spotted = api2.payload['spotted']
+
+            observable_dict = observable.to_dict()
+            if 'created_at' in observable_dict:
+                del observable_dict['created_at']
+            if 'created_by' in observable_dict:
+                del observable_dict['created_by']
+            observable_dict['organization'] = event.organization
+
+            observable_history = ObservableHistory(**observable_dict)
+            observable_history.save()
 
             return observable
         else:
@@ -1348,11 +1386,49 @@ class CaseAddObservables(Resource):
             organization = api2.payload['organization']            
 
         if case:
-            observables = api2.payload['observables']
-            case.add_observables(observables, case.uuid, organization=organization)
-            case.add_history(f"Added {len(observables)} observables")
             
-            return {'observables': [o for o in observables]}
+            if 'observables' in api2.payload:
+                _observables = api2.payload['observables']
+                observables = []
+
+                # Make sure tags are in the observables
+                for observable in _observables:
+                    if 'tag' not in observable:
+                        observable['tag'] = []
+                    observables.append(observable)
+
+                status = EventStatus.get_by_name(name='Open', organization=organization)
+
+                h = hashlib.md5()
+                h.update(str(datetime.datetime.utcnow().timestamp()).encode())
+                _id = base64.b64encode(h.digest()).decode()
+
+                event = Event(title='[REFLEX] User Added Observables',
+                                description=f'{current_user.username} has added additional observables to a case.',
+                                signature=case.uuid,
+                                event_observables=observables,
+                                case=case.uuid,
+                                tags=['manual-observables'],
+                                severity=1,
+                                status=status.to_dict(),
+                                organization=organization,
+                                raw_log='',
+                                source='reflex-system',
+                                reference=_id
+                            )
+                event.save()
+
+                if case.events:
+                    case.events.append(event.uuid)
+                else:
+                    case.events = [event.uuid]
+                case.save()
+                #case.add_observables(observables, case.uuid, organization=organization)
+                case.add_history(f"Added {len(observables)} observables")
+                
+                return {'observables': [o for o in observables]}
+            else:
+                return {'observables': []}
         else:
             ns_case_v2.abort(404, 'Case not found.')
 
@@ -2440,8 +2516,6 @@ class AgentGroupDetails(Resource):
                     exists = AgentGroup.get_by_name(api2.payload['name'])
             else:
                 exists = AgentGroup.get_by_name(api2.payload['name'])
-
-            print(exists)
        
             if exists and exists.uuid != uuid:
                 ns_agent_group_v2.abort(409, "Group with this name already exists")
