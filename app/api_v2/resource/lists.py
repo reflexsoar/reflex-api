@@ -282,7 +282,11 @@ class AddValueToThreatList(Resource):
         if value_list:
 
             if 'values' in api.payload and api.payload['values'] not in [None,'']:
+                if not value_list.values:
+                    value_list.values = []
+
                 [value_list.values.append(v) for v in api.payload['values'] if v not in value_list.values]
+
                 value_list.save()
                 return {'message': 'Succesfully added values to list.'}
             else:
