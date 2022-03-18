@@ -1295,7 +1295,6 @@ class AddEventsToCase(Resource):
 
             case.add_history(message=f'{len(events_to_update)} events added')
             case.save()
-            #case.add_event(list(events))
             return "YARP"
         return "NARP"
 
@@ -1422,11 +1421,11 @@ class CaseAddObservables(Resource):
         ''' Adds multiple observables to a case '''
         case = Case.get_by_uuid(uuid=uuid)
 
-        organization = None
-        if 'organization' in api2.payload:
-            organization = api2.payload['organization']            
-
         if case:
+
+            organization = case.organization
+            if 'organization' in api2.payload:
+                organization = api2.payload['organization']  
             
             if 'observables' in api2.payload:
                 _observables = api2.payload['observables']
@@ -1436,6 +1435,13 @@ class CaseAddObservables(Resource):
                 for observable in _observables:
                     if 'tag' not in observable:
                         observable['tag'] = []
+
+                    # If any of the values are not False, which is the default, add a history item
+                    # for this observable
+                    if True in (observable['ioc'], observable['spotted'], observable['safe']):
+                        observable_history = ObservableHistory(**observable, organization=organization)
+                        observable_history.save()
+
                     observables.append(observable)
 
                 status = EventStatus.get_by_name(name='Open', organization=organization)
