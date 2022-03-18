@@ -1362,8 +1362,9 @@ class CaseObservable(Resource):
             search = ObservableHistory.search()
             search = search.filter('term', value=value)
             search = search.filter('term', organization=event.organization)
-            search = search.sort('created_at')
+            search = search.sort({'created_at': {'order': 'desc'}})
             search = search[0:1]
+            print(search.to_dict())
             history = search.execute()
 
             if history:
@@ -1377,20 +1378,21 @@ class CaseObservable(Resource):
         if observable:
 
             # Can not flag an observable as safe if it is also flagged as an ioc
+            print(api2.payload)
+            print(observable.to_dict())
             if 'safe' in api2.payload:
-                if hasattr(observable, 'ioc') and hasattr(observable, 'safe'):
-                    if observable.ioc and observable.safe:
-                        ns_case_v2.abort(400, 'An observable can not be safe if it is an ioc.')
                 observable.safe = api2.payload['safe']
 
             if 'ioc' in api2.payload:
-                if hasattr(observable, 'ioc') and hasattr(observable, 'safe'):
-                    if observable.ioc and observable.safe:
-                        ns_case_v2.abort(400, 'An observable can not be an ioc if it is flagged safe.')
                 observable.ioc = api2.payload['ioc']
 
             if 'spotted' in api2.payload:
                 observable.spotted = api2.payload['spotted']
+
+            print(observable.to_dict())
+
+            if getattr(observable,'ioc') and getattr(observable,'safe'):
+                ns_case_v2.abort(400, 'An observable can not be an ioc if it is flagged safe.')
 
             observable_dict = observable.to_dict()
             if 'created_at' in observable_dict:

@@ -517,7 +517,7 @@ class EventObservable(Resource):
             search = ObservableHistory.search()
             search = search.filter('term', value=value)
             search = search.filter('term', organization=event.organization)
-            search = search.sort('created_at')
+            search = search.sort({'created_at': {'order': 'desc'}})
             search = search[0:1]
             history = search.execute()
 
@@ -533,19 +533,16 @@ class EventObservable(Resource):
 
             # Can not flag an observable as safe if it is also flagged as an ioc
             if 'safe' in api.payload:
-                if hasattr(observable, 'ioc') and hasattr(observable, 'safe'):
-                    if observable.ioc and observable.safe:
-                        api.abort(400, 'An observable can not be safe if it is an ioc.')
                 observable.safe = api.payload['safe']
 
             if 'ioc' in api.payload:
-                if hasattr(observable, 'ioc') and hasattr(observable, 'safe'):
-                    if observable.ioc and observable.safe:
-                        api.abort(400, 'An observable can not be ioc if it is flagged safe.')
                 observable.ioc = api.payload['ioc']
 
             if 'spotted' in api.payload:
                 observable.spotted = api.payload['spotted']
+
+            if getattr(observable,'ioc') and getattr(observable,'safe'):
+                api.abort(400, 'An observable can not be an ioc if it is flagged safe.')
 
             observable_dict = observable.to_dict()
             if 'created_at' in observable_dict:
