@@ -178,8 +178,10 @@ class RQLSearch:
                 if isinstance(self.target_value, list) and isinstance(self.value, (int, float)):
                     self.target_value = len(self.target_value)
 
-                if isinstance(self.target_value, str):
-                    self.target_value = 1
+                # REMOVED 2022-03-21 - BC, not sure this is even needed and it was breaking some rules
+                # .e.g raw_log.suricata.eve.alert.severity = 1
+                #if isinstance(self.target_value, str):
+                #    self.target_value = 1
 
             if isinstance(self.target_value, list):
                 return self.has_key and self.value in self.target_value

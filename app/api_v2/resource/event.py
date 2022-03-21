@@ -489,7 +489,14 @@ def fetch_observables_from_history(observables):
     observable_history = [bucket['by_uuid'].buckets[0]['source']['hits']['hits'][0]['_source'].to_dict() for bucket in history.aggs.values.buckets]
     in_history = [o['value'] for o in observable_history]
     _observables = observable_history
-    [_observables.append(o) for o in observables if o['value'] not in in_history]   
+    [_observables.append(o) for o in observables if o['value'] not in in_history]
+
+    # Maintain the source_field data from the original observable
+    for observable in _observables:
+        if 'source_field' not in observable:
+            source_observable = [x for x in observables if x['value'] == observable['value']][0]
+            if 'source_field' in source_observable:
+                observable['source_field'] = source_observable['source_field']
 
     return _observables
 
