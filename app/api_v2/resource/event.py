@@ -882,6 +882,7 @@ class EventBulkUpdate(Resource):
                                     'uuid': current_user.uuid
                                 }
                             }
+
                 event_processor_queue.put(event_dict)
                 if related_events:
                     for related in related_events:
@@ -1394,29 +1395,13 @@ class BulkSelectAll(Resource):
                 }
             })
 
-        # OBSERVABLESFIX
-        if args.observables:
-            event_uuids = []
-
-            if any('|' in o for o in args.observables):
-                for observable in args.observables:
-                    if '|' in observable:
-                        value,field = observable.split('|')
-                        response = Observable.get_by_value_and_field(value, field)
-                        event_uuids += [o.events[0] for o in response]
-            else:
-                observables = Observable.get_by_value(args.observables)
-                event_uuids = [o.events[0] for o in observables if o.events]
-            
-            search_filters.append({
-                'type': 'terms',
-                'field': 'uuid',
-                'value': list(set(event_uuids))
-            })
-
-        observables = {}        
+       
         
         search = Event.search()
+
+         # OBSERVABLESFIX
+        if args.observables:
+            search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": args.observables}}))  
 
         search = search[:0]
 

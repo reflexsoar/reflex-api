@@ -31,6 +31,10 @@ class Agent(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-agents'
+        settings = {
+            'refresh_interval': '1s'
+        }
+
 
     @property
     def _input_count(self):
