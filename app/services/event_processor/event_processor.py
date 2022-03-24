@@ -323,7 +323,11 @@ class EventWorker(Process):
             else:
                 event['event_observables'] = []
 
-            yield {'_source': event, '_index': 'reflex-events', '_type': '_doc'}
+            yield {
+                '_source': event,
+                '_index': 'reflex-events'
+                #'_type': '_doc'
+            }
 
     def prepare_add_to_case(self, events):
         '''
@@ -342,7 +346,13 @@ class EventWorker(Process):
                 payload['case'] = event_meta_data['case']
                 payload['updated_at'] = now
 
-            yield {'doc': payload, '_index': 'reflex-events', '_type': '_doc', '_op_type': 'update', '_id': event_meta_data['_id']}
+            yield {
+                'doc': payload,
+                '_index': 'reflex-events',
+                #'_type': '_doc',
+                '_op_type': 'update',
+                '_id': event_meta_data['_id']
+            }
 
 
     def prepare_dismiss_events(self, events):
@@ -374,7 +384,13 @@ class EventWorker(Process):
                 payload['updated_at'] = now
                 payload['updated_by'] = event_meta_data['updated_by']
 
-            yield {'doc': payload, '_index': 'reflex-events', '_type': '_doc', '_op_type': 'update', '_id': event_meta_data['_id']}
+            yield {
+                'doc': payload,
+                '_index': 'reflex-events',
+                #'_type': '_doc',
+                '_op_type': 'update',
+                '_id': event_meta_data['_id']
+            }
 
     def prepare_case_updates(self, events):
         '''
@@ -400,7 +416,7 @@ class EventWorker(Process):
         for case, case_events in updated_cases.items():
             yield {
                 "_id": case,
-                "_type": "_doc",
+                #"_type": "_doc",
                 "_index": "reflex-cases",
                 "_op_type": "update",
                 "upsert": {},
@@ -526,6 +542,7 @@ class EventWorker(Process):
 
             # Process Global Event Rules
             for rule in self.rules:
+                
                 matched = False
                 if rule.global_rule:
                     matched = rule.check_rule(raw_event)

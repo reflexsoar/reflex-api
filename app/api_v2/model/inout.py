@@ -44,6 +44,9 @@ class Input(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-inputs'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     def __hash__(self) -> int:
         return hash(('uuid', self.uuid, 'name', self.name))

@@ -32,6 +32,9 @@ class ThreatList(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-threat-lists'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     @property
     def data_type(self):

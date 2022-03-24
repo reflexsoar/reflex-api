@@ -339,7 +339,6 @@ def _check_token():
 
     if current_app.config['ELASTIC_APM_ENABLED']:
 
-        
         if isinstance(current_user, (Agent, User)):
             username = None
             email = None

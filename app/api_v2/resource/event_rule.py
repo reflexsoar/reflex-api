@@ -398,8 +398,6 @@ class EventRuleStats(Resource):
             search.aggs['range'].bucket('event_rules', 'terms', order={'max_date': 'desc'}, field='event_rules', size=10000)
             search.aggs['range']['event_rules'].metric('max_date', 'max', field='created_at')
             search = search[:0]
-
-            print(search.to_dict())
             
             result = search.execute()
 

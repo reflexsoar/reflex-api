@@ -1,5 +1,6 @@
 import datetime
 import hashlib
+import json
 from fnmatch import fnmatch
 from app.api_v2.model.exceptions import EventRuleFailure
 
@@ -426,8 +427,17 @@ class EventRule(base.BaseDocument):
         
         qp = QueryParser(organization=self.organization)
         parse_start_time = datetime.datetime.utcnow()
+
+        # Convert raw log back into a dictionary if the rule calls for checking against raw_log
+        if 'raw_log' in event and isinstance(event['raw_log'], str) and 'raw_log' in self.query:
+            event['raw_log'] = json.loads(event['raw_log'])
+
         results = list(qp.run_search(event, self.parsed_rule))
         parse_end_time = datetime.datetime.utcnow()
+
+        # Convert raw log back into a string if the rule calls for checking against raw_log
+        if 'raw_log' in event and isinstance(event['raw_log'], dict) and 'raw_log' in self.query:
+            event['raw_log'] = json.dumps(event['raw_log'])
 
         # FUTURE: Warn on poor performing event rules if they parse slowly
         time_taken_seconds = (parse_end_time - parse_start_time).total_seconds()
@@ -436,7 +446,6 @@ class EventRule(base.BaseDocument):
             self.last_matched_date = datetime.datetime.utcnow()
             return True
         return False
-
     
     def process_rql(self, event):
         '''

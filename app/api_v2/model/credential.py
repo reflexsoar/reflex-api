@@ -27,6 +27,9 @@ class Credential(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-credentials'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     def _derive_key(self, secret: bytes, salt: bytes, iterations: int = 100_000) -> bytes:
 

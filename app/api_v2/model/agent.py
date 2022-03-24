@@ -105,6 +105,9 @@ class AgentGroup(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-agent-groups'
+        settings = {
+            'refresh_interval': '1s'
+        }
     
     @property
     def _inputs(self):

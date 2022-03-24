@@ -59,6 +59,9 @@ class CaseComment(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-case-comments'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     @classmethod
     def get_by_case(self, uuid):
@@ -108,6 +111,9 @@ class TaskNote(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-case-task-notes'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     @classmethod
     def get_by_task_uuid(self, uuid):
@@ -140,6 +146,9 @@ class CaseTask(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-case-tasks'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     @property
     def _notes(self):
@@ -650,6 +659,9 @@ class CaseTemplate(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-case-templates'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     @classmethod
     def title_search(self, search):

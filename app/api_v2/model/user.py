@@ -51,6 +51,9 @@ class User(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-users'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     def set_password(self, password):
         '''
@@ -510,6 +513,9 @@ class Role(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-user-roles'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     def add_user_to_role(self, user_id):
         '''
