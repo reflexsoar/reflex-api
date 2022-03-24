@@ -32,14 +32,16 @@ def escape_special_characters_rql(value):
     '''
 
     characters = {
-        '"': '\"',
-        '\\': '\\\\'
+        '\\': '\\\\',
+        '"': r'\"',
+        "'": r"\'",
+        
     }
-    for c in characters:
-        if isinstance(value, str):
+
+    if isinstance(value, str):
+        for c in characters:
             value = value.replace(c, characters[c])
-        else:
-            value = value
+
     return value
 
 

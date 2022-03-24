@@ -1038,7 +1038,6 @@ class CaseList(Resource):
                 # Automatically generates an event rule for the event associated with this case
                 if 'generate_event_rule' in api2.payload and api2.payload['generate_event_rule']:
                     rule_text = f'''# System generated base query
-
 # Pin this rule to this event by it's title
 title = "{e.title}"
 
