@@ -14,13 +14,18 @@ import time
 import hashlib
 import datetime
 import logging
-from multiprocessing import Process
+import threading
+from itertools import chain
+from multiprocessing.queues import Queue
+#from queue import Queue
+from multiprocessing import Process, get_context, Event as mpEvent
 from app.api_v2.model import (
     EventRule,
     CloseReason,
     Case,
     DataType,
-    EventStatus
+    EventStatus,
+    Task
 )
 
 # Elastic or Opensearch
@@ -30,6 +35,51 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
 else:
     from elasticsearch_dsl import connections
     from elasticsearch.helpers import streaming_bulk
+
+class EventQueue(Queue):
+    """
+    Creates a queue object based on multiprocessing.queues.Queue that has been
+    improved to allow checking the queue for certain items without popping them
+    off the queue
+    """
+
+    def __init__(self):
+        """
+        Creates a new multiprocessing.queue.Queue object through inheritence
+        """
+
+        self.mutex = threading.Lock()
+
+        super().__init__(ctx=get_context())
+
+    def check_task(self, task_id):
+        """
+        Checks all the items in the queue to see if any are related to
+        a running task
+        """
+
+        with self.mutex:
+            return any([item for item in list(self.queue) if '_meta' in item and item['_meta']['task_id'] == task_id])
+    
+    def check_queue_actions(self, action):
+        """
+        Checks all the items in the queue to see if any of the items
+        have a _meta action on them
+        """
+
+        with self.mutex:
+            return any([item for item in list(self.queue) if '_meta' in item and item['_meta']['action'] == action])
+
+    def to_list(self):
+        """
+        Returns a copy of all items in the queue without removing them.
+        """
+
+        
+        #return list(self.get())
+        with self.mutex:
+            return list(self.queue)
+            
 
 
 class EventProcessor: 
@@ -75,6 +125,7 @@ class EventProcessor:
         self.workers = []
         self.event_cache = []
 
+
     def init_app(self, app, **defaults):
         ''' Initialize the EventProcessor from within an application factory '''
         self.app = app
@@ -94,6 +145,7 @@ class EventProcessor:
         if 'WORKER_COUNT' in config:
             self.worker_count = config['WORKER_COUNT']
 
+
     def spawn_workers(self):
         '''
         Creates a set of workers to process incoming Events
@@ -109,6 +161,26 @@ class EventProcessor:
             w.start()
             self.workers.append(w)
 
+    def restart_workers(self):
+        '''
+        Forces all the Event workers to finish processing their current event
+        and restart
+        '''
+        self.logger.info('Restarting Event Processing workers')
+        new_workers = []        
+        for worker in self.workers:
+            worker.restart()
+
+            w = EventWorker(app_config=self.app.config,
+                            event_queue=self.event_queue,
+                            pusher_queue=self.pusher_queue,
+                            event_cache=self.event_cache,
+                            log_level=self.log_level
+                            )
+            w.start()
+            new_workers.append(w)
+        self.workers = new_workers
+
 
 class EventWorker(Process):
     ''' EventWorker performs all the event processing.  EventWorker will monitor the
@@ -119,6 +191,7 @@ class EventWorker(Process):
     # pylint: disable=too-many-instance-attributes
 
     def __init__(self, app_config, event_queue, pusher_queue, event_cache, log_level='INFO'):
+        
         super(EventWorker, self).__init__()
 
         log_levels = {
@@ -147,6 +220,12 @@ class EventWorker(Process):
         self.statuses = []
         self.data_types = []
         self.last_meta_refresh = None
+        self.should_restart = mpEvent()
+
+
+    def restart(self):
+        self.logger.info('Restart triggered by EventProcessor')
+        self.should_restart.set()
 
     def build_elastic_connection(self):
         '''
@@ -261,19 +340,25 @@ class EventWorker(Process):
         self.load_data_types()
         self.last_meta_refresh = datetime.datetime.utcnow()
 
+    def pop_events_by_action(self, events, action):
+        return [e for e in events if '_meta' in e and e['_meta']['action'] == action]
+
     def run(self):
         ''' Processes events from the Event Queue '''
 
         connection = self.build_elastic_connection()
         self.reload_meta_info()
         events = []
-        successful_inserts = 0
-        failed_inserts = 0
 
         while True:
 
             if self.event_queue.empty():
+
+                if self.should_restart.is_set():
+                    break
+
                 time.sleep(1)
+
             else:
 
                 # Reload all the event rules and other meta information if the refresh timer
@@ -282,7 +367,11 @@ class EventWorker(Process):
                     self.logger.debug('Refreshing Event Processing Meta Data')
                     self.reload_meta_info()
 
-                # pull all event rules
+                
+                # Interrupt this flow if the worker is scheduled for restart
+                if self.should_restart.is_set():
+                    break
+
                 event = self.event_queue.get()
                 events.append(self.process_event(event))
 
@@ -291,6 +380,7 @@ class EventWorker(Process):
                     # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
                     bulk_dismiss = [e for e in events if '_meta' in e and e['_meta']['action'] == 'dismiss']
                     add_to_case = [e for e in events if '_meta' in e and e['_meta']['action'] == 'add_to_case']
+                    task_end = self.pop_events_by_action(events, 'task_end')
 
                     for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case)):
                         pass
@@ -298,7 +388,7 @@ class EventWorker(Process):
                     for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss)):
                         pass
 
-                    events = [e for e in events if e not in bulk_dismiss and e not in add_to_case]
+                    events = [e for e in events if e not in chain(bulk_dismiss, add_to_case, task_end)]
 
                     self.prepare_case_updates(events)
 
@@ -309,6 +399,11 @@ class EventWorker(Process):
                     # Update Cases
                     for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(events)):
                         pass
+
+                    if task_end:
+                        for item in task_end:
+                            task = Task.get_by_uuid(uuid=item['_meta']['task_id'])
+                            task.finish()
 
                     events = []
 

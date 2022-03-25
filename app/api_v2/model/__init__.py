@@ -64,6 +64,13 @@ from .case import (
 from .plugin import Plugin, PluginConfig
 from .credential import Credential
 from .system import Tag, DataType, Settings, Observable, EventLog, ObservableHistory
+from .detection import (
+    Detection,
+    DetectionRepositoryToken,
+    DetectionRepository,
+    DetectionRepositoryBundle
+)
+from .task import Task
 
 VERSION = (2, 0, 0)
 __version__ = VERSION
@@ -98,5 +105,10 @@ __all__ = [
     TaskNote,
     Search,
     Organization,
-    ObservableHistory
+    ObservableHistory,
+    Detection,
+    DetectionRepositoryToken,
+    DetectionRepository,
+    DetectionRepositoryBundle,
+    Task
 ]

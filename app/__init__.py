@@ -8,7 +8,7 @@ from flask import Flask, logging as flog
 from app.services import housekeeper
 from app.services.threat_list_poller.base import ThreatListPoller
 from app.services.housekeeper import HouseKeeper
-from app.services.event_processor import EventProcessor
+from app.services.event_processor import EventProcessor, EventQueue
 from multiprocessing import Queue
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -24,7 +24,7 @@ from app.api_v2.model import (
     Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
-        Settings,Input, Organization, ObservableHistory
+        Settings,Input, Organization, ObservableHistory, Task
 )
 
 from .defaults import (
@@ -52,7 +52,7 @@ cache = Cache(config={'CACHE_TYPE': 'simple'})
 scheduler = BackgroundScheduler()
 apm = ElasticAPM()
 ep = EventProcessor()
-event_queue = Queue()
+event_queue = EventQueue()
 pusher_queue = Queue()
 
 
@@ -108,7 +108,7 @@ def upgrade_indices(app):
         Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
-        Input,Organization, ObservableHistory
+        Input,Organization, ObservableHistory, Task
         ]
 
     for model in models:

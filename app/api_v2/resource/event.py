@@ -13,7 +13,7 @@ from attr import has
 from app.api_v2.model.system import ObservableHistory
 from flask import current_app
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
-from ..model import Event, Observable, EventRule, CloseReason, Nested, Q
+from ..model import Event, Observable, EventRule, CloseReason, Nested, Q, Task
 from ..model.exceptions import EventRuleFailure
 from ..utils import check_org, token_required, user_has, log_event
 from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged
@@ -168,6 +168,7 @@ event_list_parser.add_argument(
 event_list_parser.add_argument('start', location='args', type=str, required=False)
 event_list_parser.add_argument('end', location='args',  type=str, required=False)
 event_list_parser.add_argument('organization', location='args', action='split', required=False)
+
 
 @api.route("")
 class EventListAggregated(Resource):
@@ -727,7 +728,8 @@ class CreateBulkEvents(Resource):
 
         workers = []
 
-        request_id = str(uuid.uuid4())
+        task = Task()
+        request_id = task.create(task_type='bulk_event_create')
       
         def process_event(queue, request_id, organization=None):
             while not queue.empty():
@@ -833,13 +835,20 @@ class CreateBulkEvents(Resource):
             return {"request_id": request_id, "response_time": total_process_time}
         else:
             start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
+
+            
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
                 if not check_cache(event['reference']):
                     event_processor_queue.put(event)
+            
+            # Signal the end of the task
+            # The Event Processor will use this event to close the running task
+            event_processor_queue.put({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+
             end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
             total_process_time = end_bulk_process_dt - start_bulk_process_dt
-            return {"request_id": request_id, "response_time": total_process_time}
+            return {"task_id": str(request_id), "response_time": total_process_time}
 
 
 @api.route("/bulk_dismiss")
@@ -847,11 +856,12 @@ class EventBulkUpdate(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(mod_event_bulk_dismiss)
-    @api.marshal_with(mod_event_details, as_list=True)
     @token_required
     @user_has('update_event')
     def put(self, current_user):
         ''' Dismiss multiple events at the same time '''
+
+        task_id = None
 
         if 'dismiss_reason_uuid' in api.payload:
             reason = CloseReason.get_by_uuid(uuid=api.payload['dismiss_reason_uuid'])
@@ -861,6 +871,9 @@ class EventBulkUpdate(Resource):
             api.abort(400, 'A dismiss reason is required.')
 
         if 'events' in api.payload:
+
+            task = Task()
+            task_id = task.create(task_type='bulk_dismiss_events')
 
             comment = api.payload['dismiss_comment'] if api.payload['dismiss_comment'] != "" else None
 
@@ -900,10 +913,11 @@ class EventBulkUpdate(Resource):
                                 }
                             }
                             event_processor_queue.put(related_dict)
+            # Signal the end of the task
+            # The Event Processor will use this event to close the running task
+            event_processor_queue.put({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
 
-        time.sleep(1)
-
-        return []
+        return {'task_id': str(task_id)}
 
 
 @api.route("/<uuid>")
@@ -1394,8 +1408,6 @@ class BulkSelectAll(Resource):
                     'lte': args.end
                 }
             })
-
-       
         
         search = Event.search()
 

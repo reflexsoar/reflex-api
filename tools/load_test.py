@@ -60,6 +60,7 @@ def case_templates():
 
 def random_title_description():
   titles = [
+    {'Rule Testing': 'A test event used for rule testing'},
     {'User added to local administrators': 'Someone added a normal user to local admins'},
     {'Suspicious DNS hit': 'A machine made a request for a suspicious DNS record'},
     {'Local account discovery': 'A machine exhibited enumeration behavior'},
@@ -264,6 +265,7 @@ def random_event():
       ],
       #"raw_log": json.dumps({"destination":{"ip": ip}})
       "raw_log": json.dumps({'raw_log': {'match_body': {'event_data': {'TargetUserName': 'svc_justin'}}}})
+      
       
     }
   ]

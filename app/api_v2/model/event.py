@@ -400,6 +400,9 @@ class EventRule(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-event-rules'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
 
     def update_order(self, order):
