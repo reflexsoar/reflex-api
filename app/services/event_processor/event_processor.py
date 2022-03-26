@@ -167,19 +167,8 @@ class EventProcessor:
         and restart
         '''
         self.logger.info('Restarting Event Processing workers')
-        new_workers = []        
         for worker in self.workers:
-            worker.restart()
-
-            w = EventWorker(app_config=self.app.config,
-                            event_queue=self.event_queue,
-                            pusher_queue=self.pusher_queue,
-                            event_cache=self.event_cache,
-                            log_level=self.log_level
-                            )
-            w.start()
-            new_workers.append(w)
-        self.workers = new_workers
+            worker.force_reload()
 
 
 class EventWorker(Process):
@@ -223,8 +212,8 @@ class EventWorker(Process):
         self.should_restart = mpEvent()
 
 
-    def restart(self):
-        self.logger.info('Restart triggered by EventProcessor')
+    def force_reload(self):
+        self.logger.info('Reload triggered by EventProcessor')
         self.should_restart.set()
 
     def build_elastic_connection(self):
@@ -327,7 +316,7 @@ class EventWorker(Process):
         '''
         raise NotImplementedError
 
-    def reload_meta_info(self):
+    def reload_meta_info(self, clear_reload_flag=False):
         '''
         Reloads information from Elasticsearch so that it can be used
         during Event processing.  This lowers the number of calls
@@ -339,6 +328,8 @@ class EventWorker(Process):
         self.load_statuses()
         self.load_data_types()
         self.last_meta_refresh = datetime.datetime.utcnow()
+        if clear_reload_flag:
+            self.should_restart.clear()
 
     def pop_events_by_action(self, events, action):
         return [e for e in events if '_meta' in e and e['_meta']['action'] == action]
@@ -355,7 +346,7 @@ class EventWorker(Process):
             if self.event_queue.empty():
 
                 if self.should_restart.is_set():
-                    break
+                    self.reload_meta_info(clear_reload_flag=True)
 
                 time.sleep(1)
 
@@ -367,10 +358,9 @@ class EventWorker(Process):
                     self.logger.debug('Refreshing Event Processing Meta Data')
                     self.reload_meta_info()
 
-                
                 # Interrupt this flow if the worker is scheduled for restart
                 if self.should_restart.is_set():
-                    break
+                    self.reload_meta_info(clear_reload_flag=True)
 
                 event = self.event_queue.get()
                 events.append(self.process_event(event))
@@ -402,7 +392,14 @@ class EventWorker(Process):
 
                     if task_end:
                         for item in task_end:
+                            
                             task = Task.get_by_uuid(uuid=item['_meta']['task_id'])
+
+                            # If the task_type is one that should be broadcast
+                            # set the broadcast flag
+                            if task.task_type in ['bulk_dismiss_events']:
+                                task.broadcast = True
+
                             task.finish()
 
                     events = []

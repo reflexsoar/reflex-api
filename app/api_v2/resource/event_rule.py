@@ -16,6 +16,7 @@ from ..model.exceptions import EventRuleFailure
 from ..utils import token_required, user_has, check_org, log_event, default_org
 from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict
 from .event import mod_event_status
+from ... import ep
 
 api = Namespace('EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
 
@@ -235,6 +236,8 @@ class EventRuleList(Resource):
 
             event_rule.save()
 
+            ep.restart_workers()
+
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
 
                 events = Event.search()
@@ -341,6 +344,7 @@ class EventRuleDetails(Resource):
                     api.abort(400, 'Missing expire_days field.')
 
             if len(api.payload) > 0:
+                ep.restart_workers()
                 event_rule.update(**api.payload)
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
@@ -398,9 +402,7 @@ class EventRuleDetails(Resource):
                             event_rule.hit_count += len(matches)
                         else:
                             event_rule.hit_count = len(matches)
-                        event_rule.save()
-
-            
+                        event_rule.save()           
 
             return event_rule
         else:

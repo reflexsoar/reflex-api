@@ -3,7 +3,6 @@
 Contains all the logic for tracking background tasks
 """
 
-import re
 import datetime
 from . import (
     base,
@@ -11,9 +10,7 @@ from . import (
     Text,
     Boolean,
     Integer,
-    Float,
-    Date,
-    system
+    Date
 )
 
 
@@ -24,12 +21,14 @@ class Task(base.BaseDocument):
     '''
 
     started = Boolean() # Is the task started?
+    message = Text() # A special message detailing this task
     start_date = Date()
     end_date = Date()
     elapsed_seconds = Integer()
     complete = Boolean() # Is the task complete or not?
     task_type = Keyword() # What type of task is it
     dead = Boolean() # Is the task dead?
+    broadcast = Boolean() # Should the completion of this task be broadcast to other users
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -47,6 +46,7 @@ class Task(base.BaseDocument):
         else:
             self.started = False
         self.complete = False
+        self.broadcast = False
         self.task_type = task_type
         self.save(refresh=True)
         return self.uuid
@@ -78,3 +78,10 @@ class Task(base.BaseDocument):
         self.end_date = datetime.datetime.utcnow()
         self.elapsed_seconds = (self.end_date - self.start_date).total_seconds()
         self.save()
+
+    def set_message(self, message):
+        '''
+        Sets a new message on this task
+        '''
+        self.message = message
+        self.save(refresh=True)

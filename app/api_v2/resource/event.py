@@ -814,7 +814,8 @@ class CreateBulkEvents(Resource):
                     event_process_time = end_event_process_dt - start_event_process_dt
                     #log_event(event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=event_process_time, status="Success", message="Event Inserted.", event_id=event.uuid)
                 else:
-                    log_event(organization=organization, event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=0, status="Failed", message="Event Already Exists.")
+                    log_event(organization=organization, event_type='Bulk Event Insert', source_user="System", request_id=str(request_id), event_reference=event.reference, time_taken=0, status="Failed", message="Event Already Exists.")
+
 
         if not current_app.config['NEW_EVENT_PIPELINE']:
             start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
@@ -823,20 +824,19 @@ class CreateBulkEvents(Resource):
                 [event_queue.put(e) for e in api.payload['events']]
 
             for i in range(0,current_app.config['EVENT_PROCESSING_THREADS']):
-                p = threading.Thread(target=process_event, daemon=True, args=(event_queue,request_id,current_user.organization))
+                p = threading.Thread(target=process_event, daemon=True, args=(event_queue,str(request_id),current_user.organization))
                 workers.append(p)
             [t.start() for t in workers]
 
             end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
             total_process_time = end_bulk_process_dt - start_bulk_process_dt
 
-            log_event(event_type="Bulk Event Insert", request_id=request_id, time_taken=total_process_time, status="Success", message="Bulk request finished.")
+            log_event(event_type="Bulk Event Insert", request_id=str(request_id), time_taken=total_process_time, status="Success", message="Bulk request finished.")
 
-            return {"request_id": request_id, "response_time": total_process_time}
+            return {"request_id": str(request_id), "response_time": total_process_time}
         else:
             start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
 
-            
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
                 if not check_cache(event['reference']):
@@ -874,6 +874,7 @@ class EventBulkUpdate(Resource):
 
             task = Task()
             task_id = task.create(task_type='bulk_dismiss_events')
+            event_count = 0
 
             comment = api.payload['dismiss_comment'] if api.payload['dismiss_comment'] != "" else None
 
@@ -897,6 +898,7 @@ class EventBulkUpdate(Resource):
                             }
 
                 event_processor_queue.put(event_dict)
+                event_count += 1
                 if related_events:
                     for related in related_events:
                         if hasattr(related, 'uuid') and related.uuid not in api.payload['events']:
@@ -913,8 +915,11 @@ class EventBulkUpdate(Resource):
                                 }
                             }
                             event_processor_queue.put(related_dict)
+                            event_count += 1
+
             # Signal the end of the task
             # The Event Processor will use this event to close the running task
+            task.set_message(f'{event_count} Events marked for bulk dismissal')
             event_processor_queue.put({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
 
         return {'task_id': str(task_id)}
