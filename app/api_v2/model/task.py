@@ -37,7 +37,7 @@ class Task(base.BaseDocument):
             'refresh_interval': '1s'
         }
 
-    def create(self, task_type, start=True):
+    def create(self, task_type, start=True, message=None, broadcast=False):
         '''
         Creates a task and sets the defaults
         '''
@@ -46,7 +46,8 @@ class Task(base.BaseDocument):
         else:
             self.started = False
         self.complete = False
-        self.broadcast = False
+        self.message = message
+        self.broadcast = broadcast
         self.task_type = task_type
         self.save(refresh=True)
         return self.uuid
