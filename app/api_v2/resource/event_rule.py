@@ -242,6 +242,9 @@ class EventRuleList(Resource):
 
                 events = Event.search()
 
+                task = Task()
+                request_id = task.create(task_type='event_rule_lookbehind', message=f'Event Rule lookbehind for {event_rule.name} complete.', broadcast=True)
+
                 if 'organization' in api.payload and api.payload['organization']:
                     events = events.filter('term', organization=api.payload['organization'])
                 else:
@@ -251,9 +254,14 @@ class EventRuleList(Resource):
                 events = [e for e in events.scan()]
 
                 matches = []
-                def lookbehind(queue, event_rule, organization, matches):
+                def lookbehind(queue, event_rule, organization, matches, task):
                     while not queue.empty():
                         event = queue.get()
+
+                        if event == 'STOP':
+                            task.finish()
+                            return
+
                         matched = False
                         try:
                             raw_event = json.loads(json.dumps(marshal(event, mod_event_rql)))
@@ -272,20 +280,21 @@ class EventRuleList(Resource):
                     workers = []
                     event_queue = Queue()
                     [event_queue.put(e) for e in events]
+                    event_queue.put('STOP')                
 
                 if event_queue: 
                     for i in range(0,5):
                         if hasattr(current_user,'default_org') and current_user.default_org:
                             if 'organization' in api.payload:
-                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, api.payload['organization'], matches))
+                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, api.payload['organization'], matches, task))
                             else:
-                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches))
+                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches, task))
                         else:
-                            p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches))
+                            p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches, task))
                         workers.append(p)
 
                     [t.start() for t in workers]
-                    [t.join() for t in workers]
+                    #[t.join() for t in workers]
 
                     if matches:
                         event_rule.last_matched_date = datetime.datetime.utcnow()
@@ -389,8 +398,7 @@ class EventRuleDetails(Resource):
                     workers = []
                     event_queue = Queue()
                     [event_queue.put(e) for e in events]
-
-                event_queue.put('STOP')
+                    event_queue.put('STOP')
 
                 if event_queue: 
                     for i in range(0,5):
@@ -579,6 +587,8 @@ class TestEventRQL(Resource):
             search = search.sort('-created_at')
             search = search[0:api.payload['event_count']]
 
+            print(search.to_dict())
+
             # Apply a date filter
             if date_filtered:
                 search = search.filter('range', **{'created_at': {
@@ -586,7 +596,10 @@ class TestEventRQL(Resource):
                     'lte': api.payload['end_date']
                 }})
 
-            events = list(search.scan())
+            if 'event_count' in api.payload and api.payload['event_count'] > 10000:
+                events = list(search.scan())
+            else:
+                events = search.execute()
            
             event_data = [json.loads(json.dumps(marshal(e, mod_event_rql))) for e in events]
        
