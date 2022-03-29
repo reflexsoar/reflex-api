@@ -8,7 +8,7 @@ from flask import Flask, logging as flog
 from app.services import housekeeper
 from app.services.threat_list_poller.base import ThreatListPoller
 from app.services.housekeeper import HouseKeeper
-from app.services.event_processor import EventProcessor, EventQueue
+from app.services.event_processor import EventProcessor
 from multiprocessing import Queue
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -52,7 +52,7 @@ cache = Cache(config={'CACHE_TYPE': 'simple'})
 scheduler = BackgroundScheduler()
 apm = ElasticAPM()
 ep = EventProcessor()
-event_queue = EventQueue()
+event_queue = Queue()
 pusher_queue = Queue()
 
 
@@ -247,7 +247,6 @@ def create_app(environment='development'):
 
         if not app.config['HOUSEKEEPER_DISABLED']:
             housekeeper = HouseKeeper(app, log_level=app.config['HOUSEKEEPER_LOG_LEVEL'])
-            print(app.config['AGENT_PRUNE_INTERVAL'])
             scheduler.add_job(
                 func=housekeeper.prune_old_agents,
                 trigger="interval",

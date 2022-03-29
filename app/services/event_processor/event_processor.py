@@ -34,52 +34,7 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
     from opensearchpy.helpers import streaming_bulk
 else:
     from elasticsearch_dsl import connections
-    from elasticsearch.helpers import streaming_bulk
-
-class EventQueue(Queue):
-    """
-    Creates a queue object based on multiprocessing.queues.Queue that has been
-    improved to allow checking the queue for certain items without popping them
-    off the queue
-    """
-
-    def __init__(self):
-        """
-        Creates a new multiprocessing.queue.Queue object through inheritence
-        """
-
-        self.mutex = threading.Lock()
-
-        super().__init__(ctx=get_context())
-
-    def check_task(self, task_id):
-        """
-        Checks all the items in the queue to see if any are related to
-        a running task
-        """
-
-        with self.mutex:
-            return any([item for item in list(self.queue) if '_meta' in item and item['_meta']['task_id'] == task_id])
-    
-    def check_queue_actions(self, action):
-        """
-        Checks all the items in the queue to see if any of the items
-        have a _meta action on them
-        """
-
-        with self.mutex:
-            return any([item for item in list(self.queue) if '_meta' in item and item['_meta']['action'] == action])
-
-    def to_list(self):
-        """
-        Returns a copy of all items in the queue without removing them.
-        """
-
-        
-        #return list(self.get())
-        with self.mutex:
-            return list(self.queue)
-            
+    from elasticsearch.helpers import streaming_bulk          
 
 
 class EventProcessor: 
@@ -315,6 +270,7 @@ class EventWorker(Process):
         that need to be sent to Elasticsearch
         '''
         time.sleep(5)
+        self.logger.info('Reloading configuration information')
         self.load_rules()
         self.load_cases()
         self.load_close_reasons()
@@ -334,6 +290,7 @@ class EventWorker(Process):
         connection = self.build_elastic_connection()
         self.reload_meta_info()
         events = []
+        self.logger.info(f"Running")
 
         while True:
 
@@ -349,7 +306,6 @@ class EventWorker(Process):
                 # Reload all the event rules and other meta information if the refresh timer
                 # has expired
                 if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
-                    self.logger.debug('Refreshing Event Processing Meta Data')
                     self.reload_meta_info()
 
                 # Interrupt this flow if the worker is scheduled for restart
@@ -360,6 +316,8 @@ class EventWorker(Process):
                 events.append(self.process_event(event))
 
                 if len(events) >= self.config["ES_BULK_SIZE"] or self.event_queue.empty():
+
+                    self.logger.info(f"Updating {len(events)} events")
 
                     # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
                     bulk_dismiss = [e for e in events if '_meta' in e and e['_meta']['action'] == 'dismiss']
@@ -566,7 +524,7 @@ class EventWorker(Process):
         # If the rule says to dismiss
         if rule.dismiss:
             reason = next(
-                (r for r in self.reasons if r.uuid == rule.dismiss_reason))
+                (r for r in self.reasons if r.uuid == rule.dismiss_reason), None)
             if rule.dismiss_comment:
                 raw_event['dismiss_comment'] = rule.dismiss_comment
 
@@ -576,7 +534,7 @@ class EventWorker(Process):
             raw_event['time_to_dismiss'] = 0
 
             status = next((s for s in self.statuses if s.organization ==
-                          raw_event['organization'] and s.name == 'Dismissed'))
+                          raw_event['organization'] and s.name == 'Dismissed'), None)
             raw_event['status'] = status.to_dict()
 
         # If the rule says to merge in to case
@@ -651,33 +609,39 @@ class EventWorker(Process):
             # Process Global Event Rules
             for rule in self.rules:
                 
-                matched = False
-                if rule.global_rule:
-                    matched = rule.check_rule(raw_event)
+                try:
+                    matched = False
+                    if rule.global_rule:
+                        matched = rule.check_rule(raw_event)
 
-                if rule.organization == organization and not matched:
-                    matched = rule.check_rule(raw_event)
-                else:
-                    pass
+                    if rule.organization == organization and not matched:
+                        matched = rule.check_rule(raw_event)
+                    else:
+                        pass
 
-                if matched:
-                    raw_event = self.mutate_event(rule, raw_event)
+                    if matched:
+                        raw_event = self.mutate_event(rule, raw_event)
+                except Exception as e:
+                    print(rule.uuid, e)
 
         else:
             if 'action' in raw_event['_meta'] and raw_event['_meta']['action'] == 'retro_apply_event_rule':
                 event_meta_data = raw_event['_meta']
                 rule = next((r for r in self.rules if r.uuid == event_meta_data['rule_id']), None)
                 
-                matched = False
-                if hasattr(rule, 'global_rule') and rule.global_rule:
-                    matched = rule.check_rule(raw_event)
+                try:
+                    matched = False
+                    if hasattr(rule, 'global_rule') and rule.global_rule:
+                        matched = rule.check_rule(raw_event)
 
-                if rule.organization == organization and not matched:
-                    matched = rule.check_rule(raw_event)
-                else:
-                    pass
+                    if rule.organization == organization and not matched:
+                        matched = rule.check_rule(raw_event)
+                    else:
+                        pass
 
-                if matched:
-                    raw_event = self.mutate_event(rule, raw_event)
+                    if matched:
+                        raw_event = self.mutate_event(rule, raw_event)
+                except Exception as e:
+                    print(rule.uuid, e)
 
         return raw_event

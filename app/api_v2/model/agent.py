@@ -21,6 +21,7 @@ class Agent(base.BaseDocument):
     '''
 
     name = Keyword()
+    friendly_name = Keyword() # A friendly name to give this agent that isn't it's system name
     inputs = Keyword()  # A list of UUIDs of which inputs to run
     roles = Keyword()  # A list of roles that the agent belongs to
     groups = Keyword()  # A list of UUIDs that the agent belongs to
@@ -34,7 +35,6 @@ class Agent(base.BaseDocument):
         settings = {
             'refresh_interval': '1s'
         }
-
 
     @property
     def _input_count(self):

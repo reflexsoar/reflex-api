@@ -202,7 +202,6 @@ class RQLSearch:
                     if self.all_mode:
                         if isinstance(self.value, list):
                             return self.has_key and all([v in self.target_value for v in self.value])
-                            #return self.has_key and sorted(self.value) == sorted(self.target_value)
                         else:
                             return self.has_key and all([v in self.target_value for v in self.value])
                     else:

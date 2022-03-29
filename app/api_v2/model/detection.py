@@ -24,6 +24,7 @@ class Detection(base.BaseDocument):
     '''
 
     name = Keyword(fields={'text':Text()})
+    detection_id = Keyword() # A persistent UUID that follows the rule and is associated to events
     description = Text()
     guide = Text() # A descriptive process for how to triage/investigate this detection
     tags = Keyword() # A list of tags used to categorize this repository
@@ -40,6 +41,7 @@ class Detection(base.BaseDocument):
     risk_score = Integer() # 0 - 100 
     severity = Integer() # 1-4 (1: Low, 2: Medium, 3: High, 4: Critical)
     signature_fields = Keyword() # Calculate a unique signature for this rule based on fields on the source event
+    query_time = Integer() # How long the query took to run
 
     class Index:
         name = "reflex-detections"
@@ -47,6 +49,22 @@ class Detection(base.BaseDocument):
             "refresh_interval": "1s"
         }
     
+
+class DetectionPerformanceMetric(base.BaseDocument):
+    '''
+    Used to show Detection performance over time
+    '''
+
+    detection_id = Keyword() # The detection ID for this metric
+    rule_type = Integer() # The rule type
+    query_time = Integer() # How long the query took
+
+    class Index:
+        name = "reflex-detections-perf-metrics"
+        settings = {
+            "refresh_interval": "1s"
+        }
+
 
 class DetectionRepositoryToken(base.BaseDocument):
     '''

@@ -1492,3 +1492,11 @@ class EventNewRelatedEvents(Resource):
         events = Event.get_by_signature(signature=signature, all_events=True)
         related_events = [e.uuid for e in events if hasattr(e.status,'name') and e.status.name == 'New']
         return {"events": related_events}
+
+
+@api.route("/queue_stats")
+class EventQueueStats(Resource):
+
+    @api.doc(security="Bearer")
+    def get(self):
+        return {"size": event_processor_queue.qsize()}
