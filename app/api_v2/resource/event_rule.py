@@ -51,7 +51,8 @@ mod_event_rule_create = api.model('CreateEventRule', {
     'expire_days': fields.Integer,
     'active': fields.Boolean,
     'global_rule': fields.Boolean,
-    'run_retroactively': fields.Boolean(optional=True)
+    'run_retroactively': fields.Boolean(optional=True),
+    'skip_previous_match': fields.Boolean(optional=True)
 })
 
 mod_event_rule_list = api.model('EventRuleList', {
@@ -254,12 +255,17 @@ class EventRuleList(Resource):
                 events = [e for e in events.scan()]
 
                 matches = []
-                def lookbehind(queue, event_rule, organization, matches, task):
+                def lookbehind(queue, event_rule, organization, matches, task, skip_previous=False):
                     while not queue.empty():
                         event = queue.get()
 
                         if event == 'STOP':
                             task.finish()
+                            return
+
+                        # If the event rule look behind says to skip previous matches and the event
+                        # has already matched on this rule, skip it
+                        if skip_previous and event_rule.uuid in event.event_rules:
                             return
 
                         matched = False
@@ -280,17 +286,21 @@ class EventRuleList(Resource):
                     workers = []
                     event_queue = Queue()
                     [event_queue.put(e) for e in events]
-                    event_queue.put('STOP')                
+                    event_queue.put('STOP')
+
+                skip_previous_match = False
+                if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
+                    skip_previous_match = True
 
                 if event_queue: 
                     for i in range(0,5):
                         if hasattr(current_user,'default_org') and current_user.default_org:
                             if 'organization' in api.payload:
-                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, api.payload['organization'], matches, task))
+                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, api.payload['organization'], matches, task, skip_previous_match))
                             else:
-                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches, task))
+                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches, task, skip_previous_match))
                         else:
-                            p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches, task))
+                            p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches, task, skip_previous_match))
                         workers.append(p)
 
                     [t.start() for t in workers]
@@ -372,12 +382,17 @@ class EventRuleDetails(Resource):
                 events = [e for e in events.scan()]
 
                 matches = []
-                def lookbehind(queue, event_rule, organization, matches, task):
+                def lookbehind(queue, event_rule, organization, matches, task, skip_previous=False):
                     while not queue.empty():
                         event = queue.get()
 
                         if event == 'STOP':
                             task.finish()
+                            return
+
+                        # If the event rule look behind says to skip previous matches and the event
+                        # has already matched on this rule, skip it
+                        if skip_previous and event_rule.uuid in event.event_rules:
                             return
 
                         matched = False
@@ -400,15 +415,19 @@ class EventRuleDetails(Resource):
                     [event_queue.put(e) for e in events]
                     event_queue.put('STOP')
 
+                skip_previous_match = False
+                if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
+                    skip_previous_match = True
+
                 if event_queue: 
                     for i in range(0,5):
                         if hasattr(current_user,'default_org') and current_user.default_org:
                             if 'organization' in api.payload:
-                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, api.payload['organization'], matches, task))
+                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, api.payload['organization'], matches, task, skip_previous_match))
                             else:
-                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches, task))
+                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches, task, skip_previous_match))
                         else:
-                            p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches, task))
+                            p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches, task, skip_previous_match))
                         workers.append(p)
 
                     [t.start() for t in workers]
@@ -420,7 +439,7 @@ class EventRuleDetails(Resource):
                             event_rule.hit_count += len(matches)
                         else:
                             event_rule.hit_count = len(matches)
-                        event_rule.save()           
+                        event_rule.save()
 
             return event_rule
         else:

@@ -87,6 +87,7 @@ class Event(base.BaseDocument):
     raw_log = Text()
     sla_breach_time = Date()
     sla_violated = Boolean()
+    detection_id = Keyword() # The UUID of the Detection rule that generated this event
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
