@@ -250,14 +250,6 @@ class EventWorker(Process):
         Elasticsearch
         '''
         
-        # Save all the rules to save the last_matched_date information
-        # DISABLED 2022-03-07 - BC - Using a metrics API endpoint in leiu of this
-        #if len(self.rules) > 0:
-        #    for rule in self.rules:
-        #        rule.parsed_rule = None
-        #        rule.update(last_matched_date=rule.last_matched_date)
-        #    self.rules = []
-
         search = EventRule.search()
         search = search.filter('term', active=True)
         rules = search.scan()
@@ -322,12 +314,14 @@ class EventWorker(Process):
         during Event processing.  This lowers the number of calls
         that need to be sent to Elasticsearch
         '''
+        time.sleep(5)
         self.load_rules()
         self.load_cases()
         self.load_close_reasons()
         self.load_statuses()
         self.load_data_types()
         self.last_meta_refresh = datetime.datetime.utcnow()
+        
         if clear_reload_flag:
             self.should_restart.clear()
 
@@ -370,6 +364,8 @@ class EventWorker(Process):
                     # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
                     bulk_dismiss = [e for e in events if '_meta' in e and e['_meta']['action'] == 'dismiss']
                     add_to_case = [e for e in events if '_meta' in e and e['_meta']['action'] == 'add_to_case']
+                    retro_apply_event_rule = [e for e in events if '_meta' in e and e['_meta']['action'] == 'retro_apply_event_rule']
+                    
                     task_end = self.pop_events_by_action(events, 'task_end')
 
                     for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case)):
@@ -378,7 +374,10 @@ class EventWorker(Process):
                     for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss)):
                         pass
 
-                    events = [e for e in events if e not in chain(bulk_dismiss, add_to_case, task_end)]
+                    for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule)):
+                        pass
+
+                    events = [e for e in events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
 
                     self.prepare_case_updates(events)
 
@@ -404,6 +403,7 @@ class EventWorker(Process):
 
                     events = []
 
+
     def prepare_events(self, events):
         '''
         Prepares the dictionary for bulk push to Elasticsearch
@@ -420,6 +420,22 @@ class EventWorker(Process):
                 '_index': 'reflex-events'
                 #'_type': '_doc'
             }
+
+
+    def prepare_retro_events(self, events):
+        '''
+        Prepares the dictionary for bulk push to Elasticsearch
+        '''
+        for event in events:
+            if '_meta' in event:
+                event_meta_data = event.pop('_meta')
+
+                yield {
+                    'doc': event,
+                    '_index': 'reflex-events',
+                    '_op_type': 'update',
+                    '_id': event_meta_data['_id']
+                }
 
     def prepare_add_to_case(self, events):
         '''
@@ -637,6 +653,23 @@ class EventWorker(Process):
                 
                 matched = False
                 if rule.global_rule:
+                    matched = rule.check_rule(raw_event)
+
+                if rule.organization == organization and not matched:
+                    matched = rule.check_rule(raw_event)
+                else:
+                    pass
+
+                if matched:
+                    raw_event = self.mutate_event(rule, raw_event)
+
+        else:
+            if 'action' in raw_event['_meta'] and raw_event['_meta']['action'] == 'retro_apply_event_rule':
+                event_meta_data = raw_event['_meta']
+                rule = next((r for r in self.rules if r.uuid == event_meta_data['rule_id']), None)
+                
+                matched = False
+                if hasattr(rule, 'global_rule') and rule.global_rule:
                     matched = rule.check_rule(raw_event)
 
                 if rule.organization == organization and not matched:

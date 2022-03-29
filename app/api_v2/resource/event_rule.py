@@ -16,7 +16,8 @@ from ..model.exceptions import EventRuleFailure
 from ..utils import token_required, user_has, check_org, log_event, default_org
 from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict
 from .event import mod_event_status
-from ... import ep
+from ... import ep, event_queue as event_processor_queue
+
 
 api = Namespace('EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
 
@@ -200,6 +201,9 @@ class EventRuleList(Resource):
         if 'global_rule' in api.payload and not hasattr(current_user,'default_org'):
             api.payload['global_rule'] = False
 
+        if 'global_rule' not in api.payload:
+            api.payload['global_rule'] = False
+
         if 'dismiss' in api.payload and api.payload['dismiss']:
 
             if 'dismiss_reason' not in api.payload or api.payload['dismiss_reason'] == None:
@@ -252,67 +256,36 @@ class EventRuleList(Resource):
                     events = events.filter('term', organization=current_user.organization)
                     
                 events = events.filter('term', status__name__keyword='New')
-                events = [e for e in events.scan()]
+                events = list(events.scan())
 
-                matches = []
-                def lookbehind(queue, event_rule, organization, matches, task, skip_previous=False):
-                    while not queue.empty():
-                        event = queue.get()
+                def delayed_retro_push(events, task, skip_previous, event_rule):
+                    
+                    if events:
+                        time.sleep(2)
+                        for event in events:
 
-                        if event == 'STOP':
-                            task.finish()
-                            return
+                            # Skip over this event if skip_previous_match is toggled and the
+                            # event matches the critera
+                            if skip_previous:
+                                if event_rule.uuid in event.event_rules:
+                                    continue
+                                
+                            event_dict = event.to_dict()
+                            event_dict['_meta'] = {
+                                'action': 'retro_apply_event_rule',
+                                '_id': event.meta.id,
+                                'rule_id': str(event_rule.uuid)
+                            }
+                            event_processor_queue.put(event_dict)
 
-                        # If the event rule look behind says to skip previous matches and the event
-                        # has already matched on this rule, skip it
-                        if skip_previous and event_rule.uuid in event.event_rules:
-                            return
-
-                        matched = False
-                        try:
-                            raw_event = json.loads(json.dumps(marshal(event, mod_event_rql)))
-                            matched = event_rule.process_rql(raw_event)
-                        except EventRuleFailure as e:
-                            log_event(organization=organization, event_type='Event Rule Processing', source_user="System", event_reference=event.reference, time_taken=0, status="Failed", message=f"Failed to process event rule. {e}")
-
-                        # If the rule matched, process the event
-                        if matched:
-                            event_rule.process_event(event)
-                            event.save()
-                            matches.append(event.uuid)
-
-                event_queue = None
-                if events:
-                    workers = []
-                    event_queue = Queue()
-                    [event_queue.put(e) for e in events]
-                    event_queue.put('STOP')
-
-                skip_previous_match = False
+                        event_processor_queue.put({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                
+                skip_previous = False
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
-                    skip_previous_match = True
+                    skip_previous = True
 
-                if event_queue: 
-                    for i in range(0,5):
-                        if hasattr(current_user,'default_org') and current_user.default_org:
-                            if 'organization' in api.payload:
-                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, api.payload['organization'], matches, task, skip_previous_match))
-                            else:
-                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches, task, skip_previous_match))
-                        else:
-                            p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches, task, skip_previous_match))
-                        workers.append(p)
-
-                    [t.start() for t in workers]
-                    #[t.join() for t in workers]
-
-                    if matches:
-                        event_rule.last_matched_date = datetime.datetime.utcnow()
-                        if event_rule.hit_count != None:
-                            event_rule.hit_count += len(matches)
-                        else:
-                            event_rule.hit_count = len(matches)
-                        event_rule.save()
+                t = threading.Thread(target=delayed_retro_push, daemon=True, args=(events, task, skip_previous, event_rule))
+                t.start()
 
             return event_rule
         else:
@@ -364,7 +337,7 @@ class EventRuleDetails(Resource):
 
             if len(api.payload) > 0:
                 ep.restart_workers()
-                event_rule.update(**api.payload)
+                event_rule.update(**{**api.payload, 'disable_reason': None})
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
 
@@ -379,68 +352,37 @@ class EventRuleDetails(Resource):
                     events = events.filter('term', organization=current_user.organization)
                     
                 events = events.filter('term', status__name__keyword='New')
-                events = [e for e in events.scan()]
+                events = list(events.scan())
+                
+                def delayed_retro_push(events, task, skip_previous):
+                    
+                    if events:
+                        time.sleep(2)
+                        for event in events:
 
-                matches = []
-                def lookbehind(queue, event_rule, organization, matches, task, skip_previous=False):
-                    while not queue.empty():
-                        event = queue.get()
+                            # Skip over this event if skip_previous_match is toggled and the
+                            # event matches the critera
+                            if skip_previous:
+                                if event_rule.uuid in event.event_rules:
+                                    continue
+                                
+                            event_dict = event.to_dict()
+                            event_dict['_meta'] = {
+                                'action': 'retro_apply_event_rule',
+                                '_id': event.meta.id,
+                                'rule_id': event_rule.uuid
+                            }
+                            event_processor_queue.put(event_dict)
 
-                        if event == 'STOP':
-                            task.finish()
-                            return
-
-                        # If the event rule look behind says to skip previous matches and the event
-                        # has already matched on this rule, skip it
-                        if skip_previous and event_rule.uuid in event.event_rules:
-                            return
-
-                        matched = False
-                        try:
-                            raw_event = json.loads(json.dumps(marshal(event, mod_event_rql)))
-                            matched = event_rule.process_rql(raw_event)
-                        except EventRuleFailure as e:
-                            log_event(organization=organization, event_type='Event Rule Processing', source_user="System", event_reference=event.reference, time_taken=0, status="Failed", message=f"Failed to process event rule. {e}")
-
-                        # If the rule matched, process the event
-                        if matched:
-                            event_rule.process_event(event)
-                            event.save()
-                            matches.append(event.uuid)
-
-                event_queue = None
-                if events:
-                    workers = []
-                    event_queue = Queue()
-                    [event_queue.put(e) for e in events]
-                    event_queue.put('STOP')
-
-                skip_previous_match = False
+                        event_processor_queue.put({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                
+                skip_previous = False
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
-                    skip_previous_match = True
+                    skip_previous = True
 
-                if event_queue: 
-                    for i in range(0,5):
-                        if hasattr(current_user,'default_org') and current_user.default_org:
-                            if 'organization' in api.payload:
-                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, api.payload['organization'], matches, task, skip_previous_match))
-                            else:
-                                p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches, task, skip_previous_match))
-                        else:
-                            p = threading.Thread(target=lookbehind, daemon=True, args=(event_queue, event_rule, current_user.organization, matches, task, skip_previous_match))
-                        workers.append(p)
-
-                    [t.start() for t in workers]
-                    #[t.join() for t in workers]
-
-                    if matches:
-                        event_rule.last_matched_date = datetime.datetime.utcnow()
-                        if event_rule.hit_count != None:
-                            event_rule.hit_count += len(matches)
-                        else:
-                            event_rule.hit_count = len(matches)
-                        event_rule.save()
-
+                t = threading.Thread(target=delayed_retro_push, daemon=True, args=(events, task, skip_previous))
+                t.start()
+                
             return event_rule
         else:
             api.abort(404, 'Event rule not found.')
@@ -605,8 +547,6 @@ class TestEventRQL(Resource):
                     search = search.filter('term', organization=current_user.organization)
             search = search.sort('-created_at')
             search = search[0:api.payload['event_count']]
-
-            print(search.to_dict())
 
             # Apply a date filter
             if date_filtered:
