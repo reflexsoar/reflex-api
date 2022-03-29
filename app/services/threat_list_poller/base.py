@@ -35,6 +35,7 @@ class ThreatListPoller(object):
         self.session = requests.Session()
 
         self.memcached_config = memcached_config if memcached_config else None
+        self.logger.info("Service Started")
 
     def refresh_lists(self):
         '''

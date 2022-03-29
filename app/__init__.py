@@ -247,6 +247,7 @@ def create_app(environment='development'):
 
         if not app.config['HOUSEKEEPER_DISABLED']:
             housekeeper = HouseKeeper(app, log_level=app.config['HOUSEKEEPER_LOG_LEVEL'])
+            print(app.config['AGENT_PRUNE_INTERVAL'])
             scheduler.add_job(
                 func=housekeeper.prune_old_agents,
                 trigger="interval",

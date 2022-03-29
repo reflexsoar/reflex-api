@@ -25,16 +25,18 @@ class HouseKeeper(object):
             'INFO': logging.INFO
         }
 
-        ch = logging.StreamHandler()
-        ch.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        
+        log_handler = logging.StreamHandler()
+        log_handler.setFormatter(logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.logger.addHandler(ch)
+        self.logger.addHandler(log_handler)
         self.logger.setLevel(log_levels[log_level])
         
         self.app = app
 
-        self.agent_prune_liftime = self.app.config['AGENT_PRUNE_LIFETIME']
+        self.agent_prune_lifetime = self.app.config['AGENT_PRUNE_LIFETIME']
+        self.logger.info("Service started")
 
     def prune_old_agents(self):
         ''' Automatically removes any agents that have not actively
@@ -48,12 +50,13 @@ class HouseKeeper(object):
         search = search[0:search.count()]
         agents = search.execute()
 
-        threshold = self.agent_prune_liftime * 86400
+        threshold = self.agent_prune_lifetime * 86400
 
         for agent in agents:
             if agent.last_heartbeat:
-                delta = datetime.datetime.utcnow() - agent.last_heartbeat
-                if delta.seconds > threshold:
+                delta = (datetime.datetime.utcnow() - agent.last_heartbeat).total_seconds()
+                
+                if delta > threshold:
                     self.logger.info(f"Deleting agent {agent.name}, last heartbeat exceeds threshold of {threshold}")
                     agent.delete()
 
