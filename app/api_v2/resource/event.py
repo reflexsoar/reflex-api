@@ -274,17 +274,17 @@ class EventListAggregated(Resource):
                 
             raw_event_count = search.count()
 
-            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=100000)
+            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
             search.aggs['signature'].metric('max_date', 'max', field='created_at')
 
             # If sorting by name add an additional bucket
-            if args.sort_by == 'title':
-                search.aggs['signature'].bucket('sorter', 'terms', field='title', size=1)
-            elif args.sort_by == 'severity':
-                search.aggs['signature'].bucket('sorter', 'terms', field='severity', size=5)
-                search.aggs['signature']['sorter'].metric('max_severity', 'max', field='severity')
-            elif args.sort_by == 'tlp':
-                search.aggs['signature'].bucket('sorter', 'terms', field='tlp', size=5)
+            #if args.sort_by == 'title':
+            #    search.aggs['signature'].bucket('sorter', 'terms', field='title', size=1)
+            #if args.sort_by == 'severity':
+            #    search.aggs['signature'].bucket('sorter', 'terms', field='severity', order={'_key': args.sort_direction}, size=5)
+            #    search.aggs['signature']['sorter'].metric('max_severity', 'max', field='severity')
+            #elif args.sort_by == 'tlp':
+            #    search.aggs['signature'].bucket('sorter', 'terms', field='tlp', size=5)
 
             events = search.execute()
 
@@ -296,10 +296,11 @@ class EventListAggregated(Resource):
             if args.sort_direction == 'desc':
                 reverse_sort = True
 
-            if args.sort_by == 'created_at':
-                sigs = [s['key'] for s in sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'], reverse=reverse_sort)]
-            else:
-                sigs = [s['key'] for s in sorted(events.aggs.signature.buckets, key=lambda sig: sig['sorter'].buckets[0]['key'], reverse=reverse_sort)]
+            sigs = [s['key'] for s in events.aggs.signature.buckets] 
+            #if args.sort_by == 'created_at':
+            #    sigs = [s['key'] for s in sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'], reverse=reverse_sort)]
+            #else:
+            #    sigs = [s['key'] for s in sorted(events.aggs.signature.buckets, key=lambda sig: sig['sorter'].buckets[0]['key'], reverse=reverse_sort)]
 
             # START: Second aggregation based on signatures to find first UUID for card display purposes
             # performance necessary
@@ -321,14 +322,15 @@ class EventListAggregated(Resource):
             if number_of_sigs == 0:
                 number_of_sigs = 10000
 
-            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=number_of_sigs)
+            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
             search.aggs['signature'].metric('max_date', 'max', field='created_at')
             search.aggs['signature'].bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=number_of_sigs)
             search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
 
             events = search.execute()
 
-            sigs2 = sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'], reverse=reverse_sort)
+            #sigs2 = sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'])
+            sigs2 = events.aggs.signature.buckets
             for signature in sigs2:
                 event_uuids.append(signature.uuid.buckets[0]['key'])
 
@@ -338,7 +340,7 @@ class EventListAggregated(Resource):
             search = Event.search()
 
             if args.sort_direction:
-                if args.sort_direction == "asc":
+                if args.sort_direction == "desc":
                     args.sort_by = f"-{args.sort_by}"
                 else:
                     args.sort_by = f"{args.sort_by}"

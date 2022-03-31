@@ -168,7 +168,7 @@ class EventWorker(Process):
 
 
     def force_reload(self):
-        self.logger.info('Reload triggered by EventProcessor')
+        self.logger.debug('Reload triggered by EventProcessor')
         self.should_restart.set()
 
     def build_elastic_connection(self):
@@ -270,7 +270,7 @@ class EventWorker(Process):
         that need to be sent to Elasticsearch
         '''
         time.sleep(5)
-        self.logger.info('Reloading configuration information')
+        self.logger.debug('Reloading configuration information')
         self.load_rules()
         self.load_cases()
         self.load_close_reasons()
@@ -290,7 +290,7 @@ class EventWorker(Process):
         connection = self.build_elastic_connection()
         self.reload_meta_info()
         events = []
-        self.logger.info(f"Running")
+        self.logger.debug(f"Running")
 
         while True:
 
@@ -316,8 +316,6 @@ class EventWorker(Process):
                 events.append(self.process_event(event))
 
                 if len(events) >= self.config["ES_BULK_SIZE"] or self.event_queue.empty():
-
-                    self.logger.info(f"Updating {len(events)} events")
 
                     # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
                     bulk_dismiss = [e for e in events if '_meta' in e and e['_meta']['action'] == 'dismiss']
