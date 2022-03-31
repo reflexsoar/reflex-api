@@ -66,7 +66,7 @@ from .resource import (
     ns_task_v2
 )
 
-from .. import event_queue as event_processor_queue
+from .. import ep
 
 # Instantiate a new API object
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
@@ -1063,7 +1063,7 @@ and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.valu
             case.events = list(set(uuids))
         
         if len(events_to_update) > 0:
-            [event_processor_queue.put(event) for event in events_to_update]
+            [ep.enqueue(event) for event in events_to_update]
 
         # If the user selected a case template, take the template items
         # and copy them over to the case
@@ -1292,7 +1292,7 @@ class AddEventsToCase(Resource):
                 case.events = uuids
 
             if len(events_to_update) > 0:
-                [event_processor_queue.put(event) for event in events_to_update]
+                [ep.enqueue(event) for event in events_to_update]
 
             case.add_history(message=f'{len(events_to_update)} events added')
             case.save()

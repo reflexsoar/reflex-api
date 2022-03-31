@@ -17,7 +17,7 @@ from ..model import Event, Observable, EventRule, CloseReason, Nested, Q, Task
 from ..model.exceptions import EventRuleFailure
 from ..utils import check_org, token_required, user_has, log_event
 from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged
-from ... import ep, event_queue as event_processor_queue
+from ... import ep
 from pymemcache.client.base import Client
 
 api = Namespace('Events', description='Event related operations', path='/event')
@@ -1501,4 +1501,4 @@ class EventQueueStats(Resource):
 
     @api.doc(security="Bearer")
     def get(self):
-        return {"size": event_processor_queue.qsize()}
+        return {"size": ep.qsize()}

@@ -52,8 +52,6 @@ cache = Cache(config={'CACHE_TYPE': 'simple'})
 scheduler = BackgroundScheduler()
 apm = ElasticAPM()
 ep = EventProcessor()
-event_queue = Queue()
-pusher_queue = Queue()
 
 
 def migrate(app, ALIAS, move_data=True, update_alias=True):
@@ -261,7 +259,7 @@ def create_app(environment='development'):
         atexit.register(lambda: scheduler.shutdown())
 
     if not app.config['EVENT_PROCESSOR']['DISABLED']:
-        ep.init_app(app, event_queue=event_queue, pusher_queue=pusher_queue)
+        ep.init_app(app)
         ep.spawn_workers()
 
     from app.api_v2.resources import api2

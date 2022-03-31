@@ -16,7 +16,7 @@ import datetime
 import logging
 import threading
 from itertools import chain
-from multiprocessing.queues import Queue
+from multiprocessing import Queue
 #from queue import Queue
 from multiprocessing import Process, get_context, Event as mpEvent
 from app.api_v2.model import (
@@ -53,7 +53,7 @@ class EventProcessor:
 
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self, app=None, log_level="DEBUG", event_queue=None, pusher_queue=None, **defaults):
+    def __init__(self, app=None, log_level="DEBUG", **defaults):
         ''' Initialize the EventProcessor '''
 
         if app:
@@ -75,8 +75,7 @@ class EventProcessor:
         self.log_level = log_level
 
         self.worker_count = 10
-        self.event_queue = event_queue
-        self.pusher_queue = pusher_queue
+        self.event_queue = Queue()
         self.workers = []
         self.event_cache = []
 
@@ -106,7 +105,12 @@ class EventProcessor:
         Adds an item to the queue for Event Workers to work on
         '''
         self.event_queue.put(item)
-        
+    
+    def qsize(self):
+        '''
+        Returns the current queue size
+        '''
+        return self.event_queue.qsize()
 
     def spawn_workers(self):
         '''
@@ -116,7 +120,6 @@ class EventProcessor:
         for i in range(0, self.worker_count):
             w = EventWorker(app_config=self.app.config,
                             event_queue=self.event_queue,
-                            pusher_queue=self.pusher_queue,
                             event_cache=self.event_cache,
                             log_level=self.log_level
                             )
@@ -141,7 +144,7 @@ class EventWorker(Process):
 
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self, app_config, event_queue, pusher_queue, event_cache, log_level='INFO'):
+    def __init__(self, app_config, event_queue, event_cache, log_level='INFO'):
         
         super(EventWorker, self).__init__()
 
@@ -162,7 +165,6 @@ class EventWorker(Process):
         self.app_config = app_config
         self.config = self.app_config.get('EVENT_PROCESSOR', {})
         self.event_queue = event_queue
-        self.pusher_queue = pusher_queue
         self.event_cache = event_cache
         self.sleep_interval = 10
         self.rules = []
