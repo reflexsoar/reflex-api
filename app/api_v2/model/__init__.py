@@ -48,7 +48,7 @@ else:
 from .user import User, Role, ExpiredToken, Organization
 from .agent import Agent, AgentGroup
 from .inout import Input
-from .threat import ThreatList
+from .threat import ThreatList, ThreatValue
 from .event import Event, EventRule, EventStatus
 from .case import (
     Case,
@@ -110,5 +110,6 @@ __all__ = [
     DetectionRepositoryToken,
     DetectionRepository,
     DetectionRepositoryBundle,
-    Task
+    Task,
+    ThreatValue
 ]
