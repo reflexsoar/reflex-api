@@ -1,5 +1,6 @@
 import jwt
 import json
+from time import time
 from flask import request, current_app
 
 from . import user as u
@@ -28,6 +29,8 @@ def build_elastic_connection():
         'use_ssl': current_app.config['ELASTICSEARCH_SCHEME'],
         'ssl_show_warn': current_app.config['ELASTICSEARCH_SHOW_SSL_WARN']
     }
+
+    print(current_app.config)
 
     username = current_app.config['ELASTICSEARCH_USERNAME']
     password = current_app.config['ELASTICSEARCH_PASSWORD']

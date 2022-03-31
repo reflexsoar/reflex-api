@@ -21,6 +21,7 @@ from pymemcache.client.base import Client
 class ThreatValue(base.BaseDocument):
     '''
     A threat list value that can be matched on
+
     Example:
         {'value': '192.168.1.1', 'data_type': 'ip', 'list_uuid': 'xxxxx'}
     '''

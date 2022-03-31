@@ -21,10 +21,10 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
 from app.api_v2.model import (
-    Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
+    Event,Tag,ExpiredToken,Credential,Agent,ThreatList,ThreatValue,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
-        Settings,Input, Organization, ObservableHistory, Task
+        Settings,Input,Organization,ObservableHistory,Task
 )
 
 from .defaults import (
@@ -103,10 +103,10 @@ def upgrade_indices(app):
     '''
    
     models = [
-        Event,Tag,ExpiredToken,Credential,Agent,ThreatList,EventStatus,EventRule,
+        Event,Tag,ExpiredToken,Credential,Agent,ThreatList,ThreatValue,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
-        Input,Organization, ObservableHistory, Task
+        Input,Organization,ObservableHistory,Task
         ]
 
     for model in models:
