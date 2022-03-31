@@ -1212,23 +1212,17 @@ class EventStats(Resource):
         if 'title' in args.metrics:
             data['title'] = {v['key']: v['doc_count'] for v in events.aggs.range.title.buckets}
 
-        if 'tag' in args.metrics:
-            data['tag'] = {v['key']: v['doc_count'] for v in events.aggs.range.tags.buckets}
-
-        if 'dismiss_reason' in args.metrics:
-            data['dismiss reason'] = {v['key']: v['doc_count'] for v in events.aggs.range.dismiss_reason.buckets}
-
-        if 'status' in args.metrics:
-            data['status'] = {v['key']: v['doc_count'] for v in events.aggs.range.status.buckets}
-
         if 'severity' in args.metrics:
             data['severity'] = {v['key']: v['doc_count'] for v in events.aggs.range.severity.buckets}
 
-        if 'signature' in args.metrics:
-            data['signature'] = {v['key']: v['doc_count'] for v in events.aggs.range.signature.buckets}
+        if 'observable' in args.metrics:
+            data['observable value'] = {v['key']: v['doc_count'] for v in events.aggs.range.observables.value.buckets}
+            data['data type'] = {v['key']: v['doc_count'] for v in events.aggs.range.observables.data_type.buckets}
+            #data['observable value'] = {v['key']: v['doc_count'] for v in observable_search.aggs.value.buckets}
+            #data['data type'] = {v['key']: v['doc_count'] for v in observable_search.aggs.data_type.buckets}
 
-        if 'source' in args.metrics:
-            data['source'] = {v['key']: v['doc_count'] for v in events.aggs.range.source.buckets}
+        if 'tag' in args.metrics:
+            data['tag'] = {v['key']: v['doc_count'] for v in events.aggs.range.tags.buckets}
 
         if 'event_rule' in args.metrics:
             data['event rule'] = {v['key']: v['doc_count'] for v in events.aggs.range.event_rule.buckets}
@@ -1236,11 +1230,17 @@ class EventStats(Resource):
         if 'organization' in args.metrics:
             data['organization'] = {v['key']: v['doc_count'] for v in events.aggs.range.organization.buckets}
 
-        if 'observable' in args.metrics:
-            data['observable value'] = {v['key']: v['doc_count'] for v in events.aggs.range.observables.value.buckets}
-            data['data type'] = {v['key']: v['doc_count'] for v in events.aggs.range.observables.data_type.buckets}
-            #data['observable value'] = {v['key']: v['doc_count'] for v in observable_search.aggs.value.buckets}
-            #data['data type'] = {v['key']: v['doc_count'] for v in observable_search.aggs.data_type.buckets}
+        if 'status' in args.metrics:
+            data['status'] = {v['key']: v['doc_count'] for v in events.aggs.range.status.buckets}
+
+        if 'dismiss_reason' in args.metrics:
+            data['dismiss reason'] = {v['key']: v['doc_count'] for v in events.aggs.range.dismiss_reason.buckets}
+
+        if 'source' in args.metrics:
+            data['source'] = {v['key']: v['doc_count'] for v in events.aggs.range.source.buckets}        
+
+        if 'signature' in args.metrics:
+            data['signature'] = {v['key']: v['doc_count'] for v in events.aggs.range.signature.buckets}
 
         #if 'time_per_status' in args.metrics:
         #    data['time_per_status'] = {v['key']: v['doc_count'] for v in observable_search.aggs.time_per_status.buckets}
