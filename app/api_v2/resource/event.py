@@ -17,7 +17,7 @@ from ..model import Event, Observable, EventRule, CloseReason, Nested, Q, Task
 from ..model.exceptions import EventRuleFailure
 from ..utils import check_org, token_required, user_has, log_event
 from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged
-from ... import event_queue as event_processor_queue
+from ... import ep, event_queue as event_processor_queue
 from pymemcache.client.base import Client
 
 api = Namespace('Events', description='Event related operations', path='/event')
@@ -842,11 +842,11 @@ class CreateBulkEvents(Resource):
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
                 if not check_cache(event['reference']):
-                    event_processor_queue.put(event)
+                    ep.enqueue(event)
             
             # Signal the end of the task
             # The Event Processor will use this event to close the running task
-            event_processor_queue.put({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+            ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
 
             end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
             total_process_time = end_bulk_process_dt - start_bulk_process_dt
@@ -899,7 +899,7 @@ class EventBulkUpdate(Resource):
                                 }
                             }
 
-                event_processor_queue.put(event_dict)
+                ep.enqueue(event_dict)
                 event_count += 1
                 if related_events:
                     for related in related_events:
@@ -916,13 +916,13 @@ class EventBulkUpdate(Resource):
                                     'uuid': current_user.uuid
                                 }
                             }
-                            event_processor_queue.put(related_dict)
+                            ep.enqueue(related_dict)
                             event_count += 1
 
             # Signal the end of the task
             # The Event Processor will use this event to close the running task
             task.set_message(f'{event_count} Events marked for bulk dismissal')
-            event_processor_queue.put({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+            ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
 
         return {'task_id': str(task_id)}
 

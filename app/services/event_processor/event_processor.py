@@ -101,6 +101,13 @@ class EventProcessor:
             self.worker_count = config['WORKER_COUNT']
 
 
+    def enqueue(self, item):
+        '''
+        Adds an item to the queue for Event Workers to work on
+        '''
+        self.event_queue.put(item)
+        
+
     def spawn_workers(self):
         '''
         Creates a set of workers to process incoming Events

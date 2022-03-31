@@ -16,7 +16,7 @@ from ..model.exceptions import EventRuleFailure
 from ..utils import token_required, user_has, check_org, log_event, default_org
 from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict
 from .event import mod_event_status
-from ... import ep, event_queue as event_processor_queue
+from ... import ep
 
 
 api = Namespace('EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
@@ -276,9 +276,9 @@ class EventRuleList(Resource):
                                 '_id': event.meta.id,
                                 'rule_id': str(event_rule.uuid)
                             }
-                            event_processor_queue.put(event_dict)
+                            ep.enqueue(event_dict)
 
-                        event_processor_queue.put({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                        ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
                 
                 skip_previous = False
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
@@ -372,9 +372,9 @@ class EventRuleDetails(Resource):
                                 '_id': event.meta.id,
                                 'rule_id': event_rule.uuid
                             }
-                            event_processor_queue.put(event_dict)
+                            ep.enqueue(event_dict)
 
-                        event_processor_queue.put({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                        ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
                 
                 skip_previous = False
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
