@@ -291,12 +291,14 @@ class Event(base.BaseDocument):
         response = response.filter('match', signature=signature)
         if all_events:
             response = response[0:response.count()]
-            
-        response = response.execute()
-        if len(response) >= 1:
-            return [d for d in response]
-        else:
-            return [response]
+            response = response.scan()
+        else:    
+            response = response.execute()
+
+        response = list(response)
+
+        return response
+        
 
     @classmethod
     def get_by_signature_and_status(self, signature, status, all_events=False):

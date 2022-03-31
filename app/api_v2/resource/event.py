@@ -1,5 +1,3 @@
-from re import search
-import uuid
 import copy
 import math
 import time
@@ -9,13 +7,12 @@ import datetime
 import threading
 from queue import Queue
 
-from attr import has
 from app.api_v2.model.system import ObservableHistory
 from flask import current_app
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
-from ..model import Event, Observable, EventRule, CloseReason, Nested, Q, Task
+from ..model import Event, Observable, EventRule, CloseReason, Q, Task
 from ..model.exceptions import EventRuleFailure
-from ..utils import check_org, token_required, user_has, log_event
+from ..utils import token_required, user_has, log_event
 from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged
 from ... import ep
 from pymemcache.client.base import Client
@@ -88,7 +85,8 @@ mod_event_paged_list = api.model('PagedEventList', {
 })
 
 mod_related_events = api.model('RelatedEvents', {
-    'events': fields.List(fields.String)
+    'events': fields.List(fields.String),
+    'count': fields.Integer
 })
 
 mod_event_create_bulk = api.model('EventCreateBulk', {
@@ -1480,10 +1478,14 @@ class BulkSelectAll(Resource):
                 }
             }
 
+related_events_parser = api.parser()
+related_events_parser.add_argument(
+    'count', type=xinputs.boolean, location='args', default=False, required=False)
 @api.route("/<signature>/new_related_events")
 class EventNewRelatedEvents(Resource):
 
     @api.doc(security="Bearer")
+    @api.expect(related_events_parser)
     @api.marshal_with(mod_related_events)
     @api.response('200', 'Success')
     @api.response('404', 'Event not found')
@@ -1491,9 +1493,23 @@ class EventNewRelatedEvents(Resource):
     @user_has('view_events')
     def get(self, signature, current_user):
         ''' Returns the UUIDs of all related events that are Open '''
-        events = Event.get_by_signature(signature=signature, all_events=True)
+
+        args = related_events_parser.parse_args()
+
+        if args.count:
+            events = Event.search()
+            events = events.filter('term', signature='signature')
+            return {
+                'events': [],
+                'count': events.count()
+            }
+        
+        events = Event.get_by_signature_and_status(signature=signature, status='New', all_events=True)        
         related_events = [e.uuid for e in events if hasattr(e.status,'name') and e.status.name == 'New']
-        return {"events": related_events}
+        return {
+            "events": related_events,
+            "count": len(related_events)
+        }
 
 
 @api.route("/queue_stats")

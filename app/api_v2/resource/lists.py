@@ -179,7 +179,6 @@ class ThreatListList(Resource):
             # Don't let the user define an insanely fast polling interval
             if int(api.payload['poll_interval']) < 60:
                 api.abort(400, 'Invalid polling interval, must be greater than or equal to 60')
-
         
         if api.payload['list_type'] == 'csv':
             
@@ -201,7 +200,6 @@ class ThreatListList(Resource):
 
             # Store the data_type to field mapping
             api.payload['csv_header_map'] = mapping
-
 
         if 'values' in api.payload:
             _values = api.payload.pop('values')
@@ -289,6 +287,7 @@ class ThreatListDetails(Resource):
         value_list = ThreatList.get_by_uuid(uuid=uuid)
         if value_list:
             values = ThreatValue.find(list_uuid=value_list.uuid)
+            print(values)
             value_list.delete()
 
             [v.delete() for v in values]

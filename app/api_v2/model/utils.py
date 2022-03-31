@@ -30,8 +30,6 @@ def build_elastic_connection():
         'ssl_show_warn': current_app.config['ELASTICSEARCH_SHOW_SSL_WARN']
     }
 
-    print(current_app.config)
-
     username = current_app.config['ELASTICSEARCH_USERNAME']
     password = current_app.config['ELASTICSEARCH_PASSWORD']
     if current_app.config['ELASTICSEARCH_AUTH_SCHEMA'] == 'http':

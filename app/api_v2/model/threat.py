@@ -106,7 +106,8 @@ class ThreatValue(base.BaseDocument):
         objects
         '''
         search = self.search()
-        search = search.filter('term', list_uuid__keyword=list_uuid)
+        search = search.filter('term', list_uuid=list_uuid)
+        print(search.to_dict())
         if values:
             search = search.filter('terms', value=values)
         return list(search.scan())
