@@ -494,10 +494,18 @@ def fetch_observables_from_history(observables):
 
     # Maintain the source_field data from the original observable
     for observable in _observables:
-        if 'source_field' not in observable:
-            source_observable = [x for x in observables if x['value'] == observable['value']][0]
+        source_observable = [x for x in observables if x['value'] == observable['value']][0]
+
+        if 'source_field' not in observable:            
             if 'source_field' in source_observable:
                 observable['source_field'] = source_observable['source_field']
+        
+        # Merge the latest historical tags with the tags on this current observable
+        if 'tags' in observable:
+            observable['tags'] = list(set([t for t in source_observable['tags']] + [t for t in observable['tags']]))
+        else:
+            observable['tags'] = source_observable['tags']
+        
 
     return _observables
 
@@ -1481,6 +1489,9 @@ class BulkSelectAll(Resource):
 related_events_parser = api.parser()
 related_events_parser.add_argument(
     'count', type=xinputs.boolean, location='args', default=False, required=False)
+related_events_parser.add_argument(
+    'status', type=str, location='args', default='New', required=False
+)
 @api.route("/<signature>/new_related_events")
 class EventNewRelatedEvents(Resource):
 

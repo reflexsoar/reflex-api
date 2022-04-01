@@ -90,7 +90,7 @@ class ThreatListPoller(object):
             ips = data.split('\n')
             return ips
 
-    def to_memcached(self, data, data_type, list_name, list_url, list_type, organization):
+    def to_memcached(self, data, data_type, list_name, list_url, list_type, organization, case_insensitive=False):
         '''
         Pushes a value to memcached using a namespace
         that matches the type of value
@@ -105,6 +105,14 @@ class ThreatListPoller(object):
             list_name = list_name.replace(' ','_').lower()
 
             for value in data:
+
+                if case_insensitive:
+                    if isinstance(value, str):
+                        value = value.lower()
+
+                hasher = hashlib.md5()
+                hasher.update(value.encode())
+                value = hasher.hexdigest()
 
                 # TODO: Hash this for multitenancy to not expose observables to others if 
                 # memcached is a shared instance
@@ -128,7 +136,7 @@ class ThreatListPoller(object):
             self.logger.error(f"An error occurred while trying to push ThreatList values to memcached. {e}")
 
 
-    def generate_intel_value(self, values, data_type, list_uuid, list_name, poll_interval):
+    def generate_intel_value(self, values, data_type, organization, list_uuid, list_name, poll_interval, case_insensitive=False):
         for value in values:
             list_name = list_name.lower().replace(' ','_')
 
@@ -154,8 +162,18 @@ class ThreatListPoller(object):
                     if matches:
                         value = matches[0]
 
+            if case_insensitive:
+                if isinstance(value, str):
+                    value = value.lower()
+
+            hasher = hashlib.md5()
+            hasher.update(value.encode())
+            hashed_value = hasher.hexdigest()
+
             yield ThreatValue(
                 value=value,
+                hashed_value=hashed_value,
+                organization=organization,
                 data_type=data_type,
                 list_uuid=list_uuid,
                 list_name=list_name,
@@ -165,7 +183,7 @@ class ThreatListPoller(object):
                 expire_at=datetime.datetime.utcnow()+datetime.timedelta(minutes=poll_interval*1.5)
             ).to_dict(True)
 
-    def extract_values(self, values, data_type):
+    def extract_values(self, values, data_type, case_insensitive=False):
         for value in values:
             # Ignore commonly used comment characters
             if any(value.startswith(p) for p in ['#',';']):
@@ -188,7 +206,27 @@ class ThreatListPoller(object):
                     matches = re.findall(r"/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/", value)
                     if matches:
                         value = matches[0]
+
+            if case_insensitive:
+                if isinstance(value, str):
+                    value = value.lower()
+
             yield value
+
+    def rehydrate_memcached(self):
+        '''
+        Takes all the intel data out of the Intel Value index and pushes 
+        it to memcached for use by other processes
+        '''
+
+        self.logger.info("Rehydrating memcached from Intel Value index")
+        intel_lists = ThreatList.search()
+        intel_lists = intel_lists.scan()
+        for intel_list in intel_lists:
+            for value in intel_list.values:
+                key = f"{value.organization}:{value.list_uuid}:{value.data_type}:{value.hashed_value}"
+                self.memcached_client.set(key, value.value)
+        self.memcached_client.set('threat-poller-hydration','true',0)
 
     def run(self):
         '''
@@ -197,6 +235,12 @@ class ThreatListPoller(object):
         and updates the values in the list with the most recent values
         old values are replaced, new values are NOT appended
         '''
+        self.logger.info('Checking rehydration flag')
+
+        flag = self.memcached_client.get('threat-poller-hydration')
+        if not flag:
+            self.rehydrate_memcached()
+
         self.logger.info('Fetching threat lists')
         self.refresh_lists()
         for l in self.threat_lists:
@@ -275,16 +319,25 @@ class ThreatListPoller(object):
                         # Push the values from the URL to the list
                         if data:
                             data = self.extract_values(data, data_type_name)
-                            for ok,action in self.streaming_bulk(client=self.es_client, actions=self.generate_intel_value(data, data_type_name, l.uuid, l.name, l.poll_interval)):
+
+                            # Fetch all the current values in the index
+                            values = ThreatValue.search()
+                            values = values.filter('term', list_uuid=l.uuid)
+                            
+                            
+                            for ok,action in self.streaming_bulk(client=self.es_client, actions=self.generate_intel_value(data, data_type_name, l.organization, l.uuid, l.name, l.poll_interval)):
                                 if not ok:
                                     self.logger.warning(f"Failed to push to index. {action}")
                                 pass
+
+                            # Remove the old values after pushing the new values
+                            values.delete()
                                 
                         l.polled()
                     else:
                         print(response.__dict__)
 
-                if self.memcached_config and l.to_memcached and data:
+                if self.memcached_config and data:
                     self.logger.info(f'Pushing data to memcached')
                     if data_from_url and data:
                         self.to_memcached(data, data_type.name, l.name, l.url, l.list_type, l.organization)

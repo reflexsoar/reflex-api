@@ -1,4 +1,3 @@
-import math
 from ..utils import page_results, token_required, user_has, ip_approved, default_org, check_org
 from flask_restx import Resource, Namespace, fields
 from ..model import Role

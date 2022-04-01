@@ -451,6 +451,7 @@ class EventRule(base.BaseDocument):
         if len(results) > 0:
             self.last_matched_date = datetime.datetime.utcnow()
             return True
+
         return False
     
     def process_rql(self, event):

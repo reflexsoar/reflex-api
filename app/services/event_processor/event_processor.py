@@ -25,7 +25,8 @@ from app.api_v2.model import (
     Case,
     DataType,
     EventStatus,
-    Task
+    Task,
+    ThreatList
 )
 
 # Elastic or Opensearch
@@ -208,6 +209,18 @@ class EventWorker(Process):
 
         return connections.create_connection(**elastic_connection)
 
+
+    def load_intel_lists(self):
+        '''
+        Fetches all the Intel Lists in the system to prevent too many requests
+        to Elasticsearch
+        '''
+        search = ThreatList.search()
+        search = search.filter('term', active=True)
+        lists = search.scan()
+        self.lists = list(lists)
+
+    
     def load_rules(self):
         '''
         Fetches all the Event Rules in the system to prevent many requests to
@@ -285,6 +298,7 @@ class EventWorker(Process):
         self.load_close_reasons()
         self.load_statuses()
         self.load_data_types()
+        self.load_intel_lists()
         self.last_meta_refresh = datetime.datetime.utcnow()
         
         if clear_reload_flag:
@@ -367,6 +381,37 @@ class EventWorker(Process):
                             task.finish()
 
                     events = []
+
+
+    def check_threat_list(self, observable, organization, MEMCACHED_CONFIG=None):
+        '''
+        Checks an observable against a threat list and tags the observable
+        accordingly if it matches
+        '''
+        lists = [l for l in self.lists if l.organization == organization]
+        for l in lists:
+
+            # Assume it doesn't match by default
+            matched = False
+
+            # If dealing with a CSV list
+            if l.list_type == 'csv':
+                matched = l.check_value(
+                    observable['value'], observable['data_type'], MEMCACHED_CONFIG=MEMCACHED_CONFIG)
+
+            else:
+                if observable['data_type'] == l.data_type.name:
+                    matched = l.check_value(
+                        observable['value'], MEMCACHED_CONFIG=MEMCACHED_CONFIG)
+
+            # If there were matches and the list calls for tagging the observable
+            if matched and l.tag_on_match:
+                if 'tags' in observable:
+                    observable['tags'].append(f"list: {l.name}")
+                else:
+                    observable['tags'] = [f"list: {l.name}"]
+
+        return observable
 
 
     def prepare_events(self, events):
@@ -602,9 +647,22 @@ class EventWorker(Process):
                                 observable['data_type'] = dt.name
                                 matched = True
 
+            if 'observables' in raw_event:
+                if self.app_config['THREAT_POLLER_MEMCACHED_ENABLED']:
+                    MEMCACHED_CONFIG = (
+                        self.app_config['THREAT_POLLER_MEMCACHED_HOST'],
+                        self.app_config['THREAT_POLLER_MEMCACHED_PORT']
+                    )
+
+                obs = [self.check_threat_list(observable,
+                                              organization,
+                                              MEMCACHED_CONFIG=MEMCACHED_CONFIG
+                                            ) for observable in raw_event['observables']]
+                raw_event['observables'] = obs
+
             if 'tags' in raw_event:
                 raw_event['tags'] = [t for t in raw_event['tags'] if not t.endswith(': None')]
-
+                
             # Add the current users organization to the event signature
             hasher_b = hashlib.md5()
             hasher_b.update(raw_event['signature'].encode(
@@ -629,7 +687,7 @@ class EventWorker(Process):
                     if matched:
                         raw_event = self.mutate_event(rule, raw_event)
                 except Exception as e:
-                    print(rule.uuid, e)
+                    self.logger.error(f"Failed to process rule {rule.uuid}. Reason: {e}")
 
         else:
             if 'action' in raw_event['_meta'] and raw_event['_meta']['action'] == 'retro_apply_event_rule':
@@ -649,6 +707,8 @@ class EventWorker(Process):
                     if matched:
                         raw_event = self.mutate_event(rule, raw_event)
                 except Exception as e:
-                    print(rule.uuid, e)
+                    self.logger.error(f"Failed to process rule {rule.uuid}. Reason: {e}")
+
+                raw_event['event_observables'] = raw_event.pop('observables')
 
         return raw_event

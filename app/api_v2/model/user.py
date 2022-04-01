@@ -496,6 +496,21 @@ class Permission(InnerDoc):
     # API Permissions
     use_api = Boolean()
 
+    # Detections permissions
+    create_detection = Boolean()
+    update_detection = Boolean()
+    view_detections = Boolean()
+    delete_detection = Boolean()
+    create_detection_repo = Boolean()
+    update_detection_repo = Boolean()
+    view_detection_repos = Boolean()
+    delete_detection_repo = Boolean()
+    create_repo_sharing_token = Boolean()
+    create_detection_exclusion = Boolean()
+    update_detection_exclusion = Boolean()
+    view_detection_exclusions = Boolean()
+    delete_detection_exclusion = Boolean()
+
 
 class Role(base.BaseDocument):
     '''

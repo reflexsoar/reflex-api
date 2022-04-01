@@ -3,8 +3,15 @@ from app.api_v2.model.threat import ThreatValue
 from ..utils import check_org, default_org, token_required, user_has, ip_approved, page_results
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import ThreatList, DataType
-from .shared import ISO8601, mod_pagination
+from .shared import ISO8601, mod_pagination, ValueCount
+from ... import ep
 
+
+class ThreatValueList(fields.Raw):
+    ''' Returns values in the correct format'''
+
+    def format(self, value):
+        return '\n'.join([v['value'] for v in value])
 
 api = Namespace('Lists', description="Intel List operations", path="/list")
 
@@ -20,6 +27,7 @@ mod_data_type_list = api.model('DataTypeList', {
 
 mod_threat_value = api.model('ThreatValue', {
     'value': fields.String,
+    'organization': fields.String,
     'from_poll': fields.Boolean,
     'poll_interval': fields.Integer,
     'key_field': fields.String,
@@ -39,11 +47,11 @@ mod_list_list = api.model('ListView', {
     'url': fields.String,
     'poll_interval': fields.Integer,
     'last_polled': ISO8601(attribute='last_polled'),
-    #'values': ThreatValueList(attribute='values'),
+    'values': ThreatValueList(),
     #'values_list': fields.List(fields.String, attribute='values'),
     'to_memcached': fields.Boolean,
     'active': fields.Boolean,
-    #'value_count': ValueCount(attribute='values'),
+    'value_count': fields.Integer,
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
     'csv_headers': fields.String,
@@ -216,9 +224,12 @@ class ThreatListList(Resource):
 
         value_list = ThreatList(**api.payload)
         value_list.save()
+        
 
         if not 'url' in api.payload:
             value_list.set_values(values)
+
+        ep.restart_workers()
 
         return value_list            
 
@@ -267,13 +278,16 @@ class ThreatListDetails(Resource):
                 # CSV lists contain multiple values so we don't set a base data_type
                 api.payload['data_type_uuid'] = 'multiple'
 
-            if 'values' in api.payload:
+            if 'values' in api.payload and api.payload['values']:
 
-                value_list.set_values(api.payload.pop('values').split('\n'))
+                values = api.payload.pop('values').split('\n')
+                value_list.set_values(values)
+                value_list.remove_values(values)
 
             # Update the list with all other fields
             if len(api.payload) > 0:
                 value_list.update(**api.payload)
+                ep.restart_workers()
 
             return value_list
         else:
@@ -286,11 +300,10 @@ class ThreatListDetails(Resource):
         ''' Removes a ThreatList '''
         value_list = ThreatList.get_by_uuid(uuid=uuid)
         if value_list:
-            values = ThreatValue.find(list_uuid=value_list.uuid)
-            print(values)
+            values = ThreatValue.search()
+            values = values.filter('term', list_uuid=value_list.uuid)
             value_list.delete()
-
-            [v.delete() for v in values]
+            values.delete()
             
             return {'message': 'ThreatList successfully delete.'}
         else:
@@ -317,7 +330,7 @@ class ThreatListTest(Resource):
     @api.marshal_with(mod_list_match)
     @token_required
     @user_has('view_lists')
-    def get(self,uuid,value):
+    def get(self,current_user, uuid,value):
 
         intel_list = ThreatList.get_by_uuid(uuid)
         if intel_list:
@@ -556,7 +569,10 @@ class RemoveValueFromThreatList(Resource):
         ''' Deletes values from a ThreatList '''
 
         if 'values' in api.payload:
-            values = ThreatValue.find(list_uuid=uuid, values=api.payload['values'])
-            [v.delete() for v in values]
+            values = ThreatValue.search()
+            values = values.filter('term', list_uuid=uuid)
+            values = values.filter('terms', values=api.payload['values'])
+            values.delete()
+            
             return {'message': 'Succesfully removed values from list.'}
         api.abort(400, {'message':'Values are required.'})

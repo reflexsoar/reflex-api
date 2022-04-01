@@ -479,7 +479,7 @@ class QueryParser(object):
         raise ValueError("Syntax error in input")
 
     def run_search(self, data, parsed_query, marshaller=None):
-     
+
         if isinstance(data, list):
             result = self.search.execute(data, parsed_query, marshaller=marshaller)
         else:

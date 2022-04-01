@@ -241,6 +241,7 @@ def create_app(environment='development'):
                 }
 
             threat_list_poller = ThreatListPoller(app, memcached_config=memcached_config, log_level=app.config['THREAT_POLLER_LOG_LEVEL'])
+            threat_list_poller.rehydrate_memcached()
             scheduler.add_job(func=threat_list_poller.run, trigger="interval", seconds=app.config['THREAT_POLLER_INTERVAL'])
 
         if not app.config['HOUSEKEEPER_DISABLED']:

@@ -1,6 +1,6 @@
 import re
 import ipaddress
-from app.api_v2.model import ThreatList, threat
+from app.api_v2.model import ThreatList
 
 from flask_restx import marshal
 from .mutators import MUTATOR_MAP, MUTATORS

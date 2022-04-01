@@ -271,6 +271,7 @@ class EventRuleList(Resource):
                                     continue
                                 
                             event_dict = event.to_dict()
+                            event_dict['observables'] = event_dict['event_observables']
                             event_dict['_meta'] = {
                                 'action': 'retro_apply_event_rule',
                                 '_id': event.meta.id,
@@ -367,6 +368,7 @@ class EventRuleDetails(Resource):
                                     continue
                                 
                             event_dict = event.to_dict()
+                            event_dict['observables'] = event_dict['event_observables']
                             event_dict['_meta'] = {
                                 'action': 'retro_apply_event_rule',
                                 '_id': event.meta.id,

@@ -1,5 +1,8 @@
+import os
 import re
+import sys
 import json
+import hashlib
 import datetime
 from flask import current_app
 from .utils import build_elastic_connection, execution_timer
@@ -27,6 +30,7 @@ class ThreatValue(base.BaseDocument):
     '''
 
     value = Keyword()
+    hashed_value = Keyword()
     list_name = Keyword()
     list_uuid = Keyword()
     data_type = Keyword()
@@ -35,6 +39,7 @@ class ThreatValue(base.BaseDocument):
     record_num = Integer() # If the value came from a CSV or JSON list which record number was it
     poll_interval = Integer()
     expire_at = Date()
+    ibytes = Integer()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -42,8 +47,7 @@ class ThreatValue(base.BaseDocument):
         refresh_interval = '1s'
 
     @classmethod
-    @execution_timer
-    def prepare_value(self, values):
+    def prepare_value(self, values, case_insensitive=False):
         '''
         Puts a value into the format the index expects it to be in
         Called as the action for streaming_bulk
@@ -52,11 +56,21 @@ class ThreatValue(base.BaseDocument):
         now = datetime.datetime.utcnow()
 
         for value in values:
+
+            if case_insensitive:
+                if isinstance(value['value'], str):
+                    value['value'] = value['value'].lower()
+
+            hasher = hashlib.md5()
+            hasher.update(value['value'].encode())
+            hashed_value = hasher.hexdigest()
+
             if value['value'] == '':
                 continue
             doc = {
                 'created_at': now,
                 'value': value['value'],
+                'hashed_value': hashed_value,
                 'data_type': value['data_type'],
                 'organization': value['organization'],
                 'poll_interval': value['poll_interval'],
@@ -65,22 +79,29 @@ class ThreatValue(base.BaseDocument):
                 'list_uuid': value['list_uuid']
             }
 
+            doc['ibytes'] = sys.getsizeof(doc)
+
             if value['poll_interval']:
                 doc['expire_at'] = datetime.datetime.utcnow()+datetime.timedelta(minutes=value.pop('poll_interval'))
             yield doc
 
     @classmethod
-    @execution_timer
     def push_to_memcached(self, values):
         '''
         Pushes the intel to memcached if memcached is enabled and configured
         '''
         client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
+
         for value in values:
+
+            hasher = hashlib.md5()
+            hasher.update(value['value'].encode())
+            value['value'] = hasher.hexdigest()
+
             memcached_key = f"{value['organization']}:{value['list_uuid']}:{value['data_type']}:{value['value']}"
+            print(memcached_key)
             client.set(memcached_key, value['value'])            
         
-    
     @classmethod
     def bulk_add(self, values):
         '''
@@ -107,7 +128,7 @@ class ThreatValue(base.BaseDocument):
         '''
         search = self.search()
         search = search.filter('term', list_uuid=list_uuid)
-        print(search.to_dict())
+
         if values:
             search = search.filter('terms', value=values)
         return list(search.scan())
@@ -155,23 +176,34 @@ class ThreatList(base.BaseDocument):
         '''
         search = ThreatValue.search()
         search = search[0:10000]
-        search = search.filter('term', list=self.uuid)
+        search = search.filter('term', list_uuid=self.uuid)
         return list(search.scan())
 
+    @property
+    def value_count(self):
+        '''
+        Fetches the number of items associated with this list
+        '''
+        search = ThreatValue.search()
+        search = search.filter('term', list_uuid=self.uuid)
+        return search.count()
 
-    @execution_timer
+
     def check_value(self, value, *args, **kwargs):
         '''
         Checks to see if a value matches a value list or a regular expression
         based list and returns the number of hits on that list'
         '''
-        print(value)
+
+        hasher = hashlib.md5()
+        hasher.update(value.encode())
+        value = hasher.hexdigest()
 
         if 'MEMCACHED_CONFIG' in kwargs and kwargs['MEMCACHED_CONFIG']:
             memcached_host, memcached_port = kwargs['MEMCACHED_CONFIG']
         else:
-            memcached_host = current_app.config['THREAT_POLLER_MEMCACHED_HOST']
-            memcached_port = current_app.config['THREAT_POLLER_MEMCACHED_PORT']
+            memcached_host = os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST')
+            memcached_port = os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_PORT')
 
         # Create the memcached client
         client = Client(f"{memcached_host}:{memcached_port}")
@@ -179,25 +211,29 @@ class ThreatList(base.BaseDocument):
         found = False
 
         # Check memcached first
-        memcached_key = f"{self.organization}:{self.name.lower().replace(' ','_')}:{self.data_type.name}:{value}"
-        if not found:            
-            if 'MEMCACHED_CONFIG' in kwargs and kwargs['MEMCACHED_CONFIG']:
-                
-                result = client.get(memcached_key)
-                if result:
-                    found = True
+        memcached_key = f"{self.organization}:{self.uuid}:{self.data_type.name}:{value}"
 
-        # If the item was not found in memcached check Elasticsearch
-        if not found:
-            
-            values = ThreatValue.find(self.uuid, values=[value])
-            if values:
+        if not found:               
+            result = client.get(memcached_key)
+            if result:
                 found = True
-
-                # We found it, we should probably rehydrate memcached with it
-                client.set(memcached_key, values[0].value)
-
+        
         return found
+
+    def remove_values(self, values:list):
+        '''
+        Removes multiple values from the list based on a list of values
+
+        Param: The list of values to keep
+        '''
+        if len(values) > 0:
+            to_delete = []
+
+            [to_delete.append(v.value) for v in self.values if v['value'] not in values]
+            threat_values = ThreatValue.search()
+            threat_values = threat_values.filter('terms', value=to_delete)
+            threat_values = threat_values.filter('term', list_uuid=self.uuid)
+            threat_values.delete()
 
 
     def set_values(self, values: list, from_poll=False):
@@ -205,10 +241,10 @@ class ThreatList(base.BaseDocument):
         Sets the values of the threat list from a list of values
         '''
         if len(values) > 0:
-            print(self.uuid)
             poll_interval = None
             if self.poll_interval:
                 poll_interval = self.poll_interval
+
             values = [{
                 'value': v,
                 'data_type': self.data_type.name,
@@ -216,7 +252,7 @@ class ThreatList(base.BaseDocument):
                 'poll_interval': poll_interval,
                 'from_poll': from_poll,
                 'list_name': self.name.lower().replace(' ','_'),
-                'list_uuid': self.uuid} for v in values if v not in ('')]
+                'list_uuid': self.uuid} for v in values if v not in (*[x['value'] for x in self.values],'')]
             ThreatValue.bulk_add(values)
 
         if from_poll:
