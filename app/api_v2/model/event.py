@@ -84,7 +84,7 @@ class Event(base.BaseDocument):
     time_to_close = Float()
     time_to_dismiss = Float()
     event_rules = Keyword()
-    raw_log = Text(fields={'keyword': Keyword()})
+    raw_log = Text()
     sla_breach_time = Date()
     sla_violated = Boolean()
     detection_id = Keyword() # The UUID of the Detection rule that generated this event
