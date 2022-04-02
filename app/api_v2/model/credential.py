@@ -20,7 +20,7 @@ class Credential(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
     username = Text(fields={'keyword':Keyword()})
     secret = Text(fields={'keyword':Keyword()})
 

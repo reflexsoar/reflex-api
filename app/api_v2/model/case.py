@@ -21,7 +21,7 @@ class CaseHistory(base.BaseDocument):
     so that it can be processed by the UI
     '''
 
-    message = Text()
+    message = Text(fields={'keyword':Keyword()})
     case_uuid = Keyword()  # The uuid of the case this history belongs to
 
     class Index: # pylint: disable=too-few-public-methods
@@ -47,7 +47,7 @@ class CaseComment(base.BaseDocument):
     and notes on a case
     '''
 
-    message = Text()
+    message = Text(fields={'keyword':Keyword()})
     case_uuid = Keyword()  # The uuid of the case this comment belongs to
     is_closure_comment = Boolean()  # Is this comment related to closing the case
     edited = Boolean()  # Should be True when the comment is edited, Default: False
@@ -80,7 +80,7 @@ class CaseStatus(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
     closed = Boolean()
 
     class Index: # pylint: disable=too-few-public-methods
@@ -105,7 +105,7 @@ class TaskNote(base.BaseDocument):
     A note on a case task
     '''
 
-    note = Text()
+    note = Text(fields={'keyword':Keyword()})
     task = Keyword() # The UUID of the associated task
 
     class Index: # pylint: disable=too-few-public-methods
@@ -133,7 +133,7 @@ class CaseTask(base.BaseDocument):
 
     title = Keyword()
     order = Integer()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
     owner = Nested()  # The user that is assigned to this task by default
     group = Nested()  # The group that is assigned to this task by default
     case = Keyword()  # The UUID of the case this task belongs to
@@ -261,7 +261,7 @@ class CloseReason(base.BaseDocument):
     '''
 
     title = Keyword()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -287,7 +287,7 @@ class Case(base.BaseDocument):
     '''
 
     title = Keyword()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
     severity = Integer()
     owner = Object()
     #observables = Nested()
@@ -632,7 +632,7 @@ class CaseTemplateTask(InnerDoc):
     uuid = Keyword()
     title = Keyword()
     order = Integer()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
     owner = Keyword()  # The user that is assigned to this task by default
     group = Keyword()  # The group that is assigned to this task by default
     case = Keyword()  # The UUID of the case this task belongs to
@@ -649,7 +649,7 @@ class CaseTemplate(base.BaseDocument):
     '''
 
     title = Keyword()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
     severity = Integer()  # The default severity of the case
     owner = Keyword()  # The default owner of the case
     tlp = Integer()  # The default TLP of the case

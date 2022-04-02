@@ -98,7 +98,7 @@ class AgentGroup(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
     agents = Keyword()
     inputs = Keyword() # A list of UUIDs of which inputs to run
 

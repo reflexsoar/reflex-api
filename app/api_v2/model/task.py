@@ -21,7 +21,7 @@ class Task(base.BaseDocument):
     '''
 
     started = Boolean() # Is the task started?
-    message = Text() # A special message detailing this task
+    message = Text(fields={'keyword':Keyword()}) # A special message detailing this task
     start_date = Date()
     end_date = Date()
     elapsed_seconds = Integer()

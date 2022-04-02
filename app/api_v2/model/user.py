@@ -308,7 +308,7 @@ class Organization(base.BaseDocument):
         }
 
     name = Keyword()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
     url = Keyword()
     logon_domains = Keyword()
     default_org = Boolean()
@@ -520,7 +520,7 @@ class Role(base.BaseDocument):
     '''
 
     name = Keyword()  # The name of the role (should be unique)
-    description = Text()  # A brief description of the role
+    description = Text(fields={'keyword':Keyword()})  # A brief description of the role
     members = Keyword()  # Contains a list of user IDs
     permissions = Nested(Permission)
     system_generated = Boolean() # If this is a default Role in the system

@@ -37,6 +37,7 @@ class ThreatValue(base.BaseDocument):
     from_poll = Boolean()
     key_field = Keyword() # If the value came from a CSV or a JSON string which key was it under
     record_num = Integer() # If the value came from a CSV or JSON list which record number was it
+    record_id = Keyword()
     poll_interval = Integer()
     expire_at = Date()
     ibytes = Integer()
@@ -142,11 +143,11 @@ class ThreatList(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
     list_type = Text(fields={'keyword':Keyword()})  # value, pattern, csv
     data_type_uuid = Keyword()
     tag_on_match = Boolean()  # Default to False
-    url = Text() # A url to pull threat information from
+    url = Text(fields={'keyword':Keyword()}) # A url to pull threat information from
     poll_interval = Integer() # How often to pull from this list
     last_polled = Date() # The time that the list was last fetched
     to_memcached = Boolean() # Push the contents of the list to memcached periodically
@@ -155,6 +156,7 @@ class ThreatList(base.BaseDocument):
     csv_headers_data_types = Keyword() # User has to supply what data_type each column is
     csv_header_map = Nested()
     case_sensitive = Boolean() # Are the values on the list case sensitive
+    import_time = Integer() # The time in seconds it took to import this list
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -259,11 +261,13 @@ class ThreatList(base.BaseDocument):
             self.last_polled = datetime.datetime.utcnow()
             self.save()
 
-    def polled(self):
+    def polled(self, time_taken=0):
         '''
         Sets the last_polled date to the current time
         '''
         self.last_polled = datetime.datetime.utcnow()
+        if time_taken > 0:
+            self.import_time = time_taken
         self.save()
 
     @classmethod

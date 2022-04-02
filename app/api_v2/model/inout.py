@@ -30,7 +30,7 @@ class Input(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
 
     # Renamed from 'plugin'.
     # The name of the ingestor being used e.g. 'elasticsearch' or 'ews'

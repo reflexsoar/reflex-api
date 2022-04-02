@@ -42,6 +42,8 @@ class Detection(base.BaseDocument):
     severity = Integer() # 1-4 (1: Low, 2: Medium, 3: High, 4: Critical)
     signature_fields = Keyword() # Calculate a unique signature for this rule based on fields on the source event
     query_time = Integer() # How long the query took to run
+    interval = Integer() # How often should the rule run in seconds
+    lookbehind = Integer() # How far back should the rule look when it runs
 
     class Index:
         name = "reflex-detections"

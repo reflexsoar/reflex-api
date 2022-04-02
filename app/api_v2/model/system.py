@@ -30,7 +30,7 @@ class EventLog(base.BaseDocument):
     status = Keyword()
     event_reference = Keyword()
     time_taken = Float()
-    message = Text()
+    message = Text(fields={'keyword':Keyword()})
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -78,8 +78,8 @@ class DataType(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text()
-    regex = Text()
+    description = Text(fields={'keyword':Keyword()})
+    regex = Text(fields={'keyword':Keyword()})
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -126,7 +126,7 @@ class Settings(base.BaseDocument):
     the application behave
     '''
 
-    base_url = Text()
+    base_url = Text(fields={'keyword':Keyword()})
     require_case_templates = Boolean()  # Default True
     #email_from = Text()
     #email_server = db.Column(db.String(255))
@@ -138,7 +138,7 @@ class Settings(base.BaseDocument):
     logon_password_attempts = Integer()  # Default 5
     api_key_valid_days = Integer()  # Default 366 days
     agent_pairing_token_valid_minutes = Integer()  # Default 15
-    peristent_pairing_token = Text()
+    peristent_pairing_token = Text(fields={'keyword':Keyword()})
     require_event_dismiss_comment = Boolean()  # Default False
     allow_event_deletion = Boolean()  # Default False
     require_case_close_comment = Boolean()  # Default False

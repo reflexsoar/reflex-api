@@ -15,8 +15,8 @@ class Playbook(base.BaseDocument):
     their underlying properties
     '''
 
-    name = Text()
-    description = Text()
+    name = Text(fields={'keyword':Keyword()})
+    description = Text(fields={'keyword':Keyword()})
     priority = Integer()
     configuration = Object()
     enabled = Boolean()

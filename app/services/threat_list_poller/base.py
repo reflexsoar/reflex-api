@@ -7,7 +7,9 @@ import json
 import zipfile
 import io
 import re
+import sys
 import hashlib
+import uuid
 from pymemcache.client.base import Client
 from elasticsearch.helpers import streaming_bulk as esb
 from elasticsearch_dsl import connections as econn
@@ -136,7 +138,7 @@ class ThreatListPoller(object):
             self.logger.error(f"An error occurred while trying to push ThreatList values to memcached. {e}")
 
 
-    def generate_intel_value(self, values, data_type, organization, list_uuid, list_name, poll_interval, case_insensitive=False):
+    def generate_intel_value(self, values, data_type, organization, list_uuid, list_name, poll_interval, case_insensitive=False, record_id=None):
         for value in values:
             list_name = list_name.lower().replace(' ','_')
 
@@ -173,6 +175,8 @@ class ThreatListPoller(object):
             yield ThreatValue(
                 value=value,
                 hashed_value=hashed_value,
+                ibytes=sys.getsizeof(value),
+                record_id=record_id,
                 organization=organization,
                 data_type=data_type,
                 list_uuid=list_uuid,
@@ -182,6 +186,7 @@ class ThreatListPoller(object):
                 created_at=datetime.datetime.utcnow(),
                 expire_at=datetime.datetime.utcnow()+datetime.timedelta(minutes=poll_interval*1.5)
             ).to_dict(True)
+
 
     def extract_values(self, values, data_type, case_insensitive=False):
         for value in values:
@@ -213,6 +218,7 @@ class ThreatListPoller(object):
 
             yield value
 
+
     def rehydrate_memcached(self):
         '''
         Takes all the intel data out of the Intel Value index and pushes 
@@ -225,7 +231,7 @@ class ThreatListPoller(object):
         for intel_list in intel_lists:
             for value in intel_list.values:
                 key = f"{value.organization}:{value.list_uuid}:{value.data_type}:{value.hashed_value}"
-                self.memcached_client.set(key, value.value)
+                self.memcached_client.set(key, value.hashed_value)
         self.memcached_client.set('threat-poller-hydration','true',0)
 
     def run(self):
@@ -268,9 +274,14 @@ class ThreatListPoller(object):
                 data_from_url = False
                 data = None
                 data_type_name = l.data_type.name
+                start_date = datetime.datetime.utcnow()
                 if l.url:
                     response = self.session.get(l.url)
                     self.logger.info(f'Polling {l.url}')
+
+                    values = ThreatValue.search()
+                    values = values.filter('term', list_uuid=l.uuid)
+
                     if response.status_code == 200:
 
                         content_type = response.headers['Content-Type']
@@ -288,8 +299,10 @@ class ThreatListPoller(object):
                             data = self.parse_data(response.text)
                       
                         if l.list_type == "csv":
-                            data_type = 'multiple'
+                            #data_type = 'multiple'
+                            print(l.csv_header_map)
                             headers = [h.strip() for h in l.csv_headers.split(',')]
+                            
                             entries = []
                             for e in data:
                                 if isinstance(e, bytes):
@@ -314,32 +327,57 @@ class ThreatListPoller(object):
                                         value = value.strip('"') #TODO: If l.remove_double_quotes
 
                                     _entry[headers[i]] = value 
+                                    
                                 data.append(json.dumps(_entry))
 
-                        # Push the values from the URL to the list
-                        if data:
-                            data = self.extract_values(data, data_type_name)
+                            csv_header_map = l.csv_header_map.to_dict()
+                            values_to_push = []
 
-                            # Fetch all the current values in the index
-                            values = ThreatValue.search()
-                            values = values.filter('term', list_uuid=l.uuid)
-                            
-                            
-                            for ok,action in self.streaming_bulk(client=self.es_client, actions=self.generate_intel_value(data, data_type_name, l.organization, l.uuid, l.name, l.poll_interval)):
+                            for entry in data:
+                                record_id = str(uuid.uuid4())
+                                entry = json.loads(entry)
+                                if isinstance(entry, dict):
+                                    for key in entry:
+                                        _data_type = [d for d in csv_header_map if key in csv_header_map[d]]
+                                        value = entry[key]
+                                        if _data_type and value not in ('n/a',''):
+                                            [values_to_push.append(a) for a in self.generate_intel_value([value], _data_type[0], l.organization, l.uuid, l.name, l.poll_interval, record_id=record_id)]
+                            data = values_to_push
+                            for ok,action in self.streaming_bulk(client=self.es_client, actions=data):
                                 if not ok:
                                     self.logger.warning(f"Failed to push to index. {action}")
                                 pass
 
-                            # Remove the old values after pushing the new values
-                            values.delete()
+                        # Push the values from the URL to the list
+                        else:
+                            if data:
+                                data = self.extract_values(data, data_type_name)
+
+                                # Fetch all the current values in the index
+                                values = ThreatValue.search()
+                                values = values.filter('term', list_uuid=l.uuid)
                                 
-                        l.polled()
+                                for ok,action in self.streaming_bulk(client=self.es_client, actions=self.generate_intel_value(data, data_type_name, l.organization, l.uuid, l.name, l.poll_interval)):
+                                    if not ok:
+                                        self.logger.warning(f"Failed to push to index. {action}")
+                                    pass
+
+                        # Remove the old values after pushing the new values
+                        values.delete()
+
+                        end_date = datetime.datetime.utcnow()
+                        time_taken = (end_date - start_date).total_seconds()
+                        l.polled(time_taken=time_taken)
                     else:
                         print(response.__dict__)
 
                 if self.memcached_config and data:
                     self.logger.info(f'Pushing data to memcached')
                     if data_from_url and data:
+                        if l.name:
+                            print(l.name)
+                        else:
+                            print('unknown list name', l)
                         self.to_memcached(data, data_type.name, l.name, l.url, l.list_type, l.organization)
                     else:
                         self.to_memcached(l.values, data_type.name, l.name, 'manual_list', l.list_type, l.organization)

@@ -26,7 +26,7 @@ class EventStatus(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
     closed = Boolean()
 
     class Index: # pylint: disable=too-few-public-methods
@@ -61,7 +61,7 @@ class Event(base.BaseDocument):
 
     uuid = Keyword()
     title = Keyword(fields={'text':Text()})
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
     reference = Keyword()
     case = Keyword()
     source = Text(fields={'keyword':Keyword()})
@@ -75,7 +75,7 @@ class Event(base.BaseDocument):
     signature = Keyword()
     dismissed = Boolean()
     dismiss_reason = Text(fields={'keyword':Keyword()})
-    dismiss_comment = Text()
+    dismiss_comment = Text(fields={'keyword': Keyword()})
     dismissed_by = Object()
     dismissed_at = Date()
     dismissed_by_rule = Boolean()
@@ -84,7 +84,7 @@ class Event(base.BaseDocument):
     time_to_close = Float()
     time_to_dismiss = Float()
     event_rules = Keyword()
-    raw_log = Text()
+    raw_log = Text(fields={'keyword': Keyword()})
     sla_breach_time = Date()
     sla_violated = Boolean()
     detection_id = Keyword() # The UUID of the Detection rule that generated this event
@@ -374,15 +374,15 @@ class EventRule(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
     event_signature = Keyword()  # The title of the event that this was created from
     rule_signature = Keyword()  # A hash of the title + user customized observable values
     target_case_uuid = Keyword() # The target case to merge this into if merge into case is selected
     merge_into_case = Boolean()
-    query = Text() # The RQL query to run against events
+    query = Text(fields={'keyword':Keyword()}) # The RQL query to run against events
     dismiss = Boolean()
-    dismiss_reason = Text() # The text description for why this was dismissed
-    dismiss_comment = Text() # A custom reason for why this was dismissed
+    dismiss_reason = Text(fields={'keyword':Keyword()}) # The text description for why this was dismissed
+    dismiss_comment = Text(fields={'keyword':Keyword()}) # A custom reason for why this was dismissed
     expire = Boolean()  # If not set the rule will never expire, Default: True
     expire_days = Integer() # The number of days before the rule expires
     expire_at = Date()  # Computed from the created_at date of the event + a timedelta in days

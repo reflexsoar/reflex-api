@@ -27,6 +27,7 @@ mod_data_type_list = api.model('DataTypeList', {
 
 mod_threat_value = api.model('ThreatValue', {
     'value': fields.String,
+    'record_id': fields.String,
     'organization': fields.String,
     'from_poll': fields.Boolean,
     'poll_interval': fields.Integer,
@@ -200,7 +201,7 @@ class ThreatListList(Resource):
             headers = api.payload['csv_headers'].split(',')
             data_types = api.payload['csv_headers_data_types'].split(',')
             for i in range(0, len(headers)-1):
-                if data_types[i] != "nomatch":
+                if data_types[i] not in ("none","null",""):
                     if headers[i] not in mapping:
                         mapping[data_types[i]] = [headers[i]]
                     else:
@@ -266,7 +267,7 @@ class ThreatListDetails(Resource):
                 headers = api.payload['csv_headers'].split(',')
                 data_types = api.payload['csv_headers_data_types'].split(',')
                 for i in range(0, len(headers)-1):
-                    if data_types[i] != "nomatch":
+                    if data_types[i] not in ("none","null",""):
                         if headers[i] not in mapping:
                             mapping[data_types[i]] = [headers[i]]
                         else:
@@ -276,7 +277,7 @@ class ThreatListDetails(Resource):
                 api.payload['csv_header_map'] = mapping
 
                 # CSV lists contain multiple values so we don't set a base data_type
-                api.payload['data_type_uuid'] = 'multiple'
+                #api.payload['data_type_uuid'] = 'multiple'
 
             if 'values' in api.payload and api.payload['values']:
 
@@ -354,6 +355,7 @@ list_stats_parser.add_argument('list', location='args', type=str, action='split'
 list_stats_parser.add_argument('value', location='args', type=str, action='split', required=False)
 list_stats_parser.add_argument('value__like', location='args', type=str, required=False)
 list_stats_parser.add_argument('list_name__like', location='args', type=str, required=False)
+list_stats_parser.add_argument('record_id', location='args', type=str, required=False)
 list_stats_parser.add_argument('data_type', location='args', type=str, action='split', required=False)
 list_stats_parser.add_argument('from_poll', location='args', type=xinputs.boolean, required=False)
 list_stats_parser.add_argument('top', location='args', default=10, type=int, required=False)
@@ -417,6 +419,13 @@ class IntelListStats(Resource):
                 'value': args.from_poll
             })
 
+        if args.record_id and args.record_id != '':
+            search_filters.append({
+                'type': 'term',
+                'field': 'record_id',
+                'value': args.record_id
+            })
+
         search = ThreatValue.search()        
 
         # Apply all filters
@@ -476,6 +485,7 @@ list_value_parser.add_argument('data_type', location='args', action='split', req
 list_value_parser.add_argument('from_poll', location='args', type=xinputs.boolean, required=False)
 list_value_parser.add_argument('value__like', location='args', required=False)
 list_value_parser.add_argument('list_name__like', location='args', required=False)
+list_value_parser.add_argument('record_id', location='args', type=str, required=False)
 list_value_parser.add_argument('organization', location='args', required=False)
 list_value_parser.add_argument('page', type=int, location='args', default=1, required=False)
 list_value_parser.add_argument('page_size', type=int, location='args', default=10, required=False)
@@ -516,7 +526,12 @@ class IntelListValues(Resource):
             if args.from_poll:
                 values = values.filter('term', from_poll=args.from_poll)
 
+            if args.record_id:
+                values = values.filter('term', record_id=args.record_id)
+
             values, total_results, pages = page_results(values, args.page, args.page_size)
+
+            print(values.to_dict())
 
             values = values.execute()
 
