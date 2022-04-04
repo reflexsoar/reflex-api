@@ -336,7 +336,14 @@ class EventWorker(Process):
                     self.reload_meta_info(clear_reload_flag=True)
 
                 event = self.event_queue.get()
-                events.append(self.process_event(event))
+
+                # Process the event
+                event = self.process_event(event)
+
+                # If returned value is not None add the event to the list of events to be pushed
+                # via _bulk
+                if event:
+                    events.append(event)
 
                 if len(events) >= self.config["ES_BULK_SIZE"] or self.event_queue.empty():
 
@@ -687,7 +694,7 @@ class EventWorker(Process):
                     if matched:
                         raw_event = self.mutate_event(rule, raw_event)
                 except Exception as e:
-                    self.logger.error(f"Failed to process rule {rule.uuid}. Reason: {e}")
+                    self.logger.error(f"Failed to process rule {rule.uuid} ({rule.name}). Reason: {e}")
 
         else:
             if 'action' in raw_event['_meta'] and raw_event['_meta']['action'] == 'retro_apply_event_rule':
@@ -710,5 +717,8 @@ class EventWorker(Process):
                     self.logger.error(f"Failed to process rule {rule.uuid}. Reason: {e}")
 
                 raw_event['event_observables'] = raw_event.pop('observables')
+
+                if not matched:
+                    return None
 
         return raw_event

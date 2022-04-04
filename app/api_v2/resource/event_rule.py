@@ -6,7 +6,7 @@ import ndjson
 import datetime
 import threading
 from queue import Queue
-from flask import Response
+from flask import Response, current_app
 from flask_restx import Resource, Namespace, fields, marshal
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
@@ -245,20 +245,23 @@ class EventRuleList(Resource):
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
 
-                events = Event.search()
-
                 task = Task()
                 request_id = task.create(task_type='event_rule_lookbehind', message=f'Event Rule lookbehind for {event_rule.name} complete.', broadcast=True)
 
-                if 'organization' in api.payload and api.payload['organization']:
-                    events = events.filter('term', organization=api.payload['organization'])
-                else:
-                    events = events.filter('term', organization=current_user.organization)
-                    
-                events = events.filter('term', status__name__keyword='New')
-                events = list(events.scan())
+                
 
-                def delayed_retro_push(events, task, skip_previous, event_rule):
+                def delayed_retro_push(task, skip_previous, event_rule, api_payload, events):
+                    '''
+                    Queries for events and pushes them to the event queue for retro processing
+                    '''
+
+                    if 'organization' in api_payload and api_payload['organization']:
+                        events = events.filter('term', organization=api_payload['organization'])
+                    else:
+                        events = events.filter('term', organization=current_user.organization)
+                        
+                    events = events.filter('term', status__name__keyword='New')
+                    events = list(events.scan())
                     
                     if events:
                         time.sleep(2)
@@ -285,7 +288,9 @@ class EventRuleList(Resource):
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
                     skip_previous = True
 
-                t = threading.Thread(target=delayed_retro_push, daemon=True, args=(events, task, skip_previous, event_rule))
+                events = Event.search()
+
+                t = threading.Thread(target=delayed_retro_push, daemon=True, args=(task, skip_previous, event_rule, api.payload, events))
                 t.start()
 
             return event_rule
@@ -342,20 +347,23 @@ class EventRuleDetails(Resource):
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
 
-                events = Event.search()
-
                 task = Task()
                 request_id = task.create(task_type='event_rule_lookbehind', message=f'Event Rule lookbehind for {event_rule.name} complete.', broadcast=True)
 
-                if 'organization' in api.payload and api.payload['organization']:
-                    events = events.filter('term', organization=api.payload['organization'])
-                else:
-                    events = events.filter('term', organization=current_user.organization)
-                    
-                events = events.filter('term', status__name__keyword='New')
-                events = list(events.scan())
-                
-                def delayed_retro_push(events, task, skip_previous):
+                events = Event.search()
+              
+                def delayed_retro_push(task, skip_previous, api_payload, events):
+                    '''
+                    Queries for events and pushes them to the event queue for retro processing
+                    '''
+
+                    if 'organization' in api_payload and api_payload['organization']:
+                        events = events.filter('term', organization=api_payload['organization'])
+                    else:
+                        events = events.filter('term', organization=current_user.organization)
+                        
+                    events = events.filter('term', status__name__keyword='New')
+                    events = list(events.scan())
                     
                     if events:
                         time.sleep(2)
@@ -382,8 +390,9 @@ class EventRuleDetails(Resource):
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
                     skip_previous = True
 
-                t = threading.Thread(target=delayed_retro_push, daemon=True, args=(events, task, skip_previous))
-                t.start()
+                with current_app.app_context():
+                    t = threading.Thread(target=delayed_retro_push, daemon=True, args=(task, skip_previous, api.payload, events))
+                    t.start()
                 
             return event_rule
         else:

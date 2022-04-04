@@ -93,7 +93,8 @@ class Event(base.BaseDocument):
         ''' Defines the index to use '''
         name = 'reflex-events'
         settings = {
-            'refresh_interval': '1s'
+            'refresh_interval': '1s',
+            'max_inner_result_window': 10000
         }
 
     @property

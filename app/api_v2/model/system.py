@@ -245,7 +245,8 @@ class ObservableHistory(base.BaseDocument):
         ''' Defines the index to use '''
         name = 'reflex-observable-history'
         settings = {
-            'refresh_interval': '1s'
+            'refresh_interval': '1s',
+            'max_inner_result_window': 10000
         }
 
     def save(self, **kwargs):
