@@ -76,7 +76,8 @@ mod_event_list = api.model('EventList', {
     'signature': fields.String,
     #'related_events_count': fields.Integer,
     'raw_log': fields.Nested(mod_raw_log, attribute='_raw_log'),
-    'event_rules': fields.List(fields.String)
+    'event_rules': fields.List(fields.String),
+    'original_date': ISO8601(attribute='original_date')
 })
 
 mod_event_paged_list = api.model('PagedEventList', {
@@ -119,7 +120,8 @@ mod_event_details = api.model('EventDetails', {
     'signature': fields.String,
     'dismiss_reason': fields.String,
     'dismiss_comment': fields.String,
-    'event_rules': fields.List(fields.String)
+    'event_rules': fields.List(fields.String),
+    'original_date': ISO8601(attribute='original_date')
 })
 
 mod_observable_update = api.model('ObservableUpdate', {
@@ -245,7 +247,7 @@ class EventListAggregated(Resource):
         if args.start and args.end:
             search_filters.append({
                 'type': 'range',
-                'field': 'created_at',
+                'field': 'original_date',
                 'value': {
                     'gte': args.start,
                     'lte': args.end
@@ -273,7 +275,7 @@ class EventListAggregated(Resource):
             raw_event_count = search.count()
 
             search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
-            search.aggs['signature'].metric('max_date', 'max', field='created_at')
+            search.aggs['signature'].metric('max_date', 'max', field='original_date')
 
             # If sorting by name add an additional bucket
             #if args.sort_by == 'title':
@@ -321,9 +323,9 @@ class EventListAggregated(Resource):
                 number_of_sigs = 10000
 
             search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
-            search.aggs['signature'].metric('max_date', 'max', field='created_at')
+            search.aggs['signature'].metric('max_date', 'max', field='original_date')
             search.aggs['signature'].bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=number_of_sigs)
-            search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
+            search.aggs['signature']['uuid'].metric('max_date', 'max', field='original_date')
 
             events = search.execute()
 
@@ -481,9 +483,9 @@ def fetch_observables_from_history(observables):
     search = search.filter('terms', value=[o['value'] for o in observables])
     search = search[0:0]
     search.aggs.bucket('values', 'terms', field='value', order={'max_date': 'desc'})
-    search.aggs['values'].bucket('max_date', 'max', field='created_at')
+    search.aggs['values'].bucket('max_date', 'max', field='original_date')
     search.aggs['values'].bucket('by_uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=1)
-    search.aggs['values']['by_uuid'].bucket('max_date', 'max', field='created_at')
+    search.aggs['values']['by_uuid'].bucket('max_date', 'max', field='original_date')
     search.aggs['values']['by_uuid'].bucket('source', 'top_hits')
     
     history = search.execute()
@@ -660,7 +662,7 @@ class EventsByCase(Resource):
         response = {
             'events': events,
             'observables': json.loads(json.dumps(observables, default=str)),
-            'pagination': {
+            'pagination': { 
                 'total_results': raw_event_count,
                 'pages': pages,
                 'page': args['page'],
@@ -677,6 +679,9 @@ def check_cache(reference):
     Falls back to Elasticsearch.  If an event is found in Elasticsearch, add
     it back to memcached
     '''
+
+    if reference is None:
+        return False
 
     found = False
 
@@ -1100,7 +1105,7 @@ class EventStats(Resource):
         if args.start and args.end:
             search_filters.append({
                 'type': 'range',
-                'field': 'created_at',
+                'field': 'original_date',
                 'value': {
                     'gte': args.start,
                     'lte': args.end
@@ -1116,7 +1121,7 @@ class EventStats(Resource):
         if args.observables:
             search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": args.observables}}))  
 
-        search.aggs.bucket('range', 'filter', range={'created_at': {
+        search.aggs.bucket('range', 'filter', range={'original_date': {
                         'gte': args.start,
                         'lte': args.end
                     }})
@@ -1186,12 +1191,12 @@ class EventStats(Resource):
        
             events_over_time = events_over_time[0:0]
 
-            events_over_time.aggs.bucket('range', 'filter', range={'created_at': {
+            events_over_time.aggs.bucket('range', 'filter', range={'original_date': {
                         'gte': args.start,
                         'lte': args.end
                     }})
 
-            events_over_time.aggs['range'].bucket('events_per_day', 'date_histogram', field='created_at', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
+            events_over_time.aggs['range'].bucket('events_per_day', 'date_histogram', field='original_date', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
 
             events_over_time = events_over_time.execute()
 
@@ -1200,12 +1205,12 @@ class EventStats(Resource):
 
             time_per_status_over_time = time_per_status_over_time[0:0]
             
-            time_per_status_over_time.aggs.bucket('range', 'filter', range={'created_at': {
+            time_per_status_over_time.aggs.bucket('range', 'filter', range={'original_date': {
                         'gte': args.start,
                         'lte': args.end
                     }})
             
-            time_per_status_over_time.aggs['range'].bucket('per_day', 'date_histogram', field='created_at', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
+            time_per_status_over_time.aggs['range'].bucket('per_day', 'date_histogram', field='original_date', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
             time_per_status_over_time.aggs['range']['per_day'].bucket('status', 'terms', field='status.name.keyword', size=10)
             time_per_status_over_time.aggs['range']['per_day']['status'].bucket('avg_time_to_dismiss', 'avg', field='time_to_dismiss')
             time_per_status_over_time.aggs['range']['per_day']['status'].bucket('avg_time_to_act', 'avg', field='time_to_act')
@@ -1415,7 +1420,7 @@ class BulkSelectAll(Resource):
         if args.start and args.end:
             search_filters.append({
                 'type': 'range',
-                'field': 'created_at',
+                'field': 'original_date',
                 'value': {
                     'gte': args.start,
                     'lte': args.end
@@ -1438,9 +1443,9 @@ class BulkSelectAll(Resource):
 
         if not args.signature:
             search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=1000000)
-            search.aggs['signature'].metric('max_date', 'max', field='created_at')
+            search.aggs['signature'].metric('max_date', 'max', field='original_date')
             search.aggs['signature'].bucket('uuid', 'terms', field='uuid', size=1, order={'max_date': 'desc'})
-            search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
+            search.aggs['signature']['uuid'].metric('max_date', 'max', field='original_date')
             if hasattr(current_user,'default_org') and current_user.default_org:
                 search.aggs['signature']['uuid'].bucket('organization', 'terms', field='organization', size=1)
 

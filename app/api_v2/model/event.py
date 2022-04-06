@@ -88,6 +88,7 @@ class Event(base.BaseDocument):
     sla_breach_time = Date()
     sla_violated = Boolean()
     detection_id = Keyword() # The UUID of the Detection rule that generated this event
+    original_date = Date() # The date the original log was generated (not when it was created in Reflex)
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -102,11 +103,6 @@ class Event(base.BaseDocument):
         '''
         Event observables
         '''
-        #observables = system.Observable.get_by_event_uuid(self.uuid)
-        observables = []
-        #for k in self.event_observables:
-        #    for v in self.event_observables[k]:
-        #        observables.append({'data_type': k, 'value': v })
         if self.event_observables:
             return list(self.event_observables)
         else:
@@ -381,6 +377,8 @@ class EventRule(base.BaseDocument):
     target_case_uuid = Keyword() # The target case to merge this into if merge into case is selected
     merge_into_case = Boolean()
     query = Text(fields={'keyword':Keyword()}) # The RQL query to run against events
+    deleted = Boolean() # A soft delete flag
+    version = Integer() # A version tracking integer
     dismiss = Boolean()
     dismiss_reason = Text(fields={'keyword':Keyword()}) # The text description for why this was dismissed
     dismiss_comment = Text(fields={'keyword':Keyword()}) # A custom reason for why this was dismissed

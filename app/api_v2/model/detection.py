@@ -13,6 +13,7 @@ from . import (
     Integer,
     Float,
     Date,
+    Nested,
     system
 )
 
@@ -41,6 +42,7 @@ class Detection(base.BaseDocument):
     risk_score = Integer() # 0 - 100 
     severity = Integer() # 1-4 (1: Low, 2: Medium, 3: High, 4: Critical)
     signature_fields = Keyword() # Calculate a unique signature for this rule based on fields on the source event
+    observable_fields = Nested() # Configures which fields should show up as observables in the alert
     query_time = Integer() # How long the query took to run
     interval = Integer() # How often should the rule run in seconds
     lookbehind = Integer() # How far back should the rule look when it runs

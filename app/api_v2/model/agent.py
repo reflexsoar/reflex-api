@@ -148,4 +148,7 @@ class AgentGroup(base.BaseDocument):
         if len(response) > 1:
             return list(response)
 
-        return response[0]
+        if response:
+            return response[0]
+        else:
+            return None

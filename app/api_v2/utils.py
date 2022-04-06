@@ -5,6 +5,8 @@ import base64
 import datetime
 import smtplib
 import logging
+import string
+import random
 import ipaddress
 import math
 import elasticapm
@@ -12,6 +14,21 @@ import elasticapm
 from flask import request, current_app, abort
 from flask_restx import fields
 from .model import EventLog, User, ExpiredToken, Settings, Agent
+
+def random_ending(prefix=None, length=10):
+    '''
+    Generates a random ending that is appended to strings when
+    a item is deleted
+    '''
+    ending = '-'
+    letters = string.ascii_lowercase+string.digits
+
+    if prefix:
+        ending = ending+prefix+'-'
+
+    ending += ''.join(random.choice(letters) for i in range(length))
+    return ending
+    
 
 def page_results(search_object, page, page_size):
     '''

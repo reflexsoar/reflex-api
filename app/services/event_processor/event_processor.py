@@ -427,6 +427,12 @@ class EventWorker(Process):
         '''
         for event in events:
             event['created_at'] = datetime.datetime.utcnow()
+
+            # If the original_date field is not provided
+            if 'original_date' not in event:
+
+                event['original_date'] = datetime.datetime.utcnow()
+
             if 'observables' in event:
                 event['event_observables'] = event.pop('observables')
             else:

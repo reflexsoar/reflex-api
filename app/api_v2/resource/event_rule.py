@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from ..rql.parser import QueryParser
 from ..model import EventRule, Event, Task
 from ..model.exceptions import EventRuleFailure
-from ..utils import token_required, user_has, check_org, log_event, default_org
+from ..utils import random_ending, token_required, user_has, check_org, log_event, default_org
 from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict
 from .event import mod_event_status
 from ... import ep
@@ -140,28 +140,10 @@ class EventRuleList(Resource):
         args = event_rule_list_parser.parse_args()
 
         event_rules = EventRule.search()
-
-        #sort_by = args.sort_by
-
-        #if sort_by not in ['name','merge_into_case','dismiss','expire','global_rule']:
-            #sort_by = "created_at"
-
-        #if args.sort_direction == 'desc':
-            #sort_by = f"-{sort_by}"
-
-        #event_rules = event_rules.sort(sort_by)
+        event_rules = event_rules.filter('term', deleted=False)
 
         if args.rules:
             event_rules = event_rules.filter('terms', uuid=args.rules)
-
-        # Paginate the cases
-        #age = args.page - 1
-        #total_cases = event_rules.count()
-        #pages = math.ceil(float(total_cases / args.page_size))
-
-        #start = page*args.page_size
-        #end = args.page*args.page_size
-        #event_rules = event_rules[start:end]
 
         event_rules = list(event_rules.scan())
 
@@ -239,6 +221,8 @@ class EventRuleList(Resource):
                 api.abort(400, f'Invalid RQL Query. {e}')
                 #event_rule.disable_reason = f"Invalid RQL query. {e}"
 
+            # Set the default state for new Event Rules to not deleted
+            #event_rule.deleted = False
             event_rule.save()
 
             ep.restart_workers()
@@ -341,9 +325,15 @@ class EventRuleDetails(Resource):
                 else:
                     api.abort(400, 'Missing expire_days field.')
 
+            if 'query' in api.payload and api.payload['query'] != event_rule.query:
+                if hasattr(event_rule, 'version') and event_rule.version:
+                    api.payload['version'] = event_rule.version + 1
+                else:
+                    api.payload['version'] = 2
+
             if len(api.payload) > 0:
                 ep.restart_workers()
-                event_rule.update(**{**api.payload, 'disable_reason': None})
+                event_rule.update(**{**api.payload, 'disable_reason': None})            
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
 
@@ -405,7 +395,10 @@ class EventRuleDetails(Resource):
         ''' Removes an event rule '''
         event_rule = EventRule.get_by_uuid(uuid=uuid)
         if event_rule:
-            event_rule.delete(refresh=True)
+            event_rule.name = event_rule.name+random_ending('DELETED')
+            event_rule.active = False
+            event_rule.deleted = True
+            event_rule.save(refresh=True)
             time.sleep(1)
             return {'message': 'Sucessfully deleted the event rule.'}
 
@@ -556,12 +549,12 @@ class TestEventRQL(Resource):
             else:
                 if hasattr(current_user, 'default_org') and not current_user.default_org:
                     search = search.filter('term', organization=current_user.organization)
-            search = search.sort('-created_at')
+            search = search.sort('-original_date')
             search = search[0:api.payload['event_count']]
 
             # Apply a date filter
             if date_filtered:
-                search = search.filter('range', **{'created_at': {
+                search = search.filter('range', **{'original_date': {
                     'gte': api.payload['start_date'],
                     'lte': api.payload['end_date']
                 }})
