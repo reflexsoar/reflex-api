@@ -295,6 +295,8 @@ class ThreatListPoller(object):
                             else:
                                 if l.list_type == "csv":
                                     data = zip_file.read(zip_file.namelist()[0]).splitlines()
+                                else:
+                                    data = [v.decode() for v in zip_file.read(zip_file.namelist()[0]).splitlines()]
                         else:
                             data = self.parse_data(response.text)
                       

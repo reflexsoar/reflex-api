@@ -46,6 +46,7 @@ class Detection(base.BaseDocument):
     query_time = Integer() # How long the query took to run
     interval = Integer() # How often should the rule run in seconds
     lookbehind = Integer() # How far back should the rule look when it runs
+    skip_event_rules = Boolean() # Skip Event Rules when this detection generates an Event
 
     class Index:
         name = "reflex-detections"
