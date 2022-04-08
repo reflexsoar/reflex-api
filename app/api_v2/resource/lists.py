@@ -531,8 +531,6 @@ class IntelListValues(Resource):
 
             values, total_results, pages = page_results(values, args.page, args.page_size)
 
-            print(values.to_dict())
-
             values = values.execute()
 
             response = {

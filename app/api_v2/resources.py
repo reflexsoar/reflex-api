@@ -1337,8 +1337,7 @@ class CaseObservable(Resource):
             search = search[0:1]
             search = search.filter('term', case=uuid)
             search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": value}}))
-            #print(search.to_dict())
-            #observable = case.get_observable_by_value(value=value)
+
             return {}
         else:
             ns_case_v2.abort(404, 'Observable not found.')
@@ -3181,53 +3180,3 @@ class HuntingQuery(Resource):
         results = search.execute()
         return results.to_dict()
 
-'''
-TESTING NETWORK GRAPHS
-@ns_observable_v2.route("/network")
-class ObservablesNetwork(Resource):
-
-    def get(self):
-
-        search = Observable.search()
-
-        search = search[0:]
-
-        search.aggs.bucket('value', 'terms', field='value', size=1, order={'_count': 'desc'})
-        search.aggs['value'].bucket('events', 'terms', field='events', size=25, order={'_count': 'desc'})
-
-        #print(json.dumps(search.to_dict(),indent=4))
-
-        results = search.execute()
-        nodes = {}
-        sources = []
-        targets = []
-        edges = {}
-
-        #print(json.dumps(results.aggs.to_dict(), indent=4))
-        for value in results.aggs.value:
-            sources.append(value['key'])
-            [targets.append(x['key']) for x in value.events.buckets]
-
-        node_num = 1
-        for s in sources:
-            nodes[f"node{node_num}"] = { "name": s }
-            node_num += 1
-
-        for t in targets:
-            nodes[f"node{node_num}"] = { "name": t }
-            node_num += 1
-
-        edge_num = 1
-        for k in nodes:
-            print(nodes[k]['name'])
-
-        for x in sources:
-            for t in targets:
-                edges[f"edge{edge_num}"] = { 
-                    "source": [k for k in nodes if nodes[k]['name'] == x][0], 
-                    "target": [k for k in nodes if nodes[k]['name'] == t][0]
-                }
-                edge_num += 1
-
-        return {'nodes': nodes, 'edges': edges}
-'''

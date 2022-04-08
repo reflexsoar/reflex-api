@@ -35,6 +35,7 @@ class ThreatValue(base.BaseDocument):
     list_uuid = Keyword()
     data_type = Keyword()
     from_poll = Boolean()
+    poll_uuid = Keyword() # The UUID of the poll action that populated this list
     key_field = Keyword() # If the value came from a CSV or a JSON string which key was it under
     record_num = Integer() # If the value came from a CSV or JSON list which record number was it
     record_id = Keyword()
@@ -100,7 +101,6 @@ class ThreatValue(base.BaseDocument):
             value['value'] = hasher.hexdigest()
 
             memcached_key = f"{value['organization']}:{value['list_uuid']}:{value['data_type']}:{value['value']}"
-            print(memcached_key)
             client.set(memcached_key, value['value'])            
         
     @classmethod
@@ -157,6 +157,7 @@ class ThreatList(base.BaseDocument):
     csv_header_map = Nested()
     case_sensitive = Boolean() # Are the values on the list case sensitive
     import_time = Integer() # The time in seconds it took to import this list
+    poll_uuid = Keyword() # The UUID of the last poll event that populated this lists values
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -176,10 +177,15 @@ class ThreatList(base.BaseDocument):
         Fetches the lists values from the threat value index
         Limited to 10,000 records
         '''
-        search = ThreatValue.search()
-        search = search[0:10000]
-        search = search.filter('term', list_uuid=self.uuid)
-        return list(search.scan())
+        
+        # Only return results for manual lists
+        if not self.url:
+            search = ThreatValue.search()
+            search = search[0:5000]
+            search = search.filter('term', list_uuid=self.uuid)
+            return list(search.execute())
+        else:
+            return []
 
     @property
     def value_count(self):
@@ -261,11 +267,13 @@ class ThreatList(base.BaseDocument):
             self.last_polled = datetime.datetime.utcnow()
             self.save()
 
-    def polled(self, time_taken=0):
+    def polled(self, time_taken=0, poll_uuid=None):
         '''
         Sets the last_polled date to the current time
         '''
+
         self.last_polled = datetime.datetime.utcnow()
+        self.poll_uuid = poll_uuid
         if time_taken > 0:
             self.import_time = time_taken
         self.save()

@@ -222,7 +222,7 @@ class EventRuleList(Resource):
                 #event_rule.disable_reason = f"Invalid RQL query. {e}"
 
             # Set the default state for new Event Rules to not deleted
-            #event_rule.deleted = False
+            event_rule.deleted = False
             event_rule.save()
 
             ep.restart_workers()
@@ -231,8 +231,6 @@ class EventRuleList(Resource):
 
                 task = Task()
                 request_id = task.create(task_type='event_rule_lookbehind', message=f'Event Rule lookbehind for {event_rule.name} complete.', broadcast=True)
-
-                
 
                 def delayed_retro_push(task, skip_previous, event_rule, api_payload, events):
                     '''

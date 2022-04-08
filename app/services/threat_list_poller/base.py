@@ -8,6 +8,7 @@ import zipfile
 import io
 import re
 import sys
+import uuid
 import hashlib
 import uuid
 from pymemcache.client.base import Client
@@ -92,7 +93,7 @@ class ThreatListPoller(object):
             ips = data.split('\n')
             return ips
 
-    def to_memcached(self, data, data_type, list_name, list_url, list_type, organization, case_insensitive=False):
+    def to_memcached(self, data, data_type, list_uuid, list_url, list_type, organization, case_insensitive=False, ttl=60):
         '''
         Pushes a value to memcached using a namespace
         that matches the type of value
@@ -100,11 +101,7 @@ class ThreatListPoller(object):
         '''
 
         try:
-            # Change a name from "Someone's super awesome list!" to "someones_super_awesome_list"
-            strip_chars = ['!#$%^&*()"\'']
-            for char in strip_chars:
-                list_name = list_name.replace(char, '')
-            list_name = list_name.replace(' ','_').lower()
+            
 
             for value in data:
 
@@ -118,27 +115,27 @@ class ThreatListPoller(object):
 
                 # TODO: Hash this for multitenancy to not expose observables to others if 
                 # memcached is a shared instance
-                key = f"{organization}:{list_name}:{data_type}:{value}"
+                key = f"{organization}:{list_uuid}:{data_type}:{value}"
 
                 if list_type == 'csv':
                     entry_value = json.dumps(value)
                 else:
                     entry_value = json.dumps({
                         "value": value,
-                        "list_name": list_name,
+                        "list_name": list_uuid,
                         "list_url": list_url
                     })
 
                 self.memcached_client.set(
                     key,
                     entry_value,
-                    expire=self.memcached_config['ttl']
+                    expire=ttl*60
                 )
         except Exception as e:
             self.logger.error(f"An error occurred while trying to push ThreatList values to memcached. {e}")
 
 
-    def generate_intel_value(self, values, data_type, organization, list_uuid, list_name, poll_interval, case_insensitive=False, record_id=None):
+    def generate_intel_value(self, values, data_type, organization, list_uuid, list_name, poll_interval, case_insensitive=False, record_id=None, poll_uuid=None):
         for value in values:
             list_name = list_name.lower().replace(' ','_')
 
@@ -149,6 +146,9 @@ class ThreatListPoller(object):
             # If the value is empty skip it 
             if value in (None,''):
                 continue
+
+            # Strip away any leading or trailing spaces
+            value = value.strip()
 
             # If the value should be an IP or a CIDR extract them using RegExp
             if data_type == 'ip':
@@ -177,6 +177,7 @@ class ThreatListPoller(object):
                 hashed_value=hashed_value,
                 ibytes=sys.getsizeof(value),
                 record_id=record_id,
+                poll_uuid=poll_uuid,
                 organization=organization,
                 data_type=data_type,
                 list_uuid=list_uuid,
@@ -197,6 +198,8 @@ class ThreatListPoller(object):
             # If the value is empty skip it 
             if value in (None,''):
                 continue
+
+            value = value.strip()
 
             # If the value should be an IP or a CIDR extract them using RegExp
             if data_type == 'ip':
@@ -252,6 +255,7 @@ class ThreatListPoller(object):
         for l in self.threat_lists:
 
             do_poll = False
+            poll_uuid = str(uuid.uuid4())
 
             data_type = DataType.get_by_uuid(l.data_type_uuid)
             data_type_name = data_type.name
@@ -280,7 +284,7 @@ class ThreatListPoller(object):
                     self.logger.info(f'Polling {l.url}')
 
                     values = ThreatValue.search()
-                    values = values.filter('term', list_uuid=l.uuid)
+                    values = values.filter('term', poll_uuid=l.poll_uuid)
 
                     if response.status_code == 200:
 
@@ -301,8 +305,7 @@ class ThreatListPoller(object):
                             data = self.parse_data(response.text)
                       
                         if l.list_type == "csv":
-                            #data_type = 'multiple'
-                            print(l.csv_header_map)
+                            #data_type = 'generic'
                             headers = [h.strip() for h in l.csv_headers.split(',')]
                             
                             entries = []
@@ -343,33 +346,43 @@ class ThreatListPoller(object):
                                         _data_type = [d for d in csv_header_map if key in csv_header_map[d]]
                                         value = entry[key]
                                         if _data_type and value not in ('n/a',''):
-                                            [values_to_push.append(a) for a in self.generate_intel_value([value], _data_type[0], l.organization, l.uuid, l.name, l.poll_interval, record_id=record_id)]
-                            data = values_to_push
+                                            [values_to_push.append(a) for a in self.generate_intel_value([value], _data_type[0], l.organization, l.uuid, l.name, l.poll_interval, record_id=record_id, poll_uuid=poll_uuid)]
+                            data = list(values_to_push)
                             for ok,action in self.streaming_bulk(client=self.es_client, actions=data):
                                 if not ok:
                                     self.logger.warning(f"Failed to push to index. {action}")
                                 pass
 
+                            end_date = datetime.datetime.utcnow()
+                            time_taken = (end_date - start_date).total_seconds()
+
+                            l.polled(time_taken=time_taken, poll_uuid=poll_uuid)
+
                         # Push the values from the URL to the list
                         else:
                             if data:
-                                data = self.extract_values(data, data_type_name)
+                                data = list(self.extract_values(data, data_type_name))
 
                                 # Fetch all the current values in the index
                                 values = ThreatValue.search()
                                 values = values.filter('term', list_uuid=l.uuid)
                                 
-                                for ok,action in self.streaming_bulk(client=self.es_client, actions=self.generate_intel_value(data, data_type_name, l.organization, l.uuid, l.name, l.poll_interval)):
+                                for ok,action in self.streaming_bulk(client=self.es_client, actions=self.generate_intel_value(data, data_type_name, l.organization, l.uuid, l.name, l.poll_interval, poll_uuid=poll_uuid)):
                                     if not ok:
                                         self.logger.warning(f"Failed to push to index. {action}")
                                     pass
 
+                            end_date = datetime.datetime.utcnow()
+                            time_taken = (end_date - start_date).total_seconds()
+
+                            l.polled(time_taken=time_taken, poll_uuid=poll_uuid)
+
                         # Remove the old values after pushing the new values
-                        values.delete()
+                        #values.delete()
 
                         end_date = datetime.datetime.utcnow()
                         time_taken = (end_date - start_date).total_seconds()
-                        l.polled(time_taken=time_taken)
+                        
                     else:
                         print(response.__dict__)
 
@@ -380,7 +393,7 @@ class ThreatListPoller(object):
                             print(l.name)
                         else:
                             print('unknown list name', l)
-                        self.to_memcached(data, data_type.name, l.name, l.url, l.list_type, l.organization)
+                        self.to_memcached(data, data_type.name, l.uuid, l.url, l.list_type, l.organization, ttl=l.poll_interval)
                     else:
-                        self.to_memcached(l.values, data_type.name, l.name, 'manual_list', l.list_type, l.organization)
+                        self.to_memcached(l.values, data_type.name, l.uuid, 'manual_list', l.list_type, l.organization, ttl=0)
                         l.polled()

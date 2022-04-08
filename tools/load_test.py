@@ -174,6 +174,19 @@ def random_event():
           ]
         },
         {
+          "value": "69293121724f2096e5afd92aa822f95a2407b19f2cc57a426eec24f291e37362",
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "sha256hash",
+          "source_field": "hash.sha256",
+          "original_source_field": "hash.sha256",
+          "tags": [
+            "hash"
+          ]
+        },
+        {
           "value": username,
           "ioc": False,
           "tlp": 2,
@@ -221,6 +234,20 @@ def random_event():
           "source_field": "winlog.event_data.CommandLine",
           "tags": [
             "command"
+          ]
+        },
+        
+        {
+          "value": "101.254.99.130",
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "ip",
+          "source_field": "source_ip",
+          "tags": [
+            "firewall",
+            "source-ip"
           ]
         },
         {
