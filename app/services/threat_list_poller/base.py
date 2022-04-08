@@ -378,7 +378,7 @@ class ThreatListPoller(object):
                             l.polled(time_taken=time_taken, poll_uuid=poll_uuid)
 
                         # Remove the old values after pushing the new values
-                        #values.delete()
+                        values.delete()
 
                         end_date = datetime.datetime.utcnow()
                         time_taken = (end_date - start_date).total_seconds()
