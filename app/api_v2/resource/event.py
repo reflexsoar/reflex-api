@@ -74,7 +74,7 @@ mod_event_list = api.model('EventList', {
     'observables': fields.List(fields.Nested(mod_observable_list)),
     'case': fields.String,
     'signature': fields.String,
-    #'related_events_count': fields.Integer,
+    'related_events_count': fields.Integer,
     'raw_log': fields.Nested(mod_raw_log, attribute='_raw_log'),
     'event_rules': fields.List(fields.String),
     'original_date': ISO8601(attribute='original_date')
@@ -98,6 +98,13 @@ mod_event_bulk_dismiss = api.model('EventBulkDismiss', {
     'events': fields.List(fields.String),
     'dismiss_reason_uuid': fields.String,
     'dismiss_comment': fields.String,
+})
+
+mod_event_bulk_dismiss_by_filter = api.model('EventBulkDismissByFilter', {
+    'filter': fields.String,
+    'dismiss_reason_uuid': fields.String,
+    'dismiss_comment': fields.String,
+    'uuids': fields.List(fields.String)
 })
 
 mod_event_details = api.model('EventDetails', {
@@ -270,7 +277,7 @@ class EventListAggregated(Resource):
                 search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
             if args.observables:
-                search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": args.observables}}))           
+                search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))           
                 
             raw_event_count = search.count()
 
@@ -312,7 +319,7 @@ class EventListAggregated(Resource):
                 search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
             if args.observables:
-                search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": args.observables}}))
+                search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))
 
             paged_sigs = sigs[start:end]
            
@@ -864,6 +871,100 @@ class CreateBulkEvents(Resource):
             return {"task_id": str(request_id), "response_time": total_process_time}
 
 
+@api.route("/dismiss_by_filter")
+class EventBulkDismiss(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_event_bulk_dismiss_by_filter)
+    @token_required
+    @user_has('update_event')
+    def put(self, current_user):
+        '''
+        Dismiss multiple events at a time by supplying a query to select
+        the events to dismiss
+        '''
+
+        # Translate filter types to actual field names
+        field_names = {
+            'tag': 'tags',
+            'title': 'title',
+            'status': 'status.name__keyword',
+            'organization': 'organization'
+        }
+
+        # Calculate all the values for the specified field
+        fields = {}
+        if 'filter' in api.payload:
+            filters = json.loads(api.payload['filter'])
+            
+            for f in filters:
+                if f['filter_type'] not in fields:
+                    fields[f['filter_type']] = [f['value']]
+                else:
+                    fields[f['filter_type']].append(f['value'])
+
+        # Set the default state of "include_related"
+        # If there is a signature filter never include related
+        include_related = True
+
+        uuids = []
+        if 'uuids' in api.payload:
+            uuids = api.payload['uuids']
+       
+        # Start building the event query
+        search = Event.search()
+        
+        # If there is a signature filter do NOT include related events
+        if 'signature' in fields:
+            include_related = False
+            if not uuids:
+                search = search.query('terms', signature=fields['signature'])
+        
+        if uuids:
+            search = search.query('terms', uuid=api.payload['uuids'])
+            
+        # Apply all the filters to the event query
+        if not 'signature' in fields:
+            for field in fields:
+                if field not in ['start', 'end', 'observable', 'signature']:
+                    search = search.filter('terms', **{field_names[field]: fields[field]})
+
+                if field == 'observable':
+                    search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": fields[field]}}))
+
+        print(search.count())
+        print(json.dumps(search.to_dict(), indent=2, default=str))
+
+        events = list(search.scan())
+        signatures = [e.signature for e in events]
+        
+        # If we need to include related events, 
+        related_events = []
+        if include_related and len(uuids) > 0:
+            print("SEARCHING FOR RELATED EVENTS")
+            related_search = Event.search()
+
+            # Apply all the filters to the event query
+            for field in fields:
+                if field not in ['start', 'end', 'observable', 'signature']:
+                    related_search = related_search.filter('terms', **{field_names[field]: fields[field]})
+
+                if field == 'observable':
+                    related_search = related_search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": fields[field]}}))
+
+            related_search = related_search.filter('terms', signature=signatures)
+            
+            print(related_search.count())
+            print(json.dumps(related_search.to_dict(), indent=2, default=str))
+            related_events = list(related_search.scan())
+
+        #
+        #print(events)
+
+        #print(api.payload)
+        return 200
+        
+
 @api.route("/bulk_dismiss")
 class EventBulkUpdate(Resource):
 
@@ -1119,7 +1220,7 @@ class EventStats(Resource):
             search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
         if args.observables:
-            search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": args.observables}}))  
+            search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))  
 
         search.aggs.bucket('range', 'filter', range={'original_date': {
                         'gte': args.start,
@@ -1147,7 +1248,7 @@ class EventStats(Resource):
             search.aggs['range'].bucket('severity', 'terms', field='severity', size=max_severity)
 
         if 'signature' in args.metrics:
-            max_signature = args.top if args.top != 10 else 100
+            max_signature = args.top if args.top != 50 else 100
             search.aggs['range'].bucket('signature', 'terms', field='signature', size=max_signature)
 
         if 'source' in args.metrics:
@@ -1431,7 +1532,7 @@ class BulkSelectAll(Resource):
 
          # OBSERVABLESFIX
         if args.observables:
-            search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": args.observables}}))  
+            search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))  
 
         search = search[:0]
 
