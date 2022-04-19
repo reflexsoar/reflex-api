@@ -264,7 +264,7 @@ class EventRuleList(Resource):
                             }
                             ep.enqueue(event_dict)
 
-                        ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                    ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
                 
                 skip_previous = False
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
@@ -372,7 +372,7 @@ class EventRuleDetails(Resource):
                             }
                             ep.enqueue(event_dict)
 
-                        ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                    ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
                 
                 skip_previous = False
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
