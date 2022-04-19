@@ -1599,10 +1599,10 @@ class CaseStats(Resource):
 
         # Set default start/end date filters if they are not set above
         # We do this here because default= on add_argument() is only calculated when the API is initialized
-        if not args.start:
-            args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
-        if not args.end:
-            args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
+        #if not args.start:
+        #    args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+        #if not args.end:
+        #    args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
 
         search_filters = []
 
@@ -2577,11 +2577,14 @@ class AgentGroupDetails(Resource):
         group = AgentGroup.get_by_uuid(uuid)
 
         # Do not allow for deleting groups with agents assigned
-        if len(group.agents) > 0:
-            ns_agent_group_v2.abort(400, 'Can not delete a group with agents assigned.')
+        if group:
+            if group.agents and len(group.agents) > 0:
+                ns_agent_group_v2.abort(400, 'Can not delete a group with agents assigned')
 
-        group.delete()
-        return {'message': f'Successfully deleted Agent Group {group.name}'}, 200
+            group.delete()
+            return {'message': f'Successfully deleted Agent Group {group.name}'}, 200
+        else:
+            ns_agent_group_v2.abort(404, 'Agent Group not found')
 
 
 agent_group_list_parser = api2.parser()
@@ -3024,7 +3027,9 @@ class GlobalSettings(Resource):
 
         organization = None
         if 'organization' in api2.payload:
-            organization=api2.payload.pop('organization')
+            organization = api2.payload.pop('organization')
+        else:
+            organization = current_user.organization
 
         if 'agent_pairing_token_valid_minutes' in api2.payload:
             if int(api2.payload['agent_pairing_token_valid_minutes']) > 525600:
