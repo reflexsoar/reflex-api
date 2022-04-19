@@ -1160,6 +1160,10 @@ class EventStats(Resource):
         
         search_filters = []
 
+        # Prevent sub-tenants from seeing the organization metric
+        if 'organization' in args.metrics and not hasattr(current_user,'default_org'):
+            args.metrics.remove('organization')
+
         if args.title__like and args.title__like != '':
             search_filters.append({
                 'type': 'wildcard',
