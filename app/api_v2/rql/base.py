@@ -1,5 +1,6 @@
 import re
 import ipaddress
+from app.api_v2.model import ThreatList
 
 from flask_restx import marshal
 from .mutators import MUTATOR_MAP, MUTATORS
@@ -62,7 +63,7 @@ class RQLSearch:
         :param data: The data to search against
         :param query: The query to run
         '''
-        
+
         if any(isinstance(x, dict) for x in data):
             return filter(query, data)
         
@@ -87,6 +88,7 @@ class RQLSearch:
             self.target_value = None
             self.any_mode = True
             self.all_mode = False
+            self.organization = None
 
             # Setting the allowed_mutators each expression is allowed to run, default to all
             self.allowed_mutators = MUTATORS
@@ -176,8 +178,10 @@ class RQLSearch:
                 if isinstance(self.target_value, list) and isinstance(self.value, (int, float)):
                     self.target_value = len(self.target_value)
 
-                if isinstance(self.target_value, str):
-                    self.target_value = 1
+                # REMOVED 2022-03-21 - BC, not sure this is even needed and it was breaking some rules
+                # .e.g raw_log.suricata.eve.alert.severity = 1
+                #if isinstance(self.target_value, str):
+                #    self.target_value = 1
 
             if isinstance(self.target_value, list):
                 return self.has_key and self.value in self.target_value
@@ -198,7 +202,6 @@ class RQLSearch:
                     if self.all_mode:
                         if isinstance(self.value, list):
                             return self.has_key and all([v in self.target_value for v in self.value])
-                            #return self.has_key and sorted(self.value) == sorted(self.target_value)
                         else:
                             return self.has_key and all([v in self.target_value for v in self.value])
                     else:
@@ -244,7 +247,7 @@ class RQLSearch:
                             return self.has_key and all([v in self.target_value for v in self.value])
                     else:
                         if isinstance(self.value, str):
-                            return self.has_key and any([self.value in v for v in self.target_value])
+                            return self.has_key and any([self.value in v for v in self.target_value if isinstance(v, str)])
                         else:
                             return self.has_key and any([v in self.target_value for v in self.value])
                 else:
@@ -506,7 +509,6 @@ class RQLSearch:
         def __init__(self, mutators=[], **target):
 
             super().__init__(mutators=mutators, **target)
-            self.allowed_mutators = []
 
             # Convert any representation of booleans to a true boolean type
             self.value = self.to_boolean(self.value)
@@ -533,3 +535,32 @@ class RQLSearch:
             if not isinstance(self.target_value, bool):
                 return False
             return self.has_key and self.value == self.target_value
+
+    class ThreatLookup(BaseExpression):
+        '''
+        Returns True if an item matches a defined threat list
+        '''
+
+        def __init__(self, organization=None, mutators=[], **target):
+            
+            super().__init__(mutators=mutators, **target)
+            self.allowed_mutators=['lowercase','uppercase']
+            self.organization = organization
+
+        def __call__(self, obj):
+
+            super().__call__(obj)
+
+            threat_list = ThreatList.search()
+            threat_list = threat_list.filter('term', name=self.value)
+
+            if self.organization:
+                threat_list = threat_list.filter('term', organization=self.organization)
+
+            threat_list = threat_list.execute()
+
+            if threat_list:
+                threat_list = threat_list[0]
+                return threat_list.check_value(self.target_value) > 0
+            else:
+                return False

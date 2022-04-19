@@ -30,7 +30,7 @@ class EventLog(base.BaseDocument):
     status = Keyword()
     event_reference = Keyword()
     time_taken = Float()
-    message = Text()
+    message = Text(fields={'keyword':Keyword()})
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -78,31 +78,40 @@ class DataType(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text()
-    regex = Text()
+    description = Text(fields={'keyword':Keyword()})
+    regex = Text(fields={'keyword':Keyword()})
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-data-types'
 
     @classmethod
-    def get_by_name(self, name):
+    def get_by_name(self, name, organization=None):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = self.search().query('term', name=name).execute()
+        response = self.search()
+        
+        if organization:
+            response = response.filter('term', organization=organization)
+            
+        response = response.query('term', name=name).execute()
         if response:
             user = response[0]
             return user
         return response
 
     @classmethod
-    def get_all(self):
+    def get_all(self, organization):
         '''
         Fetches all the configured DataTypes in the system
         '''
         response = self.search()
+
+        if organization:
+            response = response.filter('term', organization=organization)
+        
         response = response[0:response.count()]
         response = response.execute()
         if response:
@@ -117,7 +126,7 @@ class Settings(base.BaseDocument):
     the application behave
     '''
 
-    base_url = Text()
+    base_url = Text(fields={'keyword':Keyword()})
     require_case_templates = Boolean()  # Default True
     #email_from = Text()
     #email_server = db.Column(db.String(255))
@@ -129,7 +138,7 @@ class Settings(base.BaseDocument):
     logon_password_attempts = Integer()  # Default 5
     api_key_valid_days = Integer()  # Default 366 days
     agent_pairing_token_valid_minutes = Integer()  # Default 15
-    peristent_pairing_token = Text()
+    peristent_pairing_token = Text(fields={'keyword':Keyword()})
     require_event_dismiss_comment = Boolean()  # Default False
     allow_event_deletion = Boolean()  # Default False
     require_case_close_comment = Boolean()  # Default False
@@ -146,10 +155,15 @@ class Settings(base.BaseDocument):
     minimum_password_length = Integer()
     enforce_password_complexity = Boolean()
     disallowed_password_keywords = Keyword()
+    case_sla_days = Integer() # The number of days a case can stay open before it's in SLA breach
+    event_sla_minutes = Integer() # The number of minutes an event can be New before its SLA breach
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-settings'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
 
     def save(self, **kwargs):
@@ -175,13 +189,18 @@ class Settings(base.BaseDocument):
         return super().save(**kwargs)
 
     @classmethod
-    def load(self):
+    def load(self, organization=None):
         '''
         Loads the settings, there should only be one entry
         in the index so execute should only return one entry, if for some
         reason there are more than one settings documents, return the most recent
         '''
-        settings = self.search().execute()
+        settings = self.search()
+
+        if organization:
+            settings = settings.filter('term', organization=organization)
+           
+        settings = settings.execute()
         if settings:
             return settings[0]
         return None
@@ -194,6 +213,7 @@ class Settings(base.BaseDocument):
 
         _api_key = jwt.encode({
             'iat': datetime.datetime.utcnow(),
+            'organization': self.organization,
             'type': 'pairing'
         }, current_app.config['SECRET_KEY'])
 
@@ -204,6 +224,46 @@ class Settings(base.BaseDocument):
         self.update(peristent_pairing_token=_api_key)
 
         return {'token': self.peristent_pairing_token}
+
+
+class ObservableHistory(base.BaseDocument):
+    tags = Keyword()
+    data_type = Text(fields={'keyword':Keyword()})
+    value = Keyword()
+    spotted = Boolean()
+    ioc = Boolean()
+    safe = Boolean()
+    tlp = Integer()
+    events = Keyword() # A list of event UUIDs this Observable belongs to
+    case = Keyword() # The case the observable belongs to
+    rule = Keyword() # The rule the Observable belongs to
+    source_type = Keyword() # The type of object from the source field (int, str, ip, bool)
+    source_field = Keyword() # The source field or alias being used
+    original_source_field = Keyword() # The source field where the observable was extracted from
+
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
+        name = 'reflex-observable-history'
+        settings = {
+            'refresh_interval': '1s',
+            'max_inner_result_window': 10000
+        }
+
+    def save(self, **kwargs):
+        '''
+        Saves the observable and assigns it a UUID
+        '''
+        self.uuid = uuid.uuid4()
+
+        # Set the original source_field if it doesn't exist
+        if not hasattr(self, 'original_source_field'):
+            self.original_source_field = self.source_field
+
+        # All values should be strings
+        if not isinstance(self.value, str):
+            self.value = str(self.value)
+
+        return super().save(**kwargs)
 
 
 class Observable(base.BaseDocument):
@@ -325,7 +385,7 @@ class Observable(base.BaseDocument):
         Checks the value of the observable against all threat
         lists for this type
         '''
-        theat_lists = threat.ThreatList.get_by_data_type(self.data_type)
+        theat_lists = threat.ThreatList.get_by_data_type(self.data_type, organization=self.organization)
         for l in theat_lists:
             if l.active:
                 hits = l.check_value(self.value)
@@ -340,7 +400,7 @@ class Observable(base.BaseDocument):
         expressions
         '''
 
-        data_types = DataType.get_all()
+        data_types = DataType.get_all(organization=self.organization)
         if self.data_type == "auto":
             matched = False
             for dt in data_types:
@@ -372,7 +432,6 @@ class Observable(base.BaseDocument):
         if value is not None:
             if isinstance(value, list):
                 response = self.search().query('terms', value=value).query('match', source_field=field)
-                print(response.to_dict())
                 if all_docs:
                     response = response[0:response.count()]
                     response.execute()
@@ -381,7 +440,6 @@ class Observable(base.BaseDocument):
                 documents = list(response)
             else:
                 response = self.search().query('term', value=value).query('match', source_field=field)
-                print(response.to_dict())
                 if all_docs:
                     response = response[0:response.count()]
                     response.execute()

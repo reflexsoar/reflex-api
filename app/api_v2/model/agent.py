@@ -21,6 +21,7 @@ class Agent(base.BaseDocument):
     '''
 
     name = Keyword()
+    friendly_name = Keyword() # A friendly name to give this agent that isn't it's system name
     inputs = Keyword()  # A list of UUIDs of which inputs to run
     roles = Keyword()  # A list of roles that the agent belongs to
     groups = Keyword()  # A list of UUIDs that the agent belongs to
@@ -31,11 +32,29 @@ class Agent(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-agents'
+        settings = {
+            'refresh_interval': '1s'
+        }
+
+    @property
+    def _input_count(self):
+        inputs = self._inputs
+        [inputs.append(g.inputs) for g in self.groups]
+        return 0
 
     @property
     def _inputs(self):
+        '''
+        Fetches the details of the inputs assigned to this agent
+        '''
+
         inputs = inout.Input.get_by_uuid(uuid=self.inputs)
         return list(inputs)
+
+    @property
+    def _groups(self):
+        groups = AgentGroup.get_by_uuid(uuid=self.groups)
+        return list(groups)
 
     def has_right(self, permission):
         '''
@@ -50,12 +69,21 @@ class Agent(base.BaseDocument):
         return bool(getattr(role.permissions, permission))
 
     @classmethod
-    def get_by_name(cls, name):
+    def get_by_name(cls, name, organization=None):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = cls.search().query('term', name=name).execute()
+        response = cls.search()
+
+        if isinstance(name, list):
+            response = response.filter('terms', name=name)
+        else:
+            response = response.filter('term', name=name)
+        if organization:
+            response = response.filter('term', organization=organization)
+            
+        response = response.execute()
         if response:
             usr = response[0]
             return usr
@@ -70,12 +98,25 @@ class AgentGroup(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
     agents = Keyword()
+    inputs = Keyword() # A list of UUIDs of which inputs to run
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-agent-groups'
+        settings = {
+            'refresh_interval': '1s'
+        }
+    
+    @property
+    def _inputs(self):
+        inputs = []
+
+        if self.inputs:
+            inputs = inout.Input.get_by_uuid(uuid=self.inputs, all_results=True)        
+
+        return list(inputs)
 
     def add_agent(self, uuid):
         '''
@@ -86,3 +127,28 @@ class AgentGroup(base.BaseDocument):
         else:
             self.agents = [uuid]
         self.save()
+
+    @classmethod
+    def get_by_name(cls, name, organization=None):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = cls.search()
+
+        if isinstance(name, list):
+            response = response.filter('terms', name=name)
+        else:
+            response = response.filter('term', name=name)
+
+        if organization:
+            response = response.filter('term', organization=organization)
+         
+        response = response.execute()
+        if len(response) > 1:
+            return list(response)
+
+        if response:
+            return response[0]
+        else:
+            return None

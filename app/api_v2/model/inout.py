@@ -30,7 +30,7 @@ class Input(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
 
     # Renamed from 'plugin'.
     # The name of the ingestor being used e.g. 'elasticsearch' or 'ews'
@@ -44,6 +44,12 @@ class Input(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-inputs'
+        settings = {
+            'refresh_interval': '1s'
+        }
+
+    def __hash__(self) -> int:
+        return hash(('uuid', self.uuid, 'name', self.name))
 
     @property
     def _config(self):
@@ -56,16 +62,25 @@ class Input(base.BaseDocument):
     def _field_mapping(self):
         ''' Returns the field mapping as a dict '''
         if isinstance(self.field_mapping, AttrList):
-            return self.field_mapping[0].to_dict()
+            if self.field_mapping and len(self.field_mapping) >= 1:
+                return self.field_mapping[0].to_dict()
+            else:
+                return {}
         return self.field_mapping.to_dict()
 
     @classmethod
-    def get_by_name(self, name):
+    def get_by_name(self, name, organization=None):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = self.search().query('term', name=name).execute()
+        response = self.search()
+        response = response.filter('term', name=name)
+        
+        if organization:
+            response = response.filter('term', organization=organization)
+            
+        response = response.execute()
         if response:
             user = response[0]
             return user

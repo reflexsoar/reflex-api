@@ -1,8 +1,12 @@
 import os
 from dotenv import load_dotenv
+import multiprocessing
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 load_dotenv()
+
+def as_bool(value):
+    return value.lower() in ['true', '1', 't']
 
 class Config(object):
     DEBUG = False
@@ -32,22 +36,53 @@ class Config(object):
     ELASTICSEARCH_CERT_VERIFY = True if os.getenv('REFLEX_ES_CERT_VERIFY') else False  # This can equal any value, as long as it is set True
     ELASTICSEARCH_SHOW_SSL_WARN = True if os.getenv('REFLEX_ES_SHOW_SSL_WARN') else False # This can equal any value, as long as it is set True
     ELASTIC_DISTRO = os.getenv('REFLEX_ES_DISTRO') if os.getenv('REFLEX_ES_DISTRO') else 'elastic'
+    ELASTICSEARCH_TIMEOUT = int(os.getenv('REFLEX_ES_TIMEOUT')) if os.getenv('REFLEX_ES_TIMEOUT') else 60
+    ELASTICSEARCH_USERNAME = os.getenv('REFLEX_ES_USERNAME') if os.getenv('REFLEX_ES_USERNAME') else 'elastic'
+    ELASTICSEARCH_PASSWORD = os.getenv('REFLEX_ES_PASSWORD') if os.getenv('REFLEX_ES_PASSWORD') else 'elastic'
 
     # THREAT POLLER CONFIGURATION
-    THREAT_POLLER_INTERVAL = int(os.getenv('REFLEX_THREAT_LIST_POLLER_INTERVAL')) if os.getenv('REFLEX_THREAT_LIST_POLLER_INTERVAL') else 60*60
-    THREAT_POLLER_DISABLED = True if os.getenv('REFLEX_DISABLE_THREAT_POLLER') else False
+    THREAT_POLLER_INTERVAL = int(os.getenv('REFLEX_THREAT_LIST_POLLER_INTERVAL')) if os.getenv('REFLEX_THREAT_LIST_POLLER_INTERVAL') else 5
+    THREAT_POLLER_DISABLED = as_bool(os.getenv('REFLEX_DISABLE_THREAT_POLLER')) if os.getenv('REFLEX_DISABLE_THREAT_POLLER') else False
     THREAT_POLLER_LOG_LEVEL = os.getenv('REFLEX_THREAT_POLLER_LOG_LEVEL') if os.getenv('REFLEX_THREAT_POLLER_LOG_LEVEL') else 'ERROR'
+
+    THREAT_POLLER_MEMCACHED_ENABLED = as_bool(os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_ENABLED')) if os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_ENABLED') else False
+    THREAT_POLLER_MEMCACHED_HOST = os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST') if os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST') else None
+    THREAT_POLLER_MEMCACHED_PORT = os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_PORT') if os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST') else None
+    THREAT_POLLER_MEMCACHED_TTL = int(os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_TTL')) if os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST') else 60
+
+    # SLA MONITOR CONFIGURATION
+    SLAMONITOR_INTERVAL = int(os.getenv('REFLEX_SLAMONITOR_INTERVAL')) if os.getenv('REFLEX_SLAMONITOR_INTERVAL') else 5*50 # Default to every 5 minutes
+    SLAMONITOR_DISABLED = True if os.getenv('REFLEX_DISABLE_SLAMONITOR') else False
+    SLAMONITOR_LOG_LEVEL = os.getenv('REFLEX_SLAMONITOR_LOG_LEVEL') if os.getenv('REFLEX_SLAMONITOR_LOG_LEVEL') else 'ERROR'
 
     # HOUSEKEEP DEFAULT CONFIGURATIONS
     HOUSEKEEPER_DISABLED = True if os.getenv('REFLEX_HOUSEKEEPER_DISABLED') else False
     HOUSEKEEPER_LOG_LEVEL = os.getenv('REFLEX_HOUSEKEEPER_LOG_LEVEL') if os.getenv('REFLEX_HOUSEKEEPER_LOG_LEVEL') else 'ERROR'
-    AGENT_PRUNE_INTERVAL = os.getenv('REFLEX_AGENT_PRUNE_INTERVAL') if os.getenv('REFLEX_AGENT_PRUNE_INTERVAL') else 15*60 # Default to every 15 minutes
+    AGENT_PRUNE_INTERVAL = int(os.getenv('REFLEX_AGENT_PRUNE_INTERVAL'))*60 if os.getenv('REFLEX_AGENT_PRUNE_INTERVAL') else 15*60 # Default to every 15 minutes
+    AGENT_PRUNE_LIFETIME = int(os.getenv('REFLEX_AGENT_PRUNE_LIFETIME')) if os.getenv('REFLEX_AGENT_PRINT_LIFETIME') else 5
 
     # EVENT INGEST CONFIGURATION
-    EVENT_PROCESSING_THREADS = os.getenv('REFLEX_EVENT_PROCESSING_THREADS') if os.getenv('REFLEX_EVENT_PROCESSING_THREADS') else 5
+    EVENT_PROCESSING_THREADS = os.getenv('REFLEX_EVENT_PROCESSING_THREADS') if os.getenv('REFLEX_EVENT_PROCESSING_THREADS') else 1
 
     # SCHEDULER CONFIG
     SCHEDULER_DISABLED = bool(os.getenv('REFLEX_DISABLE_SCHEDULER')) if os.getenv('REFLEX_DISABLE_SCHEDULER') else False
+
+    # ELASTIC APM CONFIG
+    ELASTIC_APM_ENABLED = as_bool(os.getenv('REFLEX_ELASTIC_APM_ENABLED')) if os.getenv('REFLEX_ELASTIC_APM_ENABLED') else False
+    ELASTIC_APM_SERVICE_NAME = 'reflex-api'
+    ELASTIC_APM_TOKEN = os.getenv('REFLEX_ELASTIC_APM_TOKEN') if os.getenv('REFLEX_ELASTIC_APM_TOKEN') else None
+    ELASTIC_APM_HOSTNAME = os.getenv('REFLEX_ELASTIC_APM_HOST') if os.getenv('REFLEX_ELASTIC_APM_HOST') else None
+    ELASTIC_APM_ENVIRONMENT = os.getenv('REFLEX_ELASTIC_APM_ENV') if os.getenv('REFLEX_ELASTIC_APM_ENV') else 'dev'
+
+    EVENT_PROCESSOR = {
+        'DISABLED': as_bool(os.getenv('REFLEX_EVENT_PROCESSOR_DISABLED')) if os.getenv('REFLEX_EVENT_PROCESSOR_DISABLED') else False,
+        'MAX_QUEUE_SIZE': int(os.getenv('REFLEX_EVENT_PROCESSOR_MAX_QUEUE_SIZE')) if os.getenv('REFLEX_EVENT_PROCESSOR_MAX_QUEUE_SIZE') else 0,
+        'WORKER_COUNT': int(os.getenv('REFLEX_EVENT_PROCESSOR_WORKER_COUNT')) if os.getenv('REFLEX_EVENT_PROCESSOR_WORKER_COUNT') else (multiprocessing.cpu_count()-1),
+        'META_DATA_REFRESH_INTERVAL': int(os.getenv('REFLEX_EVENT_PROCESSOR_META_DATA_REFRESH_INTERVAL')) if os.getenv('REFLEX_EVENT_PROCESSOR_META_DATA_REFRESH_INTERVAL') else 30,
+        'ES_BULK_SIZE': int(os.getenv('REFLEX_EVENT_PROCESSOR_ES_BULK_SIZE')) if os.getenv('REFLEX_EVENT_PROCESSOR_ES_BULK_SIZE') else 500
+    }
+
+    NEW_EVENT_PIPELINE = True #as_bool(os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR')) if os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR') else False
 
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
 

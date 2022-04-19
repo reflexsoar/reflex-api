@@ -20,13 +20,16 @@ class Credential(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text()
+    description = Text(fields={'keyword':Keyword()})
     username = Text(fields={'keyword':Keyword()})
     secret = Text(fields={'keyword':Keyword()})
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-credentials'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     def _derive_key(self, secret: bytes, salt: bytes, iterations: int = 100_000) -> bytes:
 

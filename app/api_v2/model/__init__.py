@@ -21,7 +21,9 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
         Object,
         Float,
         A,
-        Search
+        Search,
+        Nested,
+        Q
     )
 else:
     from elasticsearch_dsl.utils import AttrList
@@ -38,13 +40,15 @@ else:
         Object,
         Float,
         A,
-        Search
+        Search,
+        Nested,
+        Q
     )
 
-from .user import User, Role, ExpiredToken
+from .user import User, Role, ExpiredToken, Organization
 from .agent import Agent, AgentGroup
 from .inout import Input
-from .threat import ThreatList
+from .threat import ThreatList, ThreatValue
 from .event import Event, EventRule, EventStatus
 from .case import (
     Case,
@@ -59,7 +63,14 @@ from .case import (
 )
 from .plugin import Plugin, PluginConfig
 from .credential import Credential
-from .system import Tag, DataType, Settings, Observable, EventLog
+from .system import Tag, DataType, Settings, Observable, EventLog, ObservableHistory
+from .detection import (
+    Detection,
+    DetectionRepositoryToken,
+    DetectionRepository,
+    DetectionRepositoryBundle
+)
+from .task import Task
 
 VERSION = (2, 0, 0)
 __version__ = VERSION
@@ -91,5 +102,14 @@ __all__ = [
     PluginConfig,
     EventLog,
     Credential,
-    TaskNote
+    TaskNote,
+    Search,
+    Organization,
+    ObservableHistory,
+    Detection,
+    DetectionRepositoryToken,
+    DetectionRepository,
+    DetectionRepositoryBundle,
+    Task,
+    ThreatValue
 ]

@@ -30,7 +30,7 @@ class User(base.BaseDocument):
     A User of the Reflex system
     '''
 
-    email = Text()
+    email = Text(fields={'keyword':Keyword()})
     username = Text(fields={'keyword':Keyword()})
     first_name = Text(fields={'keyword':Keyword()})
     last_name = Text(fields={'keyword':Keyword()})
@@ -45,10 +45,15 @@ class User(base.BaseDocument):
     auth_realm = Keyword() # Which authentication realm to log in to
     otp_secret = Keyword()
     mfa_enabled = Boolean()
+    notification_options = Nested() # When does the user want to be notified
+    notification_methods = Keyword() # How does the user want to be notified
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-users'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     def set_password(self, password):
         '''
@@ -70,8 +75,12 @@ class User(base.BaseDocument):
         expired token table
         '''
 
+        organization = Organization.get_by_uuid(self.organization)
+
         _api_key = jwt.encode({
             'uuid': self.uuid,
+            'organization': self.organization,
+            'default_org': organization.default_org if organization else False,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=365),
             'iat': datetime.datetime.utcnow(),
             'type': 'api'
@@ -92,9 +101,12 @@ class User(base.BaseDocument):
         user calls the API, valid for 6 hours by default
         '''
 
+        organization = Organization.get_by_uuid(self.organization)
+
         _access_token = jwt.encode({
             'uuid': self.uuid,
-            # 'organization': self.organization_uuid,
+            'organization': self.organization,
+            'default_org': organization.default_org if organization else False,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=360),
             'iat': datetime.datetime.utcnow(),
             'type': 'user'
@@ -121,6 +133,7 @@ class User(base.BaseDocument):
     def create_password_reset_token(self):
         _token = jwt.encode({
             'uuid': self.uuid,
+            'organization': self.organization,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30),
             'iat': datetime.datetime.utcnow(),
             'type': 'password_reset'
@@ -136,6 +149,7 @@ class User(base.BaseDocument):
 
         _token = jwt.encode({
             'uuid': self.uuid,
+            'organization': self.organization,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30),
             'iat': datetime.datetime.utcnow(),
             'type': 'mfa_challenge'
@@ -144,8 +158,13 @@ class User(base.BaseDocument):
         return _token
 
     def create_refresh_token(self, user_agent_string):
+
+        organization = Organization.get_by_uuid(self.organization)
+
         _refresh_token = jwt.encode({
             'uuid': self.uuid,
+            'organization': self.organization,
+            'default_org': organization.default_org if organization else False,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=30),
             'iat': datetime.datetime.utcnow(),
             'type': 'refresh'
@@ -200,7 +219,7 @@ class User(base.BaseDocument):
     @classmethod
     def get_by_username(self, username):
         response = self.search().query(
-            'match', username=username).execute()
+            'term', username__keyword=username).execute()
         if response:
             user = response[0]
             return user
@@ -209,7 +228,8 @@ class User(base.BaseDocument):
     @classmethod
     def get_by_email(self, email):
         response = self.search().query(
-            'match', email=utils.escape_special_characters(email)).execute()
+            'term', email__keyword=email)
+        response = response.execute()
         if response:
             user = response[0]
             return user
@@ -276,6 +296,42 @@ class User(base.BaseDocument):
         return onetimepass.valid_totp(token, self.otp_secret)
 
 
+class Organization(base.BaseDocument):
+    '''
+    Defines an Organization/Tenant that users and other objects belong to
+    '''
+
+    class Index():
+        name = 'reflex-organizations'
+        settings = {
+            'refresh_interval': '1s'
+        }
+
+    name = Keyword()
+    description = Text(fields={'keyword':Keyword()})
+    url = Keyword()
+    logon_domains = Keyword()
+    default_org = Boolean()
+
+    @classmethod
+    def get_by_name(self, name):
+        response = self.search().query(
+            'match', name=name).execute()
+        if response:
+            org = response[0]
+            return org
+        return response
+
+    @classmethod
+    def get_by_logon_domain(self, domains):
+        response = self.search()
+        response = response.filter('terms', logon_domains=domains)
+        response = response.execute()
+        if response:
+            return response[0]
+        return response
+
+
 class Permission(InnerDoc):
     '''
     Defines what permissions are available in the system for a
@@ -308,6 +364,7 @@ class Permission(InnerDoc):
     # EVENTS
     add_event = Boolean()  # Allows a user to add an event
     view_events = Boolean()  # Allows a user to view/list events
+    view_case_events = Boolean() # Allows a user to see the events on a case
     update_event = Boolean()  # Allows a user to update an events mutable properties
     delete_event = Boolean()  # Allows a user to delete an event
 
@@ -439,6 +496,21 @@ class Permission(InnerDoc):
     # API Permissions
     use_api = Boolean()
 
+    # Detections permissions
+    create_detection = Boolean()
+    update_detection = Boolean()
+    view_detections = Boolean()
+    delete_detection = Boolean()
+    create_detection_repo = Boolean()
+    update_detection_repo = Boolean()
+    view_detection_repos = Boolean()
+    delete_detection_repo = Boolean()
+    create_repo_sharing_token = Boolean()
+    create_detection_exclusion = Boolean()
+    update_detection_exclusion = Boolean()
+    view_detection_exclusions = Boolean()
+    delete_detection_exclusion = Boolean()
+
 
 class Role(base.BaseDocument):
     '''
@@ -448,13 +520,17 @@ class Role(base.BaseDocument):
     '''
 
     name = Keyword()  # The name of the role (should be unique)
-    description = Text()  # A brief description of the role
+    description = Text(fields={'keyword':Keyword()})  # A brief description of the role
     members = Keyword()  # Contains a list of user IDs
     permissions = Nested(Permission)
+    system_generated = Boolean() # If this is a default Role in the system
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-user-roles'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     def add_user_to_role(self, user_id):
         '''
@@ -489,12 +565,17 @@ class Role(base.BaseDocument):
         return response
 
     @classmethod
-    def get_by_name(self, name):
+    def get_by_name(self, name, organization=None):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = self.search().query('term', name=name).execute()
+        response = self.search()
+        response = response.filter('term', name=name)
+        if organization:
+            response=response.filter('term', organization=organization)
+            
+        response = response.execute()
         if response:
             user = response[0]
             return user

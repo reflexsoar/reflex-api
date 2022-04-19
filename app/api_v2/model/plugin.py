@@ -12,8 +12,8 @@ class Plugin(base.BaseDocument):
     the functionality of reflex
     '''
 
-    name = Text()
-    description = Text()
+    name = Text(fields={'keyword':Keyword()})
+    description = Text(fields={'keyword':Keyword()})
     manifest = Object()
     config_template = Object()
     enabled = Boolean()
@@ -67,8 +67,8 @@ class PluginConfig(base.BaseDocument):
     A PluginConfig contains each unique configuration for a plugin
     '''
 
-    name = Text()
-    description = Text()
+    name = Text(fields={'keyword':Keyword()})
+    description = Text(fields={'keyword':Keyword()})
     config = Object()
 
     class Index: # pylint: disable=too-few-public-methods

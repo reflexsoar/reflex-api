@@ -1,19 +1,14 @@
 import base64
 import math
-import copy
 import datetime
-import itertools
+import random
+import string
 import os
-from queue import Queue
-import threading
-import uuid
 import json
 import hashlib
 
-from app.api_v2.model.exceptions import EventRuleFailure
-from .rql.parser import QueryParser
+from app.api_v2.model.user import Organization
 import pyqrcode
-import jwt
 import time
 from io import BytesIO
 from zipfile import ZipFile
@@ -52,14 +47,26 @@ from .model import (
     A,
     Search,
     EventStatus,
-    TaskNote
+    TaskNote,
+    ObservableHistory,
+    Q
 )
 
-from app.api_v2.model.utils import escape_special_characters
+from .utils import default_org, ip_approved, check_org, page_results, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
 
-from .utils import ip_approved, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
+from .resource import (
+    ns_playbook_v2,
+    ns_audit_log_v2,
+    ns_list_v2,
+    ns_organization_v2,
+    ns_event_v2,
+    ns_auth_v2,
+    ns_event_rule_v2,
+    ns_role_v2,
+    ns_task_v2
+)
 
-from .resource import ns_playbook_v2, ns_audit_log_v2
+from .. import ep
 
 # Instantiate a new API object
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
@@ -68,12 +75,8 @@ api2 = Api(api_v2)
 # All the API namespaces
 ns_user_v2 = api2.namespace(
     'User', description='User operations', path='/user')
-ns_role_v2 = api2.namespace(
-    'Role', description='Role operations', path='/role')
-ns_auth_v2 = api2.namespace(
-    'Auth', description='Authentication operations', path='/auth')
-ns_event_v2 = api2.namespace(
-    'Event', description='Event operations', path='/event')
+#ns_role_v2 = api2.namespace(
+ #   'Role', description='Role operations', path='/role')
 ns_settings_v2 = api2.namespace(
     'Settings', description='Settings operations', path='/settings')
 ns_credential_v2 = api2.namespace(
@@ -82,10 +85,6 @@ ns_input_v2 = api2.namespace(
     'Input', description='Input operations', path='/input')
 ns_agent_v2 = api2.namespace(
     'Agent', description='Agent operations', path='/agent')
-ns_list_v2 = api2.namespace(
-    'List', description='Lists API endpoints for managing indicator lists, lists may be string values or regular expressions', path='/list', validate=True)
-ns_event_rule_v2 = api2.namespace(
-    'EventRule', description='Event Rules control what happens to an event on ingest', path='/event_rule')
 ns_agent_group_v2 = api2.namespace(
     'AgentGroup', description='Agent Group operations', path='/agent_group')
 ns_data_type_v2 = api2.namespace(
@@ -111,11 +110,17 @@ ns_observable_v2 = api2.namespace('Observable', description="Observable operatio
 ns_hunting_v2 = api2.namespace('Hunting', description="Threat hunting operaitons", path="/hunting")
 api2.add_namespace(ns_playbook_v2)
 api2.add_namespace(ns_audit_log_v2)
+api2.add_namespace(ns_list_v2)
+api2.add_namespace(ns_organization_v2)
+api2.add_namespace(ns_event_v2)
+api2.add_namespace(ns_auth_v2)
+api2.add_namespace(ns_event_rule_v2)
+api2.add_namespace(ns_role_v2)
+api2.add_namespace(ns_task_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
     api2.models[model.name] = model
-
 
 # Generic parsers
 pager_parser = api2.parser()
@@ -142,103 +147,6 @@ def save_tags(tags):
             tag = Tag(name=tag)
             tag.save()
 
-@ns_auth_v2.route('/mfa')
-class MultiFactor(Resource):
-
-    @api2.expect(mod_mfa_challenge)
-    @api2.response(200, 'Success', mod_auth_success_token)
-    @api2.response(401, 'Incorrect token')
-    def post(self):
-        '''Check the users challenge against their TOTP'''
-
-        user = check_password_reset_token(api2.payload['mfa_challenge_token'])
-        if user:
-            if user.verify_totp(api2.payload['token']):
-                # Generate an access token
-                _access_token = user.create_access_token()
-
-                # Generate a refresh tokenn
-                _refresh_token = user.create_refresh_token(
-                request.user_agent.string.encode('utf-8'))
-                log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Successful MFA Check.", status="Success")
-                return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
-            log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Failed MFA Challenge", status="Failure")
-
-        ns_auth_v2.abort(401, 'Invalid TOTP token')
-
-@ns_auth_v2.route("/login")
-class Login(Resource):
-
-    @api2.expect(mod_auth)
-    @api2.response(200, 'Success', mod_auth_success_token)
-    @api2.response(401, 'Incorrect username or password')
-    def post(self):
-        '''
-        Log a user in to the platform and provide them with an access_token a refresh_token
-        '''
-
-        # Find the user based on their username, if their account is locked don't return a user
-        # object to prevent processing any more failed logons
-        user = User.get_by_username(api2.payload['username'])
-        if not user:
-            ns_auth_v2.abort(401, 'Incorrect username or password')
-
-        if user.check_password(api2.payload['password']):
-
-            # Generate an access token
-            _access_token = user.create_access_token()
-
-            # Generate a refresh tokenn
-            _refresh_token = user.create_refresh_token(
-                request.user_agent.string.encode('utf-8'))
-
-            # Update the users failed_logons and last_logon entries
-            user.update(failed_logons=0, last_logon=datetime.datetime.utcnow())
-       
-            log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Successful Authentication.", status="Success")
-
-            if user.mfa_enabled:
-                return {'mfa_challenge_token': user.create_mfa_challenge_token()}
-            else:
-                return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
-
-        if user.failed_logons == None:
-            user.update(failed_logons=0)
-
-        if user.failed_logons >= Settings.load().logon_password_attempts:
-            user.update(locked=True)
-            log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Account Locked.", status="Failed")
-        else:
-            user.update(failed_logons=user.failed_logons+1)
-            log_event(event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Bad username or password.", status="Failed")
-
-        ns_auth_v2.abort(401, 'Incorrect username or password')
-
-
-@ns_auth_v2.route('/logout')
-class Logout(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.response(200, 'Successfully logged out.')
-    @api2.response(401, 'Not logged in.')
-    @token_required
-    def get(self, current_user):
-        '''
-        Logs a user out of the platform and invalidates their access_token
-        so that they can't use it again.  The token is stored in a blocked token
-        index for lookup when calling the API
-        '''
-        try:
-            auth_header = request.headers.get('Authorization')
-            access_token = auth_header.split(' ')[1]
-            b_token = ExpiredToken(token=access_token)
-            b_token.save()
-            return {'message': 'Successfully logged out.'}, 200
-        except:
-            return {'message': 'Not logged in.'}, 401
-
-        ns_auth_v2.abort(401, 'Not logged in.')
-
 
 @ns_user_v2.route("/me")
 class UserInfo(Resource):
@@ -246,10 +154,13 @@ class UserInfo(Resource):
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_user_self)
     @token_required
+    @ip_approved
     def get(self, current_user):
         ''' Returns information about the currently logged in user '''
         role = Role.get_by_member(current_user.uuid)
+        organization = Organization.get_by_uuid(current_user.organization)
         current_user.role = role
+        current_user.default_org = organization.default_org
         return current_user
 
 
@@ -333,7 +244,6 @@ class ToggleMFA(Resource):
     def put(self, current_user):
         ''' Enables or disables MFA for multiple users '''
         
-        print(api2.payload)
         if 'users' in api2.payload:
             users = User.get_by_uuid(uuid=api2.payload['users'])
         enabled_disabled = ''
@@ -347,7 +257,6 @@ class ToggleMFA(Resource):
                             enabled_disabled = 'enabled'
                             user_action.append({'uuid': user.uuid, 'success': True})
                         except Exception as e:
-                            print(e)
                             user_action.append({'uuid': user.uuid, 'success': False})
                     elif api2.payload['mfa_enabled'] == False:
                         try:
@@ -381,39 +290,74 @@ class UnlockUser(Resource):
 
 user_parser = api2.parser()
 user_parser.add_argument('username', location='args', required=False)
+user_parser.add_argument('organization', location='args', required=False)
 user_parser.add_argument('deleted', type=xinputs.boolean, location='args',
                          required=False, default=False)
-
+user_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+user_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
+user_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+user_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
 
 @ns_user_v2.route("")
 class UserList(Resource):
 
     @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_user_full, as_list=True)
+    @api2.marshal_with(mod_user_list_paged, as_list=True)
     @api2.expect(user_parser)
     @token_required
     @user_has('view_users')
-    def get(self, current_user):
+    @check_org
+    def get(self, current_user):   
         ''' Returns a list of users '''
 
         args = user_parser.parse_args()
 
-        if args['username']:
-            user = User.get_by_username(args['username'])
-            if user:
-                return [user]
-            else:
-                return []
-        else:
-            if args['deleted']:
-                s = User.search()
-            else:
-                s = User.search().query('match', deleted=False)
+        users = User.search()
 
-            s = s[0:s.count()]
-            response = s.execute()
-            [user.load_role() for user in response]
-            return [user for user in response]
+        if args['username']:
+            users = users.filter('term', username=args.username)
+
+        if args['organization']:
+            users = users.filter('term', organization=args.organization)
+
+        if args.deleted:
+            users = users.filter('match', deleted=True)
+        else:
+            users = users.filter('match', deleted=False)
+
+        users, total_results, pages = page_results(users, args.page, args.page_size)
+
+        sort_by = args.sort_by
+
+        # These fields are default Text but can only sort by Keyword so force them to keyword fields
+        if sort_by in ['username','first_name','last_name','email']:
+            sort_by = f"{sort_by}.keyword"
+
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
+
+        users = users.sort(sort_by)
+        
+        users = users.execute()
+        [user.load_role() for user in users]
+
+        response = {
+            'users': list(users),
+            'pagination': {
+                'total_results': total_results,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
+            }
+        }
+        
+        return response
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_user_create)
@@ -431,6 +375,12 @@ class UserList(Resource):
             ns_user_v2.abort(409, "User with this e-mail already exists.")
         else:
             user_role = api2.payload.pop('role_uuid')
+
+            # Strip the organization field if the user is not a member of the default
+            # organization
+            # TODO: replace with @check_org wrapper
+            if 'organization' in api2.payload and hasattr(current_user,'default_org') and not current_user.default_org:
+                api2.payload.pop('organization')
 
             user_password = api2.payload.pop('password')
             user = User(**api2.payload)
@@ -483,10 +433,17 @@ class UserDetails(Resource):
             if 'email' in api2.payload:
                 target_user = User.get_by_email(api2.payload['email'])
                 if target_user:
+                    
+                    
                     if target_user.uuid == uuid:
                         del api2.payload['email']
                     else:
                         ns_user_v2.abort(409, 'Email already taken.')
+                organization = Organization.get_by_uuid(user.organization)
+                if organization:
+                    email_domain = api2.payload['email'].split('@')[1]
+                    if email_domain not in organization.logon_domains:
+                        ns_user_v2.abort(400, 'Invalid logon domain.')
 
             if 'password' in api2.payload and not current_user.has_right('reset_user_password'):
                 api2.payload.pop('password')
@@ -531,6 +488,8 @@ class UserDetails(Resource):
                 ns_user_v2.abort(403, 'User can not delete themself.')
             else:
                 user.deleted = True
+                random_identifier = ''.join(random.choice(string.ascii_lowercase) for i in range(5))
+                user.username = f"{user.username}-DELETED-{random_identifier}"
                 user.locked = True
                 user.save()
                 return {'message': 'User successfully deleted.'}
@@ -538,87 +497,9 @@ class UserDetails(Resource):
             ns_user_v2.abort(404, 'User not found.')
 
 
-@ns_role_v2.route("")
-class RoleList(Resource):
 
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_role_list, as_list=True)
-    @token_required
-    @user_has('view_roles')
-    def get(self, current_user):
-        ''' Returns a list of Roles '''
-        roles = Role.search().execute()
-        if roles:
-            return [r for r in roles]
-        else:
-            return []
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_role_create)
-    @api2.response('409', 'Role already exists.')
-    @api2.response('200', "Successfully created the role.")
-    @token_required
-    @user_has('add_role')
-    def post(self, current_user):
-        ''' Creates a new Role '''
-        role = Role.get_by_name(name=api2.payload['name'])
-        if not role:
-            role = Role(**api2.payload)
-            role.save()
-            return {'message': 'Successfully created the role.', 'uuid': str(role.uuid)}
-        else:
-            ns_role_v2.abort(409, "Role already exists.")
-
-
-@ns_role_v2.route("/<uuid>")
-class RoleDetails(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_role_create)
-    @api2.marshal_with(mod_role_list)
-    @token_required
-    @user_has('update_role')
-    def put(self, uuid, current_user):
-        ''' Updates an Role '''
-        role = Role.get_by_uuid(uuid=uuid)
-        if role:
-            exists = Role.get_by_name(name=api2.payload['name'])
-            if 'name' in api2.payload and exists and exists.uuid != role.uuid:
-                ns_role_v2.abort(409, 'Role with that name already exists.')
-            else:
-                role.update(**api2.payload)
-                return role
-        else:
-            ns_role_v2.abort(404, 'Role not found.')
-
-    @api2.doc(security="Bearer")
-    @token_required
-    @user_has('delete_role')
-    def delete(self, uuid, current_user):
-        ''' Removes a Role '''
-        role = Role.get_by_uuid(uuid=uuid)
-        if role:
-            if role.members and len(role.members) > 0:
-                ns_role_v2.abort(
-                    400, 'Can not delete a role with assigned users.  Assign the users to a new role first.')
-            else:
-                role.delete()
-                return {'message': 'Role successfully delete.'}
-        else:
-            ns_role_v2.abort(404, 'Role not found.')
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_role_list)
-    @token_required
-    @user_has('view_roles')
-    def get(self, uuid, current_user):
-        ''' Gets the details of a Role '''
-        role = Role.get_by_uuid(uuid=uuid)
-        if role:
-            return role
-        else:
-            ns_role_v2.abort(404, 'Role not found.')
-
+data_type_parser = api2.parser()
+data_type_parser.add_argument('organization', location='args', required=False)
 
 @ns_data_type_v2.route("")
 class DataTypeList(Resource):
@@ -626,9 +507,17 @@ class DataTypeList(Resource):
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_data_type_list)
     @token_required
+    @check_org
     def get(self, current_user):
         ''' Gets a list of all the data types '''
+
+        args = data_type_parser.parse_args()
+
         data_types = DataType.search()
+
+        if args.organization and hasattr(current_user,'default_org') and current_user.default_org:
+            data_types = data_types.filter('term', organization=args.organization)
+
         data_types = data_types[0:data_types.count()]
         data_types = data_types.execute()
         if data_types:
@@ -677,814 +566,9 @@ class DataTypeDetails(Resource):
             ns_data_type_v2.abort(404, 'Data type not found.')
 
 
-event_list_parser = api2.parser()
-event_list_parser.add_argument('status', location='args', default=[
-], type=str, action='split', required=False)
-event_list_parser.add_argument('tags', location='args', default=[
-], type=str, action='split', required=False)
-event_list_parser.add_argument('observables', location='args', default=[
-], type=str, action='split', required=False)
-event_list_parser.add_argument('signature', location='args', required=False)
-event_list_parser.add_argument(
-    'severity', action='split', location='args', required=False)
-event_list_parser.add_argument(
-    'grouped', type=xinputs.boolean, location='args', required=False)
-event_list_parser.add_argument(
-    'case_uuid', type=str, location='args', required=False)
-event_list_parser.add_argument('search', type=str, action='split', default=[
-], location='args', required=False)
-#event_list_parser.add_argument('rql', type=str, default="", location="args", required=False)
-event_list_parser.add_argument(
-    'title', type=str, location='args', action='split', required=False)
-event_list_parser.add_argument(
-    'page', type=int, location='args', default=1, required=False)
-event_list_parser.add_argument(
-    'page_size', type=int, location='args', default=10, required=False)
-event_list_parser.add_argument(
-    'sort_by', type=str, location='args', default='created_at', required=False)
-event_list_parser.add_argument(
-    'sort_direction', type=str, location='args', default="desc", required=False)
-
-
-@ns_event_v2.route("")
-class EventListAggregated(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_event_paged_list)
-    @api2.expect(event_list_parser)
-    @token_required
-    @user_has('view_events')
-    def get(self, current_user):
-
-        args = event_list_parser.parse_args()
-
-        start = (args.page - 1)*args.page_size
-        end = (args.page * args.page_size)
-
-        search_filters = []
-
-        if args.status and args.status != ['']:
-            search_filters.append({
-                    'type': 'terms',
-                    'field': 'status.name__keyword',
-                    'value': args.status
-                })
-
-        for arg in ['severity','title','tags']:
-            if arg in args and args[arg] not in ['', None, []]:
-                search_filters.append({
-                    'type': 'terms',
-                    'field': arg,
-                    'value': args[arg]
-                })
-        
-        if args.signature:
-            search_filters.append({
-                    'type': 'term',
-                    'field': 'signature',
-                    'value': args.signature
-                })
-
-        if args.case_uuid:
-            search_filters.append({
-                'type': 'match',
-                'field': 'case',
-                'value': args.case_uuid
-            })
-
-        if args.observables:
-            event_uuids = []
-
-            if any('|' in o for o in args.observables):
-                for observable in args.observables:
-                    if '|' in observable:
-                        value,field = observable.split('|')
-                        response = Observable.get_by_value_and_field(value, field)
-                        event_uuids += [o.events[0] for o in response]
-            else:
-                observables = Observable.get_by_value(args.observables)
-                event_uuids = [o.events[0] for o in observables if o.events]
-            
-            search_filters.append({
-                'type': 'terms',
-                'field': 'uuid',
-                'value': list(set(event_uuids))
-            })
-
-        observables = {}
-        
-        # If not filtering by a signature
-        if not args.signature:
-            
-            search = Event.search()
-
-            search = search[:0]
-
-            # Apply all filters
-            for _filter in search_filters:
-                search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
-
-            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': 'desc'}, size=1000000)
-            search.aggs['signature'].metric('max_date', 'max', field='created_at')
-            search.aggs['signature'].bucket('uuid', 'terms', field='uuid', size=1, order={'max_date': 'desc'})
-            search.aggs['signature']['uuid'].metric('max_date', 'max', field='created_at')
-
-            events = search.execute()
-            event_uuids = []
-            for signature in events.aggs.signature.buckets:
-                event_uuids.append(signature.uuid.buckets[0]['key'])
-            
-            search = Event.search()
-            search = search[start:end]
-
-            if args.sort_direction:
-                if args.sort_direction == "asc":
-                    args.sort_by = f"-{args.sort_by}"
-                else:
-                    args.sort_by = f"{args.sort_by}"
-
-            search = search.sort(args.sort_by)
-            search = search.filter('terms', uuid=event_uuids)
-
-            total_events = search.count()
-            pages = math.ceil(float(total_events / args.page_size))
-
-            events = search.execute()
-
-            # SLATED FOR FUTURE RELEASE - BC
-            # if args.rql:
-            #    qp = QueryParser()
-            #    parsed_query = qp.parser.parse(args.rql)
-            #    events = [r for r in qp.run_search(list(events), parsed_query, marshaller=mod_event_rql)]
-        
-        # If filtering by a signature
-        else:
-
-            search = Event.search()
-            search = search[start:end]
-
-            # Apply all filters
-            for _filter in search_filters:
-                search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
-
-            if args.sort_direction:
-                if args.sort_direction == "asc":
-                    args.sort_by = f"-{args.sort_by}"
-                else:
-                    args.sort_by = f"{args.sort_by}"
-
-            search = search.sort(args.sort_by)
-            search = search.filter('term', signature=args.signature)
-
-            total_events = search.count()
-            pages = math.ceil(float(total_events / args.page_size))
-
-            events = search.execute()            
-
-        for event in events:
-            event.set_filters(filters=search_filters)
-            observables[event.uuid] = [o.to_dict() for o in event.observables]
-        
-        response = {
-            'events': events,
-            'observables': json.loads(json.dumps(observables, default=str)),
-            'pagination': {
-                'total_results': total_events,
-                'pages': pages,
-                'page': args['page'],
-                'page_size': args['page_size']
-            }
-        }
-        return response
-
-
-    @api2.expect(mod_event_create)
-    def post(self):
-        ''' Creates a new event '''
-
-        observables = []
-
-        original_payload = copy.copy(api2.payload)
-
-        # If the event has an observables pop them off the request payload
-        # so that the Event can be generated using the remaining dictionary values
-        if 'observables' in api2.payload:
-            observables = api2.payload.pop('observables')
-
-        event = Event.get_by_reference(api2.payload['reference'])
-
-        if not event:
-
-            # Generate a default signature based off the rule name and the current time
-            # signatures are required in the system but user's don't need to supply them
-            # these events will remain ungrouped
-            if 'signature' not in api2.payload or api2.payload['signature'] == '':
-                hasher = hashlib.md5()
-                date_string = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                hasher.update(f"{api2.payload['title']}{date_string}".encode('utf-8'))
-                api2.payload['signature'] = hasher.hexdigest()
-
-            event = Event(**api2.payload)
-            event.save()
-
-            if observables:
-                event.add_observable(observables)
-
-            event_rules = EventRule.get_all()
-            if event_rules:
-               
-                matched = False
-                for event_rule in event_rules:
-
-                    # If the event matches the event rule criteria perform the rule actions
-                    matched = event_rule.process_rql(original_payload)
-
-                    # If the rule matched, process the event
-                    if matched:
-                        event_rule.process_event(event)
-                        
-                        # TODO: Allow for matching on multiple rules that don't have overlapping
-                        # actions, e.g. one rule to move it to a case but a different rule to apply
-                        # tags to the event
-                        # Break out of the loop, we don't want to match on any more rules
-                        break
-                
-                if not matched:
-                    event.set_new()
-            else:
-                event.set_new()
-
-            return {'message': 'Successfully created the event.'}
-        else:
-            return {'message': 'Event already exists'}, 409
-
-
-@ns_event_v2.route('/_bulk')
-class CreateBulkEvents(Resource):
-
-    # TODO: This needs some serious love but it should work let's test it
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_event_create_bulk)
-    @token_required
-    @user_has('add_event')
-    def post(self, current_user):
-        event_queue = Queue()
-
-        workers = []
-
-        request_id = str(uuid.uuid4())
-        
-        def process_event(queue, request_id):
-            while not queue.empty():
-                raw_event = queue.get()
-                event = Event.get_by_reference(raw_event['reference'])
-
-                if not event:
-
-                    # Generate a default signature based off the rule name and the current time
-                    # signatures are required in the system but user's don't need to supply them
-                    # these events will remain ungrouped
-                    if 'signature' not in raw_event or raw_event['signature'] == '':
-                        hasher = hashlib.md5()
-                        date_string = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                        hasher.update(f"{raw_event['title']}{date_string}".encode('utf-8'))
-                        raw_event['signature'] = hasher.hexdigest()
-
-                    observables = []
-                    #added_observables = []
-
-                    # Start clocking event creation
-                    start_event_process_dt = datetime.datetime.utcnow().timestamp()
-
-                    original_payload = copy.copy(raw_event)
-
-                    if 'observables' in raw_event:
-                        observables = raw_event.pop('observables')
-
-                    event = Event(**raw_event)
-                    event.save()
-
-                    if observables:
-                        event.add_observable(observables)
-
-                    event_rules = EventRule.get_all()
-                    if event_rules:
-                    
-                        matched = False
-                        for event_rule in event_rules:
-
-                            # If the event matches the event rule criteria perform the rule actions
-                            try:
-                                matched = event_rule.process_rql(original_payload)
-                            except EventRuleFailure as e:
-                                log_event(event_type='Event Rule Processing', source_user="System", event_reference=event.reference, time_taken=0, status="Failed", message=f"Failed to process event rule. {e}")
-
-                            # If the rule matched, process the event
-                            if matched:
-                                event_rule.process_event(event)
-                                
-                                # TODO: Allow for matching on multiple rules that don't have overlapping
-                                # actions, e.g. one rule to move it to a case but a different rule to apply
-                                # tags to the event
-                                # Break out of the loop, we don't want to match on any more rules
-                                break
-                        
-                        if not matched:
-                            event.set_new()
-                    else:
-                        event.set_new()
-
-                    end_event_process_dt = datetime.datetime.utcnow().timestamp()
-                    event_process_time = end_event_process_dt - start_event_process_dt
-                    #log_event(event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=event_process_time, status="Success", message="Event Inserted.", event_id=event.uuid)
-                else:
-                    log_event(event_type='Bulk Event Insert', source_user="System", request_id=request_id, event_reference=event.reference, time_taken=0, status="Failed", message="Event Already Exists.")
-
-        
-        start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
-        if 'events' in api2.payload and len(api2.payload['events']) > 0:
-            [event_queue.put(e) for e in api2.payload['events']]
-
-        for i in range(0,current_app.config['EVENT_PROCESSING_THREADS']):
-            p = threading.Thread(target=process_event, daemon=True, args=(event_queue,request_id))
-            workers.append(p)
-        [t.start() for t in workers]
-
-        end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
-        total_process_time = end_bulk_process_dt - start_bulk_process_dt
-
-        log_event(event_type="Bulk Event Insert", request_id=request_id, time_taken=total_process_time, status="Success", message="Bulk request finished.")
-
-        return {"request_id": request_id, "response_time": total_process_time}
-
-
-@ns_event_v2.route("/bulk_dismiss")
-class EventBulkUpdate(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_event_bulk_dismiss)
-    @api2.marshal_with(mod_event_details, as_list=True)
-    @token_required
-    @user_has('update_event')
-    def put(self, current_user):
-        ''' Dismiss multiple events at the same time '''
-
-        if 'dismiss_reason_uuid' in api2.payload:
-            reason = CloseReason.get_by_uuid(uuid=api2.payload['dismiss_reason_uuid'])
-        else:
-            ns_event_v2.abort(400, 'A dismiss reason is required.')
-
-        if 'events' in api2.payload:
-
-            comment = api2.payload['dismiss_comment'] if api2.payload['dismiss_comment'] != "" else None
-
-            for event in api2.payload['events']:
-                e = Event.get_by_uuid(uuid=event)
-                e.set_dismissed(reason=reason, comment=comment)
-                related_events = Event.get_by_signature_and_status(signature=e.signature, status='New', all_events=True)
-                if len(related_events) > 0:
-                    for evt in related_events:
-                        if evt.uuid not in api2.payload['events']:
-                            evt.set_dismissed(reason=reason, comment=comment)
-
-        time.sleep(1)
-
-        return []
-
-
-@ns_event_v2.route("/<uuid>")
-class EventDetails(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_event_details)
-    @token_required
-    @user_has('view_events')
-    def get(self, uuid, current_user):
-
-        event = Event.get_by_uuid(uuid)
-        if event:
-            return event
-        else:
-            ns_event_v2.abort(404, 'Event not found.')
-
-    @api2.doc(security="Bearer")
-    @token_required
-    @user_has('update_event')
-    def put(self, uuid, current_user):
-        '''Updates an event
-
-        Parameters:
-            uuid (str): The unique identifier of the Event
-            current_user (User): The current user making the API request
-        '''
-
-        if 'dismiss_reason_uuid' in api2.payload:
-            reason = CloseReason.get_by_uuid(uuid=api2.payload['dismiss_reason_uuid'])
-            event = Event.get_by_uuid(uuid=uuid)
-
-            comment = None
-            if 'dismiss_comment' in api2.payload and api2.payload['dismiss_comment'] != '':
-                comment = api2.payload['dismiss_comment']
-            
-            event.set_dismissed(reason, comment=comment)
-            return {'message':'Successfully dismissed event'}, 200
-        else:
-            return {}
-
-    @api2.doc(security="Bearer")
-    @token_required
-    @user_has('delete_event')
-    def delete(self, uuid, current_user):
-        '''
-        Deletes an event and any related artifacts from the system
-
-        Parameters:
-            uuid (str): The unique identifier of the Event
-            current_user (User): The current user making the API request
-        '''
-
-        event = Event.get_by_uuid(uuid=uuid)
-
-        # Only support deleting events that are not in cases right now
-        if event and not event.case:
-        
-            # Remove this event from any cases it may be associated with
-            #if event.case:
-            #    case = Case.get_by_uuid(uuid=event.case)
-
-            # Delete any observables from the observables index related to this event
-            observables = Observable.get_by_event_uuid(uuid=uuid)
-            for observable in observables:
-                observable.delete()
-
-            # Delete the event
-            event.delete()
-
-            return {'message': 'Successfully deleted the event.', 'uuid': uuid}, 200
-        else:
-            return {'message': 'Event not found'}, 404
-
-event_stats_parser = api2.parser()
-event_stats_parser.add_argument('status', location='args', default=[
-], type=str, action='split', required=False)
-event_stats_parser.add_argument('tags', location='args', default=[
-], type=str, action='split', required=False)
-event_stats_parser.add_argument('signature', location='args', required=False)
-event_stats_parser.add_argument(
-    'severity', action='split', location='args', required=False)
-event_stats_parser.add_argument(
-    'title', type=str, location='args', action='split', required=False)
-event_stats_parser.add_argument('observables', location='args', default=[
-], type=str, action='split', required=False)
-event_stats_parser.add_argument('source', location='args', default=[
-], type=str, action='split', required=False)
-
-@ns_event_v2.route("/stats")
-class EventStats(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.expect(event_stats_parser)
-    @token_required
-    @user_has('view_events')
-    def get(self, current_user):
-        '''
-        Returns metrics about events that can be used for easier filtering
-        of events on the Events List page
-        '''
-
-        args = event_stats_parser.parse_args()
-        
-        search_filters = []
-
-        if args.status and args.status != ['']:
-            search_filters.append({
-                'type': 'terms',
-                'field': 'status.name__keyword',
-                'value': args.status
-            })
-
-        for arg in ['severity','title','tags','source']:
-            if arg in args and args[arg] not in ['', None, []]:
-                search_filters.append({
-                    'type': 'terms',
-                    'field': arg,
-                    'value': args[arg]
-                })
-        
-        if args.signature:
-            search_filters.append({
-                'type': 'term',
-                'field': 'signature',
-                'value': args.signature
-            })
-
-        event_uuids = []
-
-        if args.observables:
-            event_uuids = []
-
-            if any('|' in o for o in args.observables):
-                for observable in args.observables:
-                    if '|' in observable:
-                        value,field = observable.split('|')
-                        response = Observable.get_by_value_and_field(value, field)
-                        event_uuids += [o.events[0] for o in response]
-            else:
-                observables = Observable.get_by_value(args.observables)
-                event_uuids = [o.events[0] for o in observables if o.events]
-            
-            search_filters.append({
-                'type': 'terms',
-                'field': 'uuid',
-                'value': list(set(event_uuids))
-            })
-
-        search = Event.search()
-
-        # Apply all filters
-        for _filter in search_filters:
-            search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})      
-
-        search.aggs.bucket('title', 'terms', field='title', size=100)
-        search.aggs.bucket('tags', 'terms', field='tags', size=50)
-        search.aggs.bucket('status', 'terms', field='status.name.keyword', size=5)
-        search.aggs.bucket('severity', 'terms', field='severity', size=10)
-        search.aggs.bucket('signature', 'terms', field='signature', size=100)
-        search.aggs.bucket('uuids', 'terms', field='uuid', size=10000)
-        search.aggs.bucket('source', 'terms', field='source.keyword', size=10)
-
-        events = search.execute()
-
-        observable_search = Observable.search()
-        observable_search = observable_search.filter('exists', field='events')
-
-        observable_search = observable_search.filter('terms', **{'events': [v['key'] for v in events.aggs.uuids.buckets]})
-
-        observable_search.aggs.bucket('data_type', 'terms', field='data_type.keyword', size=50)
-        observable_search.aggs.bucket('value', 'terms', field='value', size=100)
-
-        observable_search = observable_search.execute()
-
-        data = {
-            'title': {v['key']: v['doc_count'] for v in events.aggs.title.buckets},
-            'observable value': {v['key']: v['doc_count'] for v in observable_search.aggs.value.buckets},
-            'source': {v['key']: v['doc_count'] for v in events.aggs.source.buckets},
-            'tag': {v['key']: v['doc_count'] for v in events.aggs.tags.buckets},
-            'status': {v['key']: v['doc_count'] for v in events.aggs.status.buckets},
-            'severity': {v['key']: v['doc_count'] for v in events.aggs.severity.buckets},
-            'signature': {v['key']: v['doc_count'] for v in events.aggs.signature.buckets},
-            'data type': {v['key']: v['doc_count'] for v in observable_search.aggs.data_type.buckets},            
-        }
-
-        return data
-
-@ns_event_v2.route("/bulk_delete")
-class BulkDeleteEvent(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_event_bulk_dismiss)
-    @token_required
-    @user_has('delete_event')
-    def delete(self, current_user):
-        '''
-        Deletes an event and any related artifacts from the system
-
-        Parameters:
-            uuid (str): The unique identifier of the Event
-            current_user (User): The current user making the API request
-        '''
-
-        if api2.payload['events']:
-            for _event in api2.payload['events']:
-
-                event = Event.get_by_uuid(uuid=_event)
-
-                # Only support deleting events that are not in cases right now
-                if event and not event.case:
-                
-                    # TODO: Add this back if we want to allow deleting events that are in cases
-                    # Remove this event from any cases it may be associated with
-                    #if event.case:
-                    #    case = Case.get_by_uuid(uuid=event.case)
-                    #    case.remove_event(uuid=event.uuid)
-
-                    # Delete any observables from the observables index related to this event
-                    observables = Observable.get_by_event_uuid(uuid=event.uuid)
-                    for observable in observables:
-                        observable.delete()
-
-                    # Delete the event
-                    event.delete()
-
-        time.sleep(1)
-
-        return {'message': 'Successfully deleted Events.'}, 200
-
-"""
-@ns_event_v2.route("/<uuid>/update_case")
-class EventUpdateCase(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_event_update_case)
-    @api2.response('200', 'Success')
-    @token_required
-    @user_has('update_event')
-    def put(self, uuid, current_user):
-
-        if 'action' in api2.payload:
-            action = api2.payload.pop('action')
-
-            if action in ['remove','transfer']:
-
-                event = Event.get_by_uuid()
-
-                if action == 'remove':
-                    
-                    event.remove_from_case()
-
-                if action == 'transfer':
-                    if 'target_case_uuid' in api2.payload:
-                        event.set_case()
-                    else:
-                        ns_event_v2(400, 'Missing target case details.')
-            
-                print('a')
-            else:
-                ns_event_v2.abort(400, 'Missing or invalid action.')
-        else:
-            ns_event_v2.abort(400, 'Missing or invalid action.')
-"""
-
-@ns_event_v2.route("/<signature>/new_related_events")
-class EventNewRelatedEvents(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_related_events)
-    @api2.response('200', 'Success')
-    @api2.response('404', 'Event not found')
-    @token_required
-    @user_has('view_events')
-    def get(self, signature, current_user):
-        ''' Returns the UUIDs of all related events that are Open '''
-        events = Event.get_by_signature(signature=signature, all_events=True)
-        related_events = [e.uuid for e in events if hasattr(e.status,'name') and e.status.name == 'New']
-        return {"events": related_events}
-
-
-event_rule_list_parser = pager_parser.copy()
-event_rule_list_parser.add_argument('page', type=int, location='args', default=1, required=False)
-event_rule_list_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
-event_rule_list_parser.add_argument('page_size', type=int, location='args', default=25, required=False)
-
-@ns_event_rule_v2.route("")
-class EventRuleList(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_event_rule_list_paged)
-    @api2.expect(event_rule_list_parser)
-    @token_required
-    @user_has('view_event_rules')
-    def get(self, current_user):
-        ''' Gets a list of all the event rules '''
-
-        args = event_rule_list_parser.parse_args()
-
-        event_rules = EventRule.search()
-        event_rules = event_rules.sort('-last_matched_date')
-
-        # Paginate the cases
-        page = args.page - 1
-        total_cases = event_rules.count()
-        pages = math.ceil(float(total_cases / args.page_size))
-
-        start = page*args.page_size
-        end = args.page*args.page_size
-        event_rules = event_rules[start:end]
-
-        event_rules = event_rules.execute()
-        #if event_rules:
-        #    return [r for r in event_rules]
-        #else:
-        #    return []
-
-        response = {
-            'event_rules': list(event_rules),
-            'pagination': {
-                'total_results': total_cases,
-                'pages': pages,
-                'page': page+1,
-                'page_size': args.page_size
-            }
-        }
-
-        return response
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_event_rule_create)
-    @api2.response('200', 'Successfully created event rule.')
-    @token_required
-    @user_has('create_event_rule')
-    def post(self, current_user):
-        ''' Creates a new event_rule set '''
-
-        if 'expire_days' in api2.payload and not isinstance(api2.payload['expire_days'], int):
-            ns_event_rule_v2(400, 'expire_days should be an integer.')
-
-        # Computer when the rule should expire
-        if 'expire' in api2.payload and api2.payload['expire']:
-            if 'expire_days' in api2.payload:
-                expire_days = api2.payload.pop('expire_days')
-
-                expire_at = datetime.datetime.utcnow() + datetime.timedelta(days=expire_days)
-                api2.payload['expire_at'] = expire_at
-            else:
-                ns_event_rule_v2.abort(400, 'Missing expire_days field.')
-
-        event_rule = EventRule(**api2.payload)
-        event_rule.active = True
-        event_rule.save()
-
-        return {'message': 'Successfully created event rule.', 'uuid': str(event_rule.uuid)}
-
-
-@ns_event_rule_v2.route("/<uuid>")
-class EventRuleDetails(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_event_rule_list)
-    @token_required
-    @user_has('view_event_rules')
-    def get(self, uuid, current_user):
-        ''' Gets a event rule '''
-        event_rule = EventRule.get_by_uuid(uuid=uuid)
-        if event_rule:
-            return event_rule
-        else:
-            ns_event_rule_v2.abort(404, 'Event rule not found.')
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_event_rule_create)
-    @api2.marshal_with(mod_event_rule_list)
-    @token_required
-    @user_has('update_event_rule')
-    def put(self, uuid, current_user):
-        ''' Updates the event rule '''
-        event_rule = EventRule.get_by_uuid(uuid=uuid)
-
-        if event_rule:
-
-            if len(api2.payload) > 0:
-                event_rule.update(**api2.payload)
-
-            return event_rule
-        else:
-            ns_event_rule_v2.abort(404, 'Event rule not found.')
-
-    @api2.doc(security="Bearer")
-    @token_required
-    @user_has('delete_event_rule')
-    def delete(self, uuid, current_user):
-        ''' Removes an event rule '''
-        event_rule = EventRule.get_by_uuid(uuid=uuid)
-        if event_rule:
-            event_rule.delete(refresh=True)
-            return {'message': 'Sucessfully deleted the event rule.'}
-
-
-@ns_event_rule_v2.route("/test_rule_rql")
-class TestEventRQL(Resource):
-
-    @api2.expect(mod_event_rule_test)
-    def post(self):
-        ''' Tests an RQL query against a target event to see if the RQL is valid '''
-
-        if 'uuid' in api2.payload and api2.payload['uuid'] not in [None, '']:
-            event = Event.get_by_uuid(uuid=api2.payload['uuid'])
-            event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
-        else:
-            search = Event.search()
-            search = search.sort('-created_at')
-            search = search[0:api2.payload['event_count']]
-            events = search.execute()
-            event_data = [json.loads(json.dumps(marshal(e, mod_event_rql))) for e in events]
-       
-        try:
-            qp = QueryParser()
-            parsed_query = qp.parser.parse(api2.payload['query'])
-            result = [r for r in qp.run_search(event_data, parsed_query)]
-            hits = len(result)
-
-            if hits > 0:
-                return {"message": f"Query matched {hits} Events", "success": True}, 200
-            else:
-                return {"message": "Query did not match target Event", "success": False}, 200
-        except ValueError as e:
-            return {"message":f"Invalid RQL query. {e}", "success": False}, 400
-        
 
 @ns_observable_v2.route("/history/<value>")
-class ObservableHistory(Resource):
+class ObservableHistoricalData(Resource):
     '''Provides historical information about an observable so that
     analysts can look at the observable over time and perform correlative
     research into how the observable appears in their environment
@@ -1559,6 +643,8 @@ class ObservableHistory(Resource):
 case_status_parser = api2.parser()
 case_status_parser.add_argument(
     'name', type=str, location='args', required=False)
+case_status_parser.add_argument(
+    'organization', type=str, location='args', required=False)
 
 @ns_case_status_v2.route("")
 class CaseStatusList(Resource):
@@ -1567,16 +653,19 @@ class CaseStatusList(Resource):
     @api2.expect(case_status_parser)
     @api2.marshal_with(mod_case_status_list, as_list=True)
     @token_required
+    @check_org
     def get(self, current_user):
         ''' Returns a list of case_statuss '''
 
         args = case_status_parser.parse_args()
-
         
         statuses = CaseStatus.search()
 
         if args.name is not None:
             statuses = statuses.filter('term', name=args.name)
+
+        if hasattr(current_user,'default_org') and args.organization is not None:
+            statuses = statuses.filter('term', organization=args.organization)
 
         statuses = statuses.execute()
         if statuses:
@@ -1648,6 +737,9 @@ class CaseStatusDetails(Resource):
 close_reason_parser = api2.parser()
 close_reason_parser.add_argument(
     'title', type=str, location='args', required=False)
+close_reason_parser.add_argument(
+    'organization', type=str, location='args', required=False
+)
 
 @ns_close_reason_v2.route("")
 class CloseReasonList(Resource):
@@ -1662,6 +754,9 @@ class CloseReasonList(Resource):
         args = close_reason_parser.parse_args()
 
         close_reasons = CloseReason.search()
+
+        if args.organization:
+            close_reasons = close_reasons.filter('term', organization=args.organization)
         
         if args.title:
             close_reasons = close_reasons.filter('match', title=args.title)
@@ -1737,16 +832,24 @@ class CloseReasonDetails(Resource):
 
 case_parser = pager_parser.copy()
 case_parser.add_argument('title', location='args', required=False, type=str)
+case_parser.add_argument('organization', location='args', required=False, type=str)
 case_parser.add_argument('status', location='args', required=False, type=str)
+case_parser.add_argument('close_reason', location='args', required=False, action="split", type=str)
 case_parser.add_argument('severity', location='args', required=False, action="split", type=str)
 case_parser.add_argument('owner', location='args', required=False, action="split", type=str)
 case_parser.add_argument('tag', location='args', required=False, action="split", type=str)
 case_parser.add_argument('search', location='args', required=False, action="split", type=str)
 case_parser.add_argument('my_tasks', location='args', required=False, type=xinputs.boolean)
 case_parser.add_argument('my_cases', location='args', required=False, type=xinputs.boolean)
+case_parser.add_argument('escalated', location='args', required=False, type=xinputs.boolean)
 case_parser.add_argument('page', type=int, location='args', default=1, required=False)
 case_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
+case_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
 case_parser.add_argument('page_size', type=int, location='args', default=25, required=False)
+case_parser.add_argument('start', location='args', type=str, required=False)
+case_parser.add_argument('end', location='args', type=str, required=False)
 
 @ns_case_v2.route("")
 class CaseList(Resource):
@@ -1756,18 +859,25 @@ class CaseList(Resource):
     @api2.expect(case_parser)
     @token_required
     @user_has('view_cases')
+    @check_org
     def get(self, current_user):
         ''' Returns a list of case '''
 
         args = case_parser.parse_args()
 
-        cases = Case.search()
+        # Set default start/end date filters if they are not set above
+        # We do this here because default= on add_argument() is only calculated when the API is initialized
+        #if not args.start:
+        #    args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+        #if not args.end:
+        #    args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
+
+        cases = Case.search()        
 
         cases = cases.sort('-created_at')
 
         # Apply filters
         if 'title' in args and args['title']:
-            print(args['title'])
             cases = cases.filter('wildcard', title=args['title']+"*")
 
         if 'status' in args and args['status']:
@@ -1776,6 +886,31 @@ class CaseList(Resource):
         if 'severity' in args and args['severity']:
             cases = cases.filter('terms', severity=args['severity'])
 
+        if 'tag' in args and args['tag']:
+            cases = cases.filter('terms', tags=args['tag'])
+
+        if 'organization' in args and args.organization:
+            cases = cases.filter('term', organization=args.organization)
+
+        if 'close_reason' in args and args.close_reason:
+            cases = cases.filter('terms', close_reason__title__keyword=args.close_reason)
+
+        if args.owner and args.owner not in ['', None, []] and not args.my_cases:
+            cases = cases.filter('terms', **{'owner.username__keyword': args.owner})
+
+        if args.escalated == True:
+            cases = cases.filter('term', escalated=args.escalated)
+
+        if args.my_cases:
+            cases = cases.filter('term', **{'owner.username__keyword': current_user.username})
+
+        if args.start and args.end:
+            cases = cases.filter('range', created_at={
+                    'gte': args.start,
+                    'lte': args.end
+                }
+            )
+
         # Paginate the cases
         page = args.page - 1
         total_cases = cases.count()
@@ -1783,6 +918,20 @@ class CaseList(Resource):
 
         start = page*args.page_size
         end = args.page*args.page_size
+
+        sort_by = args.sort_by
+        # Only allow these fields to be sorted on
+        if sort_by not in ['title','tlp','severity','status']:
+            sort_by = "created_at"
+
+        if sort_by == 'status':
+            sort_by = "status.name.keyword"
+
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
+
+        cases = cases.sort(sort_by)
+
         cases = cases[start:end]
 
         response = {
@@ -1803,6 +952,7 @@ class CaseList(Resource):
     @api2.response('200', "Successfully created the case.")
     @token_required
     @user_has('create_case')
+    #@check_org
     def post(self, current_user):
         ''' Creates a new case '''
 
@@ -1812,11 +962,11 @@ class CaseList(Resource):
         owner_uuid = None
         case_template = None
 
-        settings = Settings.load()
-
-        if 'case_template_uuid' in api2.payload:
-            case_template = CaseTemplate.get_by_uuid(
-                uuid=api2.payload.pop('case_template_uuid'))
+        organization = None
+        if 'organization' in api2.payload:
+            organization = api2.payload['organization']
+        
+        settings = Settings.load(organization=organization)
 
         if 'owner_uuid' in api2.payload:
             owner_uuid = api2.payload.pop('owner_uuid')
@@ -1850,30 +1000,46 @@ class CaseList(Resource):
         case.status = CaseStatus.get_by_name(name="New")
         case.set_owner(owner_uuid)
 
+        events_to_update = []
         if isinstance(events, list) and len(events) > 0:
             uuids = []
+            
             for event in events:
                 e = Event.get_by_uuid(event)
-                e.set_open()
-                e.set_case(uuid=case.uuid)
+                event_dict = e.to_dict()
+                event_dict['_meta'] = {
+                    'action': 'add_to_case',
+                    'case': case.uuid,
+                    '_id': e.meta.id
+                }
+                events_to_update.append(event_dict)
+                #e.set_open()
+                #e.set_case(uuid=case.uuid)
                 uuids.append(e.uuid)
 
                 if 'include_related_events' in api2.payload and api2.payload['include_related_events']:
-                    parent_uuid = e.uuid
+                    
                     related_events = Event.get_by_signature_and_status(signature=e.signature, status='New', all_events=True)
                     for related_event in related_events:
-                        related_event.set_open()
-                        related_event.set_case(uuid=case.uuid)
-                        case_observables += Observable.get_by_event_uuid(related_event.uuid)
-                        uuids.append(related_event.uuid)
+                        related_dict = related_event.to_dict()
+                        related_dict['_meta'] = {
+                            'action': 'add_to_case',
+                            'case': case.uuid,
+                            '_id': related_event.meta.id
+                        }
+                        events_to_update.append(related_dict)
+                        #related_event.set_open()
+                        #related_event.set_case(uuid=case.uuid)
 
-                observables = Observable.get_by_event_uuid(event)
-                case_observables += observables
+                        # PERFORMANCE ISSUE FIX ME
+                        #case_observables += related_event.observables #Observable.get_by_event_uuid(related_event.uuid)
+                        uuids.append(related_event.uuid)            
+
+                observables = e.observables
 
                 # Automatically generates an event rule for the event associated with this case
                 if 'generate_event_rule' in api2.payload and api2.payload['generate_event_rule']:
                     rule_text = f'''# System generated base query
-
 # Pin this rule to this event by it's title
 title = "{e.title}"
 
@@ -1895,32 +1061,14 @@ and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.valu
                     event_rule.save()
             
             case.events = list(set(uuids))
-
-        # Deduplicate case observables
-        case_observables = list(set([Observable(
-            tags=o.tags, value=o.value, data_type=o.data_type, ioc=o.ioc, spotted=o.spotted, tlp=o.tlp, case=case.uuid) for o in case_observables]))
-        [o.save() for o in case_observables]
+        
+        if len(events_to_update) > 0:
+            [ep.enqueue(event) for event in events_to_update]
 
         # If the user selected a case template, take the template items
         # and copy them over to the case
-        if case_template:
-
-            # Append the default tags
-            for tag in case_template.tags:
-
-                # If the tag does not already exist
-                if tag not in case.tags:
-                    case.tags.append(tag)
-
-            # Append the default tasks
-            for task in case_template.tasks:
-                case.add_task(title=task.title, description=task.description,
-                              order=task.order, from_template=True)
-
-            # Set the default severity
-            case.severity = case_template.severity
-            case.tlp = case_template.tlp
-            case.save()
+        if 'case_template_uuid' in api2.payload:
+            case.apply_template(api2.payload['case_template_uuid'])
 
         case.save()
 
@@ -1928,6 +1076,8 @@ and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.valu
         save_tags(api2.payload['tags'])
 
         case.add_history(message='Case created')
+
+        time.sleep(0.5)
 
         return {'message': 'Successfully created the case.', 'uuid': str(case.uuid)}
 
@@ -1943,7 +1093,7 @@ class CaseDetails(Resource):
     @user_has('view_cases')
     def get(self, uuid, current_user):
         ''' Returns information about a case '''
-        case = Case.get_by_uuid(uuid=uuid)           
+        case = Case.get_by_uuid(uuid=uuid)
 
         if case:
             tasks = CaseTask.get_by_case(uuid=uuid)
@@ -1966,7 +1116,7 @@ class CaseDetails(Resource):
         case = Case.get_by_uuid(uuid=uuid)
         if case:
 
-            for f in ['severity', 'tlp', 'status_uuid', 'owner', 'description', 'owner_uuid']:
+            for f in ['severity', 'tlp', 'status_uuid', 'owner', 'description', 'owner_uuid', 'escalated']:
                 value = ""
                 message = None
 
@@ -2022,6 +1172,12 @@ class CaseDetails(Resource):
                             message = 'Case unassigned'
                             api2.payload['owner'] = None
 
+                    elif f == 'escalated':
+                        if api2.payload[f]:
+                            message = 'Case escalated'
+                        else:
+                            message = 'Case de-escalated'
+
                     if message:
                         case.add_history(message=message)
                     else:
@@ -2031,58 +1187,10 @@ class CaseDetails(Resource):
             if 'tags' in api2.payload:
                 save_tags(api2.payload['tags'])
 
-            """ TODO: MIGRATE THIS
-             if 'case_template_uuid' in api.payload:
-
-                # If the case already has a template, and none of the tasks have been started, remove the
-                # old template and its tasks/tags and add the new stuff
-                tasks_started = False
-                if case.case_template and api.payload['case_template_uuid'] != case.case_template:
-                    
-                    for task in case.tasks:
-
-                        # If any task is already started, don't apply a new template
-                        if task.status != 0 and task.from_template:
-                            tasks_started = True
-                            break
-                        else:
-                            if task.from_template:
-                                task.delete()
-
-                    # Remove the tags from the case that were assigned by the 
-                    # template
-                    for tag in case.case_template.tags:
-                        if tag in case.tags:
-                            case.tags = [tag for tag in case.tags if tag.name not in [t.name for t in case.case_template.tags]]
-
-                    case.case_template_uuid = None
-                    case.save()
-                    
-                # If there was an old template or no template at all
-                # apply the new template
-                if not tasks_started and api.payload['case_template_uuid'] != case.case_template_uuid:
-
-                    case_template = CaseTemplate.query.filter_by(uuid=api.payload['case_template_uuid'], organization_uuid=current_user.organization.uuid).first()
-                    if case_template:
-
-                        # Append the default tags
-                        for tag in case_template.tags:
-
-                            # If the tag does not already exist
-                            if tag not in case.tags:
-                                case.tags.append(tag)
-
-                        # Append the default tasks
-                        for task in case_template.tasks:
-                            case_task = CaseTask(title=task.title, description=task.description,
-                                                order=task.order, owner=task.owner, group=task.group,
-                                                from_template=True,
-                                                organization_uuid=current_user.organization.uuid)
-                            case.tasks.append(case_task)
-                        case.save()
-                        message = 'The case template **{}** was applied'.format(case_template.title)
-                        case.add_history(message=message)
-                """
+            if 'case_template_uuid' in api2.payload:
+                remove_successful = case.remove_template()
+                if remove_successful:
+                    case.apply_template(api2.payload['case_template_uuid'])
 
             case.update(**api2.payload)
 
@@ -2097,18 +1205,30 @@ class CaseDetails(Resource):
         ''' Deletes a case '''
         case = Case.get_by_uuid(uuid=uuid)
         if case:
-
-            # TODO: MIGRATE THIS
+            
             # Set any associated events back to New status
-            # for event in case.events:
-            #    event.status = EventStatus.query.filter_by(organization_uuid=current_user.organization.uuid, name='New').first()
-            #    event.save()
+            if case.events:
+                for event_uuid in case.events:
+                    event = Event.get_by_uuid(event_uuid)
+                    if event:
+                        event.case = None
+                        event.set_new()
 
-            # TODO: MIGRATE THIS
-            # case.events = []
-            # case.save()
-            # case.observables = []
-            # case.save()
+            observables = Observable.get_by_case_uuid(uuid=uuid)
+            if observables and len(observables) > 0:
+                [o.delete() for o in observables]
+
+            tasks = CaseTask.get_by_case(uuid=uuid, all_results=True)
+            if tasks and len(tasks) > 0:
+                [t.delete() for t in tasks]
+
+            comments = CaseComment.get_by_case(uuid=uuid)
+            if comments and len(comments) > 0:
+                [c.delete() for c in comments]
+
+            history = CaseHistory.get_by_case(uuid=uuid)
+            if history and len(history) > 0:
+                [h.delete() for h in history]
 
             case.delete()
             return {'message': 'Sucessfully deleted case.'}
@@ -2136,8 +1256,46 @@ class AddEventsToCase(Resource):
 
         case = Case.get_by_uuid(uuid=uuid)
         events = Event.get_by_uuid(uuid=api2.payload['events'])
+        
         if events:
-            case.add_event(list(events))
+            events_to_update = []
+            uuids = []
+            for event in events:
+                event_dict = event.to_dict()
+                event_dict['_meta'] = {
+                    'action': 'add_to_case',
+                    'case': case.uuid,
+                    '_id': event.meta.id
+                }
+                events_to_update.append(event_dict)
+                uuids.append(event.uuid)
+
+                if 'include_related_events' in api2.payload and api2.payload['include_related_events'] == True:
+                    related_events = Event.get_by_signature_and_status(signature=event.signature,
+                                                                       status='New',
+                                                                       all_events=True)
+                    if related_events:
+                        for related_event in related_events:
+                            if related_event.uuid != event.uuid:
+                                related_dict = related_event.to_dict()
+                                related_dict['_meta'] = {
+                                    'action': 'add_to_case',
+                                    'case': case.uuid,
+                                    '_id': related_event.meta.id
+                                }
+                                events_to_update.append(related_dict)
+                                uuids.append(related_event.uuid)
+            
+            if case.events:
+                [case.events.append(uuid) for uuid in uuids]
+            else:
+                case.events = uuids
+
+            if len(events_to_update) > 0:
+                [ep.enqueue(event) for event in events_to_update]
+
+            case.add_history(message=f'{len(events_to_update)} events added')
+            case.save()
             return "YARP"
         return "NARP"
 
@@ -2175,8 +1333,12 @@ class CaseObservable(Resource):
         case = Case.get_by_uuid(uuid=uuid)
 
         if case:
-            observable = case.get_observable_by_value(value=value)
-            return observable
+            search = Event.search()
+            search = search[0:1]
+            search = search.filter('term', case=uuid)
+            search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": value}}))
+
+            return {}
         else:
             ns_case_v2.abort(404, 'Observable not found.')
 
@@ -2190,15 +1352,52 @@ class CaseObservable(Resource):
     def put(self, uuid, value, current_user):
         ''' Updates a cases observable '''
 
-        observable = Observable.get_by_case_and_value(uuid, value)
+        observable = None
+        search = Event.search()
+        search = search[0:1]
+        search = search.filter('term', case=uuid)
+        search = search.query('nested', path='event_observables', query=Q({"term": {"event_observables.value.keyword": value}}))
+        event = search.execute()[0]
+        if event:
+            search = ObservableHistory.search()
+            search = search.filter('term', value=value)
+            search = search.filter('term', organization=event.organization)
+            search = search.sort({'created_at': {'order': 'desc'}})
+            search = search[0:1]
+            history = search.execute()
+
+            if history:
+                if len(history) >= 1:
+                    observable = history[0]
+                else:
+                    observable = history
+            else:
+                observable = [o for o in event.event_observables if o['value'] == value][0]
 
         if observable:
 
             # Can not flag an observable as safe if it is also flagged as an ioc
-            if observable.ioc and (observable.ioc == observable.safe):
-                ns_case_v2.abort(400, 'An observable can not be safe if it is an ioc.')
+            if 'safe' in api2.payload:
+                observable.safe = api2.payload['safe']
 
-            observable.update(**api2.payload, refresh=True)
+            if 'ioc' in api2.payload:
+                observable.ioc = api2.payload['ioc']
+
+            if 'spotted' in api2.payload:
+                observable.spotted = api2.payload['spotted']
+
+            if getattr(observable,'ioc') and getattr(observable,'safe'):
+                ns_case_v2.abort(400, 'An observable can not be an ioc if it is flagged safe.')
+
+            observable_dict = observable.to_dict()
+            if 'created_at' in observable_dict:
+                del observable_dict['created_at']
+            if 'created_by' in observable_dict:
+                del observable_dict['created_by']
+            observable_dict['organization'] = event.organization
+
+            observable_history = ObservableHistory(**observable_dict)
+            observable_history.save()
 
             return observable
         else:
@@ -2214,16 +1413,66 @@ class CaseAddObservables(Resource):
     @api2.marshal_with(mod_case_observables)
     @token_required
     @user_has('update_case')
+    @check_org
     def post(self, uuid, current_user):
         ''' Adds multiple observables to a case '''
         case = Case.get_by_uuid(uuid=uuid)
 
         if case:
-            observables = api2.payload['observables']
-            case.add_observables(observables, case.uuid)
-            case.add_history(f"Added {len(observables)} observables")
+
+            organization = case.organization
+            if 'organization' in api2.payload:
+                organization = api2.payload['organization']  
             
-            return {'observables': [o for o in observables]}
+            if 'observables' in api2.payload:
+                _observables = api2.payload['observables']
+                observables = []
+
+                # Make sure tags are in the observables
+                for observable in _observables:
+                    if 'tag' not in observable:
+                        observable['tag'] = []
+
+                    # If any of the values are not False, which is the default, add a history item
+                    # for this observable
+                    if True in (observable['ioc'], observable['spotted'], observable['safe']):
+                        observable_history = ObservableHistory(**observable, organization=organization)
+                        observable_history.save()
+
+                    observables.append(observable)
+
+                status = EventStatus.get_by_name(name='Open', organization=organization)
+
+                h = hashlib.md5()
+                h.update(str(datetime.datetime.utcnow().timestamp()).encode())
+                _id = base64.b64encode(h.digest()).decode()
+
+                event = Event(title='[REFLEX] User Added Observables',
+                                description=f'{current_user.username} has added additional observables to a case.',
+                                signature=case.uuid,
+                                event_observables=observables,
+                                case=case.uuid,
+                                tags=['manual-observables'],
+                                severity=1,
+                                status=status.to_dict(),
+                                organization=organization,
+                                raw_log='',
+                                source='reflex-system',
+                                reference=_id
+                            )
+                event.save()
+
+                if case.events:
+                    case.events.append(event.uuid)
+                else:
+                    case.events = [event.uuid]
+                case.save()
+                #case.add_observables(observables, case.uuid, organization=organization)
+                case.add_history(f"Added {len(observables)} observables")
+                
+                return {'observables': [o for o in observables]}
+            else:
+                return {'observables': []}
         else:
             ns_case_v2.abort(404, 'Case not found.')
 
@@ -2313,6 +1562,194 @@ class RelateCases(Resource):
             return []
 
 
+case_stats_parser = api2.parser()
+case_stats_parser.add_argument('title', location='args', default=[
+], type=str, action='split', required=False)
+case_stats_parser.add_argument('status', location='args', default=[
+], type=str, action='split', required=False)
+case_stats_parser.add_argument('tags', location='args', default=[
+], type=str, action='split', required=False)
+case_stats_parser.add_argument('owner', location='args', default=[
+], type=str, action='split', required=False)
+case_stats_parser.add_argument('close_reason', location='args', default=[
+], type=str, action='split', required=False)
+case_stats_parser.add_argument('top', location='args', default=10, type=int, required=False)
+case_stats_parser.add_argument('my_cases', location='args', required=False, type=xinputs.boolean)
+case_stats_parser.add_argument('escalated', location='args', required=False, type=xinputs.boolean)
+case_stats_parser.add_argument('interval', location='args', default='day', required=False, type=str)
+case_stats_parser.add_argument('start', location='args', type=str, required=False)
+case_stats_parser.add_argument('end', location='args', type=str, required=False)
+case_stats_parser.add_argument('metrics', location='args', action='split', default=['title','tag','status','severity','close_reason','owner','organization','escalated'])
+case_stats_parser.add_argument('organization', location='args', action='split', required=False)
+
+@ns_case_v2.route('/stats')
+class CaseStats(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(case_stats_parser)
+    @token_required
+    @user_has('view_cases')
+    def get(self, current_user):
+        '''
+        Returns metrics about cases that can be used for easier filtering
+        of cases on the Case List page
+        '''
+
+        args = case_stats_parser.parse_args()
+
+        # Set default start/end date filters if they are not set above
+        # We do this here because default= on add_argument() is only calculated when the API is initialized
+        if not args.start:
+            args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+        if not args.end:
+            args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
+
+        search_filters = []
+
+        if args.status and args.status != ['']:
+            search_filters.append({
+                'type': 'terms',
+                'field': 'status.name__keyword',
+                'value': args.status
+            })
+
+        if args.close_reason and args.close_reason != ['']:
+            search_filters.append({
+                'type': 'terms',
+                'field': 'close_reason.title__keyword',
+                'value': args.close_reason
+            })
+
+        if args.owner and args.owner not in ['', None, []] and not args.my_cases:
+            search_filters.append({
+                'type': 'terms',
+                'field': 'owner.username__keyword',
+                'value': args.owner
+            })
+
+        if args.my_cases:
+            search_filters.append({
+                'type': 'term',
+                'field': 'owner.username__keyword',
+                'value': current_user.username
+            })
+
+        if args.escalated == True:
+            search_filters.append({
+                'type': 'term',
+                'field': 'escalated',
+                'value': args.escalated
+            })
+
+        for arg in ['severity','title','tags','organization']:
+            if arg in args and args[arg] not in ['', None, []]:
+                search_filters.append({
+                    'type': 'terms',
+                    'field': arg,
+                    'value': args[arg]
+                })
+                
+        if args.start and args.end:
+                    search_filters.append({
+                        'type': 'range',
+                        'field': 'created_at',
+                        'value': {
+                            'gte': args.start,
+                            'lte': args.end
+                        }
+                    })
+
+        search = Case.search()
+
+        # Apply all filters
+        for _filter in search_filters:
+            search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+
+        search.aggs.bucket('range', 'filter', range={'created_at': {
+            'gte': args.start,
+            'lte': args.end
+        }})
+
+        if 'title' in args.metrics:
+            max_title = args.top if args.top != 10 else 100
+            search.aggs['range'].bucket('title', 'terms', field='title', size=max_title)
+
+        if 'tag' in args.metrics:
+            max_tags = args.top if args.top != 10 else 50
+            search.aggs['range'].bucket('tags', 'terms', field='tags', size=max_tags)
+
+        if 'close_reason' in args.metrics:
+            max_reasons = args.top if args.top != 10 else 10
+            search.aggs['range'].bucket('close_reason', 'terms', field='close_reason.title.keyword', size=max_reasons)
+
+        if 'status' in args.metrics:
+            max_status = args.top if args.top != 10 else 5
+            search.aggs['range'].bucket('status', 'terms', field='status.name.keyword', size=max_status)
+
+        if 'owner' in args.metrics:
+            max_status = args.top if args.top != 10 else 5
+            search.aggs['range'].bucket('owner', 'terms', field='owner.username.keyword', size=max_status)
+
+        if 'severity' in args.metrics:
+            max_severity = args.top if args.top != 10 else 10
+            search.aggs['range'].bucket('severity', 'terms', field='severity', size=max_severity)
+
+        if 'organization' in args.metrics:
+            max_organizations = args.top if args.top != 10 else 10
+            search.aggs['range'].bucket('organization', 'terms', field='organization', size=max_organizations)
+
+        if 'escalated' in args.metrics:
+            search.aggs['range'].bucket('escalated', 'terms', field='escalated', size=2)
+
+        search = search[0:0]
+
+        cases = search.execute()
+
+        if 'cases_over_time' in args.metrics:
+            cases_over_time = Case.search()
+       
+            cases_over_time = cases_over_time[0:0]
+
+            cases_over_time.aggs.bucket('range', 'filter', range={'created_at': {
+                        'gte': args.start,
+                        'lte': args.end
+                    }})
+
+            cases_over_time.aggs['range'].bucket('cases_per_day', 'date_histogram', field='created_at', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
+
+            cases_over_time = cases_over_time.execute()
+
+        metrics = {}
+
+        if 'title' in args.metrics:
+            metrics['title'] = {v['key']: v['doc_count'] for v in cases.aggs.range.title.buckets}
+
+        if 'tag' in args.metrics:
+            metrics['tags'] = {v['key']: v['doc_count'] for v in cases.aggs.range.tags.buckets}
+
+        if 'close_reason' in args.metrics:
+            metrics['close reason'] = {v['key']: v['doc_count'] for v in cases.aggs.range.close_reason.buckets}
+
+        if 'status' in args.metrics:
+            metrics['status'] = {v['key']: v['doc_count'] for v in cases.aggs.range.status.buckets}
+
+        if 'owner' in args.metrics:
+            metrics['owner'] = {v['key']: v['doc_count'] for v in cases.aggs.range.owner.buckets}
+
+        if 'severity' in args.metrics:
+            metrics['severity'] = {v['key']: v['doc_count'] for v in cases.aggs.range.severity.buckets}
+
+        if 'organization' in args.metrics:
+            metrics['organization'] = {v['key']: v['doc_count'] for v in cases.aggs.range.organization.buckets}
+          
+        if 'cases_over_time' in args.metrics:
+            metrics['cases_over_time'] = {v['key_as_string']: v['doc_count'] for v in cases_over_time.aggs.range.cases_per_day.buckets}
+
+        if 'escalated' in args.metrics:
+            metrics['escalated'] = {v['key']: v['doc_count'] for v in cases.aggs.range.escalated.buckets}
+
+        return metrics
+
 case_history_parser = api2.parser()
 case_history_parser.add_argument(
     'case_uuid', type=str, location='args', required=True)
@@ -2359,8 +1796,14 @@ class CaseCommentList(Resource):
 
         if 'case_uuid' in args:
             comments = CaseComment.get_by_case(uuid=args['case_uuid'])
+
+            for comment in comments:
+                if comment.cross_organization:
+                    organization = Organization.get_by_uuid(comment.other_organization)
+                    comment.__dict__['other_organization_name'] = organization.name
+
             if comments:
-                return [c for c in comments]
+                return list(comments)
             else:
                 return []
         else:
@@ -2381,6 +1824,16 @@ class CaseCommentList(Resource):
 
         case = Case.get_by_uuid(uuid=api2.payload['case_uuid'])
         if case:
+
+            # Append the organization of the case to the comment
+            api2.payload['organization'] = case.organization
+
+            # Appends the commenters organization if commenting across organizations
+            # useful when the default tenant comments on a sub-tenants cases
+            if current_user.organization != case.organization:
+                api2.payload['cross_organization'] = True
+                api2.payload['other_organization'] = current_user.organization
+
             case_comment = CaseComment(**api2.payload)
             case_comment.save()
             case.add_history(message="Comment added to case")
@@ -2436,6 +1889,7 @@ class CaseCommentDetails(Resource):
 
 case_template_parser = api2.parser()
 case_template_parser.add_argument('title', location='args', required=False)
+case_template_parser.add_argument('organization', location='args', required=False)
 
 
 @ns_case_template_v2.route("")
@@ -2446,18 +1900,23 @@ class CaseTemplateList(Resource):
     @api2.expect(case_template_parser)
     @token_required
     @user_has('view_case_templates')
+    @check_org
     def get(self, current_user):
         ''' Returns a list of case_template '''
 
         args = case_template_parser.parse_args()
-        case_templates = None
+
+        case_templates = CaseTemplate.search()
 
         if args['title']:
-            case_templates = CaseTemplate.title_search(search=args['title'])
-        else:
-            case_templates = CaseTemplate.search().execute()
+            case_templates = case_templates.filter('term', title=args.title)
+
+        if args['organization']:
+            case_templates = case_templates.filter('term', organization=args.organization)
+        
+        case_templates = list(case_templates.scan())
         if case_templates:
-            return [c for c in case_templates]
+            return case_templates
         else:
             return []
 
@@ -2474,7 +1933,13 @@ class CaseTemplateList(Resource):
         # return an error indicating as such
         case_template = CaseTemplate.get_by_title(title=api2.payload['title'])
         if case_template:
-            ns_case_template_v2.abort(409, 'Case Template already exists.')
+            if 'organization' in api2.payload:
+                if case_template.organization == api2.payload['organization']:
+                    ns_case_template_v2.abort(409, 'Case Template with that name already exists.')
+
+            elif case_template.organization == current_user.organization:
+                ns_case_template_v2.abort(409, 'Case Template with that name already exists.')
+
         else:
             ''' Creates a new case_template template '''
 
@@ -2512,6 +1977,7 @@ class CaseTemplateDetails(Resource):
     @api2.marshal_with(mod_case_template_full)
     @token_required
     @user_has('update_case_template')
+    @check_org
     def put(self, uuid, current_user):
         ''' Updates information for a case_template '''
         case_template = CaseTemplate.get_by_uuid(uuid=uuid)
@@ -2642,8 +2108,10 @@ class CaseTaskDetails(Resource):
     def put(self, uuid, current_user):
         ''' Updates information for a case_task '''
 
-        settings = Settings.load()
+        
         task = CaseTask.get_by_uuid(uuid=uuid)
+
+        settings = Settings.load(organization=task.organization)
 
         if task:
             if 'name' in api2.payload and CaseTask.get_by_title(title=api2.payload['title'], case_uuid=api2.payload['case_uuid']):
@@ -2655,7 +2123,7 @@ class CaseTaskDetails(Resource):
                     if api2.payload['status'] == 1:
 
                         # If set, automatically assign the task to the user starting the task
-                        if task.owner == [] and settings.assign_task_on_start:
+                        if task.owner == [] and settings and settings.assign_task_on_start:
                             task.start_task(current_user.uuid)
                         else:
                             task.start_task()
@@ -2714,37 +2182,96 @@ class TagList(Resource):
             ns_tag_v2.abort(409, 'Tag already exists.')
 
 
+input_list_parser = api2.parser()
+input_list_parser.add_argument('name', location='args', required=False)
+input_list_parser.add_argument('organization', location='args', required=False)
+input_list_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+input_list_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
+input_list_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+input_list_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
+
 @ns_input_v2.route("")
 class InputList(Resource):
 
     @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_input_list, as_list=True)
+    @api2.marshal_with(mod_input_list_paged, as_list=True)
+    @api2.expect(input_list_parser)
     @token_required
+    @default_org
     @user_has('view_inputs')
-    def get(self, current_user):
+    def get(self, user_in_default_org, current_user):
         ''' Returns a list of inputs '''
-        inputs = Input.search().execute()
-        if inputs:
-            return [i for i in inputs]
-        else:
-            return []
+
+        args = input_list_parser.parse_args()
+
+        inputs = Input.search()
+
+        if user_in_default_org:
+            if args.organization:
+                inputs = inputs.filter('term', organization=args.organization)
+
+        if args.name:
+            inputs = inputs.filter('wildcard', name=args.name+'*')
+
+        inputs, total_results, pages = page_results(inputs, args.page, args.page_size)
+
+        sort_by = args.sort_by
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
+
+        inputs = inputs.sort(sort_by)
+
+        inputs = inputs.execute()
+
+        response = {
+            'inputs': list(inputs),
+            'pagination': {
+                'total_results': total_results,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
+            }
+        }
+
+        return response
+        
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_input_create)
     @api2.response('409', 'Input already exists.')
     @api2.response('200', 'Successfully create the input.')
     @token_required
+    @default_org
     @user_has('add_input')
-    def post(self, current_user):
+    def post(self, user_in_default_org, current_user):
         ''' Creates a new input '''
         _tags = []
-        inp = Input.get_by_name(name=api2.payload['name'])
+
+        if user_in_default_org:
+            if 'organization' in api2.payload:
+                inp = Input.get_by_name(name=api2.payload['name'], organization=api2.payload['organization'])
+            else:
+                inp = Input.get_by_name(name=api2.payload['name'], organization=current_user.organization)
+        else:
+            inp = Input.get_by_name(name=api2.payload['name'], organization=current_user.organization)
 
         if not inp:
 
             if 'credential' in api2.payload:
                 cred_uuid = api2.payload.pop('credential')
                 api2.payload['credential'] = cred_uuid
+
+            # Strip the organization field if the user is not a member of the default
+            # organization
+            # TODO: replace with @check_org wrapper
+            if 'organization' in api2.payload and hasattr(current_user,'default_org') and not current_user.default_org:
+                api2.payload.pop('organization')
 
             if 'config' in api2.payload:
                 try:
@@ -2761,6 +2288,10 @@ class InputList(Resource):
                 except Exception:
                     ns_input_v2.abort(
                         400, 'Invalid JSON in field_mapping, check your syntax')
+            else:
+                ns_input_v2.abort(
+                    400, 'Field mappings are required.'
+                )
 
             inp = Input(**api2.payload)
             inp.save()
@@ -2828,23 +2359,61 @@ class AgentPairToken(Resource):
         '''
 
         settings = Settings.load()
-        return generate_token(None, settings.agent_pairing_token_valid_minutes, 'pairing')
+        return generate_token(None, settings.agent_pairing_token_valid_minutes, current_user.organization, 'pairing')
 
+
+agent_list_parser = api2.parser()
+agent_list_parser.add_argument('organization', location='args', required=False)
+agent_list_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+agent_list_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
+agent_list_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+agent_list_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
 
 @ns_agent_v2.route("")
 class AgentList(Resource):
 
     @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_agent_list, as_list=True)
+    @api2.marshal_with(mod_agent_list_paged, as_list=True)
+    @api2.expect(agent_list_parser)
     @token_required
+    @default_org
     @user_has('view_agents')
-    def get(self, current_user):
+    def get(self, user_in_default_org, current_user):
         ''' Returns a list of Agents '''
-        agents = Agent.search().execute()
-        if agents:
-            return [agent for agent in agents]
-        else:
-            return []
+
+        args = agent_list_parser.parse_args()
+
+        agents = Agent.search()
+
+        if user_in_default_org:
+            if args.organization:
+                agents = agents.filter('term', organization=args.organization)
+
+        sort_by = args.sort_by
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
+
+        agents = agents.sort(sort_by)
+
+        agents, total_results, pages = page_results(agents, args.page, args.page_size)
+
+        response = {
+            'agents': list(agents),
+            'pagination': {
+                'total_results': total_results,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
+            }
+        }
+
+        return response
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_agent_create)
@@ -2858,12 +2427,31 @@ class AgentList(Resource):
         agent = Agent.get_by_name(name=api2.payload['name'])
         if not agent:
 
+            groups = None
+            if 'groups' in api2.payload:
+                groups = api2.payload.pop('groups')
+                groups = AgentGroup.get_by_name(name=groups, organization=current_user['organization'])
+                if groups:
+                    if isinstance(groups, AgentGroup):
+                        api2.payload['groups'] = [groups.uuid]
+                    else:
+                        api2.payload['groups'] = [g.uuid for g in groups]
+
             agent = Agent(**api2.payload)
             agent.save()
-            role = Role.get_by_name(name='Agent')
+
+            # Add the agent to the groups
+            if groups:
+                if isinstance(groups, list):
+                    [group.add_agent(agent.uuid) for group in groups]
+                else:
+                    groups.add_agent(agent.uuid)
+            
+            # Add the agent to the agent role
+            role = Role.get_by_name(name='Agent', organization=agent.organization)
             role.add_user_to_role(agent.uuid)
 
-            token = generate_token(str(agent.uuid), 86400, token_type='agent')
+            token = generate_token(str(agent.uuid), 525600*5, token_type='agent', organization=current_user['organization'])
 
             return {'message': 'Successfully created the agent.', 'uuid': str(agent.uuid), 'token': token}
         else:
@@ -2918,7 +2506,7 @@ class AgentDetails(Resource):
         ''' Removes a Agent '''
         agent = Agent.get_by_uuid(uuid=uuid)
         if agent:
-            role = Role.get_by_name(name='Agent')
+            role = Role.get_by_name(name='Agent', organization=agent.organization)
             role.remove_user_from_role(uuid)
             agent.delete()
             return {'message': 'Agent successfully delete.'}
@@ -2957,10 +2545,24 @@ class AgentGroupDetails(Resource):
     @api2.expect(mod_agent_group_create)
     @api2.marshal_with(mod_agent_group_list)
     @token_required
+    @default_org
     @user_has('update_agent_group')
-    def put(self, uuid, current_user):
+    def put(self, uuid, user_in_default_org, current_user):
 
         group = AgentGroup.get_by_uuid(uuid)
+
+        exists = None
+        if 'name' in api2.payload:
+            if user_in_default_org:
+                if 'organization' in api2.payload:
+                    exists = AgentGroup.get_by_name(api2.payload['name'], organization=api2.payload['organization'])
+                else:
+                    exists = AgentGroup.get_by_name(api2.payload['name'])
+            else:
+                exists = AgentGroup.get_by_name(api2.payload['name'])
+       
+            if exists and exists.uuid != uuid:
+                ns_agent_group_v2.abort(409, "Group with this name already exists")
 
         if group:
             group.update(**api2.payload, refresh=True)
@@ -2973,8 +2575,27 @@ class AgentGroupDetails(Resource):
     def delete(self, uuid, current_user):
 
         group = AgentGroup.get_by_uuid(uuid)
+
+        # Do not allow for deleting groups with agents assigned
+        if len(group.agents) > 0:
+            ns_agent_group_v2.abort(400, 'Can not delete a group with agents assigned.')
+
         group.delete()
         return {'message': f'Successfully deleted Agent Group {group.name}'}, 200
+
+
+agent_group_list_parser = api2.parser()
+agent_group_list_parser.add_argument('organization', location='args', required=False)
+agent_group_list_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+agent_group_list_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
+agent_group_list_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+agent_group_list_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
 
 
 @ns_agent_group_v2.route("")
@@ -2982,17 +2603,44 @@ class AgentGroupList(Resource):
 
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_paged_agent_group_list)
+    @api2.expect(mod_agent_group_list_paged)
     @token_required
+    @default_org
     @user_has('view_agent_groups')
-    def get(self, current_user):
+    def get(self, user_in_default_org, current_user):
+
+        args = agent_group_list_parser.parse_args()
+
         groups = AgentGroup.search()
-        total_groups = groups.count()
+
+        if user_in_default_org:
+            if args.organization:
+                groups = groups.filter('term', organization=args.organization)
+
+        sort_by = args.sort_by
+        if sort_by not in ['name']:
+            sort_by = "created_at"
+
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
+
+        groups = groups.sort(sort_by)
+
+        groups, total_results, pages = page_results(groups, args.page, args.page_size)
+
         groups = groups.execute()
-        if groups:
-            groups = [g for g in groups]
-        else:
-            groups = []
-        return {'groups': groups, 'pagination': {'total_results': total_groups}}
+
+        response = {
+            'groups': list(groups),
+            'pagination': {
+                'total_results': total_results,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
+            }
+        }
+
+        return response
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_agent_group_create)
@@ -3000,14 +2648,28 @@ class AgentGroupList(Resource):
     @api2.response('200', 'Successfully created agent group.')
     @api2.response('409', 'Agent group already exists.')
     @token_required
+    @default_org
     @user_has('add_agent_group')
-    def post(self, current_user):
+    def post(self, user_in_default_org, current_user):
         '''
         Creates a new agent group that can be used to assign 
         certain stack features to specific agents
         '''
-        group = AgentGroup(**api2.payload)
-        group.save()
+       
+        if user_in_default_org:
+            if 'organization' in api2.payload:
+                group = AgentGroup.get_by_name(name=api2.payload['name'], organization=api2.payload['organization'])
+            else:
+                group = AgentGroup.get_by_name(name=api2.payload['name'])
+        else:
+            group = AgentGroup.get_by_name(name=api2.payload['name'])
+
+        if not group:
+
+            group = AgentGroup(**api2.payload)
+            group.save()
+        else:
+            ns_agent_group_v2.abort(409, 'Group with that name already exists.')
         return group
 
 
@@ -3038,21 +2700,26 @@ class EncryptPassword(Resource):
 
 cred_parser = pager_parser.copy()
 cred_parser.add_argument('name', location='args', required=False, type=str)
+cred_parser.add_argument('organization', location='args', required=False, type=str)
 cred_parser.add_argument('page', type=int, location='args', default=1, required=False)
 cred_parser.add_argument('sort_by', type=str, location='args', default='-created_at', required=False)
 cred_parser.add_argument('page_size', type=int, location='args', default=10, required=False)
+cred_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+cred_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
 
 @ns_credential_v2.route("")
 class CredentialList(Resource):
 
     @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_credential_list)
+    @api2.marshal_with(mod_credential_list_paged)
     @api2.expect(cred_parser)
     @token_required
     @user_has('view_credentials')
     def get(self, current_user):
-
-        
 
         args = cred_parser.parse_args()
 
@@ -3061,35 +2728,32 @@ class CredentialList(Resource):
         if 'name' in args and args.name not in [None, '']:
             credentials = credentials.filter('match', name=args.name)
 
+        if 'organization' in args and args.organization not in [None, '']:
+            credentials = credentials.filter('term', organization=args.organization)
+
         credentials = credentials.sort(args.sort_by)
 
-        total_creds = credentials.count()
+        sort_by = args.sort_by
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
 
-        page = args.page - 1
-        pages = math.ceil(float(total_creds / args['page_size']))
+        credentials = credentials.sort(sort_by)
 
-        start = page*args.page_size
-        end = start+args.page_size
+        credentials, total_results, pages = page_results(credentials, args.page, args.page_size)        
 
-        credentials = credentials[start:end]
         credentials = credentials.execute()
 
-        """ TODO: Make this the new return for credentials
-        return {
-            'logs': credentials,
+        response = {
+            'credentials': list(credentials),
             'pagination': {
-                'page': args.page,
-                'page_size': args.page_size,
-                'total_results': total_cred,
-                'pages': pages
+                'total_results': total_results,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
             }
         }
-        """
 
-        if credentials:
-            return list(credentials)
-        else:
-            return []
+        return response
 
 
 @ns_credential_v2.route('/decrypt/<uuid>')
@@ -3140,6 +2804,13 @@ class CredentialDetails(Resource):
         ''' Updates a credential '''
         credential = Credential.get_by_uuid(uuid=uuid)
         if credential:
+
+            # Strip the organization field if the user is not a member of the default
+            # organization
+            # TODO: replace with @check_org wrapper
+            if 'organization' in api2.payload and hasattr(current_user,'default_org') and not current_user.default_org:
+                api2.payload.pop('organization')
+                
             if 'name' in api2.payload:
                 cred = Credential.get_by_name(api2.payload['name'])
                 if cred:
@@ -3166,180 +2837,15 @@ class CredentialDetails(Resource):
         ''' Deletes a credential '''
         credential = Credential.get_by_uuid(uuid=uuid)
         if credential:
-            credential.delete()
-            return {'message': 'Credential successfully deleted.'}
+
+            # Prevent deletion from other organizations unless its from the default org
+            if current_user.default_org or current_user.organization == credential.organization:
+                credential.delete()
+                return {'message': 'Credential successfully deleted.'}
+            else:
+                ns_credential_v2.abort(401, 'Unauthorized.')
         else:
             ns_credential_v2.abort(404, 'Credential not found.')
-
-
-@ns_list_v2.route("")
-class ThreatListList(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_list_list, as_list=True)
-    @token_required
-    @user_has('view_lists')
-    def get(self, current_user):
-        ''' Returns a list of ThreatLists '''
-        lists = ThreatList.search().execute()
-        if lists:
-            return [l for l in lists]
-        else:
-            return []
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_list_create, validate=True)
-    @api2.marshal_with(mod_list_list)
-    @api2.response('409', 'ThreatList already exists.')
-    @api2.response('200', "Successfully created the list.")
-    @token_required
-    @user_has('add_list')
-    def post(self, current_user):
-        '''Creates a new ThreatList
-        
-        A threat list is what the system uses to determine if an observable
-        is malicious or suspicious in nature.  ThreatLists can be consumed
-        via target URLs or manually entered in to the system, or added to
-        via the API. 
-
-        Supported list types: `values|pattern`
-
-        When `url` is populated the `values` field will be ignored.
-
-        '''
-
-        value_list = ThreatList.get_by_name(name=api2.payload['name'])
-
-        if value_list:
-            ns_list_v2.abort(409, "ThreatList already exists.")
-
-        if api2.payload['list_type'] not in ['values', 'patterns']:
-            ns_list_v2.abort(400, "Invalid list type.")
-
-        # Remove any values entered by the user as they also want to pull
-        # from a URL and the URL will overwrite their additions
-        if 'url' in api2.payload:
-            del api2.payload['values']
-
-            # The polling interval must exist in the URL field exists
-            if 'polling_interval' not in api2.payload or api2.payload['polling_interval'] is None:
-                ns_list_v2.abort(400, 'Missing polling_interval')
-
-            # Don't let the user define an insanely fast polling interval
-            if api2.payload['polling_interval'] < 60:
-                ns_list_v2.abort(400, 'Invalid polling interval, must be greater than or equal to 60')
-
-
-        if 'values' in api2.payload:
-            _values = api2.payload.pop('values')
-            if not isinstance(_values, list):
-                _values = _values.split('\n')
-            values = []
-            for value in _values:
-                if value == '':
-                    continue
-                values.append(value)
-
-            api2.payload['values'] = values
-
-        if 'data_type_uuid' in api2.payload and DataType.get_by_uuid(api2.payload['data_type_uuid']) is None:
-            ns_list_v2.abort(400, "Invalid data type")
-
-        value_list = ThreatList(**api2.payload)
-        value_list.save()
-        return value_list            
-
-
-@ns_list_v2.route("/<uuid>")
-class ThreatListDetails(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_list_create)
-    @api2.marshal_with(mod_list_list)
-    @token_required
-    @user_has('update_list')
-    def put(self, uuid, current_user):
-        ''' Updates a ThreatList '''
-        value_list = ThreatList.get_by_uuid(uuid=uuid)
-        if value_list:
-
-            if 'name' in api2.payload:
-                l = ThreatList.get_by_name(name=api2.payload['name'])
-                if l and l.uuid != uuid:
-                    ns_list_v2.abort(
-                        409, 'ThreatList with that name already exists.')
-
-            if 'values' in api2.payload:
-
-                # Get the current values in the list
-                if value_list.values:
-                    current_values = [v for v in value_list.values]
-                else:
-                    current_values = []
-
-                # Determine what the new values should be, current, new or removed
-                _values = api2.payload.pop('values')
-
-                # Detect if the user sent it as a list or a \n delimited string
-                if _values and not isinstance(_values, list):
-                    _values = _values.split('\n')
-                else:
-                    _values = []
-
-                removed_values = [
-                    v for v in current_values if v not in _values and v != '']
-                new_values = [
-                    v for v in _values if v not in current_values and v != '']
-
-                # For all values not in the new list
-                # delete them from the database and disassociate them
-                # from the list
-                for v in removed_values:
-                    value_list.values.remove(v)
-
-                for v in new_values:
-                    if value_list.values:
-                        value_list.values.append(v)
-                    else:
-                        value_list.values = [v]
-
-                # Dedupe
-                value_list.values = list(set(value_list.values))
-
-                value_list.save()
-
-            # Update the list with all other fields
-            if len(api2.payload) > 0:
-                value_list.update(**api2.payload)
-
-            return value_list
-        else:
-            ns_list_v2.abort(404, 'ThreatList not found.')
-
-    @api2.doc(security="Bearer")
-    @token_required
-    @user_has('delete_list')
-    def delete(self, uuid, current_user):
-        ''' Removes a ThreatList '''
-        value_list = ThreatList.get_by_uuid(uuid=uuid)
-        if value_list:
-            value_list.delete()
-            return {'message': 'ThreatList successfully delete.'}
-        else:
-            ns_list_v2.abort(404, 'ThreatList not found.')
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_list_list)
-    @token_required
-    @user_has('view_lists')
-    def get(self, uuid, current_user):
-        ''' Gets the details of a ThreatList '''
-
-        value_list = ThreatList.get_by_uuid(uuid=uuid)
-        if value_list:
-            return value_list
-        else:
-            ns_list_v2.abort(404, 'ThreatList not found.')
 
 
 @ns_plugins_v2.route("")
@@ -3482,27 +2988,46 @@ class PluginUpload(Resource):
                 plugins.append(plugin)
         return plugins
 
+settings_parser = api2.parser()
+settings_parser.add_argument('organization', location='args', required=False)
 
 @ns_settings_v2.route("")
 class GlobalSettings(Resource):
 
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_settings)
+    @api2.expect(settings_parser)
     @token_required
+    @default_org
     @user_has('view_settings')
-    def get(self, current_user):
+    def get(self, user_in_default_org, current_user):
         ''' Retrieves the global settings for the system '''
-        settings = Settings.load()
+
+        args = settings_parser.parse_args()
+
+        if user_in_default_org:
+            if args.organization:
+                settings = Settings.load(organization=args.organization)
+            else:
+                settings = Settings.load(organization=current_user.organization)
+        else:
+            settings = Settings.load(organization=current_user.organization)
+            
         return settings
 
     @api2.doc(security="Bearer")
     @api2.expect(mod_settings)
     @token_required
     @user_has('update_settings')
+    @check_org
     def put(self, current_user):
 
+        organization = None
+        if 'organization' in api2.payload:
+            organization=api2.payload.pop('organization')
+
         if 'agent_pairing_token_valid_minutes' in api2.payload:
-            if int(api2.payload['agent_pairing_token_valid_minutes']) > 365:
+            if int(api2.payload['agent_pairing_token_valid_minutes']) > 525600:
                 ns_settings_v2.abort(
                     400, 'agent_pairing_token_valid_minutes can not be greated than 365 days.')
 
@@ -3512,7 +3037,7 @@ class GlobalSettings(Resource):
         if 'disallowed_password_keywords' in api2.payload and api2.payload['disallowed_password_keywords'] is not None:
             api2.payload['disallowed_password_keywords'] = api2.payload['disallowed_password_keywords'].split('\n')
              
-        settings = Settings.load()
+        settings = Settings.load(organization=organization)
         settings.update(**api2.payload)
 
         return {'message': 'Succesfully updated settings'}
@@ -3590,18 +3115,31 @@ class BackupData(Resource):
         else:
             ns_settings_v2.abort(400, 'Password missing.')
 
+persistent_token_parser = api2.parser()
+persistent_token_parser.add_argument('organization', location='args', required=False, type=str)
+
 @ns_settings_v2.route("/generate_persistent_pairing_token")
 class PersistentPairingToken(Resource):
 
     @api2.doc(security="Bearer")
     @api2.marshal_with(mod_persistent_pairing_token)
+    @api2.expect(persistent_token_parser)
     @token_required
+    @default_org
     @user_has('create_persistent_pairing_token')
-    def get(self, current_user):
+    def get(self, user_in_default_org, current_user):
         ''' Returns a new API key for the user making the request '''
-        settings = Settings.load()
-        return settings.generate_persistent_pairing_token()
 
+        args = persistent_token_parser.parse_args()
+
+        
+        settings = Settings.load(organization=current_user.organization)
+
+        if user_in_default_org:
+            if args.organization:
+                settings = Settings.load(organization=args.organization)           
+                
+        return settings.generate_persistent_pairing_token()
 
 @ns_dashboard_v2.route("")
 class DashboardMetrics(Resource):
@@ -3620,6 +3158,7 @@ class DashboardMetrics(Resource):
         last_event = None
         if events_sorted.count() > 0:
             last_event = [e for e in events_sorted[0:1]][0]
+
 
         return {
             'total_cases': cases.count(),
@@ -3641,53 +3180,3 @@ class HuntingQuery(Resource):
         results = search.execute()
         return results.to_dict()
 
-'''
-TESTING NETWORK GRAPHS
-@ns_observable_v2.route("/network")
-class ObservablesNetwork(Resource):
-
-    def get(self):
-
-        search = Observable.search()
-
-        search = search[0:]
-
-        search.aggs.bucket('value', 'terms', field='value', size=1, order={'_count': 'desc'})
-        search.aggs['value'].bucket('events', 'terms', field='events', size=25, order={'_count': 'desc'})
-
-        #print(json.dumps(search.to_dict(),indent=4))
-
-        results = search.execute()
-        nodes = {}
-        sources = []
-        targets = []
-        edges = {}
-
-        #print(json.dumps(results.aggs.to_dict(), indent=4))
-        for value in results.aggs.value:
-            sources.append(value['key'])
-            [targets.append(x['key']) for x in value.events.buckets]
-
-        node_num = 1
-        for s in sources:
-            nodes[f"node{node_num}"] = { "name": s }
-            node_num += 1
-
-        for t in targets:
-            nodes[f"node{node_num}"] = { "name": t }
-            node_num += 1
-
-        edge_num = 1
-        for k in nodes:
-            print(nodes[k]['name'])
-
-        for x in sources:
-            for t in targets:
-                edges[f"edge{edge_num}"] = { 
-                    "source": [k for k in nodes if nodes[k]['name'] == x][0], 
-                    "target": [k for k in nodes if nodes[k]['name'] == t][0]
-                }
-                edge_num += 1
-
-        return {'nodes': nodes, 'edges': edges}
-'''
