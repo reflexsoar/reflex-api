@@ -7,7 +7,7 @@ import datetime
 import threading
 from queue import Queue
 
-from app.api_v2.model.system import ObservableHistory
+from app.api_v2.model.system import ObservableHistory, Settings
 from flask import current_app
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import Event, Observable, EventRule, CloseReason, Q, Task
@@ -977,6 +977,10 @@ class EventBulkUpdate(Resource):
 
         task_id = None
 
+        settings = Settings.load(organization=current_user.organization)
+        if settings.require_event_dismiss_comment and 'dismiss_comment' not in api.payload:
+            api.abort(400, 'A dismiss comment is required.')
+
         if 'dismiss_reason_uuid' in api.payload:
             reason = CloseReason.get_by_uuid(uuid=api.payload['dismiss_reason_uuid'])
             if not reason:
@@ -1463,8 +1467,8 @@ event_bulk_select_parser.add_argument(
     'title__like', type=str, location='args', required=False
 )
 event_bulk_select_parser.add_argument('organization', location='args', action='split', required=False)
-event_bulk_select_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
-event_bulk_select_parser.add_argument('end', location='args', default=(datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+event_bulk_select_parser.add_argument('start', location='args', type=str, required=False)
+event_bulk_select_parser.add_argument('end', location='args', type=str, required=False)
 
 @api.route("/bulk_select_all")
 class BulkSelectAll(Resource):
@@ -1478,6 +1482,13 @@ class BulkSelectAll(Resource):
     def get(self, current_user):
         args = event_bulk_select_parser.parse_args()
         search_filters = []
+
+        # Set default start/end date filters if they are not set above
+        # We do this here because default= on add_argument() is only calculated when the API is initialized
+        if not args.start:
+            args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+        if not args.end:
+            args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
 
         if args.title__like and args.title__like != '':
             search_filters.append({
