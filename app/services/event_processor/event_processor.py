@@ -576,7 +576,7 @@ class EventWorker(Process):
         # If the rule says to add tags
         if rule.add_tags:
             if 'tags' in raw_event:
-                raw_event['tags'] += list(rule.tags_to_add)
+                raw_event['tags'] += rule.tags_to_add
             else:
                 if len(rule.tags_to_add) > 1:
                     raw_event['tags'] = list(rule.tags_to_add)
@@ -584,7 +584,11 @@ class EventWorker(Process):
                     raw_event['tags'] = [rule.tags_to_add]
 
             # Deduplicate tags
-            raw_event['tags'] = list(set(raw_event['tags']))
+            tags = []
+            for t in raw_event['tags']:
+                if isinstance(t, str) and t not in tags:
+                    tags.append(t)
+            raw_event['tags'] = tags
 
         # If the rule says to dismiss
         if rule.dismiss:

@@ -389,10 +389,6 @@ class ThreatListPoller(object):
                 if self.memcached_config and data:
                     self.logger.info(f'Pushing data to memcached')
                     if data_from_url and data:
-                        if l.name:
-                            print(l.name)
-                        else:
-                            print('unknown list name', l)
                         self.to_memcached(data, data_type.name, l.uuid, l.url, l.list_type, l.organization, ttl=l.poll_interval)
                     else:
                         self.to_memcached(l.values, data_type.name, l.uuid, 'manual_list', l.list_type, l.organization, ttl=0)
