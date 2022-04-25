@@ -284,15 +284,6 @@ class EventListAggregated(Resource):
             search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
             search.aggs['signature'].metric('max_date', 'max', field='original_date')
 
-            # If sorting by name add an additional bucket
-            #if args.sort_by == 'title':
-            #    search.aggs['signature'].bucket('sorter', 'terms', field='title', size=1)
-            #if args.sort_by == 'severity':
-            #    search.aggs['signature'].bucket('sorter', 'terms', field='severity', order={'_key': args.sort_direction}, size=5)
-            #    search.aggs['signature']['sorter'].metric('max_severity', 'max', field='severity')
-            #elif args.sort_by == 'tlp':
-            #    search.aggs['signature'].bucket('sorter', 'terms', field='tlp', size=5)
-
             events = search.execute()
 
             event_uuids = []
@@ -304,10 +295,6 @@ class EventListAggregated(Resource):
                 reverse_sort = True
 
             sigs = [s['key'] for s in events.aggs.signature.buckets] 
-            #if args.sort_by == 'created_at':
-            #    sigs = [s['key'] for s in sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'], reverse=reverse_sort)]
-            #else:
-            #    sigs = [s['key'] for s in sorted(events.aggs.signature.buckets, key=lambda sig: sig['sorter'].buckets[0]['key'], reverse=reverse_sort)]
 
             # START: Second aggregation based on signatures to find first UUID for card display purposes
             # performance necessary
@@ -360,6 +347,9 @@ class EventListAggregated(Resource):
             pages = math.ceil(float(len(sigs) / args.page_size))
             
             events = search.execute()
+
+            # Apply search filters to the event for performing related event calcuations
+            [e.set_filters(filters=search_filters) for e in events]
        
         # If filtering by a signature
         else:
@@ -958,10 +948,6 @@ class EventBulkDismiss(Resource):
             print(json.dumps(related_search.to_dict(), indent=2, default=str))
             related_events = list(related_search.scan())
 
-        #
-        #print(events)
-
-        #print(api.payload)
         return 200
         
 
