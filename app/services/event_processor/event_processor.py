@@ -590,6 +590,14 @@ class EventWorker(Process):
                     tags.append(t)
             raw_event['tags'] = tags
 
+        # If the rule says to merge in to case
+        if rule.merge_into_case:
+            raw_event['case'] = rule.target_case_uuid
+
+            status = next((s for s in self.statuses if s.organization ==
+                          raw_event['organization'] and s.name == 'Open'), None)
+            raw_event['status'] = status.to_dict()
+
         # If the rule says to dismiss
         if rule.dismiss:
             reason = next(
@@ -606,9 +614,6 @@ class EventWorker(Process):
                           raw_event['organization'] and s.name == 'Dismissed'), None)
             raw_event['status'] = status.to_dict()
 
-        # If the rule says to merge in to case
-        if rule.merge_into_case:
-            raw_event['case'] = rule.target_case_uuid
 
         if rule.update_severity:
             raw_event['severity'] = rule.target_severity
