@@ -876,6 +876,8 @@ class EventBulkDismiss(Resource):
 
         task_id = None
 
+        event_list = []
+
         settings = Settings.load(organization=current_user.organization)
         if settings.require_event_dismiss_comment and 'dismiss_comment' not in api.payload:
             api.abort(400, 'A dismiss comment is required.')
@@ -957,10 +959,10 @@ class EventBulkDismiss(Resource):
                     'lte': fields['end'][0]
                 })
 
-        print(fields)
+        #print(fields)
 
-        print(search.count())
-        print(json.dumps(search.to_dict(), indent=2, default=str))
+        #print(search.count())
+        #print(json.dumps(search.to_dict(), indent=2, default=str))
 
         events = list(search.scan())
         
@@ -997,14 +999,41 @@ class EventBulkDismiss(Resource):
 
             related_search = related_search.filter('terms', signature=signatures)
             
-            print(related_search.count())
-            print(json.dumps(related_search.to_dict(), indent=2, default=str))
+            #print(related_search.count())
+            #print(json.dumps(related_search.to_dict(), indent=2, default=str))
             related_events = list(related_search.scan())
             orgs = []
 
             [orgs.append(e.organization) for e in related_events if e.organization not in orgs]
             if len(orgs) > 1:
                 api.abort(400, 'Bulk actions across organizations is unsupported')
+            event_list = related_events
+        else:
+            event_list = events
+
+        if len(event_list) > 0:
+            task = Task()
+            task_id = task.create(task_type='bulk_dismiss_events')
+            event_count = 0
+            for event in event_list:
+                event_dict = event.to_dict()
+
+                event_dict['_meta'] = {
+                                'action': 'dismiss',
+                                'dismiss_reason': api.payload['dismiss_reason_uuid'],
+                                'dismiss_comment': api.payload['dismiss_comment'],
+                                '_id': event.meta.id,
+                                'updated_by': {
+                                    'organization': current_user.organization,
+                                    'username': current_user.username,
+                                    'uuid': current_user.uuid
+                                }
+                            }
+                ep.enqueue(event_dict)
+                event_count += 1
+            
+            task.set_message(f'{event_count} Events marked for bulk dismissal')
+            ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
             
         return 200
         
