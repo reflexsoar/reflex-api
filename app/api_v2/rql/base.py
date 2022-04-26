@@ -342,6 +342,10 @@ class RQLSearch:
         Returns True if a value matches the defined regular expression
         '''
 
+        def __init__(self, mutators=[], **target):
+            
+            super().__init__(mutators=mutators, **target)
+
         def __call__(self, obj):
 
             super().__call__(obj)
