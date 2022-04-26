@@ -874,6 +874,22 @@ class EventBulkDismiss(Resource):
         the events to dismiss
         '''
 
+        task_id = None
+
+        settings = Settings.load(organization=current_user.organization)
+        if settings.require_event_dismiss_comment and 'dismiss_comment' not in api.payload:
+            api.abort(400, 'A dismiss comment is required.')
+        
+        if settings.require_event_dismiss_comment and 'dismiss_comment' in api.payload and api.payload['dismiss_comment'] in [None, '']:
+            api.abort(400, 'A dismiss comment is required.')
+
+        if 'dismiss_reason_uuid' in api.payload:
+            reason = CloseReason.get_by_uuid(uuid=api.payload['dismiss_reason_uuid'])
+            if not reason:
+                api.abort(400, 'A dismiss reason is required.')                
+        else:
+            api.abort(400, 'A dismiss reason is required.')
+
         # Translate filter types to actual field names
         field_names = {
             'tag': 'tags',
@@ -947,12 +963,19 @@ class EventBulkDismiss(Resource):
         print(json.dumps(search.to_dict(), indent=2, default=str))
 
         events = list(search.scan())
+        
+        # Check to see if the user is trying to bulk dismiss across organizations/tenants
+        orgs = []
+        [orgs.append(e.organization) for e in events if e.organization not in orgs]
+        if len(orgs) > 1:
+            api.abort(400, 'Bulk dismissal actions organizations is unsupported')
+
         signatures = [e.signature for e in events]
         
         # If we need to include related events, 
         related_events = []
         if include_related and len(uuids) > 0:
-            print("SEARCHING FOR RELATED EVENTS")
+            #print("SEARCHING FOR RELATED EVENTS")
             related_search = Event.search()
 
             # Apply all the filters to the event query
@@ -977,7 +1000,12 @@ class EventBulkDismiss(Resource):
             print(related_search.count())
             print(json.dumps(related_search.to_dict(), indent=2, default=str))
             related_events = list(related_search.scan())
+            orgs = []
 
+            [orgs.append(e.organization) for e in related_events if e.organization not in orgs]
+            if len(orgs) > 1:
+                api.abort(400, 'Bulk actions across organizations is unsupported')
+            
         return 200
         
 
@@ -995,6 +1023,9 @@ class EventBulkUpdate(Resource):
 
         settings = Settings.load(organization=current_user.organization)
         if settings.require_event_dismiss_comment and 'dismiss_comment' not in api.payload:
+            api.abort(400, 'A dismiss comment is required.')
+
+        if settings.require_event_dismiss_comment and 'dismiss_comment' in api.payload and api.payload['dismiss_comment'] in [None, '']:
             api.abort(400, 'A dismiss comment is required.')
 
         if 'dismiss_reason_uuid' in api.payload:
