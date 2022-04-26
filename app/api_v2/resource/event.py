@@ -879,7 +879,11 @@ class EventBulkDismiss(Resource):
             'tag': 'tags',
             'title': 'title',
             'status': 'status.name__keyword',
-            'organization': 'organization'
+            'organization': 'organization',
+            'data_type': 'data_type',
+            'severity': 'severity',
+            'event_rule': 'event_rules',
+            'source': 'source'
         }
 
         # Calculate all the values for the specified field
@@ -892,6 +896,12 @@ class EventBulkDismiss(Resource):
                     fields[f['filter_type']] = [f['value']]
                 else:
                     fields[f['filter_type']].append(f['value'])
+
+        if 'start' not in fields:
+            fields['start'] = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+
+        if 'end' not in fields:
+            fields['end'] = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
 
         # Set the default state of "include_related"
         # If there is a signature filter never include related
@@ -916,11 +926,22 @@ class EventBulkDismiss(Resource):
         # Apply all the filters to the event query
         if not 'signature' in fields:
             for field in fields:
-                if field not in ['start', 'end', 'observable', 'signature']:
+                if field not in ['start', 'end', 'observable', 'signature', 'data type']:
                     search = search.filter('terms', **{field_names[field]: fields[field]})
 
                 if field == 'observable':
                     search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": fields[field]}}))
+
+                if field == 'data type':
+                    search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.data_type.keyword": fields['data type']}}))
+
+        if 'start' in fields and 'end' in fields:
+            search = search.filter('range', original_date={
+                    'gte': fields['start'][0],
+                    'lte': fields['end'][0]
+                })
+
+        print(fields)
 
         print(search.count())
         print(json.dumps(search.to_dict(), indent=2, default=str))
@@ -936,11 +957,20 @@ class EventBulkDismiss(Resource):
 
             # Apply all the filters to the event query
             for field in fields:
-                if field not in ['start', 'end', 'observable', 'signature']:
+                if field not in ['start', 'end', 'observable', 'signature', 'data type']:
                     related_search = related_search.filter('terms', **{field_names[field]: fields[field]})
 
                 if field == 'observable':
                     related_search = related_search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": fields[field]}}))
+
+                if field == 'data type':
+                    related_search = related_search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.data_type.keyword": fields['data type']}}))
+
+            if 'start' in fields and 'end' in fields:
+                related_search = related_search.filter('range', original_date={
+                    'gte': fields['start'][0],
+                    'lte': fields['end'][0]
+                })
 
             related_search = related_search.filter('terms', signature=signatures)
             
