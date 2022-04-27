@@ -102,10 +102,11 @@ class QueryLexer(object):
 
     def t_target(self, t):
         # TODO: Define all the fields a user can access here
-        r'''observables(\.([^\s\|]+))?|value|tlp|tags|spotted|safe|source_field|description
-        |data_type|ioc|original_source_field|title|severity|status(\.([^\s\|]+))?|reference|source
-        |signature|tags|raw_log(\.([^\s\|]+))?
-        '''
+        #r'''observables(\.([^\s\|]+))?|value|tlp|tags|spotted|safe|source_field|description
+        #|data_type|ioc|original_source_field|title|severity|status(\.([^\s\|]+))?|reference|source
+        #|signature|tags|raw_log(\.([^\s\|]+))?
+        #'''
+        r'''observables(\.([\.\w]+))?|value|tlp|tags|spotted|safe|source_field|description|data_type|ioc|original_source_field|title|severity|status(\.([\.\w]+))?|reference|source|signature|tags|raw_log(\.([\.\w]+))?'''
         return t
     
     def t_ARRAY(self, t):
