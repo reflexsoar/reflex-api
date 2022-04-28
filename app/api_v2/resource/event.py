@@ -944,7 +944,7 @@ class EventBulkDismiss(Resource):
         # Apply all the filters to the event query
         if not 'signature' in fields:
             for field in fields:
-                if field not in ['start', 'end', 'observable', 'signature', 'data type', 'title_like']:
+                if field not in ['start', 'end', 'observable', 'signature', 'data type', 'title__like']:
                     search = search.filter('terms', **{field_names[field]: fields[field]})
 
                 if field == 'title__like':
