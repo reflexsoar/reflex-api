@@ -948,7 +948,7 @@ class EventBulkDismiss(Resource):
                     search = search.filter('terms', **{field_names[field]: fields[field]})
 
                 if field == 'title__like':
-                    search  =search.filter('wildcard', title=f"*{fields[field]}*")
+                    search = search.filter('wildcard', title=f"*{fields[field][0]}*")
 
                 if field == 'observable':
                     search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": fields[field]}}))
@@ -984,12 +984,13 @@ class EventBulkDismiss(Resource):
             related_search = Event.search()
 
             # Apply all the filters to the event query
+            print(fields)
             for field in fields:
                 if field not in ['start', 'end', 'observable', 'signature', 'data type', 'title__like']:
                     related_search = related_search.filter('terms', **{field_names[field]: fields[field]})
 
                 if field == 'title__like':
-                    search  =search.filter('wildcard', title=f"*{fields[field]}*")
+                    related_search = related_search.filter('wildcard', title=f"*{fields[field][0]}*")
 
                 if field == 'observable':
                     related_search = related_search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": fields[field]}}))
