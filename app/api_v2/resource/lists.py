@@ -247,7 +247,7 @@ class ThreatListDetails(Resource):
     def put(self, uuid, current_user):
         ''' Updates a ThreatList '''
 
-        if 'url' in api.payload:
+        if 'url' in api.payload and api.payload['url']:
             del api.payload['values']
 
             # The polling interval must exist in the URL field exists
@@ -292,13 +292,14 @@ class ThreatListDetails(Resource):
                 # CSV lists contain multiple values so we don't set a base data_type
                 #api.payload['data_type_uuid'] = 'multiple'
 
-            if 'values' in api.payload and api.payload['values']:
+            if 'values' in api.payload:
 
                 values = api.payload.pop('values').split('\n')
-                value_list.set_values(values)
-                value_list.remove_values(values)
+                if len(values) > 0:
+                    value_list.set_values(values)
+                    value_list.remove_values(values)
 
-            print(api.payload)                
+            print(api.payload)
 
             # Update the list with all other fields
             if len(api.payload) > 0:
