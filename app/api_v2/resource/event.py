@@ -916,10 +916,10 @@ class EventBulkDismiss(Resource):
                     fields[f['filter_type']].append(f['value'])
 
         if 'start' not in fields:
-            fields['start'] = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+            fields['start'] = [(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')]
 
         if 'end' not in fields:
-            fields['end'] = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
+            fields['end'] = [(datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')]
 
         # Set the default state of "include_related"
         # If there is a signature filter never include related
@@ -944,8 +944,11 @@ class EventBulkDismiss(Resource):
         # Apply all the filters to the event query
         if not 'signature' in fields:
             for field in fields:
-                if field not in ['start', 'end', 'observable', 'signature', 'data type']:
+                if field not in ['start', 'end', 'observable', 'signature', 'data type', 'title_like']:
                     search = search.filter('terms', **{field_names[field]: fields[field]})
+
+                if field == 'title__like':
+                    search  =search.filter('wildcard', title=f"*{fields[field]}*")
 
                 if field == 'observable':
                     search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": fields[field]}}))
@@ -959,10 +962,10 @@ class EventBulkDismiss(Resource):
                     'lte': fields['end'][0]
                 })
 
-        #print(fields)
+        print(fields)
 
-        #print(search.count())
-        #print(json.dumps(search.to_dict(), indent=2, default=str))
+        print(search.count())
+        print(json.dumps(search.to_dict(), indent=2, default=str))
 
         events = list(search.scan())
         
@@ -977,13 +980,16 @@ class EventBulkDismiss(Resource):
         # If we need to include related events, 
         related_events = []
         if include_related and len(uuids) > 0:
-            #print("SEARCHING FOR RELATED EVENTS")
+            print("SEARCHING FOR RELATED EVENTS")
             related_search = Event.search()
 
             # Apply all the filters to the event query
             for field in fields:
-                if field not in ['start', 'end', 'observable', 'signature', 'data type']:
+                if field not in ['start', 'end', 'observable', 'signature', 'data type', 'title__like']:
                     related_search = related_search.filter('terms', **{field_names[field]: fields[field]})
+
+                if field == 'title__like':
+                    search  =search.filter('wildcard', title=f"*{fields[field]}*")
 
                 if field == 'observable':
                     related_search = related_search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": fields[field]}}))
@@ -999,8 +1005,8 @@ class EventBulkDismiss(Resource):
 
             related_search = related_search.filter('terms', signature=signatures)
             
-            #print(related_search.count())
-            #print(json.dumps(related_search.to_dict(), indent=2, default=str))
+            print(related_search.count())
+            print(json.dumps(related_search.to_dict(), indent=2, default=str))
             related_events = list(related_search.scan())
             orgs = []
 
