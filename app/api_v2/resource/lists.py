@@ -297,7 +297,8 @@ class ThreatListDetails(Resource):
                 values = api.payload.pop('values').split('\n')
                 value_list.set_values(values)
                 value_list.remove_values(values)
-                
+
+            print(api.payload)                
 
             # Update the list with all other fields
             if len(api.payload) > 0:

@@ -110,7 +110,11 @@ class ThreatListPoller(object):
                         value = value.lower()
 
                 hasher = hashlib.md5()
-                hasher.update(value.encode())
+                if isinstance(value, str):
+                    hasher.update(value.encode())
+                else:
+                    self.logger.error(f'Value {value} is not a string and cannot be encoded.')
+                    continue
                 value = hasher.hexdigest()
 
                 # TODO: Hash this for multitenancy to not expose observables to others if 
