@@ -888,7 +888,7 @@ class EventBulkDismiss(Resource):
         if 'dismiss_reason_uuid' in api.payload:
             reason = CloseReason.get_by_uuid(uuid=api.payload['dismiss_reason_uuid'])
             if not reason:
-                api.abort(400, 'A dismiss reason is required.')                
+                api.abort(400, 'A dismiss reason is required.')
         else:
             api.abort(400, 'A dismiss reason is required.')
 
@@ -1014,9 +1014,9 @@ class EventBulkDismiss(Resource):
             [orgs.append(e.organization) for e in related_events if e.organization not in orgs]
             if len(orgs) > 1:
                 api.abort(400, 'Bulk actions across organizations is unsupported')
-            event_list = related_events
-        else:
-            event_list = events
+
+        [event_list.append(e) for e in events if len(events) > 0 and e not in event_list]
+        [event_list.append(e) for e in related_events if len(related_events) > 0 and e not in event_list]
 
         if len(event_list) > 0:
             task = Task()
