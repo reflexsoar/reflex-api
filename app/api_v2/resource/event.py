@@ -962,10 +962,10 @@ class EventBulkDismiss(Resource):
                     'lte': fields['end'][0]
                 })
 
-        print(fields)
+        #print(fields)
 
-        print(search.count())
-        print(json.dumps(search.to_dict(), indent=2, default=str))
+        #print(search.count())
+        #print(json.dumps(search.to_dict(), indent=2, default=str))
 
         events = list(search.scan())
         
@@ -980,11 +980,11 @@ class EventBulkDismiss(Resource):
         # If we need to include related events, 
         related_events = []
         if include_related and len(uuids) > 0:
-            print("SEARCHING FOR RELATED EVENTS")
+            #print("SEARCHING FOR RELATED EVENTS")
             related_search = Event.search()
 
             # Apply all the filters to the event query
-            print(fields)
+            #print(fields)
             for field in fields:
                 if field not in ['start', 'end', 'observable', 'signature', 'data type', 'title__like']:
                     related_search = related_search.filter('terms', **{field_names[field]: fields[field]})
@@ -1006,8 +1006,8 @@ class EventBulkDismiss(Resource):
 
             related_search = related_search.filter('terms', signature=signatures)
             
-            print(related_search.count())
-            print(json.dumps(related_search.to_dict(), indent=2, default=str))
+            #print(related_search.count())
+            #print(json.dumps(related_search.to_dict(), indent=2, default=str))
             related_events = list(related_search.scan())
             orgs = []
 
