@@ -262,16 +262,22 @@ def mutate_is_ipv6(value):
     Returns True if the given value is an IPv6 address
     '''
 
-    ip = ipaddress.ip_address(value)
-    return isinstance(ip, ipaddress.IPv6Address)
+    try:
+        ip = ipaddress.ip_address(value)
+        return isinstance(ip, ipaddress.IPv6Address)
+    except Exception:
+        return False
 
 def mutate_is_multicast(value):
     '''
     Returns True if the given value is a multicast address
     '''
 
-    ip = ipaddress.ip_address(value)
-    return ip.is_multicast
+    try:
+        ip = ipaddress.ip_address(value)
+        return ip.is_multicast
+    except Exception:
+        return False
 
 
 def mutate_is_global(value):
@@ -279,8 +285,11 @@ def mutate_is_global(value):
     Returns True if the given value is a global address
     '''
 
-    ip = ipaddress.ip_address(value)
-    return ip.is_global
+    try:
+        ip = ipaddress.ip_address(value)
+        return ip.is_global
+    except Exception:
+        return False
 
 
 def mutate_is_private(value):
@@ -288,8 +297,11 @@ def mutate_is_private(value):
     Returns True if the given value is a private address
     '''
 
-    ip = ipaddress.ip_address(value)
-    return ip.is_private
+    try:
+        ip = ipaddress.ip_address(value)
+        return ip.is_private
+    except Exception:
+        return False    
 
 
 def resolve_dns(value, record_type):

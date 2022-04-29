@@ -143,8 +143,8 @@ class EventRuleList(Resource):
         event_rules = event_rules.filter('term', deleted=False)
 
         if args.rules:
-            event_rules = event_rules.filter('terms', uuid=args.rules)
-
+            event_rules = event_rules.filter('terms', uuid=list(set(args.rules)))
+            
         event_rules = list(event_rules.scan())
 
         response = {
@@ -237,9 +237,12 @@ class EventRuleList(Resource):
                     Queries for events and pushes them to the event queue for retro processing
                     '''
 
-                    if 'organization' in api_payload and api_payload['organization']:
+                    is_global = api_payload['global_rule'] if 'global_rule' in api_payload and api_payload['global_rule'] == True else False
+                    org_specified = api_payload['organization'] if 'organization' in api_payload and api_payload['organization'] != None else None
+
+                    if not is_global and org_specified:
                         events = events.filter('term', organization=api_payload['organization'])
-                    else:
+                    elif not is_global:
                         events = events.filter('term', organization=current_user.organization)
                         
                     events = events.filter('term', status__name__keyword='New')
@@ -264,7 +267,7 @@ class EventRuleList(Resource):
                             }
                             ep.enqueue(event_dict)
 
-                        ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                    ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
                 
                 skip_previous = False
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
@@ -345,9 +348,12 @@ class EventRuleDetails(Resource):
                     Queries for events and pushes them to the event queue for retro processing
                     '''
 
-                    if 'organization' in api_payload and api_payload['organization']:
+                    is_global = api_payload['global_rule'] if 'global_rule' in api_payload and api_payload['global_rule'] == True else False
+                    org_specified = api_payload['organization'] if 'organization' in api_payload and api_payload['organization'] != None else None
+
+                    if not is_global and org_specified:
                         events = events.filter('term', organization=api_payload['organization'])
-                    else:
+                    elif not is_global:
                         events = events.filter('term', organization=current_user.organization)
                         
                     events = events.filter('term', status__name__keyword='New')
@@ -372,7 +378,7 @@ class EventRuleDetails(Resource):
                             }
                             ep.enqueue(event_dict)
 
-                        ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                    ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
                 
                 skip_previous = False
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:

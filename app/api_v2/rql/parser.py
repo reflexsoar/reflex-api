@@ -102,10 +102,11 @@ class QueryLexer(object):
 
     def t_target(self, t):
         # TODO: Define all the fields a user can access here
-        r'''observables(\.([^\s\|]+))?|value|tlp|tags|spotted|safe|source_field|description
-        |data_type|ioc|original_source_field|title|severity|status(\.([^\s\|]+))?|reference|source
-        |signature|tags|raw_log(\.([^\s\|]+))?
-        '''
+        #r'''observables(\.([^\s\|]+))?|value|tlp|tags|spotted|safe|source_field|description
+        #|data_type|ioc|original_source_field|title|severity|status(\.([^\s\|]+))?|reference|source
+        #|signature|tags|raw_log(\.([^\s\|]+))?
+        #'''
+        r'''observables(\.([\.\w]+))?|value|tlp|tags|spotted|safe|source_field|description|data_type|ioc|original_source_field|title|severity|status(\.([\.\w]+))?|reference|source|signature|tags|raw_log(\.([\.\w]+))?'''
         return t
     
     def t_ARRAY(self, t):
@@ -430,9 +431,9 @@ class QueryParser(object):
         
         mutators, field, target, op = self.extract_mutators_and_fields(p)
         if contains_not:
-            p[0] = self.search.Not(self.search.RegExp(**{field: target}))
+            p[0] = self.search.Not(self.search.RegExp(mutators=mutators, **{field: target}))
         else:
-            p[0] = self.search.RegExp(**{field: target})
+            p[0] = self.search.RegExp(mutators=mutators, **{field: target})
 
     def p_expression_is(self, p):
         '''expression : target IS BOOL

@@ -7,15 +7,16 @@ import datetime
 import threading
 from queue import Queue
 
-from app.api_v2.model.system import ObservableHistory
+from app.api_v2.model.system import ObservableHistory, Settings
 from flask import current_app
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
-from ..model import Event, Observable, EventRule, CloseReason, Q, Task
+from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus
 from ..model.exceptions import EventRuleFailure
 from ..utils import token_required, user_has, log_event
 from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged
 from ... import ep
 from pymemcache.client.base import Client
+
 
 api = Namespace('Events', description='Event related operations', path='/event')
 
@@ -284,15 +285,6 @@ class EventListAggregated(Resource):
             search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
             search.aggs['signature'].metric('max_date', 'max', field='original_date')
 
-            # If sorting by name add an additional bucket
-            #if args.sort_by == 'title':
-            #    search.aggs['signature'].bucket('sorter', 'terms', field='title', size=1)
-            #if args.sort_by == 'severity':
-            #    search.aggs['signature'].bucket('sorter', 'terms', field='severity', order={'_key': args.sort_direction}, size=5)
-            #    search.aggs['signature']['sorter'].metric('max_severity', 'max', field='severity')
-            #elif args.sort_by == 'tlp':
-            #    search.aggs['signature'].bucket('sorter', 'terms', field='tlp', size=5)
-
             events = search.execute()
 
             event_uuids = []
@@ -304,10 +296,6 @@ class EventListAggregated(Resource):
                 reverse_sort = True
 
             sigs = [s['key'] for s in events.aggs.signature.buckets] 
-            #if args.sort_by == 'created_at':
-            #    sigs = [s['key'] for s in sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'], reverse=reverse_sort)]
-            #else:
-            #    sigs = [s['key'] for s in sorted(events.aggs.signature.buckets, key=lambda sig: sig['sorter'].buckets[0]['key'], reverse=reverse_sort)]
 
             # START: Second aggregation based on signatures to find first UUID for card display purposes
             # performance necessary
@@ -360,6 +348,9 @@ class EventListAggregated(Resource):
             pages = math.ceil(float(len(sigs) / args.page_size))
             
             events = search.execute()
+
+            # Apply search filters to the event for performing related event calcuations
+            [e.set_filters(filters=search_filters) for e in events]
        
         # If filtering by a signature
         else:
@@ -884,13 +875,37 @@ class EventBulkDismiss(Resource):
         the events to dismiss
         '''
 
+        task_id = None
+
+        event_list = []
+
+        settings = Settings.load(organization=current_user.organization)
+        if settings.require_event_dismiss_comment and 'dismiss_comment' not in api.payload:
+            api.abort(400, 'A dismiss comment is required.')
+        
+        if settings.require_event_dismiss_comment and 'dismiss_comment' in api.payload and api.payload['dismiss_comment'] in [None, '']:
+            api.abort(400, 'A dismiss comment is required.')
+
+        if 'dismiss_reason_uuid' in api.payload:
+            reason = CloseReason.get_by_uuid(uuid=api.payload['dismiss_reason_uuid'])
+            if not reason:
+                api.abort(400, 'A dismiss reason is required.')
+        else:
+            api.abort(400, 'A dismiss reason is required.')
+
         # Translate filter types to actual field names
         field_names = {
             'tag': 'tags',
             'title': 'title',
             'status': 'status.name__keyword',
-            'organization': 'organization'
+            'organization': 'organization',
+            'data_type': 'data_type',
+            'severity': 'severity',
+            'event_rule': 'event_rules',
+            'source': 'source'
         }
+
+        ubq = UpdateByQuery(index='reflex-events')
 
         # Calculate all the values for the specified field
         fields = {}
@@ -902,6 +917,12 @@ class EventBulkDismiss(Resource):
                     fields[f['filter_type']] = [f['value']]
                 else:
                     fields[f['filter_type']].append(f['value'])
+
+        if 'start' not in fields:
+            fields['start'] = [(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')]
+
+        if 'end' not in fields:
+            fields['end'] = [(datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')]
 
         # Set the default state of "include_related"
         # If there is a signature filter never include related
@@ -919,49 +940,164 @@ class EventBulkDismiss(Resource):
             include_related = False
             if not uuids:
                 search = search.query('terms', signature=fields['signature'])
+                ubq = ubq.query('terms', signature=fields['signature'])
         
         if uuids:
             search = search.query('terms', uuid=api.payload['uuids'])
+            ubq = ubq.query('terms', uuid=api.payload['uuids'])
             
         # Apply all the filters to the event query
         if not 'signature' in fields:
             for field in fields:
-                if field not in ['start', 'end', 'observable', 'signature']:
+                if field not in ['start', 'end', 'observable', 'signature', 'data type', 'title__like']:
                     search = search.filter('terms', **{field_names[field]: fields[field]})
+                    ubq = ubq.filter('terms', **{field_names[field]: fields[field]})
+
+                if field == 'title__like':
+                    search = search.filter('wildcard', title=f"*{fields[field][0]}*")
+                    ubq = ubq.filter('wildcard', title=f"*{fields[field][0]}*")
 
                 if field == 'observable':
                     search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": fields[field]}}))
+                    ubq = ubq.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": fields[field]}}))
 
-        print(search.count())
-        print(json.dumps(search.to_dict(), indent=2, default=str))
+                if field == 'data type':
+                    search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.data_type.keyword": fields['data type']}}))
+                    ubq = ubq.query('nested', path='event_observables', query=Q({"terms": {"event_observables.data_type.keyword": fields['data type']}}))
+
+        if 'start' in fields and 'end' in fields:
+            search = search.filter('range', original_date={
+                    'gte': fields['start'][0],
+                    'lte': fields['end'][0]
+                })
+            ubq = ubq.filter('range', original_date={
+                    'gte': fields['start'][0],
+                    'lte': fields['end'][0]
+                })
+
+        status = EventStatus.get_by_name(name='Dismissed', organization=reason.organization)
+
+        ubq = ubq.script(
+            source="ctx._source.dismiss_comment = params.dismiss_comment; ctx._source.dismiss_reason = params.dismiss_reason; ctx._source.status.name = params.status_name; ctx._source.status.uuid = params.uuid",
+            params={
+                'dismiss_comment': api.payload['dismiss_comment'],
+                'dismiss_reason': api.payload['dismiss_reason_uuid'],
+                'status_name': status.name,
+                'uuid': status.uuid
+            }
+        )
+        ubq = ubq.params(slices='auto', scroll_size=10000, refresh=True)
+
+        #print(fields)
+
+        #print(search.count())
+        #print(json.dumps(search.to_dict(), indent=2, default=str))
 
         events = list(search.scan())
+        
+        # Check to see if the user is trying to bulk dismiss across organizations/tenants
+        orgs = []
+        [orgs.append(e.organization) for e in events if e.organization not in orgs]
+        if len(orgs) > 1:
+            api.abort(400, 'Bulk dismissal actions organizations is unsupported')
+
+        x = ubq.execute()
+        #print(ubq.to_dict())
+
         signatures = [e.signature for e in events]
         
         # If we need to include related events, 
         related_events = []
         if include_related and len(uuids) > 0:
-            print("SEARCHING FOR RELATED EVENTS")
+            #print("SEARCHING FOR RELATED EVENTS")
             related_search = Event.search()
+            rubq = UpdateByQuery(index='reflex-events')
 
             # Apply all the filters to the event query
+            #print(fields)
             for field in fields:
-                if field not in ['start', 'end', 'observable', 'signature']:
+                if field not in ['start', 'end', 'observable', 'signature', 'data type', 'title__like']:
                     related_search = related_search.filter('terms', **{field_names[field]: fields[field]})
+                    rubq = rubq.filter('terms', **{field_names[field]: fields[field]})
+
+                if field == 'title__like':
+                    related_search = related_search.filter('wildcard', title=f"*{fields[field][0]}*")
+                    rubq = rubq.filter('wildcard', title=f"*{fields[field][0]}*")
 
                 if field == 'observable':
                     related_search = related_search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": fields[field]}}))
+                    rubq = rubq.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": fields[field]}}))
+
+                if field == 'data type':
+                    related_search = related_search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.data_type.keyword": fields['data type']}}))
+                    rubq = rubq.query('nested', path='event_observables', query=Q({"terms": {"event_observables.data_type.keyword": fields['data type']}}))
+
+            if 'start' in fields and 'end' in fields:
+                related_search = related_search.filter('range', original_date={
+                    'gte': fields['start'][0],
+                    'lte': fields['end'][0]
+                })
+                rubq = rubq.filter('range', original_date={
+                    'gte': fields['start'][0],
+                    'lte': fields['end'][0]
+                })
 
             related_search = related_search.filter('terms', signature=signatures)
+            rubq = rubq.filter('terms', signature=signatures)
+            rubq = rubq.filter('bool', must_not=[Q('terms', uuid=api.payload['uuids'])])
             
-            print(related_search.count())
-            print(json.dumps(related_search.to_dict(), indent=2, default=str))
+            #print(related_search.count())
+            #print(json.dumps(related_search.to_dict(), indent=2, default=str))
             related_events = list(related_search.scan())
+            orgs = []
 
-        #
-        #print(events)
+            [orgs.append(e.organization) for e in related_events if e.organization not in orgs]
+            if len(orgs) > 1:
+                api.abort(400, 'Bulk actions across organizations is unsupported')
 
-        #print(api.payload)
+            rubq = rubq.script(
+                source="ctx._source.dismiss_comment = params.dismiss_comment; ctx._source.dismiss_reason = params.dismiss_reason; ctx._source.status.name = params.status_name; ctx._source.status.uuid = params.uuid",
+                params={
+                    'dismiss_comment': api.payload['dismiss_comment'],
+                    'dismiss_reason': api.payload['dismiss_reason_uuid'],
+                    'status_name': status.name,
+                    'uuid': status.uuid
+                }
+            )
+            rubq = rubq.params(slices='auto', scroll_size=10000, refresh=True)
+
+            x = rubq.execute()
+
+        """[event_list.append(e) for e in events if len(events) > 0 and e not in event_list]
+        [event_list.append(e) for e in related_events if len(related_events) > 0 and e not in event_list]
+
+        if len(event_list) > 0:
+            task = Task()
+            task_id = task.create(task_type='bulk_dismiss_events')
+            event_count = 0
+            for event in event_list:
+                event_dict = event.to_dict()
+
+                event_dict['_meta'] = {
+                                'action': 'dismiss',
+                                'dismiss_reason': api.payload['dismiss_reason_uuid'],
+                                'dismiss_comment': api.payload['dismiss_comment'],
+                                '_id': event.meta.id,
+                                'updated_by': {
+                                    'organization': current_user.organization,
+                                    'username': current_user.username,
+                                    'uuid': current_user.uuid
+                                }
+                            }
+                ep.enqueue(event_dict)
+                event_count += 1
+            
+            task.set_message(f'{event_count} Events marked for bulk dismissal')
+            ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})"""
+
+        # Give ES time to do it's thing
+        time.sleep(1)
+            
         return 200
         
 
@@ -976,6 +1112,13 @@ class EventBulkUpdate(Resource):
         ''' Dismiss multiple events at the same time '''
 
         task_id = None
+
+        settings = Settings.load(organization=current_user.organization)
+        if settings.require_event_dismiss_comment and 'dismiss_comment' not in api.payload:
+            api.abort(400, 'A dismiss comment is required.')
+
+        if settings.require_event_dismiss_comment and 'dismiss_comment' in api.payload and api.payload['dismiss_comment'] in [None, '']:
+            api.abort(400, 'A dismiss comment is required.')
 
         if 'dismiss_reason_uuid' in api.payload:
             reason = CloseReason.get_by_uuid(uuid=api.payload['dismiss_reason_uuid'])
@@ -1159,6 +1302,10 @@ class EventStats(Resource):
             args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
         
         search_filters = []
+
+        # Prevent sub-tenants from seeing the organization metric
+        if 'organization' in args.metrics and not hasattr(current_user,'default_org'):
+            args.metrics.remove('organization')
 
         if args.title__like and args.title__like != '':
             search_filters.append({
@@ -1459,8 +1606,8 @@ event_bulk_select_parser.add_argument(
     'title__like', type=str, location='args', required=False
 )
 event_bulk_select_parser.add_argument('organization', location='args', action='split', required=False)
-event_bulk_select_parser.add_argument('start', location='args', default=(datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
-event_bulk_select_parser.add_argument('end', location='args', default=(datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S'), type=str, required=False)
+event_bulk_select_parser.add_argument('start', location='args', type=str, required=False)
+event_bulk_select_parser.add_argument('end', location='args', type=str, required=False)
 
 @api.route("/bulk_select_all")
 class BulkSelectAll(Resource):
@@ -1474,6 +1621,13 @@ class BulkSelectAll(Resource):
     def get(self, current_user):
         args = event_bulk_select_parser.parse_args()
         search_filters = []
+
+        # Set default start/end date filters if they are not set above
+        # We do this here because default= on add_argument() is only calculated when the API is initialized
+        if not args.start:
+            args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+        if not args.end:
+            args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
 
         if args.title__like and args.title__like != '':
             search_filters.append({

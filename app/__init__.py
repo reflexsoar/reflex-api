@@ -260,6 +260,7 @@ def create_app(environment='development'):
 
     if not app.config['EVENT_PROCESSOR']['DISABLED']:
         ep.init_app(app)
+        ep.set_log_level(app.config['EVENT_PROCESSOR']['LOG_LEVEL'])
         ep.spawn_workers()
 
     from app.api_v2.resources import api2

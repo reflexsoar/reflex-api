@@ -246,7 +246,20 @@ class ThreatListDetails(Resource):
     @check_org
     def put(self, uuid, current_user):
         ''' Updates a ThreatList '''
+
+        if 'url' in api.payload and api.payload['url']:
+            del api.payload['values']
+
+            # The polling interval must exist in the URL field exists
+            if 'poll_interval' not in api.payload or api.payload['poll_interval'] is None:
+                api.abort(400, 'Missing poll_interval')
+
+            # Don't let the user define an insanely fast polling interval
+            if int(api.payload['poll_interval']) < 60:
+                api.abort(400, 'Invalid polling interval, must be greater than or equal to 60')
+
         value_list = ThreatList.get_by_uuid(uuid=uuid)
+
         if value_list:
 
             if 'name' in api.payload:
@@ -279,11 +292,12 @@ class ThreatListDetails(Resource):
                 # CSV lists contain multiple values so we don't set a base data_type
                 #api.payload['data_type_uuid'] = 'multiple'
 
-            if 'values' in api.payload and api.payload['values']:
+            if 'values' in api.payload:
 
                 values = api.payload.pop('values').split('\n')
-                value_list.set_values(values)
-                value_list.remove_values(values)
+                if len(values) > 0:
+                    value_list.set_values(values)
+                    value_list.remove_values(values)
 
             # Update the list with all other fields
             if len(api.payload) > 0:

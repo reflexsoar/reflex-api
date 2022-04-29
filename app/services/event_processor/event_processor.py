@@ -80,6 +80,18 @@ class EventProcessor:
         self.workers = []
         self.event_cache = []
 
+    def set_log_level(self, log_level):
+        '''Allows for changing the log level after initialization'''
+
+        log_levels = {
+            'DEBUG': logging.DEBUG,
+            'ERROR': logging.ERROR,
+            'INFO': logging.INFO
+        }
+
+        self.logger.setLevel(log_levels[log_level])
+        self.log_level = log_level
+
 
     def init_app(self, app, **defaults):
         ''' Initialize the EventProcessor from within an application factory '''
@@ -576,7 +588,7 @@ class EventWorker(Process):
         # If the rule says to add tags
         if rule.add_tags:
             if 'tags' in raw_event:
-                raw_event['tags'] += list(rule.tags_to_add)
+                raw_event['tags'] += rule.tags_to_add
             else:
                 if len(rule.tags_to_add) > 1:
                     raw_event['tags'] = list(rule.tags_to_add)
@@ -584,7 +596,19 @@ class EventWorker(Process):
                     raw_event['tags'] = [rule.tags_to_add]
 
             # Deduplicate tags
-            raw_event['tags'] = list(set(raw_event['tags']))
+            tags = []
+            for t in raw_event['tags']:
+                if isinstance(t, str) and t not in tags:
+                    tags.append(t)
+            raw_event['tags'] = tags
+
+        # If the rule says to merge in to case
+        if rule.merge_into_case:
+            raw_event['case'] = rule.target_case_uuid
+
+            status = next((s for s in self.statuses if s.organization ==
+                          raw_event['organization'] and s.name == 'Open'), None)
+            raw_event['status'] = status.to_dict()
 
         # If the rule says to dismiss
         if rule.dismiss:
@@ -602,9 +626,6 @@ class EventWorker(Process):
                           raw_event['organization'] and s.name == 'Dismissed'), None)
             raw_event['status'] = status.to_dict()
 
-        # If the rule says to merge in to case
-        if rule.merge_into_case:
-            raw_event['case'] = rule.target_case_uuid
 
         if rule.update_severity:
             raw_event['severity'] = rule.target_severity

@@ -23,7 +23,8 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
         A,
         Search,
         Nested,
-        Q
+        Q,
+        UpdateByQuery
     )
 else:
     from elasticsearch_dsl.utils import AttrList
@@ -42,7 +43,8 @@ else:
         A,
         Search,
         Nested,
-        Q
+        Q,
+        UpdateByQuery
     )
 
 from .user import User, Role, ExpiredToken, Organization
