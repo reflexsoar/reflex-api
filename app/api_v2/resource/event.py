@@ -1094,6 +1094,9 @@ class EventBulkDismiss(Resource):
             
             task.set_message(f'{event_count} Events marked for bulk dismissal')
             ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})"""
+
+        # Give ES time to do it's thing
+        time.sleep(1)
             
         return 200
         
