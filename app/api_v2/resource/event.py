@@ -986,7 +986,7 @@ class EventBulkDismiss(Resource):
                 'uuid': status.uuid
             }
         )
-        ubq = ubq.params(slices='auto')
+        ubq = ubq.params(slices='auto', scroll_size=10000, refresh=True)
 
         #print(fields)
 
@@ -1064,7 +1064,7 @@ class EventBulkDismiss(Resource):
                     'uuid': status.uuid
                 }
             )
-            rubq = rubq.params(slices='auto')
+            rubq = rubq.params(slices='auto', scroll_size=10000, refresh=True)
 
             x = rubq.execute()
 
