@@ -80,6 +80,18 @@ class EventProcessor:
         self.workers = []
         self.event_cache = []
 
+    def set_log_level(self, log_level):
+        '''Allows for changing the log level after initialization'''
+
+        log_levels = {
+            'DEBUG': logging.DEBUG,
+            'ERROR': logging.ERROR,
+            'INFO': logging.INFO
+        }
+
+        self.logger.setLevel(log_levels[log_level])
+        self.log_level = log_level
+
 
     def init_app(self, app, **defaults):
         ''' Initialize the EventProcessor from within an application factory '''
