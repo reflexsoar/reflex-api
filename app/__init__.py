@@ -144,7 +144,7 @@ def setup(app):
     app.logger.info("Creating default admin role")
     create_admin_role(Role, admin_id, org_id, org_perms=True)
     app.logger.info("Creating default analyst role")
-    create_analyst_role(Role, org_id)
+    create_analyst_role(Role, org_id, org_perms=True)
     app.logger.info("Creating default agent role")
     create_agent_role(Role,org_id)
     app.logger.info("Creating default data types")
