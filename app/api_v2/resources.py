@@ -441,9 +441,10 @@ class UserDetails(Resource):
                         ns_user_v2.abort(409, 'Email already taken.')
                 organization = Organization.get_by_uuid(user.organization)
                 if organization:
-                    email_domain = api2.payload['email'].split('@')[1]
-                    if email_domain not in organization.logon_domains:
-                        ns_user_v2.abort(400, 'Invalid logon domain.')
+                    if 'email' in api2.payload:
+                        email_domain = api2.payload['email'].split('@')[1]
+                        if email_domain not in organization.logon_domains:
+                            ns_user_v2.abort(400, 'Invalid logon domain.')
 
             if 'password' in api2.payload and not current_user.has_right('reset_user_password'):
                 api2.payload.pop('password')
