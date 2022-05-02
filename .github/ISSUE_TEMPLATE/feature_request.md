@@ -20,4 +20,4 @@ A clear and concise description of any alternative solutions or features you've 
 Add any other context or screenshots about the feature request here.
 
 **Sponsored Feature**
-Is this a feature you would be willing to sponsor to speed up development?  If yes, please send this issue # to infosec@hasecuritysolutions.com to inquire about sponsorship options.
+Is this a feature you would be willing to sponsor to speed up development?  If yes, please send this issue # to info@hasecuritysolutions.com to inquire about sponsorship options.
