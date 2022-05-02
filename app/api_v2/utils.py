@@ -339,7 +339,6 @@ def _check_token():
                 if 'default_org' in token and token['default_org']:
                     current_user.default_org = True
 
-
             except ValueError:
                 abort(401, 'Token retired.')
             except jwt.ExpiredSignatureError:
