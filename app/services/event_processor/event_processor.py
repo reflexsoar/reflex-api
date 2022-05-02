@@ -727,21 +727,23 @@ class EventWorker(Process):
             if 'action' in raw_event['_meta'] and raw_event['_meta']['action'] == 'retro_apply_event_rule':
                 event_meta_data = raw_event['_meta']
                 rule = next((r for r in self.rules if r.uuid == event_meta_data['rule_id']), None)
+
+                matched = False
                 
-                try:
-                    matched = False
-                    if hasattr(rule, 'global_rule') and rule.global_rule:
-                        matched = rule.check_rule(raw_event)
+                if rule:
+                    try:                        
+                        if hasattr(rule, 'global_rule') and rule.global_rule:
+                            matched = rule.check_rule(raw_event)
 
-                    if rule.organization == organization and not matched:
-                        matched = rule.check_rule(raw_event)
-                    else:
-                        pass
+                        if rule.organization == organization and not matched:
+                            matched = rule.check_rule(raw_event)
+                        else:
+                            pass
 
-                    if matched:
-                        raw_event = self.mutate_event(rule, raw_event)
-                except Exception as e:
-                    self.logger.error(f"Failed to process rule {rule.uuid}. Reason: {e}")
+                        if matched:
+                            raw_event = self.mutate_event(rule, raw_event)
+                    except Exception as e:
+                        self.logger.error(f"Failed to process rule {rule.uuid}. Reason: {e}")
 
                 raw_event['event_observables'] = raw_event.pop('observables')
 
