@@ -504,7 +504,8 @@ def fetch_observables_from_history(observables):
         if 'tags' in observable:
             observable['tags'] = list(set([t for t in source_observable['tags']] + [t for t in observable['tags']]))
         else:
-            observable['tags'] = source_observable['tags']
+            if 'tags' in source_observable:
+                observable['tags'] = source_observable['tags']
         
 
     return _observables
