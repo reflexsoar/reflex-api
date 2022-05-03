@@ -504,7 +504,8 @@ def fetch_observables_from_history(observables):
         if 'tags' in observable:
             observable['tags'] = list(set([t for t in source_observable['tags']] + [t for t in observable['tags']]))
         else:
-            observable['tags'] = source_observable['tags']
+            if 'tags' in source_observable:
+                observable['tags'] = source_observable['tags']
         
 
     return _observables
@@ -602,7 +603,7 @@ class EventObservablesByCase(Resource):
                           "event_observables.tags"]}, size=10000)
         events = search.execute()
         exists = set()
-        observables = [o.to_dict() for o in events.aggs.observables.values if [(o.value, o.data_type) not in exists, exists.add((o.value, o.data_type))][0]]
+        observables = [o.to_dict() for o in events.aggs.observables.values if [(o.value, o.data_type) not in exists and hasattr(o, 'value'), exists.add((o.value, o.data_type))][0]]
         observables = fetch_observables_from_history(observables)
         #observables = []
         #

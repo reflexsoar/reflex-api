@@ -726,24 +726,34 @@ class EventWorker(Process):
         else:
             if 'action' in raw_event['_meta'] and raw_event['_meta']['action'] == 'retro_apply_event_rule':
                 event_meta_data = raw_event['_meta']
+
                 rule = next((r for r in self.rules if r.uuid == event_meta_data['rule_id']), None)
+                if rule:
+                    self.logger.debug(rule)
+                else:
+                    self.logger.debug(f"No rule found for {event_meta_data['rule_id']}")
+                self.logger.debug(event_meta_data)
+                self.logger.debug(raw_event)
+
+                matched = False
                 
-                try:
-                    matched = False
-                    if hasattr(rule, 'global_rule') and rule.global_rule:
-                        matched = rule.check_rule(raw_event)
+                if rule:
+                    try:                        
+                        if hasattr(rule, 'global_rule') and rule.global_rule:
+                            matched = rule.check_rule(raw_event)
 
-                    if rule.organization == organization and not matched:
-                        matched = rule.check_rule(raw_event)
-                    else:
-                        pass
+                        if rule.organization == organization and not matched:
+                            matched = rule.check_rule(raw_event)
+                        else:
+                            pass
 
-                    if matched:
-                        raw_event = self.mutate_event(rule, raw_event)
-                except Exception as e:
-                    self.logger.error(f"Failed to process rule {rule.uuid}. Reason: {e}")
+                        if matched:
+                            raw_event = self.mutate_event(rule, raw_event)
+                    except Exception as e:
+                        self.logger.error(f"Failed to process rule {rule.uuid}. Reason: {e}")
 
-                raw_event['event_observables'] = raw_event.pop('observables')
+                if 'observables' in raw_event:
+                    raw_event['event_observables'] = raw_event.pop('observables')
 
                 if not matched:
                     return None

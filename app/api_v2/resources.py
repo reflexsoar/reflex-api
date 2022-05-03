@@ -1215,9 +1215,11 @@ class CaseDetails(Resource):
                         event.case = None
                         event.set_new()
 
-            observables = Observable.get_by_case_uuid(uuid=uuid)
-            if observables and len(observables) > 0:
-                [o.delete() for o in observables]
+            # DEPRECATED: This method is no longer used to store observales
+            # suc they don't need deleted - BC 2022-05-03
+            #observables = Observable.get_by_case_uuid(uuid=uuid)
+            #if observables and len(observables) > 0:
+            #    [o.delete() for o in observables]
 
             tasks = CaseTask.get_by_case(uuid=uuid, all_results=True)
             if tasks and len(tasks) > 0:

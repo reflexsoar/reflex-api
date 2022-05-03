@@ -11,7 +11,7 @@ from flask_restx import Resource, Namespace, fields, marshal
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 from ..rql.parser import QueryParser
-from ..model import EventRule, Event, Task
+from ..model import EventRule, Event, Task, CloseReason
 from ..model.exceptions import EventRuleFailure
 from ..utils import random_ending, token_required, user_has, check_org, log_event, default_org
 from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict
@@ -188,11 +188,15 @@ class EventRuleList(Resource):
 
         if 'dismiss' in api.payload and api.payload['dismiss']:
 
-            if 'dismiss_reason' not in api.payload or api.payload['dismiss_reason'] == None:
+            if 'dismiss_reason' not in api.payload or api.payload['dismiss_reason'] in [None,'']:
                 api.abort(400, 'A dismiss reason is required')          
 
             if settings.require_event_dismiss_comment and 'dismiss_comment' not in api.payload:
                 api.abort(400, 'Dismiss comment required')
+
+            cr = CloseReason.get_by_uuid(uuid=api.payload['dismiss_reason'])
+            if not cr:
+                api.abort(404, 'Dismiss reason not found')
 
         if not event_rule:
 
@@ -224,6 +228,7 @@ class EventRuleList(Resource):
             # Set the default state for new Event Rules to not deleted
             event_rule.deleted = False
             event_rule.save()
+            time.sleep(1)
 
             ep.restart_workers()
 
@@ -237,37 +242,48 @@ class EventRuleList(Resource):
                     Queries for events and pushes them to the event queue for retro processing
                     '''
 
-                    is_global = api_payload['global_rule'] if 'global_rule' in api_payload and api_payload['global_rule'] == True else False
-                    org_specified = api_payload['organization'] if 'organization' in api_payload and api_payload['organization'] != None else None
+                    try:
+                        is_global = api_payload['global_rule'] if 'global_rule' in api_payload and api_payload['global_rule'] == True else False
+                        org_specified = api_payload['organization'] if 'organization' in api_payload and api_payload['organization'] != None else None
 
-                    if not is_global and org_specified:
-                        events = events.filter('term', organization=api_payload['organization'])
-                    elif not is_global:
-                        events = events.filter('term', organization=current_user.organization)
+                        if not is_global and org_specified:
+                            events = events.filter('term', organization=api_payload['organization'])
+                        elif not is_global:
+                            events = events.filter('term', organization=current_user.organization)
+                            
+                        events = events.filter('term', status__name__keyword='New')
+                        print(events.to_dict())
+
+                        task.message += f" {events.count()} events processed."
+                        task.save()
+
+                        events = list(events.scan())
                         
-                    events = events.filter('term', status__name__keyword='New')
-                    events = list(events.scan())
-                    
-                    if events:
-                        time.sleep(2)
-                        for event in events:
+                        if events:
+                            time.sleep(2)
+                            for event in events:
 
-                            # Skip over this event if skip_previous_match is toggled and the
-                            # event matches the critera
-                            if skip_previous:
-                                if event_rule.uuid in event.event_rules:
-                                    continue
-                                
-                            event_dict = event.to_dict()
-                            event_dict['observables'] = event_dict['event_observables']
-                            event_dict['_meta'] = {
-                                'action': 'retro_apply_event_rule',
-                                '_id': event.meta.id,
-                                'rule_id': str(event_rule.uuid)
-                            }
-                            ep.enqueue(event_dict)
+                                # Skip over this event if skip_previous_match is toggled and the
+                                # event matches the critera
+                                if skip_previous:
+                                    if event_rule.uuid in event.event_rules:
+                                        continue
+                                    
+                                event_dict = event.to_dict()
 
-                    ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                                if 'event_observables' in event_dict:
+                                    event_dict['observables'] = event_dict['event_observables']
+                                    
+                                event_dict['_meta'] = {
+                                    'action': 'retro_apply_event_rule',
+                                    '_id': event.meta.id,
+                                    'rule_id': str(event_rule.uuid)
+                                }
+                                ep.enqueue(event_dict)
+
+                        ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                    except Exception as e:
+                        print(e)
                 
                 skip_previous = False
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
@@ -333,8 +349,8 @@ class EventRuleDetails(Resource):
                     api.payload['version'] = 2
 
             if len(api.payload) > 0:
-                ep.restart_workers()
-                event_rule.update(**{**api.payload, 'disable_reason': None})            
+                event_rule.update(**{**api.payload, 'disable_reason': None})
+                ep.restart_workers()                
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
 
@@ -348,37 +364,46 @@ class EventRuleDetails(Resource):
                     Queries for events and pushes them to the event queue for retro processing
                     '''
 
-                    is_global = api_payload['global_rule'] if 'global_rule' in api_payload and api_payload['global_rule'] == True else False
-                    org_specified = api_payload['organization'] if 'organization' in api_payload and api_payload['organization'] != None else None
+                    try:
+                        is_global = api_payload['global_rule'] if 'global_rule' in api_payload and api_payload['global_rule'] == True else False
+                        org_specified = api_payload['organization'] if 'organization' in api_payload and api_payload['organization'] != None else None
 
-                    if not is_global and org_specified:
-                        events = events.filter('term', organization=api_payload['organization'])
-                    elif not is_global:
-                        events = events.filter('term', organization=current_user.organization)
+                        if not is_global and org_specified:
+                            events = events.filter('term', organization=api_payload['organization'])
+                        elif not is_global:
+                            events = events.filter('term', organization=current_user.organization)
+                            
+                        events = events.filter('term', status__name__keyword='New')
+                        print(events.to_dict())
+
+                        task.message += f" {events.count()} events processed."
+                        task.save()
+
+                        events = list(events.scan())
                         
-                    events = events.filter('term', status__name__keyword='New')
-                    events = list(events.scan())
-                    
-                    if events:
-                        time.sleep(2)
-                        for event in events:
+                        if events:
+                            time.sleep(2)
+                            for event in events:
 
-                            # Skip over this event if skip_previous_match is toggled and the
-                            # event matches the critera
-                            if skip_previous:
-                                if event_rule.uuid in event.event_rules:
-                                    continue
-                                
-                            event_dict = event.to_dict()
-                            event_dict['observables'] = event_dict['event_observables']
-                            event_dict['_meta'] = {
-                                'action': 'retro_apply_event_rule',
-                                '_id': event.meta.id,
-                                'rule_id': event_rule.uuid
-                            }
-                            ep.enqueue(event_dict)
+                                # Skip over this event if skip_previous_match is toggled and the
+                                # event matches the critera
+                                if skip_previous:
+                                    if event_rule.uuid in event.event_rules:
+                                        continue
+                                    
+                                event_dict = event.to_dict()
+                                if 'event_observables' in event_dict:
+                                    event_dict['observables'] = event_dict['event_observables']
+                                event_dict['_meta'] = {
+                                    'action': 'retro_apply_event_rule',
+                                    '_id': event.meta.id,
+                                    'rule_id': event_rule.uuid
+                                }
+                                ep.enqueue(event_dict)
 
-                    ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                        ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                    except Exception as e:
+                        print(e)
                 
                 skip_previous = False
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
@@ -531,12 +556,15 @@ class TestEventRQL(Resource):
 
         event = None
 
-        if api.payload['query'] == '' or 'query' not in api.payload:
+        if ('query' in api.payload and api.payload['query'] == '') or 'query' not in api.payload:
             return {'message':'Missing RQL query.', "success": False}, 400
 
         if 'uuid' in api.payload and api.payload['uuid'] not in [None, '']:
             event = Event.get_by_uuid(uuid=api.payload['uuid'])
             event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
+
+        if 'event_count' in api.payload and api.payload['event_count'] > 2147483647:
+            api.abort(400, 'Number of test events can not exceed 2147483647')
             
         else:
 
