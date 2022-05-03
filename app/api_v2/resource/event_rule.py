@@ -237,37 +237,45 @@ class EventRuleList(Resource):
                     Queries for events and pushes them to the event queue for retro processing
                     '''
 
-                    is_global = api_payload['global_rule'] if 'global_rule' in api_payload and api_payload['global_rule'] == True else False
-                    org_specified = api_payload['organization'] if 'organization' in api_payload and api_payload['organization'] != None else None
+                    try:
+                        is_global = api_payload['global_rule'] if 'global_rule' in api_payload and api_payload['global_rule'] == True else False
+                        org_specified = api_payload['organization'] if 'organization' in api_payload and api_payload['organization'] != None else None
 
-                    if not is_global and org_specified:
-                        events = events.filter('term', organization=api_payload['organization'])
-                    elif not is_global:
-                        events = events.filter('term', organization=current_user.organization)
+                        if not is_global and org_specified:
+                            events = events.filter('term', organization=api_payload['organization'])
+                        elif not is_global:
+                            events = events.filter('term', organization=current_user.organization)
+                            
+                        events = events.filter('term', status__name__keyword='New')
+                        print(events.to_dict())
+
+                        task.message += f" {events.count()} events processed."
+                        task.save()
+
+                        events = list(events.scan())
                         
-                    events = events.filter('term', status__name__keyword='New')
-                    events = list(events.scan())
-                    
-                    if events:
-                        time.sleep(2)
-                        for event in events:
+                        if events:
+                            time.sleep(2)
+                            for event in events:
 
-                            # Skip over this event if skip_previous_match is toggled and the
-                            # event matches the critera
-                            if skip_previous:
-                                if event_rule.uuid in event.event_rules:
-                                    continue
-                                
-                            event_dict = event.to_dict()
-                            event_dict['observables'] = event_dict['event_observables']
-                            event_dict['_meta'] = {
-                                'action': 'retro_apply_event_rule',
-                                '_id': event.meta.id,
-                                'rule_id': str(event_rule.uuid)
-                            }
-                            ep.enqueue(event_dict)
+                                # Skip over this event if skip_previous_match is toggled and the
+                                # event matches the critera
+                                if skip_previous:
+                                    if event_rule.uuid in event.event_rules:
+                                        continue
+                                    
+                                event_dict = event.to_dict()
+                                event_dict['observables'] = event_dict['event_observables']
+                                event_dict['_meta'] = {
+                                    'action': 'retro_apply_event_rule',
+                                    '_id': event.meta.id,
+                                    'rule_id': str(event_rule.uuid)
+                                }
+                                ep.enqueue(event_dict)
 
-                    ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                        ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                    except Exception as e:
+                        print(e)
                 
                 skip_previous = False
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
@@ -348,37 +356,45 @@ class EventRuleDetails(Resource):
                     Queries for events and pushes them to the event queue for retro processing
                     '''
 
-                    is_global = api_payload['global_rule'] if 'global_rule' in api_payload and api_payload['global_rule'] == True else False
-                    org_specified = api_payload['organization'] if 'organization' in api_payload and api_payload['organization'] != None else None
+                    try:
+                        is_global = api_payload['global_rule'] if 'global_rule' in api_payload and api_payload['global_rule'] == True else False
+                        org_specified = api_payload['organization'] if 'organization' in api_payload and api_payload['organization'] != None else None
 
-                    if not is_global and org_specified:
-                        events = events.filter('term', organization=api_payload['organization'])
-                    elif not is_global:
-                        events = events.filter('term', organization=current_user.organization)
+                        if not is_global and org_specified:
+                            events = events.filter('term', organization=api_payload['organization'])
+                        elif not is_global:
+                            events = events.filter('term', organization=current_user.organization)
+                            
+                        events = events.filter('term', status__name__keyword='New')
+                        print(events.to_dict())
+
+                        task.message += f" {events.count()} events processed."
+                        task.save()
                         
-                    events = events.filter('term', status__name__keyword='New')
-                    events = list(events.scan())
-                    
-                    if events:
-                        time.sleep(2)
-                        for event in events:
+                        events = list(events.scan())
+                        
+                        if events:
+                            time.sleep(2)
+                            for event in events:
 
-                            # Skip over this event if skip_previous_match is toggled and the
-                            # event matches the critera
-                            if skip_previous:
-                                if event_rule.uuid in event.event_rules:
-                                    continue
-                                
-                            event_dict = event.to_dict()
-                            event_dict['observables'] = event_dict['event_observables']
-                            event_dict['_meta'] = {
-                                'action': 'retro_apply_event_rule',
-                                '_id': event.meta.id,
-                                'rule_id': event_rule.uuid
-                            }
-                            ep.enqueue(event_dict)
+                                # Skip over this event if skip_previous_match is toggled and the
+                                # event matches the critera
+                                if skip_previous:
+                                    if event_rule.uuid in event.event_rules:
+                                        continue
+                                    
+                                event_dict = event.to_dict()
+                                event_dict['observables'] = event_dict['event_observables']
+                                event_dict['_meta'] = {
+                                    'action': 'retro_apply_event_rule',
+                                    '_id': event.meta.id,
+                                    'rule_id': event_rule.uuid
+                                }
+                                ep.enqueue(event_dict)
 
-                    ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                        ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+                    except Exception as e:
+                        print(e)
                 
                 skip_previous = False
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
@@ -531,7 +547,7 @@ class TestEventRQL(Resource):
 
         event = None
 
-        if api.payload['query'] == '' or 'query' not in api.payload:
+        if ('query' in api.payload and api.payload['query'] == '') or 'query' not in api.payload:
             return {'message':'Missing RQL query.', "success": False}, 400
 
         if 'uuid' in api.payload and api.payload['uuid'] not in [None, '']:
