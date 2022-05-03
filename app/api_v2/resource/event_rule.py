@@ -11,7 +11,7 @@ from flask_restx import Resource, Namespace, fields, marshal
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 from ..rql.parser import QueryParser
-from ..model import EventRule, Event, Task
+from ..model import EventRule, Event, Task, CloseReason
 from ..model.exceptions import EventRuleFailure
 from ..utils import random_ending, token_required, user_has, check_org, log_event, default_org
 from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict
@@ -188,11 +188,15 @@ class EventRuleList(Resource):
 
         if 'dismiss' in api.payload and api.payload['dismiss']:
 
-            if 'dismiss_reason' not in api.payload or api.payload['dismiss_reason'] == None:
+            if 'dismiss_reason' not in api.payload or api.payload['dismiss_reason'] in [None,'']:
                 api.abort(400, 'A dismiss reason is required')          
 
             if settings.require_event_dismiss_comment and 'dismiss_comment' not in api.payload:
                 api.abort(400, 'Dismiss comment required')
+
+            cr = CloseReason.get_by_uuid(uuid=api.payload['dismiss_reason'])
+            if not cr:
+                api.abort(404, 'Dismiss reason not found')
 
         if not event_rule:
 
@@ -265,7 +269,10 @@ class EventRuleList(Resource):
                                         continue
                                     
                                 event_dict = event.to_dict()
-                                event_dict['observables'] = event_dict['event_observables']
+
+                                if 'event_observables' in event_dict:
+                                    event_dict['observables'] = event_dict['event_observables']
+                                    
                                 event_dict['_meta'] = {
                                     'action': 'retro_apply_event_rule',
                                     '_id': event.meta.id,
@@ -370,7 +377,7 @@ class EventRuleDetails(Resource):
 
                         task.message += f" {events.count()} events processed."
                         task.save()
-                        
+
                         events = list(events.scan())
                         
                         if events:
@@ -384,7 +391,8 @@ class EventRuleDetails(Resource):
                                         continue
                                     
                                 event_dict = event.to_dict()
-                                event_dict['observables'] = event_dict['event_observables']
+                                if 'event_observables' in event_dict:
+                                    event_dict['observables'] = event_dict['event_observables']
                                 event_dict['_meta'] = {
                                     'action': 'retro_apply_event_rule',
                                     '_id': event.meta.id,
@@ -553,6 +561,9 @@ class TestEventRQL(Resource):
         if 'uuid' in api.payload and api.payload['uuid'] not in [None, '']:
             event = Event.get_by_uuid(uuid=api.payload['uuid'])
             event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
+
+        if 'event_count' in api.payload and api.payload['event_count'] > 2147483647:
+            api.abort(400, 'Number of test events can not exceed 2147483647')
             
         else:
 

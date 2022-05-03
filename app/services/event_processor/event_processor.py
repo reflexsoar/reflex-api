@@ -752,7 +752,8 @@ class EventWorker(Process):
                     except Exception as e:
                         self.logger.error(f"Failed to process rule {rule.uuid}. Reason: {e}")
 
-                raw_event['event_observables'] = raw_event.pop('observables')
+                if 'observables' in raw_event:
+                    raw_event['event_observables'] = raw_event.pop('observables')
 
                 if not matched:
                     return None

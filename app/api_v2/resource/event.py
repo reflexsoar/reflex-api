@@ -602,7 +602,7 @@ class EventObservablesByCase(Resource):
                           "event_observables.tags"]}, size=10000)
         events = search.execute()
         exists = set()
-        observables = [o.to_dict() for o in events.aggs.observables.values if [(o.value, o.data_type) not in exists, exists.add((o.value, o.data_type))][0]]
+        observables = [o.to_dict() for o in events.aggs.observables.values if [(o.value, o.data_type) not in exists and hasattr(o, 'value'), exists.add((o.value, o.data_type))][0]]
         observables = fetch_observables_from_history(observables)
         #observables = []
         #
