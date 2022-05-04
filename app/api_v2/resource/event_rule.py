@@ -198,20 +198,20 @@ class EventRuleList(Resource):
             if not cr:
                 api.abort(404, 'Dismiss reason not found')
 
-        if not event_rule:
-
-            if 'expire_days' in api.payload and not isinstance(api.payload['expire_days'], int):
+        if 'expire_days' in api.payload and not isinstance(api.payload['expire_days'], int):
                 api.abort(400, 'expire_days should be an integer.')
 
-            # Computer when the rule should expire
-            if 'expire' in api.payload and api.payload['expire']:
-                if 'expire_days' in api.payload:
-                    expire_days = api.payload['expire_days']
+        # Compute when the rule should expire
+        if 'expire' in api.payload and api.payload['expire']:
+            if 'expire_days' in api.payload:
+                expire_days = api.payload['expire_days']
 
-                    expire_at = datetime.datetime.utcnow() + datetime.timedelta(days=expire_days)
-                    api.payload['expire_at'] = expire_at
-                else:
-                    api.abort(400, 'Missing expire_days field.')
+                expire_at = datetime.datetime.utcnow() + datetime.timedelta(days=expire_days)
+                api.payload['expire_at'] = expire_at
+            else:
+                api.abort(400, 'Missing expire_days field.')
+
+        if not event_rule:
 
             event_rule = EventRule(**api.payload)
             event_rule.active = True
@@ -227,7 +227,7 @@ class EventRuleList(Resource):
 
             # Set the default state for new Event Rules to not deleted
             event_rule.deleted = False
-            event_rule.save()
+            event_rule.save(refresh=True)
             time.sleep(1)
 
             ep.restart_workers()
@@ -252,7 +252,6 @@ class EventRuleList(Resource):
                             events = events.filter('term', organization=current_user.organization)
                             
                         events = events.filter('term', status__name__keyword='New')
-                        print(events.to_dict())
 
                         task.message += f" {events.count()} events processed."
                         task.save()
