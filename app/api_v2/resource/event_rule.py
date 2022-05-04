@@ -348,8 +348,8 @@ class EventRuleDetails(Resource):
                     api.payload['version'] = 2
 
             if len(api.payload) > 0:
-                event_rule.update(**{**api.payload, 'disable_reason': None})
-                ep.restart_workers()                
+                event_rule.update(**{**api.payload, 'disable_reason': None}, refresh=True)
+                ep.restart_workers()
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
 
