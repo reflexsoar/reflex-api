@@ -731,7 +731,7 @@ class EventWorker(Process):
                 if rule:
                     self.logger.debug(rule)
                 else:
-                    self.logger.debug(f"No rule found for {event_meta_data['rule_id']}")
+                    self.logger.error(f"No rule found for {event_meta_data['rule_id']}")
                 self.logger.debug(event_meta_data)
 
                 matched = False
