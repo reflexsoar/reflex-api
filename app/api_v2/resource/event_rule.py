@@ -559,13 +559,12 @@ class TestEventRQL(Resource):
         if ('query' in api.payload and api.payload['query'] == '') or 'query' not in api.payload:
             return {'message':'Missing RQL query.', "success": False}, 400
 
-        if 'uuid' in api.payload and api.payload['uuid'] not in [None, '']:
-            event = Event.get_by_uuid(uuid=api.payload['uuid'])
-            event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))
-
         if 'event_count' in api.payload and api.payload['event_count'] > 2147483647:
             api.abort(400, 'Number of test events can not exceed 2147483647')
-            
+
+        if 'uuid' in api.payload and api.payload['uuid'] not in [None, '']:
+            event = Event.get_by_uuid(uuid=api.payload['uuid'])
+            event_data = json.loads(json.dumps(marshal(event, mod_event_rql)))            
         else:
 
             # A date filter is required when not supplying a single event UUID
