@@ -228,7 +228,7 @@ class EventRuleList(Resource):
             # Set the default state for new Event Rules to not deleted
             event_rule.deleted = False
             event_rule.save(refresh=True)
-            time.sleep(1)
+            time.sleep(3)
 
             ep.restart_workers()
 
@@ -349,6 +349,7 @@ class EventRuleDetails(Resource):
 
             if len(api.payload) > 0:
                 event_rule.update(**{**api.payload, 'disable_reason': None}, refresh=True)
+                time.sleep(1)
                 ep.restart_workers()
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
