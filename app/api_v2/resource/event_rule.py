@@ -228,10 +228,11 @@ class EventRuleList(Resource):
             # Set the default state for new Event Rules to not deleted
             event_rule.deleted = False
             event_rule.save(refresh=True)
+            time.sleep(1)
             ep.restart_workers()
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
-
+                
                 task = Task()
                 request_id = task.create(task_type='event_rule_lookbehind', message=f'Event Rule lookbehind for {event_rule.name} complete.', broadcast=True)
 
@@ -240,7 +241,7 @@ class EventRuleList(Resource):
                     Queries for events and pushes them to the event queue for retro processing
                     '''
 
-                    time.sleep(30)
+                    time.sleep(10)
 
                     try:
                         is_global = api_payload['global_rule'] if 'global_rule' in api_payload and api_payload['global_rule'] == True else False
@@ -364,7 +365,7 @@ class EventRuleDetails(Resource):
                     Queries for events and pushes them to the event queue for retro processing
                     '''
 
-                    time.sleep(30)
+                    time.sleep(10)
 
                     try:
                         is_global = api_payload['global_rule'] if 'global_rule' in api_payload and api_payload['global_rule'] == True else False

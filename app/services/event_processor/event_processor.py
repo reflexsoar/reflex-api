@@ -147,9 +147,8 @@ class EventProcessor:
         self.logger.info('Restarting Event Processing workers')
         for worker in self.workers:
             worker.force_reload()
-        self.workers = []
-        time.sleep(1)
-        self.spawn_workers()
+
+        return True
 
 
 class EventWorker(Process):
@@ -236,7 +235,7 @@ class EventWorker(Process):
         self.lists = list(lists)
 
     
-    def load_rules(self):
+    def load_rules(self, rule_id=None):
         '''
         Fetches all the Event Rules in the system to prevent many requests to
         Elasticsearch
@@ -244,6 +243,8 @@ class EventWorker(Process):
         
         search = EventRule.search()
         search = search.filter('term', active=True)
+        if rule_id:
+            search = search.filter('term', uuid=rule_id)
         rules = search.scan()
         rules = list(rules)
 
@@ -258,7 +259,10 @@ class EventWorker(Process):
                 rule.update(active=False, disable_reason=f"Invalid RQL query. {e}")
                 self.logger.error(f"Failed to parse Event Rule {rule.name}, rule has been disabled.  Invalid RQL query. {e}.")
 
-        self.rules = loaded_rules
+        if not rule_id:
+            self.rules = loaded_rules
+        else:
+            [self.rules.append(r) for r in loaded_rules]
 
 
     def load_cases(self):
@@ -317,7 +321,7 @@ class EventWorker(Process):
         that need to be sent to Elasticsearch
         '''
         #time.sleep(5)
-        self.logger.debug('Reloading configuration information')
+        print('Reloading configuration information')
         self.load_rules()
         self.load_cases()
         self.load_close_reasons()
@@ -337,7 +341,6 @@ class EventWorker(Process):
             'rules': self.rules
         }
 
-
     def pop_events_by_action(self, events, action):
         return [e for e in events if '_meta' in e and e['_meta']['action'] == action]
 
@@ -354,8 +357,8 @@ class EventWorker(Process):
             if self.event_queue.empty():
 
                 if self.should_restart.is_set():
-                    exit()
-                    #self.reload_meta_info(clear_reload_flag=True)
+                    #exit()
+                    self.reload_meta_info(clear_reload_flag=True)
 
                 time.sleep(1)
 
@@ -364,12 +367,14 @@ class EventWorker(Process):
                 # Reload all the event rules and other meta information if the refresh timer
                 # has expired
                 if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
+                    #print('exiting')
                     self.reload_meta_info()
 
                 # Interrupt this flow if the worker is scheduled for restart
                 if self.should_restart.is_set():
-                    exit()
-                    #self.reload_meta_info(clear_reload_flag=True)
+                    #print('exiting')
+                    #exit()
+                    self.reload_meta_info(clear_reload_flag=True)
 
                 event = self.event_queue.get()
 
@@ -752,6 +757,19 @@ class EventWorker(Process):
                 event_meta_data = raw_event['_meta']
 
                 rule = next((r for r in self.rules if r.uuid == event_meta_data['rule_id']), None)
+                
+                # If the rule is not in the Workers rule list try to fetch it
+                if not rule:
+                    print("FAILED TO FIND THE RULE!")
+                    attempts = 0
+                    while attempts != 5:
+                        if not rule:
+                            self.load_rules(rule_id=event_meta_data['rule_id'])
+                            rule = next((r for r in self.rules if r.uuid == event_meta_data['rule_id']), None)
+                            if not rule:
+                                attempts += 1
+                            else:
+                                break
                     
                 matched = False
                 
