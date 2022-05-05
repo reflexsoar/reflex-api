@@ -148,6 +148,7 @@ class EventProcessor:
         for worker in self.workers:
             worker.force_reload()
         self.workers = []
+        time.sleep(1)
         self.spawn_workers()
 
 
@@ -315,7 +316,7 @@ class EventWorker(Process):
         during Event processing.  This lowers the number of calls
         that need to be sent to Elasticsearch
         '''
-        time.sleep(5)
+        #time.sleep(5)
         self.logger.debug('Reloading configuration information')
         self.load_rules()
         self.load_cases()

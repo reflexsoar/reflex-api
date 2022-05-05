@@ -229,12 +229,11 @@ class EventRuleList(Resource):
             event_rule.deleted = False
             event_rule.save(refresh=True)
 
-            er = EventRule.search().filter('term', uuid=event_rule.uuid).execute()
-            if er:
-                ep.restart_workers()
-            else:
-                time.sleep(30)
-                ep.restart_workers()
+            #er = EventRule.search().filter('term', uuid=event_rule.uuid).execute()
+            #if er:
+            #    ep.restart_workers()
+            #else:
+            ep.restart_workers()
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
 
