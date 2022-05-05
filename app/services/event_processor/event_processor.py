@@ -147,6 +147,8 @@ class EventProcessor:
         self.logger.info('Restarting Event Processing workers')
         for worker in self.workers:
             worker.force_reload()
+        self.workers = []
+        self.spawn_workers()
 
 
 class EventWorker(Process):
@@ -351,7 +353,8 @@ class EventWorker(Process):
             if self.event_queue.empty():
 
                 if self.should_restart.is_set():
-                    self.reload_meta_info(clear_reload_flag=True)
+                    exit()
+                    #self.reload_meta_info(clear_reload_flag=True)
 
                 time.sleep(1)
 
@@ -364,7 +367,8 @@ class EventWorker(Process):
 
                 # Interrupt this flow if the worker is scheduled for restart
                 if self.should_restart.is_set():
-                    self.reload_meta_info(clear_reload_flag=True)
+                    exit()
+                    #self.reload_meta_info(clear_reload_flag=True)
 
                 event = self.event_queue.get()
 
