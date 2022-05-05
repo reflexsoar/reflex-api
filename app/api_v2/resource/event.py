@@ -1789,4 +1789,13 @@ class EventQueueStats(Resource):
 
     @api.doc(security="Bearer")
     def get(self):
-        return {"size": ep.qsize()}
+        worker_info = []
+        for worker in ep.workers:
+            worker_info.append(
+                {
+                    'loaded_rules': len(worker.rules),
+                    'events': len(worker.events),
+                    '_id': worker._sentinel
+                }
+            )
+        return {"size": ep.qsize(), "workers": worker_info}
