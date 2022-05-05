@@ -762,7 +762,7 @@ class EventWorker(Process):
                 if not rule:
                     print("FAILED TO FIND THE RULE!")
                     attempts = 0
-                    while attempts != 5:
+                    while attempts != 10:
                         if not rule:
                             self.load_rules(rule_id=event_meta_data['rule_id'])
                             rule = next((r for r in self.rules if r.uuid == event_meta_data['rule_id']), None)
