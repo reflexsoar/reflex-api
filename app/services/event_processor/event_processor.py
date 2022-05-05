@@ -244,14 +244,18 @@ class EventWorker(Process):
         rules = search.scan()
         rules = list(rules)
 
+        # Only load rules that parse correctly
+        loaded_rules = []
+
         for rule in rules:
             try:
                 rule.parse_rule()
+                loaded_rules.append(rule)
             except Exception as e:
                 rule.update(active=False, disable_reason=f"Invalid RQL query. {e}")
                 self.logger.error(f"Failed to parse Event Rule {rule.name}, rule has been disabled.  Invalid RQL query. {e}.")
 
-        self.rules = rules
+        self.rules = loaded_rules
 
     def load_cases(self):
         '''
@@ -728,12 +732,7 @@ class EventWorker(Process):
                 event_meta_data = raw_event['_meta']
 
                 rule = next((r for r in self.rules if r.uuid == event_meta_data['rule_id']), None)
-                if rule:
-                    self.logger.debug(rule)
-                else:
-                    self.logger.error(f"No rule found for {event_meta_data['rule_id']}")
-                self.logger.debug(event_meta_data)
-
+                    
                 matched = False
                 
                 if rule:
@@ -750,6 +749,9 @@ class EventWorker(Process):
                             raw_event = self.mutate_event(rule, raw_event)
                     except Exception as e:
                         self.logger.error(f"Failed to process rule {rule.uuid}. Reason: {e}")
+                else:
+                    self.logger.error(f"No rule found for {event_meta_data['rule_id']}")
+                    self.logger.debug(event_meta_data)
 
                 if 'observables' in raw_event:
                     raw_event['event_observables'] = raw_event.pop('observables')
