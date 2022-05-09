@@ -321,7 +321,7 @@ class EventWorker(Process):
         that need to be sent to Elasticsearch
         '''
         #time.sleep(5)
-        print('Reloading configuration information')
+        self.logger.debug('Reloading configuration information')
         self.load_rules()
         self.load_cases()
         self.load_close_reasons()
@@ -367,13 +367,10 @@ class EventWorker(Process):
                 # Reload all the event rules and other meta information if the refresh timer
                 # has expired
                 if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
-                    #print('exiting')
                     self.reload_meta_info()
 
                 # Interrupt this flow if the worker is scheduled for restart
                 if self.should_restart.is_set():
-                    #print('exiting')
-                    #exit()
                     self.reload_meta_info(clear_reload_flag=True)
 
                 event = self.event_queue.get()
@@ -760,7 +757,7 @@ class EventWorker(Process):
                 
                 # If the rule is not in the Workers rule list try to fetch it
                 if not rule:
-                    print("FAILED TO FIND THE RULE!")
+                    
                     attempts = 0
                     while attempts != 10:
                         if not rule:
@@ -768,6 +765,7 @@ class EventWorker(Process):
                             rule = next((r for r in self.rules if r.uuid == event_meta_data['rule_id']), None)
                             if not rule:
                                 attempts += 1
+                                self.logger.error(f"No rule found for {event_meta_data['rule_id']}. Attempt {attempts}/10.")
                             else:
                                 break
                     
