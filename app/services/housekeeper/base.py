@@ -57,7 +57,6 @@ class HouseKeeper(object):
         search = search.filter('range', last_heartbeat={
                             'lte': days_ago.isoformat()
                         })
-        print(search.to_dict())
         agents = search.execute()
 
         for agent in agents:
