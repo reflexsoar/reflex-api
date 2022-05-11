@@ -8,7 +8,10 @@ import datetime
 import logging
 from app.api_v2.model import (
     Settings,
-    Agent
+    Agent,
+    Role,
+    AgentGroup,
+    Task
 )
 
 class HouseKeeper(object):
@@ -54,13 +57,47 @@ class HouseKeeper(object):
 
         for agent in agents:
             if agent.last_heartbeat:
+
                 delta = (datetime.datetime.utcnow() - agent.last_heartbeat).total_seconds()
                 
                 if delta > threshold:
                     self.logger.info(f"Deleting agent {agent.name}, last heartbeat exceeds threshold of {threshold}")
+
+                    # Remove the agent from the Agent Role
+                    agent_role = Role.get_by_member(member=agent.uuid)
+                    if agent_role:
+                        agent_role.remove_user_from_role(agent.uuid)
+
+                    # Remove the agent from the Agent Groups
+                    agent_group = AgentGroup.get_by_member(member=agent.uuid)
+                    if agent_group:
+                        if isinstance(agent_group, list):
+                            for group in agent_group:
+                                group.remove_agent(agent.uuid)
+                        else:
+                            agent_group.remove_agent(agent.uuid)
+
+                    # Remove the agent from the Agent Group
                     agent.delete()
 
         return True
+
+    def prune_old_tasks(self, days_back=7):
+        ''' Automatically prunes tasks that have completed for failed to complete
+        in the last N days
+
+        Parameters:
+            days_back (int): How long since the task was completed
+        '''
+
+        days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=days_back)
+
+        search = Task.search()
+        search = search.filter('range', created_at={
+                            'lte': days_ago.isoformat()
+                        })
+        search.delete()
+        
 
     def lock_old_users(self, days_back=90):
         ''' Automatically locks users that have not used the system in

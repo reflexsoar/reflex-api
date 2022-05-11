@@ -128,6 +128,34 @@ class AgentGroup(base.BaseDocument):
             self.agents = [uuid]
         self.save()
 
+    
+    def remove_agent(self, uuid):
+        '''
+        Removes an agent from the group
+        '''
+        if self.agents:
+            self.agents.pop(uuid)
+        self.save()
+        
+
+    @classmethod
+    def get_by_member(cls, member):
+        '''
+        Fetches a document by the the member of the agents field
+        '''
+        response = cls.search()
+        if isinstance(member, list):
+            response = response.filter('terms', agents=member)
+        else:
+            response = response.filter('term', agents=member)
+
+        response = response.execute()
+        if response:
+            return response
+        else:
+            return None
+
+
     @classmethod
     def get_by_name(cls, name, organization=None):
         '''
