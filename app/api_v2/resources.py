@@ -2456,8 +2456,6 @@ class AgentList(Resource):
 
             token = generate_token(str(agent.uuid), 525600*5, token_type='agent', organization=current_user['organization'])
 
-            time.sleep(10)
-
             return {'message': 'Successfully created the agent.', 'uuid': str(agent.uuid), 'token': token}
         else:
             ns_agent_v2.abort(409, "Agent already exists.")

@@ -56,17 +56,26 @@ class Agent(base.BaseDocument):
         groups = AgentGroup.get_by_uuid(uuid=self.groups)
         return list(groups)
 
+
     def has_right(self, permission):
         '''
         Checks to see if the user has the proper
         permissions to perform an API action
         '''
 
-        role = user.Role.search().query('match', members=self.uuid).execute()
+        #role = user.Role.search().query('match', members=self.uuid).execute()
+        #if role:
+            #role = role[0]
+
+        #return bool(getattr(role.permissions, permission))
+        role = user.Role.search().query('term', members=self.uuid).execute()
         if role:
             role = role[0]
 
-        return bool(getattr(role.permissions, permission))
+        if hasattr(role.permissions, permission):
+            return getattr(role.permissions, permission)
+        return False
+
 
     @classmethod
     def get_by_name(cls, name, organization=None):
@@ -136,7 +145,7 @@ class AgentGroup(base.BaseDocument):
         if self.agents:
             self.agents.pop(uuid)
         self.save()
-        
+
 
     @classmethod
     def get_by_member(cls, member):
