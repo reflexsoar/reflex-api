@@ -72,9 +72,12 @@ class Agent(base.BaseDocument):
         if role:
             role = role[0]
 
-        if hasattr(role.permissions, permission):
-            return getattr(role.permissions, permission)
-        return False
+            if hasattr(role.permissions, permission):
+                return getattr(role.permissions, permission)
+            else:
+                return False
+        else:
+            return False
 
 
     @classmethod
