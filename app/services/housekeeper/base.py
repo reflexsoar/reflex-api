@@ -39,6 +39,7 @@ class HouseKeeper(object):
         self.app = app
 
         self.agent_prune_lifetime = self.app.config['AGENT_PRUNE_LIFETIME']
+        self.task_prune_lifetime = self.app.config['TASK_PRUNE_LIFETIME']
         self.logger.info("Service started")
 
     def prune_old_agents(self):
@@ -82,7 +83,7 @@ class HouseKeeper(object):
 
         return True
 
-    def prune_old_tasks(self, days_back=7):
+    def prune_old_tasks(self):
         ''' Automatically prunes tasks that have completed for failed to complete
         in the last N days
 
@@ -90,7 +91,7 @@ class HouseKeeper(object):
             days_back (int): How long since the task was completed
         '''
 
-        days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=days_back)
+        days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=self.task_prune_lifetime)
 
         search = Task.search()
         search = search.filter('range', created_at={
