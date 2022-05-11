@@ -148,6 +148,8 @@ class EventProcessor:
         for worker in self.workers:
             worker.force_reload()
 
+        return True
+
 
 class EventWorker(Process):
     ''' EventWorker performs all the event processing.  EventWorker will monitor the
@@ -157,7 +159,7 @@ class EventWorker(Process):
 
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self, app_config, event_queue, event_cache, log_level='INFO'):
+    def __init__(self, app_config, event_queue, event_cache, log_level='ERROR'):
         
         super(EventWorker, self).__init__()
 
@@ -185,9 +187,9 @@ class EventWorker(Process):
         self.reasons = []
         self.statuses = []
         self.data_types = []
+        self.events = []
         self.last_meta_refresh = None
         self.should_restart = mpEvent()
-
 
     def force_reload(self):
         self.logger.debug('Reload triggered by EventProcessor')
@@ -233,7 +235,7 @@ class EventWorker(Process):
         self.lists = list(lists)
 
     
-    def load_rules(self):
+    def load_rules(self, rule_id=None):
         '''
         Fetches all the Event Rules in the system to prevent many requests to
         Elasticsearch
@@ -241,17 +243,27 @@ class EventWorker(Process):
         
         search = EventRule.search()
         search = search.filter('term', active=True)
+        if rule_id:
+            search = search.filter('term', uuid=rule_id)
         rules = search.scan()
         rules = list(rules)
+
+        # Only load rules that parse correctly
+        loaded_rules = []
 
         for rule in rules:
             try:
                 rule.parse_rule()
+                loaded_rules.append(rule)
             except Exception as e:
                 rule.update(active=False, disable_reason=f"Invalid RQL query. {e}")
                 self.logger.error(f"Failed to parse Event Rule {rule.name}, rule has been disabled.  Invalid RQL query. {e}.")
 
-        self.rules = rules
+        if not rule_id:
+            self.rules = loaded_rules
+        else:
+            [self.rules.append(r) for r in loaded_rules]
+
 
     def load_cases(self):
         '''
@@ -263,6 +275,7 @@ class EventWorker(Process):
         cases = search.scan()
         self.cases = list(cases)
 
+
     def load_close_reasons(self):
         '''
         Fetches all the Closure Reasons in the system to prevent many requests to
@@ -271,6 +284,7 @@ class EventWorker(Process):
         search = CloseReason.search()
         reasons = search.scan()
         self.reasons = list(reasons)
+
 
     def load_statuses(self):
         '''
@@ -281,6 +295,7 @@ class EventWorker(Process):
         statuses = search.scan()
         self.statuses = list(statuses)
 
+
     def load_data_types(self):
         '''
         Fetches all the data types in the system
@@ -288,6 +303,7 @@ class EventWorker(Process):
         search = DataType.search()
         data_types = search.scan()
         self.data_types = list(data_types)
+
 
     def check_cache(self, reference):
         '''
@@ -297,13 +313,14 @@ class EventWorker(Process):
         '''
         raise NotImplementedError
 
+
     def reload_meta_info(self, clear_reload_flag=False):
         '''
         Reloads information from Elasticsearch so that it can be used
         during Event processing.  This lowers the number of calls
         that need to be sent to Elasticsearch
         '''
-        time.sleep(5)
+        #time.sleep(5)
         self.logger.debug('Reloading configuration information')
         self.load_rules()
         self.load_cases()
@@ -316,15 +333,23 @@ class EventWorker(Process):
         if clear_reload_flag:
             self.should_restart.clear()
 
+
+    def get_meta_info(self):
+        '''
+        Returns the currently loaded meta information'''
+        return {
+            'rules': self.rules
+        }
+
     def pop_events_by_action(self, events, action):
         return [e for e in events if '_meta' in e and e['_meta']['action'] == action]
+
 
     def run(self):
         ''' Processes events from the Event Queue '''
 
         connection = self.build_elastic_connection()
         self.reload_meta_info()
-        events = []
         self.logger.debug(f"Running")
 
         while True:
@@ -332,6 +357,7 @@ class EventWorker(Process):
             if self.event_queue.empty():
 
                 if self.should_restart.is_set():
+                    #exit()
                     self.reload_meta_info(clear_reload_flag=True)
 
                 time.sleep(1)
@@ -355,16 +381,16 @@ class EventWorker(Process):
                 # If returned value is not None add the event to the list of events to be pushed
                 # via _bulk
                 if event:
-                    events.append(event)
+                    self.events.append(event)
 
-                if len(events) >= self.config["ES_BULK_SIZE"] or self.event_queue.empty():
+                if len(self.events) >= self.config["ES_BULK_SIZE"] or self.event_queue.empty():
 
                     # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
-                    bulk_dismiss = [e for e in events if '_meta' in e and e['_meta']['action'] == 'dismiss']
-                    add_to_case = [e for e in events if '_meta' in e and e['_meta']['action'] == 'add_to_case']
-                    retro_apply_event_rule = [e for e in events if '_meta' in e and e['_meta']['action'] == 'retro_apply_event_rule']
+                    bulk_dismiss = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'dismiss']
+                    add_to_case = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'add_to_case']
+                    retro_apply_event_rule = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'retro_apply_event_rule']
                     
-                    task_end = self.pop_events_by_action(events, 'task_end')
+                    task_end = self.pop_events_by_action(self.events, 'task_end')
 
                     for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case)):
                         pass
@@ -375,16 +401,16 @@ class EventWorker(Process):
                     for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule)):
                         pass
 
-                    events = [e for e in events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
+                    self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
 
-                    self.prepare_case_updates(events)
+                    self.prepare_case_updates(self.events)
 
                     # Send Events
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(events)):
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events)):
                         pass
 
                     # Update Cases
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(events)):
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(self.events)):
                         pass
 
                     if task_end:
@@ -399,7 +425,7 @@ class EventWorker(Process):
 
                             task.finish()
 
-                    events = []
+                    self.events = []
 
 
     def check_threat_list(self, observable, organization, MEMCACHED_CONFIG=None):
@@ -728,13 +754,21 @@ class EventWorker(Process):
                 event_meta_data = raw_event['_meta']
 
                 rule = next((r for r in self.rules if r.uuid == event_meta_data['rule_id']), None)
-                if rule:
-                    self.logger.debug(rule)
-                else:
-                    self.logger.debug(f"No rule found for {event_meta_data['rule_id']}")
-                self.logger.debug(event_meta_data)
-                self.logger.debug(raw_event)
-
+                
+                # If the rule is not in the Workers rule list try to fetch it
+                if not rule:
+                    
+                    attempts = 0
+                    while attempts != 10:
+                        if not rule:
+                            self.load_rules(rule_id=event_meta_data['rule_id'])
+                            rule = next((r for r in self.rules if r.uuid == event_meta_data['rule_id']), None)
+                            if not rule:
+                                attempts += 1
+                                self.logger.error(f"No rule found for {event_meta_data['rule_id']}. Attempt {attempts}/10.")
+                            else:
+                                break
+                    
                 matched = False
                 
                 if rule:
@@ -751,6 +785,9 @@ class EventWorker(Process):
                             raw_event = self.mutate_event(rule, raw_event)
                     except Exception as e:
                         self.logger.error(f"Failed to process rule {rule.uuid}. Reason: {e}")
+                else:
+                    self.logger.error(f"No rule found for {event_meta_data['rule_id']}")
+                    self.logger.debug(event_meta_data)
 
                 if 'observables' in raw_event:
                     raw_event['event_observables'] = raw_event.pop('observables')

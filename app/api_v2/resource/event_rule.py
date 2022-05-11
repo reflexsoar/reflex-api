@@ -198,20 +198,20 @@ class EventRuleList(Resource):
             if not cr:
                 api.abort(404, 'Dismiss reason not found')
 
-        if not event_rule:
-
-            if 'expire_days' in api.payload and not isinstance(api.payload['expire_days'], int):
+        if 'expire_days' in api.payload and not isinstance(api.payload['expire_days'], int):
                 api.abort(400, 'expire_days should be an integer.')
 
-            # Computer when the rule should expire
-            if 'expire' in api.payload and api.payload['expire']:
-                if 'expire_days' in api.payload:
-                    expire_days = api.payload['expire_days']
+        # Compute when the rule should expire
+        if 'expire' in api.payload and api.payload['expire']:
+            if 'expire_days' in api.payload:
+                expire_days = api.payload['expire_days']
 
-                    expire_at = datetime.datetime.utcnow() + datetime.timedelta(days=expire_days)
-                    api.payload['expire_at'] = expire_at
-                else:
-                    api.abort(400, 'Missing expire_days field.')
+                expire_at = datetime.datetime.utcnow() + datetime.timedelta(days=expire_days)
+                api.payload['expire_at'] = expire_at
+            else:
+                api.abort(400, 'Missing expire_days field.')
+
+        if not event_rule:
 
             event_rule = EventRule(**api.payload)
             event_rule.active = True
@@ -227,13 +227,12 @@ class EventRuleList(Resource):
 
             # Set the default state for new Event Rules to not deleted
             event_rule.deleted = False
-            event_rule.save()
+            event_rule.save(refresh=True)
             time.sleep(1)
-
             ep.restart_workers()
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
-
+                
                 task = Task()
                 request_id = task.create(task_type='event_rule_lookbehind', message=f'Event Rule lookbehind for {event_rule.name} complete.', broadcast=True)
 
@@ -241,6 +240,8 @@ class EventRuleList(Resource):
                     '''
                     Queries for events and pushes them to the event queue for retro processing
                     '''
+
+                    time.sleep(10)
 
                     try:
                         is_global = api_payload['global_rule'] if 'global_rule' in api_payload and api_payload['global_rule'] == True else False
@@ -252,7 +253,6 @@ class EventRuleList(Resource):
                             events = events.filter('term', organization=current_user.organization)
                             
                         events = events.filter('term', status__name__keyword='New')
-                        print(events.to_dict())
 
                         task.message += f" {events.count()} events processed."
                         task.save()
@@ -349,8 +349,9 @@ class EventRuleDetails(Resource):
                     api.payload['version'] = 2
 
             if len(api.payload) > 0:
-                event_rule.update(**{**api.payload, 'disable_reason': None})
-                ep.restart_workers()                
+                event_rule.update(**{**api.payload, 'disable_reason': None}, refresh=True)
+                time.sleep(1)
+                ep.restart_workers()
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
 
@@ -364,6 +365,8 @@ class EventRuleDetails(Resource):
                     Queries for events and pushes them to the event queue for retro processing
                     '''
 
+                    time.sleep(10)
+
                     try:
                         is_global = api_payload['global_rule'] if 'global_rule' in api_payload and api_payload['global_rule'] == True else False
                         org_specified = api_payload['organization'] if 'organization' in api_payload and api_payload['organization'] != None else None
@@ -374,7 +377,6 @@ class EventRuleDetails(Resource):
                             events = events.filter('term', organization=current_user.organization)
                             
                         events = events.filter('term', status__name__keyword='New')
-                        print(events.to_dict())
 
                         task.message += f" {events.count()} events processed."
                         task.save()

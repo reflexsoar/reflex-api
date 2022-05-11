@@ -33,8 +33,8 @@ class Config(object):
     ELASTICSEARCH_AUTH_SCHEMA = os.getenv('REFLEX_ES_AUTH_SCHEMA') if os.getenv('REFLEX_ES_AUTH_SCHEMA') else "http"
     ELASTICSEARCH_SCHEME = os.getenv('REFLEX_ES_USE_SSL') if os.getenv('REFLEX_ES_USE_SSL') else True
     ELASTICSEARCH_CA = os.getenv('REFLEX_ES_CA') if os.getenv('REFLEX_ES_CA') else None
-    ELASTICSEARCH_CERT_VERIFY = True if os.getenv('REFLEX_ES_CERT_VERIFY') else False  # This can equal any value, as long as it is set True
-    ELASTICSEARCH_SHOW_SSL_WARN = True if os.getenv('REFLEX_ES_SHOW_SSL_WARN') else False # This can equal any value, as long as it is set True
+    ELASTICSEARCH_CERT_VERIFY = as_bool(os.getenv('REFLEX_ES_CERT_VERIFY')) if os.getenv('REFLEX_ES_CERT_VERIFY') else False  # This can equal any value, as long as it is set True
+    ELASTICSEARCH_SHOW_SSL_WARN = as_bool(os.getenv('REFLEX_ES_SHOW_SSL_WARN')) if os.getenv('REFLEX_ES_SHOW_SSL_WARN') else False # This can equal any value, as long as it is set True
     ELASTIC_DISTRO = os.getenv('REFLEX_ES_DISTRO') if os.getenv('REFLEX_ES_DISTRO') else 'elastic'
     ELASTICSEARCH_TIMEOUT = int(os.getenv('REFLEX_ES_TIMEOUT')) if os.getenv('REFLEX_ES_TIMEOUT') else 60
     ELASTICSEARCH_USERNAME = os.getenv('REFLEX_ES_USERNAME') if os.getenv('REFLEX_ES_USERNAME') else 'elastic'
@@ -52,14 +52,17 @@ class Config(object):
 
     # SLA MONITOR CONFIGURATION
     SLAMONITOR_INTERVAL = int(os.getenv('REFLEX_SLAMONITOR_INTERVAL')) if os.getenv('REFLEX_SLAMONITOR_INTERVAL') else 5*50 # Default to every 5 minutes
-    SLAMONITOR_DISABLED = True if os.getenv('REFLEX_DISABLE_SLAMONITOR') else False
+    SLAMONITOR_DISABLED = as_bool(os.getenv('REFLEX_DISABLE_SLAMONITOR')) if os.getenv('REFLEX_DISABLE_SLAMONITOR') else False
     SLAMONITOR_LOG_LEVEL = os.getenv('REFLEX_SLAMONITOR_LOG_LEVEL') if os.getenv('REFLEX_SLAMONITOR_LOG_LEVEL') else 'ERROR'
 
     # HOUSEKEEP DEFAULT CONFIGURATIONS
-    HOUSEKEEPER_DISABLED = True if os.getenv('REFLEX_HOUSEKEEPER_DISABLED') else False
+    HOUSEKEEPER_DISABLED = as_bool(os.getenv('REFLEX_HOUSEKEEPER_DISABLED')) if os.getenv('REFLEX_HOUSEKEEPER_DISBALED') else False
     HOUSEKEEPER_LOG_LEVEL = os.getenv('REFLEX_HOUSEKEEPER_LOG_LEVEL') if os.getenv('REFLEX_HOUSEKEEPER_LOG_LEVEL') else 'ERROR'
     AGENT_PRUNE_INTERVAL = int(os.getenv('REFLEX_AGENT_PRUNE_INTERVAL'))*60 if os.getenv('REFLEX_AGENT_PRUNE_INTERVAL') else 15*60 # Default to every 15 minutes
-    AGENT_PRUNE_LIFETIME = int(os.getenv('REFLEX_AGENT_PRUNE_LIFETIME')) if os.getenv('REFLEX_AGENT_PRINT_LIFETIME') else 5
+    AGENT_PRUNE_LIFETIME = int(os.getenv('REFLEX_AGENT_PRUNE_LIFETIME')) if os.getenv('REFLEX_AGENT_PRUNE_LIFETIME') else 5
+    TASK_PRUNE_INTERVAL = int(os.getenv('REFLEX_TASK_PRUNE_INTERVAL')) if os.getenv('REFLEX_TASK_PRUNE_INTERVAL') else 3600 # Default to every hour
+    TASK_PRUNE_LIFETIME = int(os.getenv('REFLEX_TASK_PRUNE_LIFETIME')) if os.getenv('REFLEX_TASK_PRUNE_LIFETIME') else 30 # Default to 30 days
+    
 
     # EVENT INGEST CONFIGURATION
     EVENT_PROCESSING_THREADS = os.getenv('REFLEX_EVENT_PROCESSING_THREADS') if os.getenv('REFLEX_EVENT_PROCESSING_THREADS') else 1

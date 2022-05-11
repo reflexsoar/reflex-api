@@ -250,6 +250,11 @@ def create_app(environment='development'):
                 trigger="interval",
                 seconds=app.config['AGENT_PRUNE_INTERVAL']
             )
+            scheduler.add_job(
+                func=housekeeper.prune_old_tasks,
+                trigger="interval",
+                seconds=app.config['TASK_PRUNE_INTERVAL']
+            )
 
         if not app.config['SLAMONITOR_DISABLED']:
             sla_monitor = SLAMonitor(app, log_level=app.config['SLAMONITOR_LOG_LEVEL'])
