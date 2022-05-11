@@ -40,7 +40,7 @@ class HouseKeeper(object):
 
         self.agent_prune_lifetime = self.app.config['AGENT_PRUNE_LIFETIME']
         self.task_prune_lifetime = self.app.config['TASK_PRUNE_LIFETIME']
-        self.logger.info("Service started")
+        self.logger.info(f"Service started. Task Lifetime: {self.task_prune_lifetime} | Agent Lifetime: {self.agent_prune_lifetime}")
 
     def prune_old_agents(self):
         ''' Automatically removes any agents that have not actively
@@ -50,36 +50,36 @@ class HouseKeeper(object):
             days_back (int): How long since the agent last communicated
         '''
 
+        days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=self.agent_prune_lifetime)
+
         search = Agent.search()
         search = search[0:search.count()]
+        search = search.filter('range', last_heartbeat={
+                            'lte': days_ago.isoformat()
+                        })
+        print(search.to_dict())
         agents = search.execute()
 
-        threshold = self.agent_prune_lifetime * 86400
-
         for agent in agents:
-            if agent.last_heartbeat:
 
-                delta = (datetime.datetime.utcnow() - agent.last_heartbeat).total_seconds()
-                
-                if delta > threshold:
-                    self.logger.info(f"Deleting agent {agent.name}, last heartbeat exceeds threshold of {threshold}")
+            self.logger.info(f"Deleting agent {agent.name}, last heartbeat exceeds threshold of {self.agent_prune_lifetime} days")
 
-                    # Remove the agent from the Agent Role
-                    agent_role = Role.get_by_member(member=agent.uuid)
-                    if agent_role:
-                        agent_role.remove_user_from_role(agent.uuid)
+            # Remove the agent from the Agent Role
+            agent_role = Role.get_by_member(member=agent.uuid)
+            if agent_role:
+                agent_role.remove_user_from_role(agent.uuid)
 
-                    # Remove the agent from the Agent Groups
-                    agent_group = AgentGroup.get_by_member(member=agent.uuid)
-                    if agent_group:
-                        if isinstance(agent_group, list):
-                            for group in agent_group:
-                                group.remove_agent(agent.uuid)
-                        else:
-                            agent_group.remove_agent(agent.uuid)
+            # Remove the agent from the Agent Groups
+            agent_group = AgentGroup.get_by_member(member=agent.uuid)
+            if agent_group:
+                if isinstance(agent_group, list):
+                    for group in agent_group:
+                        group.remove_agent(agent.uuid)
+                else:
+                    agent_group.remove_agent(agent.uuid)
 
-                    # Remove the agent from the Agent Group
-                    agent.delete()
+            # Remove the agent from the Agent Group
+            agent.delete()
 
         return True
 
