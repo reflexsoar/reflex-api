@@ -61,7 +61,7 @@ class Config(object):
     AGENT_PRUNE_INTERVAL = int(os.getenv('REFLEX_AGENT_PRUNE_INTERVAL'))*60 if os.getenv('REFLEX_AGENT_PRUNE_INTERVAL') else 15*60 # Default to every 15 minutes
     AGENT_PRUNE_LIFETIME = int(os.getenv('REFLEX_AGENT_PRUNE_LIFETIME')) if os.getenv('REFLEX_AGENT_PRINT_LIFETIME') else 5
     TASK_PRUNE_INTERVAL = int(os.getenv('REFLEX_TASK_PRUNE_INTERVAL')) if os.getenv('REFLEX_TASK_PRUNE_INTERVAL') else 3600 # Default to every hour
-    TASK_PRUNE_LIFETIME = int(os.getenv('REFLEX_TASK_PRUNE_LIFETIME')) if os.getenv('REFLEX_TASK_PRUNE_LIFETIME') else 30 # Default to every hour
+    TASK_PRUNE_LIFETIME = int(os.getenv('REFLEX_TASK_PRUNE_LIFETIME')) if os.getenv('REFLEX_TASK_PRUNE_LIFETIME') else 30 # Default to 30 days
     
 
     # EVENT INGEST CONFIGURATION
