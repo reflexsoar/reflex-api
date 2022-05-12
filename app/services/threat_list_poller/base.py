@@ -42,7 +42,7 @@ class ThreatListPoller(object):
         self.logger.setLevel(log_levels[log_level])
 
         self.streaming_bulk = esb
-        self.connections = oconn
+        self.connections = econn
         if app.config['ELASTIC_DISTRO'] == 'opensearch':
             self.streaming_bulk = osb
             self.connections = oconn

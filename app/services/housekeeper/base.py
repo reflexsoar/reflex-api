@@ -64,12 +64,12 @@ class HouseKeeper(object):
             self.logger.info(f"Deleting agent {agent.name}, last heartbeat exceeds threshold of {self.agent_prune_lifetime} days")
 
             # Remove the agent from the Agent Role
-            agent_role = Role.get_by_member(member=agent.uuid)
+            agent_role = Role.get_by_member(agent.uuid)
             if agent_role:
                 agent_role.remove_user_from_role(agent.uuid)
 
             # Remove the agent from the Agent Groups
-            agent_group = AgentGroup.get_by_member(member=agent.uuid)
+            agent_group = AgentGroup.get_by_member(agent.uuid)
             if agent_group:
                 if isinstance(agent_group, list):
                     for group in agent_group:
