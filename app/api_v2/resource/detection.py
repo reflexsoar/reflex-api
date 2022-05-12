@@ -32,7 +32,9 @@ mod_detection_details = api.model('DetectionDetails', {
     'query_time': fields.Integer,
     'interval': fields.Integer,
     'lookbehind': fields.Integer,
-    'skip_event_rules': fields.Boolean
+    'skip_event_rules': fields.Boolean,
+    'last_run': ISO8601,
+    'running': fields.Boolean
 })
 
 mod_create_detection = api.model('CreateDetection', {
@@ -115,8 +117,45 @@ class DetectionList(Resource):
         '''
         Creates a new detection rule
         '''
-        print(api.payload)
+
+        detection = Detection(**api.payload)
+        detection.version = 1
+
         return {}
+
+@api.route("/<uuid>/run")
+class RunDetection(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_detection_details)
+    @token_required
+    @user_has('update_detection')
+    def put(self, uuid, current_user):
+        '''
+        Sets the detection rule as currently running so that other agents do 
+        not pick up the rule and run it at the same time
+        '''
+
+        detection = Detection.get_by_uuid(uuid=uuid)
+        detection.set_run_flag(flag=True)
+        return detection
+
+
+@api.route("/<uuid>/stop")
+class StopDetection(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_detection_details)
+    @token_required
+    @user_has('update_detection')
+    def put(self, uuid, current_user):
+        '''
+        Sets the detection rule as run complete and ready to run at the next run interval
+        '''
+
+        detection = Detection.get_by_uuid(uuid=uuid)
+        detection.set_run_flag(flag=False)
+        return detection
 
 
 @api.route("/<uuid>")
@@ -149,6 +188,11 @@ class DetectionDetails(Resource):
         detection = Detection.get_by_uuid(uuid=uuid)
         if detection:
             print(api.payload)
+
+            # Update the detection version number when the detection is saved
+            if hasattr(detection, 'version'):
+                detection.version += 1            
+
             return detection
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')
