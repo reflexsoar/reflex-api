@@ -396,6 +396,27 @@ class UserList(Resource):
             return {'message': 'Successfully created the user.', 'user': user}
 
 
+@ns_user_v2.route("/set_password")
+class UserSetPassword(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_password_update)
+    @api2.marshal_with(mod_user_full)
+    @token_required
+    def put(self, current_user):
+        '''
+        Allows the current_user to set their password, the current_user is targeted
+        by the users access credentials
+        '''
+
+        if 'password' in api2.payload:
+            print(current_user)
+            current_user.set_password(api2.payload['password'])
+            current_user.save()
+        else:
+            ns_user_v2.abort(400, 'Password required.')
+
+
 @ns_user_v2.route("/<uuid>")
 class UserDetails(Resource):
 
@@ -434,7 +455,6 @@ class UserDetails(Resource):
                 target_user = User.get_by_email(api2.payload['email'])
                 if target_user:
                     
-                    
                     if target_user.uuid == uuid:
                         del api2.payload['email']
                     else:
@@ -446,8 +466,14 @@ class UserDetails(Resource):
                         if email_domain not in organization.logon_domains:
                             ns_user_v2.abort(400, 'Invalid logon domain.')
 
+            # Allow the user to save their own password regardless of their permissions
+            if 'password' in api2.payload and user.uuid == current_user.uuid:
+                user.set_password(pw)
+                user.save()
+
             if 'password' in api2.payload and not current_user.has_right('reset_user_password'):
                 api2.payload.pop('password')
+
             if 'password' in api2.payload and current_user.has_right('reset_user_password'):
                 pw = api2.payload.pop('password')
                 user.set_password(pw)

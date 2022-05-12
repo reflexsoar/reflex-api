@@ -76,6 +76,10 @@ mod_refresh_token = Model('RefreshToken', {
     'refresh_token': fields.String
 })
 
+mod_password_update = Model('PasswordUpdate', {
+    'password': fields.String
+})
+
 mod_permissions = Model('Permissions', {
     'add_user': fields.Boolean,
     'update_user': fields.Boolean,
@@ -1110,4 +1114,4 @@ mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plu
 mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql,
 mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_event_rule_list_paged, mod_bulk_event_uuids,
 mod_list_values, mod_input_list_paged, mod_agent_group_list_paged, mod_credential_list_paged, mod_agent_list_paged,
-mod_user_list_paged]
+mod_user_list_paged, mod_password_update]
