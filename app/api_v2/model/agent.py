@@ -70,9 +70,7 @@ class Agent(base.BaseDocument):
         #return bool(getattr(role.permissions, permission))
         role = user.Role.search()
         role = role.filter('term', members=self.uuid)
-        print(role.to_dict())
         role = role.execute()
-        print(role)
         if role:
             role = role[0]
 

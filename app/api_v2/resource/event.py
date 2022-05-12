@@ -672,7 +672,7 @@ class EventsByCase(Resource):
         return response
 
 
-def check_cache(reference):
+def check_cache(reference, client):
     '''
     Checks memcached to see if the Event has already been sent
     Falls back to Elasticsearch.  If an event is found in Elasticsearch, add
@@ -688,7 +688,6 @@ def check_cache(reference):
     memcached_key = f"event-processing-{reference}"
 
     if memcached_enabled:
-        client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")   
 
         # Check memcached first        
         if not found:
@@ -849,9 +848,11 @@ class CreateBulkEvents(Resource):
         else:
             start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
 
+            client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
+
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
-                if not check_cache(event['reference']):
+                if not check_cache(event['reference'], client=client):
                     ep.enqueue(event)
             
             # Signal the end of the task
@@ -860,6 +861,7 @@ class CreateBulkEvents(Resource):
 
             end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
             total_process_time = end_bulk_process_dt - start_bulk_process_dt
+            client.close()
             return {"task_id": str(request_id), "response_time": total_process_time}
 
 
