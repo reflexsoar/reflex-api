@@ -14,7 +14,8 @@ from . import (
     Float,
     Date,
     Nested,
-    system
+    system,
+    Object
 )
 
 
@@ -55,6 +56,7 @@ class FieldMismatchConfig(base.InnerDoc):
 
     source_field = Keyword()
     target_field = Keyword()
+    operator = Keyword() # eq or ne
 
 
 class QueryConfig(base.InnerDoc):
@@ -71,6 +73,19 @@ class SourceConfig(base.InnerDoc):
 
     language = Keyword()
     source = Keyword()
+
+
+class ObservableField(base.InnerDoc):
+    '''
+    Defines what fields to extract as observables and what their data_types and associated
+    meta data should be
+    '''
+
+    field = Keyword()
+    alias = Keyword()
+    data_type = Text(fields={'keyword':Keyword()})
+    tlp = Integer()
+    tags = Keyword()
 
 
 class Detection(base.BaseDocument):
@@ -92,16 +107,16 @@ class Detection(base.BaseDocument):
     references = Keyword() # A list of URLs that detail in greater depth why this detection exists
     false_positives = Keyword() # A list of false positives
     kill_chain_phase = Keyword() # Singular text based phase definition
-    rule_type = Integer() # 1 - Match 2 - Frequency 3 - Silent
+    rule_type = Integer() # 1 - Match 2 - Frequency 3 - Metric
     version = Integer() # Version number 
     active = Boolean() # Is the rule active or disabled
     warnings = Keyword() # A list of warnings for this alert e.g. slow, volume, field_missing, import_fail
-    source = Nested(SourceConfig) # The UUID of the input/source this detection should run against
+    source = Object(SourceConfig) # The UUID of the input/source this detection should run against
     case_template = Keyword() # The UUID of the case_template to apply when an alert created by this detection is ultimately turned in to a case
     risk_score = Integer() # 0 - 100 
     severity = Integer() # 1-4 (1: Low, 2: Medium, 3: High, 4: Critical)
     signature_fields = Keyword() # Calculate a unique signature for this rule based on fields on the source event
-    observable_fields = Nested() # Configures which fields should show up as observables in the alert
+    observable_fields = Nested(ObservableField) # Configures which fields should show up as observables in the alert
     query_time = Integer() # How long the rule took to run in seconds
     interval = Integer() # How often should the rule run in minutes
     lookbehind = Integer() # How far back should the rule look when it runs
@@ -112,9 +127,10 @@ class Detection(base.BaseDocument):
     last_run = Date() # When was the last time the rule was run
     exceptions = Nested(DetectionException) # InnerDoc 
     mute_period = Integer() # How long to prevent the detection from refiring in minutes. If 0 send all
-    threshold_config = Nested(ThresholdConfig)
-    metric_change_config = Nested(MetricChangeConfig)
-    field_mismatch_config = Nested(FieldMismatchConfig)
+    threshold_config = Object(ThresholdConfig)
+    metric_change_config = Object(MetricChangeConfig)
+    field_mismatch_config = Object(FieldMismatchConfig)
+    assigned_agent = Keyword() # The UUID of the agent that should run this alarm
 
     class Index:
         name = "reflex-detections"
