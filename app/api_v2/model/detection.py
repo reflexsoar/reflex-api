@@ -18,6 +18,51 @@ from . import (
 )
 
 
+class DetectionException(base.BaseInnerDoc):
+    '''
+    A DetectionException tells a detection to filter out specific criteria
+    '''
+
+    description = Text()
+    query = Keyword()
+
+
+class MetricChange(base.InnerDoc):
+    '''
+    The configuration for a Metric Changes
+    '''
+
+    avg_period = Integer() # How far back to look to find average logs
+    threshold = Integer() # The threshold e.g. 10 which is 10 items or 10%
+    threshold_format = Integer() # 1 = Value, 2 = Percent
+    increase = Boolean() # True = increase, False = Decrease
+
+
+class ThresholdConfig(base.InnerDoc):
+    '''
+    The configuration for ThresholdHold
+    '''
+
+    threshold = Integer() # The number of items where the threshold is crossed
+    key_field = Keyword() # Optional key to count against (count of records in this field)
+
+
+class QueryConfig(base.InnerDoc):
+    '''
+    '''
+
+    language = Keyword() # kql, lucene, spl, eql, qradar
+    query = Keyword()
+
+
+class SourceConfig(base.InnerDoc):
+    '''
+    '''
+
+    language = Keyword()
+    source = Keyword()
+
+
 class Detection(base.BaseDocument):
     '''
     A Detection is a rule defined by a security team to look for suspicious or malicious
@@ -25,7 +70,10 @@ class Detection(base.BaseDocument):
     '''
 
     name = Keyword(fields={'text':Text()})
+    query = Nested(QueryConfig) # The query to run against the log source
     detection_id = Keyword() # A persistent UUID that follows the rule and is associated to events
+    from_sigma = Boolean() # Tells you if the rule was converted from a Sigma rule
+    sigma_rule = Keyword(fields={'text':Text()}) # The raw sigma rule
     description = Text()
     guide = Text() # A descriptive process for how to triage/investigate this detection
     tags = Keyword() # A list of tags used to categorize this repository
@@ -38,7 +86,7 @@ class Detection(base.BaseDocument):
     version = Integer() # Version number 
     active = Boolean() # Is the rule active or disabled
     warnings = Keyword() # A list of warnings for this alert e.g. slow, volume, field_missing, import_fail
-    source = Keyword() # The UUID of the input/source this detection should run against
+    source = Nested(SourceConfig) # The UUID of the input/source this detection should run against
     case_template = Keyword() # The UUID of the case_template to apply when an alert created by this detection is ultimately turned in to a case
     risk_score = Integer() # 0 - 100 
     severity = Integer() # 1-4 (1: Low, 2: Medium, 3: High, 4: Critical)
@@ -51,7 +99,11 @@ class Detection(base.BaseDocument):
     run_start = Date() # When the run started
     run_finished = Date() # When the run finished
     next_run = Date() # When the rule should run again
-    last_run = Date() # When was the last time the rule was  run
+    last_run = Date() # When was the last time the rule was run
+    exceptions = Nested(DetectionException) # InnerDoc 
+    mute_period = Integer() # How long to prevent the detection from refiring in minutes. If 0 send all
+    threshold_config = Nested(ThresholdConfig)
+    metric_change_config = Nested(MetricChange)
 
     class Index:
         name = "reflex-detections"
