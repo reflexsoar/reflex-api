@@ -148,7 +148,7 @@ class AgentGroup(base.BaseDocument):
         Removes an agent from the group
         '''
         if self.agents:
-            self.agents.pop(uuid)
+            self.agents.remove(uuid)
         self.save()
 
 
@@ -164,8 +164,12 @@ class AgentGroup(base.BaseDocument):
             response = response.filter('term', agents=member)
 
         response = response.execute()
+
+        if len(response) > 1:
+            return list(response)
+
         if response:
-            return response
+            return response[0]
         else:
             return None
 

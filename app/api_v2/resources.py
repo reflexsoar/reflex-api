@@ -410,7 +410,6 @@ class UserSetPassword(Resource):
         '''
 
         if 'password' in api2.payload:
-            print(current_user)
             current_user.set_password(api2.payload['password'])
             current_user.save()
         else:
@@ -1362,6 +1361,7 @@ class CaseObservable(Resource):
         case = Case.get_by_uuid(uuid=uuid)
 
         if case:
+
             search = Event.search()
             search = search[0:1]
             search = search.filter('term', case=uuid)
@@ -1382,6 +1382,9 @@ class CaseObservable(Resource):
         ''' Updates a cases observable '''
 
         observable = None
+
+        value = base64.b64decode(value).decode()
+
         search = Event.search()
         search = search[0:1]
         search = search.filter('term', case=uuid)
