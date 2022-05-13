@@ -29,12 +29,13 @@ class Detection(base.BaseDocument):
     description = Text()
     guide = Text() # A descriptive process for how to triage/investigate this detection
     tags = Keyword() # A list of tags used to categorize this repository
-    tactics = Keyword()
-    techniques = Keyword()
+    tactics = Keyword()  # T1085.1
+    techniques = Keyword() # T1085
     references = Keyword() # A list of URLs that detail in greater depth why this detection exists
-    kill_chain_phase = Keyword()
-    rule_type = Integer()
-    version = Float()
+    false_positives = Keyword() # A list of false positives
+    kill_chain_phase = Keyword() # Singular text based phase definition
+    rule_type = Integer() # 1 - Match 2 - Frequency 3 - Silent
+    version = Integer() # Version number 
     active = Boolean() # Is the rule active or disabled
     warnings = Keyword() # A list of warnings for this alert e.g. slow, volume, field_missing, import_fail
     source = Keyword() # The UUID of the input/source this detection should run against
@@ -43,43 +44,20 @@ class Detection(base.BaseDocument):
     severity = Integer() # 1-4 (1: Low, 2: Medium, 3: High, 4: Critical)
     signature_fields = Keyword() # Calculate a unique signature for this rule based on fields on the source event
     observable_fields = Nested() # Configures which fields should show up as observables in the alert
-    query_time = Integer() # How long the rule took to run
-    interval = Integer() # How often should the rule run in seconds
+    query_time = Integer() # How long the rule took to run in seconds
+    interval = Integer() # How often should the rule run in minutes
     lookbehind = Integer() # How far back should the rule look when it runs
     skip_event_rules = Boolean() # Skip Event Rules when this detection generates an Event
     run_start = Date() # When the run started
     run_finished = Date() # When the run finished
     next_run = Date() # When the rule should run again
     last_run = Date() # When was the last time the rule was  run
-    running = Boolean() # Is the rule currently being run
 
     class Index:
         name = "reflex-detections"
         settings = {
             "refresh_interval": "1s"
         }
-
-    def set_run_flag(self, flag=False):
-        '''
-        Sets the rule as running so that other agents do not attempt to run it at the same time
-        Also will set the rule as not running and set last_run timestamp so agents know when
-        to pick up and run this rule again based on the run interval
-        '''
-
-        now = datetime.datetime.utcnow()
-
-        if flag:
-            self.run_start = now
-            self.running = True
-
-        if not flag:
-            self.running = False
-            self.run_finished = now
-            self.last_run = now
-            self.next_run = self.last_run + datetime.timedelta(seconds=self.interval)
-            self.query_time = (self.now - self.run_start).total_seconds()
-
-        self.save()
     
 
 class DetectionPerformanceMetric(base.BaseDocument):
