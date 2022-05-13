@@ -27,7 +27,7 @@ class DetectionException(base.BaseInnerDoc):
     query = Keyword()
 
 
-class MetricChange(base.InnerDoc):
+class MetricChangeConfig(base.InnerDoc):
     '''
     The configuration for a Metric Changes
     '''
@@ -45,6 +45,16 @@ class ThresholdConfig(base.InnerDoc):
 
     threshold = Integer() # The number of items where the threshold is crossed
     key_field = Keyword() # Optional key to count against (count of records in this field)
+
+
+class FieldMismatchConfig(base.InnerDoc):
+    '''
+    A Field Mismatch rule will fire when two fields of an item returned by 
+    the intial query do not match
+    '''
+
+    source_field = Keyword()
+    target_field = Keyword()
 
 
 class QueryConfig(base.InnerDoc):
@@ -103,7 +113,8 @@ class Detection(base.BaseDocument):
     exceptions = Nested(DetectionException) # InnerDoc 
     mute_period = Integer() # How long to prevent the detection from refiring in minutes. If 0 send all
     threshold_config = Nested(ThresholdConfig)
-    metric_change_config = Nested(MetricChange)
+    metric_change_config = Nested(MetricChangeConfig)
+    field_mismatch_config = Nested(FieldMismatchConfig)
 
     class Index:
         name = "reflex-detections"
