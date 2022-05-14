@@ -550,9 +550,6 @@ class IntelListValues(Resource):
 
         values, total_results, pages = page_results(values, args.page, args.page_size)
 
-        import json
-        print(json.dumps(values.to_dict()))
-
         values = values.execute()
 
         response = {
