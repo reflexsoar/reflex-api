@@ -524,8 +524,8 @@ class IntelListValues(Resource):
             if user_in_default_org and args.organization:
                 intel_list = intel_list.filter('term', organization=args.organization)
 
-            intel_list = intel_list.filter('wildcard', name=args.list_name__like)
-            lists = list(intel_list.scan())      
+            intel_list = intel_list.filter('wildcard', name=args.list_name__like+"*")
+            lists = list(intel_list.scan())
         
         values = ThreatValue.search()
 
