@@ -206,8 +206,8 @@ mod_permissions = Model('Permissions', {
     'update_settings': fields.Boolean,
     'view_settings': fields.Boolean,
     'create_detection': fields.Boolean,
-    'update_detection:': fields.Boolean,
-    'view_detections:': fields.Boolean,
+    'update_detection': fields.Boolean,
+    'view_detections': fields.Boolean,
     'delete_detection': fields.Boolean,
     'create_persistent_pairing_token': fields.Boolean,
     'use_api': fields.Boolean(optional=True)
