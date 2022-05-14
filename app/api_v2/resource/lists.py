@@ -516,52 +516,56 @@ class IntelListValues(Resource):
 
         args = list_value_parser.parse_args()
 
-        intel_list = ThreatList.search()
-
-        if args.list:
-            intel_list = intel_list.filter('terms', uuid=args.list)
+        lists = None
 
         if args.list_name__like:
+            intel_list = ThreatList.search()
+
+            if user_in_default_org and args.organization:
+                intel_list = intel_list.filter('term', organization=args.organization)
+
             intel_list = intel_list.filter('wildcard', name=args.list_name__like)
-
-        if user_in_default_org and args.organization:
-            intel_list = intel_list.filter('term', organization=args.organization)
+            lists = list(intel_list.scan())      
         
-        if intel_list:
-            values = ThreatValue.search()
-            values = values.filter('terms', list_uuid=[l.uuid for l in intel_list])
+        values = ThreatValue.search()
 
-            if args.value:
-                values = values.filter('terms', value=args.value)
+        if args.list:
+            if lists:
+                args.list += [l.uuid for l in lists]
+            values = values.filter('terms', list_uuid=args.list)
+        elif lists:
+            values = values.filter('terms', list_uuid=[l.uuid for l in lists])
 
-            if args.data_type:
-                values = values.filter('terms', data_type=args.data_type)
+        if args.value:
+            values = values.filter('terms', value=args.value)
 
-            if args.from_poll:
-                values = values.filter('term', from_poll=args.from_poll)
+        if args.data_type:
+            values = values.filter('terms', data_type=args.data_type)
 
-            if args.record_id:
-                values = values.filter('term', record_id=args.record_id)
+        if args.from_poll:
+            values = values.filter('term', from_poll=args.from_poll)
 
-            values, total_results, pages = page_results(values, args.page, args.page_size)
+        if args.record_id:
+            values = values.filter('term', record_id=args.record_id)
 
-            values = values.execute()
+        values, total_results, pages = page_results(values, args.page, args.page_size)
 
-            response = {
-                'values': list(values),
-                'pagination': {
-                    'total_results': total_results,
-                    'pages': pages,
-                    'page': args['page'],
-                    'page_size': args['page_size']
-                }
+        import json
+        print(json.dumps(values.to_dict()))
+
+        values = values.execute()
+
+        response = {
+            'values': list(values),
+            'pagination': {
+                'total_results': total_results,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
             }
+        }
 
-            return response
-        else:
-            api.abort(404, 'Intel List not found')
-
-        return {}
+        return response
 
 
 @api.route("/<uuid>/add_value")
