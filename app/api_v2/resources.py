@@ -323,15 +323,17 @@ class UserList(Resource):
         users = User.search()
 
         if args['username']:
-            users = users.filter('term', username=args.username)
+            users = users.filter('wildcard', username__keyword=args.username+"*")
 
         if args['organization']:
-            users = users.filter('term', organization=args.organization)
+            users = users.filter('term', organization=args.organization)    
 
         if args.deleted:
             users = users.filter('match', deleted=True)
         else:
             users = users.filter('match', deleted=False)
+
+        print(users.to_dict())
 
         users, total_results, pages = page_results(users, args.page, args.page_size)
 
