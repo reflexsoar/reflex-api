@@ -144,7 +144,7 @@ def setup(app):
     app.logger.info("Creating default admin role")
     create_admin_role(Role, admin_id, org_id, org_perms=True)
     app.logger.info("Creating default analyst role")
-    create_analyst_role(Role, org_id)
+    create_analyst_role(Role, org_id, org_perms=True)
     app.logger.info("Creating default agent role")
     create_agent_role(Role,org_id)
     app.logger.info("Creating default data types")
@@ -249,6 +249,11 @@ def create_app(environment='development'):
                 func=housekeeper.prune_old_agents,
                 trigger="interval",
                 seconds=app.config['AGENT_PRUNE_INTERVAL']
+            )
+            scheduler.add_job(
+                func=housekeeper.prune_old_tasks,
+                trigger="interval",
+                seconds=app.config['TASK_PRUNE_INTERVAL']
             )
 
         if not app.config['SLAMONITOR_DISABLED']:

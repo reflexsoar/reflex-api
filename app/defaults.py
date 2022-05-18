@@ -141,7 +141,7 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False):
     role = cls(**role_contents)
     role.save()
 
-def create_analyst_role(cls, org_id):
+def create_analyst_role(cls, org_id, org_perms=False):
 
     perms = { 
         'view_users': True,
@@ -199,7 +199,9 @@ def create_analyst_role(cls, org_id):
         "delete_event_rule": True,
         "create_close_reason": False,
         "update_close_reason": False,
-        "delete_close_reason": False
+        "delete_close_reason": False,
+        'view_organizations': org_perms,
+        'view_event_rules': True
     }
 
     role_contents = {

@@ -321,15 +321,17 @@ class UserList(Resource):
         users = User.search()
 
         if args['username']:
-            users = users.filter('term', username=args.username)
+            users = users.filter('wildcard', username__keyword=args.username+"*")
 
         if args['organization']:
-            users = users.filter('term', organization=args.organization)
+            users = users.filter('term', organization=args.organization)    
 
         if args.deleted:
             users = users.filter('match', deleted=True)
         else:
             users = users.filter('match', deleted=False)
+
+        print(users.to_dict())
 
         users, total_results, pages = page_results(users, args.page, args.page_size)
 
@@ -396,6 +398,26 @@ class UserList(Resource):
             return {'message': 'Successfully created the user.', 'user': user}
 
 
+@ns_user_v2.route("/set_password")
+class UserSetPassword(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_password_update)
+    @api2.marshal_with(mod_user_full)
+    @token_required
+    def put(self, current_user):
+        '''
+        Allows the current_user to set their password, the current_user is targeted
+        by the users access credentials
+        '''
+
+        if 'password' in api2.payload:
+            current_user.set_password(api2.payload['password'])
+            current_user.save()
+        else:
+            ns_user_v2.abort(400, 'Password required.')
+
+
 @ns_user_v2.route("/<uuid>")
 class UserDetails(Resource):
 
@@ -434,19 +456,25 @@ class UserDetails(Resource):
                 target_user = User.get_by_email(api2.payload['email'])
                 if target_user:
                     
-                    
                     if target_user.uuid == uuid:
                         del api2.payload['email']
                     else:
                         ns_user_v2.abort(409, 'Email already taken.')
                 organization = Organization.get_by_uuid(user.organization)
                 if organization:
-                    email_domain = api2.payload['email'].split('@')[1]
-                    if email_domain not in organization.logon_domains:
-                        ns_user_v2.abort(400, 'Invalid logon domain.')
+                    if 'email' in api2.payload:
+                        email_domain = api2.payload['email'].split('@')[1]
+                        if email_domain not in organization.logon_domains:
+                            ns_user_v2.abort(400, 'Invalid logon domain.')
+
+            # Allow the user to save their own password regardless of their permissions
+            if 'password' in api2.payload and user.uuid == current_user.uuid:
+                user.set_password(pw)
+                user.save()
 
             if 'password' in api2.payload and not current_user.has_right('reset_user_password'):
                 api2.payload.pop('password')
+
             if 'password' in api2.payload and current_user.has_right('reset_user_password'):
                 pw = api2.payload.pop('password')
                 user.set_password(pw)
@@ -1214,9 +1242,11 @@ class CaseDetails(Resource):
                         event.case = None
                         event.set_new()
 
-            observables = Observable.get_by_case_uuid(uuid=uuid)
-            if observables and len(observables) > 0:
-                [o.delete() for o in observables]
+            # DEPRECATED: This method is no longer used to store observales
+            # suc they don't need deleted - BC 2022-05-03
+            #observables = Observable.get_by_case_uuid(uuid=uuid)
+            #if observables and len(observables) > 0:
+            #    [o.delete() for o in observables]
 
             tasks = CaseTask.get_by_case(uuid=uuid, all_results=True)
             if tasks and len(tasks) > 0:
@@ -1333,6 +1363,7 @@ class CaseObservable(Resource):
         case = Case.get_by_uuid(uuid=uuid)
 
         if case:
+
             search = Event.search()
             search = search[0:1]
             search = search.filter('term', case=uuid)
@@ -1353,6 +1384,9 @@ class CaseObservable(Resource):
         ''' Updates a cases observable '''
 
         observable = None
+
+        value = base64.b64decode(value).decode()
+
         search = Event.search()
         search = search[0:1]
         search = search.filter('term', case=uuid)

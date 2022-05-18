@@ -1,3 +1,4 @@
+import base64
 import copy
 import math
 import time
@@ -481,11 +482,11 @@ def fetch_observables_from_history(observables):
     search = search.filter('terms', value=[o['value'] for o in observables])
     search = search[0:0]
     search.aggs.bucket('values', 'terms', field='value', order={'max_date': 'desc'})
-    search.aggs['values'].bucket('max_date', 'max', field='original_date')
+    search.aggs['values'].bucket('max_date', 'max', field='created_at')
     search.aggs['values'].bucket('by_uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=1)
-    search.aggs['values']['by_uuid'].bucket('max_date', 'max', field='original_date')
+    search.aggs['values']['by_uuid'].bucket('max_date', 'max', field='created_at')
     search.aggs['values']['by_uuid'].bucket('source', 'top_hits')
-    
+   
     history = search.execute()
     observable_history = [bucket['by_uuid'].buckets[0]['source']['hits']['hits'][0]['_source'].to_dict() for bucket in history.aggs.values.buckets]
     in_history = [o['value'] for o in observable_history]
@@ -504,7 +505,8 @@ def fetch_observables_from_history(observables):
         if 'tags' in observable:
             observable['tags'] = list(set([t for t in source_observable['tags']] + [t for t in observable['tags']]))
         else:
-            observable['tags'] = source_observable['tags']
+            if 'tags' in source_observable:
+                observable['tags'] = source_observable['tags']
         
 
     return _observables
@@ -524,6 +526,7 @@ class EventObservable(Resource):
         ''' Updates an events observable '''
 
         observable = None
+        value = base64.b64decode(value).decode()
         search = Event.search()
         search = search[0:1]
         search = search.filter('term', uuid=uuid)
@@ -602,7 +605,7 @@ class EventObservablesByCase(Resource):
                           "event_observables.tags"]}, size=10000)
         events = search.execute()
         exists = set()
-        observables = [o.to_dict() for o in events.aggs.observables.values if [(o.value, o.data_type) not in exists, exists.add((o.value, o.data_type))][0]]
+        observables = [o.to_dict() for o in events.aggs.observables.values if [(o.value, o.data_type) not in exists and hasattr(o, 'value'), exists.add((o.value, o.data_type))][0]]
         observables = fetch_observables_from_history(observables)
         #observables = []
         #
@@ -671,7 +674,7 @@ class EventsByCase(Resource):
         return response
 
 
-def check_cache(reference):
+def check_cache(reference, client):
     '''
     Checks memcached to see if the Event has already been sent
     Falls back to Elasticsearch.  If an event is found in Elasticsearch, add
@@ -687,7 +690,6 @@ def check_cache(reference):
     memcached_key = f"event-processing-{reference}"
 
     if memcached_enabled:
-        client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")   
 
         # Check memcached first        
         if not found:
@@ -848,9 +850,11 @@ class CreateBulkEvents(Resource):
         else:
             start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
 
+            client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
+
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
-                if not check_cache(event['reference']):
+                if not check_cache(event['reference'], client=client):
                     ep.enqueue(event)
             
             # Signal the end of the task
@@ -859,6 +863,7 @@ class CreateBulkEvents(Resource):
 
             end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
             total_process_time = end_bulk_process_dt - start_bulk_process_dt
+            client.close()
             return {"task_id": str(request_id), "response_time": total_process_time}
 
 
@@ -988,11 +993,6 @@ class EventBulkDismiss(Resource):
         )
         ubq = ubq.params(slices='auto', refresh=True)
 
-        #print(fields)
-
-        #print(search.count())
-        #print(json.dumps(search.to_dict(), indent=2, default=str))
-
         events = list(search.scan())
         
         # Check to see if the user is trying to bulk dismiss across organizations/tenants
@@ -1002,19 +1002,16 @@ class EventBulkDismiss(Resource):
             api.abort(400, 'Bulk dismissal actions organizations is unsupported')
 
         x = ubq.execute()
-        #print(ubq.to_dict())
 
         signatures = [e.signature for e in events]
         
         # If we need to include related events, 
         related_events = []
         if include_related and len(uuids) > 0:
-            #print("SEARCHING FOR RELATED EVENTS")
             related_search = Event.search()
             rubq = UpdateByQuery(index='reflex-events')
 
             # Apply all the filters to the event query
-            #print(fields)
             for field in fields:
                 if field not in ['start', 'end', 'observable', 'signature', 'data type', 'title__like']:
                     related_search = related_search.filter('terms', **{field_names[field]: fields[field]})
@@ -1046,8 +1043,6 @@ class EventBulkDismiss(Resource):
             rubq = rubq.filter('terms', signature=signatures)
             rubq = rubq.filter('bool', must_not=[Q('terms', uuid=api.payload['uuids'])])
             
-            #print(related_search.count())
-            #print(json.dumps(related_search.to_dict(), indent=2, default=str))
             related_events = list(related_search.scan())
             orgs = []
 
@@ -1788,4 +1783,13 @@ class EventQueueStats(Resource):
 
     @api.doc(security="Bearer")
     def get(self):
-        return {"size": ep.qsize()}
+        worker_info = []
+        for worker in ep.workers:
+            worker_info.append(
+                {
+                    'loaded_rules': len(worker.rules),
+                    'events': len(worker.events),
+                    '_id': worker._sentinel
+                }
+            )
+        return {"size": ep.qsize(), "workers": worker_info}

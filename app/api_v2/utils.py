@@ -118,8 +118,14 @@ def check_org(f):
     def wrapper(*args, **kwargs):
         if 'current_user' in kwargs:
             current_user = kwargs['current_user']
-            if current_user and not hasattr(current_user,'default_org') and args[0].api.payload and 'organization' in args[0].api.payload:
-                args[0].api.payload.pop('organization')
+            if current_user and not hasattr(current_user,'default_org'):
+                if len(args) > 0:
+                    try:
+                        if hasattr(args[0].api,'payload') and 'organization' in args[0].api.payload:
+                            print(args[0].api.payload)
+                            args[0].api.payload.pop('organization')
+                    except Exception as e:
+                        pass
         return f(*args, **kwargs)
     wrapper.__doc__ = f.__doc__
     wrapper.__name__ = f.__name__
@@ -338,7 +344,6 @@ def _check_token():
 
                 if 'default_org' in token and token['default_org']:
                     current_user.default_org = True
-
 
             except ValueError:
                 abort(401, 'Token retired.')

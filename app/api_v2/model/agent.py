@@ -56,17 +56,31 @@ class Agent(base.BaseDocument):
         groups = AgentGroup.get_by_uuid(uuid=self.groups)
         return list(groups)
 
+
     def has_right(self, permission):
         '''
         Checks to see if the user has the proper
         permissions to perform an API action
         '''
 
-        role = user.Role.search().query('match', members=self.uuid).execute()
+        #role = user.Role.search().query('match', members=self.uuid).execute()
+        #if role:
+            #role = role[0]
+
+        #return bool(getattr(role.permissions, permission))
+        role = user.Role.search()
+        role = role.filter('term', members=self.uuid)
+        role = role.execute()
         if role:
             role = role[0]
 
-        return bool(getattr(role.permissions, permission))
+            if hasattr(role.permissions, permission):
+                return getattr(role.permissions, permission)
+            else:
+                return False
+        else:
+            return False
+
 
     @classmethod
     def get_by_name(cls, name, organization=None):
@@ -127,6 +141,38 @@ class AgentGroup(base.BaseDocument):
         else:
             self.agents = [uuid]
         self.save()
+
+    
+    def remove_agent(self, uuid):
+        '''
+        Removes an agent from the group
+        '''
+        if self.agents:
+            self.agents.remove(uuid)
+        self.save()
+
+
+    @classmethod
+    def get_by_member(cls, member):
+        '''
+        Fetches a document by the the member of the agents field
+        '''
+        response = cls.search()
+        if isinstance(member, list):
+            response = response.filter('terms', agents=member)
+        else:
+            response = response.filter('term', agents=member)
+
+        response = response.execute()
+
+        if len(response) > 1:
+            return list(response)
+
+        if response:
+            return response[0]
+        else:
+            return None
+
 
     @classmethod
     def get_by_name(cls, name, organization=None):
