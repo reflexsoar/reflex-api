@@ -218,3 +218,15 @@ mod_user_list = Model('UserList', {
     'uuid': fields.String,
     'organization': fields.String
 })
+
+
+def redistribute_detections(organization=None):
+    '''
+    When the following criteria is true this function will redistribute the detection workload
+    of all agents in the given organization
+
+    If a new detection is added
+    If a detection is disabled or deleted
+    If an agent is added or its health changes to unhealthy
+    '''
+    print(organization)

@@ -1,10 +1,11 @@
 from uuid import uuid4
-from ..utils import token_required, user_has, ip_approved
+from ..utils import check_org, token_required, user_has, ip_approved
 from flask_restx import Resource, Namespace, fields
 from ..model import (
     Detection
 )
 from .shared import FormatTags, mod_pagination, ISO8601
+from .utils import redistribute_detections
 
 api = Namespace('Detection', description='Reflex detection rules', path='/detection')
 
@@ -91,28 +92,28 @@ mod_detection_details = api.model('DetectionDetails', {
 })
 
 mod_create_detection = api.model('CreateDetection', {
-    'name': fields.String(default='Sample Rule'),
-    'query': fields.List(fields.Nested(mod_query_config)),
+    'name': fields.String(default='Sample Rule', required=True),
+    'query': fields.List(fields.Nested(mod_query_config), required=True),
     'from_sigma': fields.Boolean(default=False),
     'sigma_rule': fields.String,
     'organization': fields.String,
-    'description': fields.String(default="A detailed description."),
+    'description': fields.String(default="A detailed description.", required=True),
     'guide': fields.String(default="An investigation guide on how to triage this detection"),
     'tags': fields.List(fields.String),
     'tactics': fields.List(fields.String),
     'techniques': fields.List(fields.String),
     'references': fields.List(fields.String),
     'kill_chain_phase': fields.String,
-    'rule_type': fields.Integer,
+    'rule_type': fields.Integer(required=True),
     'active': fields.Boolean,
-    'source': fields.List(fields.Nested(mod_source_config)),
+    'source': fields.List(fields.Nested(mod_source_config), required=True),
     'case_template': fields.String,
-    'risk_score': fields.Integer,
-    'severity': fields.Integer,
+    'risk_score': fields.Integer(default=50),
+    'severity': fields.Integer(required=True, default=1),
     'signature_fields': fields.List(fields.String),
     'observable_fields': fields.List(fields.Nested(mod_observable_field)),
-    'interval': fields.Integer(default=5),
-    'lookbehind': fields.Integer(default=5),
+    'interval': fields.Integer(default=5, required=True),
+    'lookbehind': fields.Integer(default=5, required=True),
     'skip_event_rules': fields.Boolean(default=False),
     'exceptions': fields.List(fields.Nested(mod_detection_exception)),
     'threshold_config': fields.Nested(mod_threshold_config),
@@ -149,6 +150,8 @@ mod_detection_list_paged = api.model('DetectionListPaged', {
     'pagination': fields.Nested(mod_pagination)
 })
 
+
+
 @api.route("")
 class DetectionList(Resource):
 
@@ -174,23 +177,34 @@ class DetectionList(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_detection_details)
-    @api.expect(mod_create_detection)
+    @api.expect(mod_create_detection, validate=True)
     @token_required
+    @check_org
     @user_has('create_detection')
     def post(self, current_user):
         '''
         Creates a new detection rule
         '''
 
-        print(api.payload)
+        # Only allow a detection with 
+        if 'organization' in api.payload:
+            exists = Detection.get_by_name(name=api.payload['name'], organization=api.payload['organization'])
+        else:
+            exists = Detection.get_by_name(name=api.payload['name'])
 
-        detection = Detection(**api.payload)
-        #detection.detection_id = uuid4()
-        detection.version = 1
+        if not exists:
 
-        detection.save()
+            detection = Detection(**api.payload)
+            detection.detection_id = uuid4()
+            detection.version = 1
+            detection.save()
 
-        return {}
+            # Redistribute the detection workload for the organization
+            redistribute_detections(detection.organization)
+
+            return detection
+        else:
+            api.abort(409, 'A detection rule with this name already exists')
 
 
 @api.route("/<uuid>")

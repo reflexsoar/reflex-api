@@ -103,6 +103,20 @@ class Agent(base.BaseDocument):
             return usr
         return response
 
+    
+    @classmethod
+    def get_by_organization(cls, organization):
+        '''
+        Fetches a document by the organization field
+        '''
+        response = cls.search()
+        response = response.filter('term', organization=organization)
+        response = list(response.scan())
+
+        if len(response) > 0:
+            return response
+        return []
+
 
 class AgentGroup(base.BaseDocument):
     '''

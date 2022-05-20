@@ -137,7 +137,40 @@ class Detection(base.BaseDocument):
         settings = {
             "refresh_interval": "1s"
         }
-    
+
+
+    @classmethod
+    def get_by_name(cls, name, organization=None):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = cls.search()
+        response = response.filter('term', name=name)
+        
+        if organization:
+            response = response.filter('term', organization=organization)
+
+        response = response.execute()
+        if response:
+            response = response[0]
+            return response
+        return response
+
+
+    @classmethod
+    def get_by_organization(cls, organization):
+        '''
+        Fetches a document by the organization field
+        '''
+        response = cls.search()
+        response = response.filter('term', organization=organization)
+        response = list(response.scan())
+
+        if len(response) > 0:
+            return response
+        return []
+
 
 class DetectionPerformanceMetric(base.BaseDocument):
     '''
