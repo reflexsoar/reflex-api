@@ -1,13 +1,19 @@
+import datetime
 from uuid import uuid4
+
+from app.api_v2.model.detection import DetectionException
+from app.api_v2.model.utils import _current_user_id_or_none
 from ..utils import check_org, token_required, user_has, ip_approved
-from flask_restx import Resource, Namespace, fields
+from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import (
     Detection
 )
 from .shared import FormatTags, mod_pagination, ISO8601
 from .utils import redistribute_detections
+from ..utils import page_results
 
-api = Namespace('Detection', description='Reflex detection rules', path='/detection')
+api = Namespace(
+    'Detection', description='Reflex detection rules', path='/detection')
 
 
 mod_detection_exception = api.model('DetectionException', {
@@ -24,11 +30,11 @@ mod_metric_change_config = api.model('MetricChangeConfig', {
     'avg_period': fields.Integer,
     'threshold': fields.Integer,
     'threshold_format': fields.Integer,
-    'increase': fields.Boolean()    
+    'increase': fields.Boolean()
 }, strict=True)
 
 mod_field_mistmatch_config = api.model('FieldMismatchConfig', {
-    
+
     'source_field': fields.String,
     'target_field': fields.String,
     'operator': fields.String
@@ -115,7 +121,6 @@ mod_create_detection = api.model('CreateDetection', {
     'interval': fields.Integer(default=5, required=True),
     'lookbehind': fields.Integer(default=5, required=True),
     'skip_event_rules': fields.Boolean(default=False),
-    'exceptions': fields.List(fields.Nested(mod_detection_exception)),
     'threshold_config': fields.Nested(mod_threshold_config),
     'metric_change_config': fields.Nested(mod_metric_change_config),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config)
@@ -151,29 +156,59 @@ mod_detection_list_paged = api.model('DetectionListPaged', {
 })
 
 
+detection_list_parser = api.parser()
+detection_list_parser.add_argument(
+    'agent', location='args', type=str, required=False)
+detection_list_parser.add_argument(
+    'active', location='args', type=xinputs.boolean, required=False)
+detection_list_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+detection_list_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
+
 
 @api.route("")
 class DetectionList(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_detection_list_paged)
-    #@api.expect(mod_detection_list_parser)
+    @api.expect(detection_list_parser)
     @token_required
-    @user_has('view_detections')
+    # @user_has('view_detections')
     def get(self, current_user):
         '''
         Returns a list of detections
         '''
 
+        total_results = 0
+        pages = 0
+
+        args = detection_list_parser.parse_args()
+
         search = Detection.search()
 
-        detections = list(search.scan())
+        if 'active' in args and args.active in (True, False):
+            search = search.filter('term', active=args.active)
+
+        # If the agent parameter is provided do not page the results, load them all
+        if 'agent' in args and args.agent not in (None, ''):
+            detections = list(search.scan())
+            total_results = len(detections)
+            pages = 1
+        else:
+            search, total_results, pages = page_results(
+                search, args.page, args.page_size)
+            detections = search.execute()
 
         return {
             'detections': detections,
-            'pagination': {}
+            'pagination': {
+                'total_results': total_results,
+                'pages': pages,
+                'page': args.page,
+                'page_size': args.page_size
+            }
         }
-
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_detection_details)
@@ -186,9 +221,10 @@ class DetectionList(Resource):
         Creates a new detection rule
         '''
 
-        # Only allow a detection with 
+        # Only allow a detection with
         if 'organization' in api.payload:
-            exists = Detection.get_by_name(name=api.payload['name'], organization=api.payload['organization'])
+            exists = Detection.get_by_name(
+                name=api.payload['name'], organization=api.payload['organization'])
         else:
             exists = Detection.get_by_name(name=api.payload['name'])
 
@@ -197,6 +233,7 @@ class DetectionList(Resource):
             detection = Detection(**api.payload)
             detection.detection_id = uuid4()
             detection.version = 1
+            detection.last_run = datetime.datetime.fromtimestamp(0)
             detection.save()
 
             # Redistribute the detection workload for the organization
@@ -205,6 +242,68 @@ class DetectionList(Resource):
             return detection
         else:
             api.abort(409, 'A detection rule with this name already exists')
+
+
+@api.route("/<uuid>/add_exception")
+class AddDetectionException(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_detection_details)
+    @api.expect(mod_detection_exception, validate=True)
+    @token_required
+    @user_has('update_detection')
+    def put(self, uuid, current_user):
+        '''
+        Adds an exception to a detection rule
+        '''
+
+        detection = Detection.get_by_uuid(uuid=uuid)
+        if detection:
+
+            # Create the exception inner document and add the auditing meta data
+            exception = DetectionException(
+                **api.payload,
+                uuid=uuid4(),
+                created_at=datetime.datetime.utcnow(),
+                created_by=_current_user_id_or_none()
+            )
+
+            # If the detection already has some exceptions append this new one
+            # else start a brand new list
+            if detection.exceptions:
+                detection.exceptions.append(exception)
+            else:
+                detection.exceptions = [exception]
+
+            detection.save()
+
+            return detection
+        else:
+            api.abort(404, f'Detection rule for UUID {uuid} not found')
+
+
+@api.route("/<uuid>/remove_exception/<exception_uuid>")
+class RemoveDetectionException(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_detection_details)
+    @token_required
+    @user_has('update_detection')
+    def delete(self, uuid, exception_uuid, current_user):
+        '''
+        Removes an exception from the detection rule
+        '''
+
+        detection = Detection.get_by_uuid(uuid=uuid)
+        if detection:
+            if detection.exceptions:
+                detection.exceptions = [
+                    exception for exception in detection.exceptions if exception.uuid != exception_uuid]
+                detection.save()
+
+            return detection
+        else:
+            api.abort(404, f'Detection rule for UUID {uuid} not found') 
 
 
 @api.route("/<uuid>")
@@ -224,7 +323,6 @@ class DetectionDetails(Resource):
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')
 
-
     @api.doc(security="Bearer")
     @api.marshal_with(mod_detection_details)
     @api.expect(mod_create_detection)
@@ -240,12 +338,11 @@ class DetectionDetails(Resource):
 
             # Update the detection version number when the detection is saved
             if hasattr(detection, 'version'):
-                detection.version += 1            
+                detection.version += 1
 
             return detection
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')
-
 
     @api.doc(security="Bearer")
     @token_required
@@ -256,7 +353,13 @@ class DetectionDetails(Resource):
         '''
         detection = Detection.get_by_uuid(uuid=uuid)
         if detection:
-            detection.delete()
+
+            organization = detection.organization            
+            detection.delete(refresh=True)
+
+            # Redistribute the detection workload for the organization
+            redistribute_detections(organization)
+
             return {}
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')
