@@ -122,7 +122,6 @@ def check_org(f):
                 if len(args) > 0:
                     try:
                         if hasattr(args[0].api,'payload') and 'organization' in args[0].api.payload:
-                            print(args[0].api.payload)
                             args[0].api.payload.pop('organization')
                     except Exception as e:
                         pass
