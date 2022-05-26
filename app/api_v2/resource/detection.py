@@ -8,7 +8,7 @@ from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import (
     Detection
 )
-from .shared import FormatTags, mod_pagination, ISO8601
+from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
 from ..utils import page_results
 
@@ -17,6 +17,7 @@ api = Namespace(
 
 
 mod_detection_exception = api.model('DetectionException', {
+    'uuid': fields.String,
     'description': fields.String,
     'query': fields.String
 }, strict=True)
@@ -89,12 +90,15 @@ mod_detection_details = api.model('DetectionDetails', {
     'lookbehind': fields.Integer,
     'skip_event_rules': fields.Boolean,
     'last_run': ISO8601,
+    'last_hit': ISO8601,
     'running': fields.Boolean,
     'assigned_agent': fields.String,
     'exceptions': fields.List(fields.Nested(mod_detection_exception)),
     'threshold_config': fields.Nested(mod_threshold_config),
     'metric_change_config': fields.Nested(mod_metric_change_config),
-    'field_mismatch_config': fields.Nested(mod_field_mistmatch_config)
+    'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
+    'created_at': ISO8601,
+    'created_by': fields.Nested(mod_user_list)
 })
 
 mod_create_detection = api.model('CreateDetection', {
@@ -335,11 +339,16 @@ class DetectionDetails(Resource):
         '''
         detection = Detection.get_by_uuid(uuid=uuid)
         if detection:
-            print(api.payload)
 
-            # Update the detection version number when the detection is saved
-            if hasattr(detection, 'version'):
-                detection.version += 1
+            # Update the detection version number when the detection is saved and certain fields
+            # are present in the update payoad
+            if any([field in api.payload for field in ['query','description','guide']]):
+                if hasattr(detection, 'version'):
+                    detection.version += 1
+                else:
+                    detection.version = 1
+
+            detection.update(**api.payload)
 
             return detection
         else:
