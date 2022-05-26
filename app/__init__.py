@@ -24,7 +24,7 @@ from app.api_v2.model import (
     Event,Tag,ExpiredToken,Credential,Agent,ThreatList,ThreatValue,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
-        Settings,Input,Organization,ObservableHistory,Task,Detection
+        Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog
 )
 
 from .defaults import (
@@ -106,7 +106,7 @@ def upgrade_indices(app):
         Event,Tag,ExpiredToken,Credential,Agent,ThreatList,ThreatValue,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
-        Input,Organization,ObservableHistory,Task,Detection
+        Input,Organization,ObservableHistory,Task,Detection,DetectionLog
         ]
 
     for model in models:

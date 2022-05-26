@@ -11,6 +11,7 @@ from . import (
     Text,
     Boolean,
     Integer,
+    Long,
     Float,
     Date,
     Nested,
@@ -88,6 +89,26 @@ class ObservableField(base.InnerDoc):
     tags = Keyword()
 
 
+class DetectionLog(base.BaseDocument):
+    '''
+    A log entry for the detection for troubleshooting and history tracking
+    '''
+
+    detection_uuid = Keyword() # the ID of the detection create the log entry
+    level = Keyword() # info, error, warning
+    hits = Long() # How many hits this detection matched on this run
+    time_taken = Integer() # How long this run took
+    start_time = Date() # When the run started
+    end_time = Date() # When the run finished
+    message = Keyword(fields={'text':Text()}) # Any message related to the log
+
+    class Index:
+        name = "reflex-detections-log"
+        settings = {
+            "refresh_interval": "1s"
+        }
+
+
 class Detection(base.BaseDocument):
     '''
     A Detection is a rule defined by a security team to look for suspicious or malicious
@@ -117,14 +138,17 @@ class Detection(base.BaseDocument):
     severity = Integer() # 1-4 (1: Low, 2: Medium, 3: High, 4: Critical)
     signature_fields = Keyword() # Calculate a unique signature for this rule based on fields on the source event
     observable_fields = Nested(ObservableField) # Configures which fields should show up as observables in the alert
-    query_time = Integer() # How long the rule took to run in seconds
+    time_taken = Integer() # How long the rule took to run in seconds
     interval = Integer() # How often should the rule run in minutes
     lookbehind = Integer() # How far back should the rule look when it runs
+    catchup_period = Integer() # How far back in minutes the rule should hunt for missed detections if a rule run is missed
     skip_event_rules = Boolean() # Skip Event Rules when this detection generates an Event
     run_start = Date() # When the run started
     run_finished = Date() # When the run finished
     next_run = Date() # When the rule should run again
     last_run = Date() # When was the last time the rule was run
+    last_hit = Date() # The last time this rule matched anything
+    total_hits = Long()
     exceptions = Nested(DetectionException) # InnerDoc 
     mute_period = Integer() # How long to prevent the detection from refiring in minutes. If 0 send all
     threshold_config = Object(ThresholdConfig)
@@ -165,6 +189,7 @@ class Detection(base.BaseDocument):
         '''
         response = cls.search()
         response = response.filter('term', organization=organization)
+        import json
         response = list(response.scan())
 
         if len(response) > 0:

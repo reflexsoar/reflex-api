@@ -25,6 +25,8 @@ def redistribute_detections(organization=None):
         agents = [agent for agent in agents if 'detector' in agent.roles] # and agent.is_healthy]
         if len(agents) > 0:
 
+            detection_sets = []
+
             # Distribute the agents across all the detections
             detections = Detection.get_by_organization(organization)
             if len(detections) > 0:

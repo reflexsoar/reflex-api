@@ -13,6 +13,7 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
         InnerDoc,
         Date,
         Integer,
+        Long,
         Keyword,
         Text,
         Boolean,
@@ -33,6 +34,7 @@ else:
         InnerDoc,
         Date,
         Integer,
+        Long,
         Keyword,
         Text,
         Boolean,
@@ -68,6 +70,7 @@ from .credential import Credential
 from .system import Tag, DataType, Settings, Observable, EventLog, ObservableHistory
 from .detection import (
     Detection,
+    DetectionLog,
     DetectionRepositoryToken,
     DetectionRepository,
     DetectionRepositoryBundle
@@ -109,6 +112,7 @@ __all__ = [
     Organization,
     ObservableHistory,
     Detection,
+    DetectionLog,
     DetectionRepositoryToken,
     DetectionRepository,
     DetectionRepositoryBundle,

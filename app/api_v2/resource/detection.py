@@ -192,6 +192,7 @@ class DetectionList(Resource):
 
         # If the agent parameter is provided do not page the results, load them all
         if 'agent' in args and args.agent not in (None, ''):
+            search = search.filter('term', assigned_agent=args.agent)
             detections = list(search.scan())
             total_results = len(detections)
             pages = 1
@@ -234,7 +235,7 @@ class DetectionList(Resource):
             detection.detection_id = uuid4()
             detection.version = 1
             detection.last_run = datetime.datetime.fromtimestamp(0)
-            detection.save()
+            detection.save(refresh=True)
 
             # Redistribute the detection workload for the organization
             redistribute_detections(detection.organization)
