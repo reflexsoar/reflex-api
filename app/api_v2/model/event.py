@@ -398,6 +398,7 @@ class EventRule(base.BaseDocument):
     order = Integer() # What order to process events in, 1 being first
     global_rule = Boolean() # Is it a global rule that should be processed on everything
     disable_reason = Keyword() # The reason why a rule was disabled (internally set by the system)
+    detection_id = Keyword() # If this event was from a detection it should have an associated detection_id
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

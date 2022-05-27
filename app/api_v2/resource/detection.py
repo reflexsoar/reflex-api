@@ -22,6 +22,13 @@ mod_detection_exception = api.model('DetectionException', {
     'query': fields.String
 }, strict=True)
 
+mod_detection_exception_list = api.model('DetectionException', {
+    'uuid': fields.String,
+    'description': fields.String,
+    'query': fields.String,
+    'created_by': fields.Nested(mod_user_list)
+}, strict=True)
+
 mod_threshold_config = api.model('ThesholdConfig', {
     'threshold': fields.Integer,
     'key_field': fields.String
@@ -93,7 +100,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'last_hit': ISO8601,
     'running': fields.Boolean,
     'assigned_agent': fields.String,
-    'exceptions': fields.List(fields.Nested(mod_detection_exception)),
+    'exceptions': fields.List(fields.Nested(mod_detection_exception_list)),
     'threshold_config': fields.Nested(mod_threshold_config),
     'metric_change_config': fields.Nested(mod_metric_change_config),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
