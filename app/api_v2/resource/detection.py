@@ -92,7 +92,8 @@ mod_detection_details = api.model('DetectionDetails', {
     'severity': fields.Integer,
     'signature_fields': fields.List(fields.String),
     'observable_fields': fields.List(fields.Nested(mod_observable_field)),
-    'query_time': fields.Integer,
+    'time_taken': fields.Integer,
+    'query_time_taken': fields.Integer,
     'interval': fields.Integer,
     'lookbehind': fields.Integer,
     'skip_event_rules': fields.Boolean,
@@ -356,7 +357,21 @@ class DetectionDetails(Resource):
                 else:
                     detection.version = 1
 
-            detection.update(**api.payload)
+            # TODO: Move the time_taken high watermark to an organizational global setting
+            # Defaults to longer than 30 seconds, clear all warnings on update
+            api.payload['warnings'] = []
+            if 'query_time_taken' in api.payload and api.payload['query_time_taken'] > 30_000:
+                api.payload['warnings'].append('slow-query')
+
+            # TODO: Move the high watermark on hits to an organizational global setting
+            # Defaults to 10000
+            if 'hits' in api.payload and api.payload['hits'] > 10_000:
+                api.payload['warnings'].append('high-volume')
+
+            detection.update(**api.payload, refresh=True)
+
+            if 'active' in api.payload:
+                redistribute_detections(detection.organization)
 
             return detection
         else:

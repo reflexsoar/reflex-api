@@ -138,7 +138,8 @@ class Detection(base.BaseDocument):
     severity = Integer() # 1-4 (1: Low, 2: Medium, 3: High, 4: Critical)
     signature_fields = Keyword() # Calculate a unique signature for this rule based on fields on the source event
     observable_fields = Nested(ObservableField) # Configures which fields should show up as observables in the alert
-    time_taken = Integer() # How long the rule took to run in seconds
+    time_taken = Integer() # How long the rule took to run in milliseconds
+    query_time_taken = Long() # How long the query took to run in milliseconds
     interval = Integer() # How often should the rule run in minutes
     lookbehind = Integer() # How far back should the rule look when it runs
     catchup_period = Integer() # How far back in minutes the rule should hunt for missed detections if a rule run is missed
@@ -189,7 +190,6 @@ class Detection(base.BaseDocument):
         '''
         response = cls.search()
         response = response.filter('term', organization=organization)
-        import json
         response = list(response.scan())
 
         if len(response) > 0:
