@@ -98,6 +98,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'skip_event_rules': fields.Boolean,
     'last_run': ISO8601,
     'last_hit': ISO8601,
+    'total_hits': fields.Integer,
     'running': fields.Boolean,
     'assigned_agent': fields.String,
     'exceptions': fields.List(fields.Nested(mod_detection_exception_list)),
