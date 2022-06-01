@@ -53,6 +53,7 @@ from .model import (
 )
 
 from .utils import default_org, ip_approved, check_org, page_results, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
+from .resource.utils import redistribute_detections
 
 from .resource import (
     ns_playbook_v2,
@@ -2474,7 +2475,7 @@ class AgentList(Resource):
                         api2.payload['groups'] = [g.uuid for g in groups]
 
             agent = Agent(**api2.payload)
-            agent.save()
+            agent.save(refresh=True)
 
             # Add the agent to the groups
             if groups:
@@ -2488,6 +2489,8 @@ class AgentList(Resource):
             role.add_user_to_role(agent.uuid)
 
             token = generate_token(str(agent.uuid), 525600*5, token_type='agent', organization=current_user['organization'])
+
+            redistribute_detections(agent.organization)
 
             return {'message': 'Successfully created the agent.', 'uuid': str(agent.uuid), 'token': token}
         else:
