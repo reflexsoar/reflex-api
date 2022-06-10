@@ -70,7 +70,7 @@ mod_observable_field = api.model('ObservableField', {
 mod_detection_details = api.model('DetectionDetails', {
     'uuid': fields.String,
     'name': fields.String,
-    'query': fields.List(fields.Nested(mod_query_config)),
+    'query': fields.Nested(mod_query_config),
     'from_sigma': fields.Boolean,
     'sigma_rule': fields.String,
     'organization': fields.String,
@@ -112,7 +112,7 @@ mod_detection_details = api.model('DetectionDetails', {
 
 mod_create_detection = api.model('CreateDetection', {
     'name': fields.String(default='Sample Rule', required=True),
-    'query': fields.List(fields.Nested(mod_query_config), required=True),
+    'query': fields.Nested(mod_query_config, required=True),
     'from_sigma': fields.Boolean(default=False),
     'sigma_rule': fields.String,
     'organization': fields.String,
@@ -237,6 +237,12 @@ class DetectionList(Resource):
 
         # Only allow a detection with
         if 'organization' in api.payload:
+
+            # Check to make sure the organization is a valid organization
+            organization = Organization.get_by_uuid(organization=api.payload['organization'])
+            if not organization:
+                api.abort(404, f"Organization with UUID {api.payload['organization']} not found")
+
             exists = Detection.get_by_name(
                 name=api.payload['name'], organization=api.payload['organization'])
         else:

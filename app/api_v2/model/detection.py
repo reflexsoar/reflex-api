@@ -116,7 +116,7 @@ class Detection(base.BaseDocument):
     '''
 
     name = Keyword(fields={'text':Text()})
-    query = Nested(QueryConfig) # The query to run against the log source
+    query = Object(QueryConfig) # The query to run against the log source
     detection_id = Keyword() # A persistent UUID that follows the rule and is associated to events
     from_sigma = Boolean() # Tells you if the rule was converted from a Sigma rule
     sigma_rule = Keyword(fields={'text':Text()}) # The raw sigma rule
