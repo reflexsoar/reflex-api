@@ -1,4 +1,4 @@
-from app.api_v2.model import MITRETactic, MITRETechnique
+from app.api_v2.model import MITRETactic, MITRETechnique, Q
 from flask import request
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from .shared import mod_pagination
@@ -127,11 +127,14 @@ class TechniqueList(Resource):
         
         search = MITRETechnique.search()
 
-        if args.name__like:
+        if args.name__like and not args.external_id__like:
             search = search.filter('wildcard', name=f"{args.name__like}*")
 
-        if args.external_id__like:
+        if args.external_id__like and not args.name__like:
             search = search.filter('wildcard', external_id__keyword=f"{args.external_id__like.upper()}*")
+
+        if args.name__like and args.external_id__like:
+            search = search.filter('bool', should=[Q('wildcard', external_id__keyword=f"{args.external_id__like.upper()}*"), Q('wildcard', name=f"*{args.name__like}*")])
 
         if args.phase_names and len(args.phase_names) > 0 and args.phase_names != ['']:
             search = search.filter('terms', phase_names=args.phase_names)
