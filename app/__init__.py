@@ -221,10 +221,6 @@ def create_app(environment='development'):
             app.logger.info("Setup already complete, upgrading indices if required")
             upgrade_indices(app)
 
-    mattack = MITREAttack(app.config)
-    mattack.download_framework()
-    exit()
-
     if app.config['ELASTIC_APM_ENABLED']:
         app.config['ELASTIC_APM'] = {
             'SERVICE_NAME': app.config['ELASTIC_APM_SERVICE_NAME'],
@@ -265,6 +261,9 @@ def create_app(environment='development'):
         if not app.config['SLAMONITOR_DISABLED']:
             sla_monitor = SLAMonitor(app, log_level=app.config['SLAMONITOR_LOG_LEVEL'])
             scheduler.add_job(func=sla_monitor.check_event_slas, trigger="interval", seconds=app.config['SLAMONITOR_INTERVAL'])
+
+        mattack = MITREAttack(app.config)
+        scheduler.add_job(func=mattack.download_framework, trigger="interval", seconds=app.config['MITRE_CONFIG']['POLL_INTERVAL'])
 
         scheduler.start()
         atexit.register(lambda: scheduler.shutdown())

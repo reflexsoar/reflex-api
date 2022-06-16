@@ -52,7 +52,19 @@ from .model import (
     Q
 )
 
-from .utils import default_org, ip_approved, check_org, page_results, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
+from .utils import (
+    default_org,
+    ip_approved,
+    check_org,
+    page_results,
+    token_required,
+    user_has,
+    generate_token,
+    log_event,
+    check_password_reset_token,
+    escape_special_characters_rql
+)
+
 from .resource.utils import redistribute_detections
 
 from .resource import (
@@ -65,7 +77,8 @@ from .resource import (
     ns_event_rule_v2,
     ns_role_v2,
     ns_task_v2,
-    ns_detection_v2
+    ns_detection_v2,
+    ns_mitre_v2
 )
 
 from .. import ep
@@ -120,6 +133,7 @@ api2.add_namespace(ns_event_rule_v2)
 api2.add_namespace(ns_role_v2)
 api2.add_namespace(ns_task_v2)
 api2.add_namespace(ns_detection_v2)
+api2.add_namespace(ns_mitre_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:

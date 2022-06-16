@@ -9,6 +9,7 @@ from .auth import api as ns_auth_v2
 from .role import api as ns_role_v2
 from .task import api as ns_task_v2
 from .detection import api as ns_detection_v2
+from .mitre import api as ns_mitre_v2
 
 __all__ = [
     'ns_playbook_v2',
@@ -21,6 +22,7 @@ __all__ = [
     'ns_role_v2',
     'ns_task_v2',
     'ns_detection_v2',
+    'ns_mitre_v2'
     'mod_pagination',
     'ISO8601'
 ]
