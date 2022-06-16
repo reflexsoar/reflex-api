@@ -9,6 +9,7 @@ from app.services import housekeeper
 from app.services.threat_list_poller.base import ThreatListPoller
 from app.services.housekeeper import HouseKeeper
 from app.services.event_processor import EventProcessor
+from app.services.mitre import MITREAttack
 from multiprocessing import Queue
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -17,6 +18,7 @@ from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
 from elasticapm.contrib.flask import ElasticAPM
 
+
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
@@ -24,7 +26,7 @@ from app.api_v2.model import (
     Event,Tag,ExpiredToken,Credential,Agent,ThreatList,ThreatValue,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
-        Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog
+        Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic, MITRETechnique
 )
 
 from .defaults import (
@@ -106,7 +108,7 @@ def upgrade_indices(app):
         Event,Tag,ExpiredToken,Credential,Agent,ThreatList,ThreatValue,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
-        Input,Organization,ObservableHistory,Task,Detection,DetectionLog
+        Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,MITRETechnique
         ]
 
     for model in models:
@@ -218,6 +220,10 @@ def create_app(environment='development'):
         else:
             app.logger.info("Setup already complete, upgrading indices if required")
             upgrade_indices(app)
+
+    mattack = MITREAttack(app.config)
+    mattack.download_framework()
+    exit()
 
     if app.config['ELASTIC_APM_ENABLED']:
         app.config['ELASTIC_APM'] = {

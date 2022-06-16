@@ -76,6 +76,7 @@ from .detection import (
     DetectionRepositoryBundle
 )
 from .task import Task
+from .mitre import MITRETactic, MITRETechnique
 
 VERSION = (2, 0, 0)
 __version__ = VERSION
@@ -117,5 +118,7 @@ __all__ = [
     DetectionRepository,
     DetectionRepositoryBundle,
     Task,
-    ThreatValue
+    ThreatValue,
+    MITRETactic,
+    MITRETechnique
 ]
