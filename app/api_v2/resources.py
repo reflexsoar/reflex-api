@@ -521,6 +521,7 @@ class UserDetails(Resource):
                 user.deleted = True
                 random_identifier = ''.join(random.choice(string.ascii_lowercase) for i in range(5))
                 user.username = f"{user.username}-DELETED-{random_identifier}"
+                user.email = None
                 user.locked = True
                 user.save()
                 return {'message': 'User successfully deleted.'}
