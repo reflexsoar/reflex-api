@@ -82,7 +82,8 @@ class SourceConfig(base.InnerDoc):
     '''
 
     language = Keyword()
-    source = Keyword()
+    name = Keyword()
+    uuid = Keyword()
 
 
 class ObservableField(base.InnerDoc):

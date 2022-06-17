@@ -1,5 +1,5 @@
-from tkinter import E
 import requests
+import logging
 from app.api_v2.model import MITRETactic, MITRETechnique
 
 
@@ -9,9 +9,25 @@ class MITREAttack(object):
     within the platform
     """
 
-    def __init__(self, config):
+    def __init__(self, app, log_level='INFO'):
 
-        self.config = config['MITRE_CONFIG']
+        log_levels = {
+            'DEBUG': logging.DEBUG,
+            'ERROR': logging.ERROR,
+            'INFO': logging.INFO
+        }
+
+        log_handler = logging.StreamHandler()
+        log_handler.setFormatter(logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.addHandler(log_handler)
+        self.logger.setLevel(log_levels[log_level])
+        
+        self.app = app
+
+        self.config = app.config['MITRE_CONFIG']
 
     def download_framework(self):
 
@@ -19,6 +35,7 @@ class MITREAttack(object):
         tactics = []
 
         session = requests.Session()
+        self.logger.info('Downloading MITRE ATT&CK JSON Data')
         response = session.get(self.config['JSON_URL'])
         if response.status_code == 200:
 
@@ -36,6 +53,7 @@ class MITREAttack(object):
             [t.get_external_id() for t in tactics]
 
             # Save or update the tactic
+            self.logger.info('Updating MITRE ATT&CK Tactics')
             for tactic in tactics:
                 existing_tactic = MITRETactic.get_by_external_id(
                     tactic.external_id)
@@ -66,6 +84,7 @@ class MITREAttack(object):
             [t.get_kill_chain_phase_names() for t in techniques]
 #
             # Save or update the technique
+            self.logger.info('Updating MITRE ATT&CK Techniques')
             for tech in techniques:
                 existing_tech = MITRETechnique.get_by_external_id(tech.external_id)
                 if existing_tech:

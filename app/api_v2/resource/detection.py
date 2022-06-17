@@ -6,7 +6,8 @@ from app.api_v2.model.utils import _current_user_id_or_none
 from ..utils import check_org, token_required, user_has, ip_approved
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import (
-    Detection
+    Detection,
+    Organization
 )
 from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
@@ -57,7 +58,8 @@ mod_query_config = api.model('DetectionQuery', {
 
 mod_source_config = api.model('SourceConfig', {
     'language': fields.String,
-    'source': fields.String
+    'name': fields.String,
+    'uuid': fields.String
 })
 
 mod_observable_field = api.model('ObservableField', {
@@ -87,7 +89,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'version': fields.Integer,
     'active': fields.Boolean,
     'warnings': fields.List(fields.String),
-    'source': fields.List(fields.Nested(mod_source_config)),
+    'source': fields.Nested(mod_source_config),
     'case_template': fields.String,
     'risk_score': fields.Integer,
     'severity': fields.Integer,
@@ -126,7 +128,7 @@ mod_create_detection = api.model('CreateDetection', {
     'kill_chain_phase': fields.String,
     'rule_type': fields.Integer(required=True),
     'active': fields.Boolean,
-    'source': fields.List(fields.Nested(mod_source_config), required=True),
+    'source': fields.Nested(mod_source_config, required=True),
     'case_template': fields.String,
     'risk_score': fields.Integer(default=50, min=0, max=100),
     'severity': fields.Integer(required=True, default=1, min=1, max=4),
@@ -240,7 +242,7 @@ class DetectionList(Resource):
         if 'organization' in api.payload:
 
             # Check to make sure the organization is a valid organization
-            organization = Organization.get_by_uuid(organization=api.payload['organization'])
+            organization = Organization.get_by_uuid(uuid=api.payload['organization'])
             if not organization:
                 api.abort(404, f"Organization with UUID {api.payload['organization']} not found")
 

@@ -2,6 +2,7 @@ import os
 import ssl
 import atexit
 import logging
+import datetime
 from app.api_v2.model.system import Settings
 from app.services.sla_monitor.base import SLAMonitor
 from flask import Flask, logging as flog
@@ -262,7 +263,8 @@ def create_app(environment='development'):
             sla_monitor = SLAMonitor(app, log_level=app.config['SLAMONITOR_LOG_LEVEL'])
             scheduler.add_job(func=sla_monitor.check_event_slas, trigger="interval", seconds=app.config['SLAMONITOR_INTERVAL'])
 
-        mattack = MITREAttack(app.config)
+        mattack = MITREAttack(app)
+        scheduler.add_job(func=mattack.download_framework, trigger="date", run_date=datetime.datetime.now())
         scheduler.add_job(func=mattack.download_framework, trigger="interval", seconds=app.config['MITRE_CONFIG']['POLL_INTERVAL'])
 
         scheduler.start()

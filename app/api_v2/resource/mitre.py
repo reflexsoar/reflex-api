@@ -94,17 +94,20 @@ class TacticList(Resource):
         
         search = MITRETactic.search()   
 
-        if args.name__like:
+        if args.name__like and not args.external_id__like:
             search = search.filter('wildcard', name=f"{args.name__like}*")
 
-        if args.external_id__like:
+        if args.external_id__like and not args.name__like:
             search = search.filter('wildcard', external_id=f"{args.external_id__like.upper()}*")
+
+        if args.name__like and args.external_id__like:
+            search = search.filter('bool', should=[Q('wildcard', external_id__keyword=f"{args.external_id__like.upper()}*"), Q('wildcard', name=f"*{args.name__like}*")])
 
         search, total_results, pages = page_results(search, args.page, args.page_size)
         tactics = search.execute()
 
         return {
-            'tactics': tactics,
+            'tactics': list(tactics),
             'pagination': {
                 'total_results': total_results,
                 'pages': pages,
@@ -157,7 +160,7 @@ class TechniqueList(Resource):
         techniques = search.execute()
 
         return {
-            'techniques': techniques,
+            'techniques': list(techniques),
             'pagination': {
                 'total_results': total_results,
                 'pages': pages,
