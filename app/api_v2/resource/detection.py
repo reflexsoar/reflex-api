@@ -11,6 +11,7 @@ from ..model import (
 from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
 from ..utils import page_results
+from .mitre import mod_tactic_brief, mod_technique_brief
 
 api = Namespace(
     'Detection', description='Reflex detection rules', path='/detection')
@@ -78,8 +79,8 @@ mod_detection_details = api.model('DetectionDetails', {
     'description': fields.String,
     'guide': fields.String,
     'tags': fields.List(fields.String),
-    'tactics': fields.List(fields.String),
-    'techniques': fields.List(fields.String),
+    'tactics': fields.List(fields.Nested(mod_tactic_brief)),
+    'techniques': fields.List(fields.Nested(mod_technique_brief)),
     'references': fields.List(fields.String),
     'kill_chain_phase': fields.String,
     'rule_type': fields.Integer,
@@ -119,8 +120,8 @@ mod_create_detection = api.model('CreateDetection', {
     'description': fields.String(default="A detailed description.", required=True),
     'guide': fields.String(default="An investigation guide on how to triage this detection"),
     'tags': fields.List(fields.String),
-    'tactics': fields.List(fields.String),
-    'techniques': fields.List(fields.String),
+    'tactics': fields.List(fields.Nested(mod_tactic_brief)),
+    'techniques': fields.List(fields.Nested(mod_technique_brief)),
     'references': fields.List(fields.String),
     'kill_chain_phase': fields.String,
     'rule_type': fields.Integer(required=True),

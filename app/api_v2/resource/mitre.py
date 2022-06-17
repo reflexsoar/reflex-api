@@ -30,6 +30,13 @@ mod_tactic_details = api.model('MITRETactic', {
     'external_references': fields.List(fields.Nested(mod_external_reference))
 })
 
+mod_tactic_brief = api.model('MITRETacticBrief', {
+    'mitre_id': fields.String,
+    'external_id': fields.String,
+    'name': fields.String,
+    'shortname': fields.String
+})
+
 mod_technique_details = api.model('MITRETechnique', {
     'uuid': fields.String,
     'mitre_id': fields.String,
@@ -41,6 +48,13 @@ mod_technique_details = api.model('MITRETechnique', {
     'phase_names': fields.List(fields.String),
     'kill_chain_phases': fields.List(fields.Nested(mod_kill_chain_phase)),
     'data_sources': fields.List(fields.String)
+})
+
+mod_technique_brief = api.model('MITRETechniqueBrief', {
+    'mitre_id': fields.String,
+    'external_id': fields.String,
+    'name': fields.String,
+    'shortname': fields.String
 })
 
 mod_tactics_paged = api.model('MITRETacticPaged', {
