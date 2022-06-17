@@ -150,24 +150,28 @@ def ip_approved(f):
         else:
             # If this is a logon post, take the users email and split it so that the users
             # organization can be found, and subsequently that organizations Settings
-            if args[0].api.payload and 'email' in args[0].api.payload:
+            if len(args) > 0:
+                try:
+                    if hasattr(args[0].api,'payload') and 'email' in args[0].api.payload:
 
-                # Calculate the logon domain for the user attempting to login
-                if '@' in args[0].api.payload['email']:
-                    logon_domain = args[0].api.payload['email'].split('@')[1]
-                else:
-                    abort(401, "Unauthorized")
+                        # Calculate the logon domain for the user attempting to login
+                        if '@' in args[0].api.payload['email']:
+                            logon_domain = args[0].api.payload['email'].split('@')[1]
+                        else:
+                            abort(401, "Unauthorized")
 
-                # Get the organization by the logon domain
-                organization = Organization.get_by_logon_domain([logon_domain])
+                        # Get the organization by the logon domain
+                        organization = Organization.get_by_logon_domain([logon_domain])
 
-                # Find the appropriate settings for the user and their organization
-                if organization:
-                    settings = Settings.load(organization=organization.uuid)
+                        # Find the appropriate settings for the user and their organization
+                        if organization:
+                            settings = Settings.load(organization=organization.uuid)
 
-                # If there are no settings found reject the user
-                if not settings:
-                    abort(401, "Unauthorized")
+                        # If there are no settings found reject the user
+                        if not settings:
+                            abort(401, "Unauthorized")
+                except Exception as e:
+                        pass
 
         if settings and hasattr(settings, 'require_approved_ips') and settings.require_approved_ips:
 

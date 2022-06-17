@@ -348,8 +348,6 @@ class UserList(Resource):
         else:
             users = users.filter('match', deleted=False)
 
-        print(users.to_dict())
-
         users, total_results, pages = page_results(users, args.page, args.page_size)
 
         sort_by = args.sort_by
