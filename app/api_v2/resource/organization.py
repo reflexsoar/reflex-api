@@ -48,8 +48,16 @@ mod_organization_create = api.model('CreateOrganization', {
     'description': fields.String,
     'url': fields.String,
     'logon_domains': fields.List(fields.String),
-    'admin_user': fields.Nested(mod_user_create)
-})
+    'admin_user': fields.Nested(mod_user_create, required=True)
+}, strict=True)
+
+
+mod_organization_update = api.model('UpdateOrganization', {
+    'name': fields.String,
+    'description': fields.String,
+    'url': fields.String,
+    'logon_domains': fields.List(fields.String)
+}, strict=True)
 
 
 @api.route("/<uuid>")
@@ -83,7 +91,7 @@ class OrganizationDetails(Resource):
         return organization
 
     @api.doc(security="Bearer")
-    @api.expect(mod_organization_create)
+    @api.expect(mod_organization_update)
     @api.marshal_with(mod_organization_list)
     @token_required
     @default_org
@@ -194,7 +202,7 @@ class OrganizationList(Resource):
         }
 
     @api.doc(security="Bearer")
-    @api.expect(mod_organization_create)
+    @api.expect(mod_organization_create, validate=True)
     @api.marshal_with(mod_organization_list)
     @token_required
     @user_has('add_organization')
