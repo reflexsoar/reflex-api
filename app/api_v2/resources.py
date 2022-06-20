@@ -449,7 +449,7 @@ class UserDetails(Resource):
             ns_user_v2.abort(404, 'User not found.')
 
     @api2.doc(security="Bearer")
-    @api2.expect(mod_user_create)
+    @api2.expect(mod_user_update)
     @api2.marshal_with(mod_user_full)
     @token_required
     @user_has('update_user')

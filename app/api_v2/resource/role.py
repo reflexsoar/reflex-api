@@ -21,7 +21,8 @@ mod_role_list = api.model('Role', {
     'members': fields.List(fields.String),
     'permissions': fields.Nested(mod_permissions),
     'created_by': fields.Nested(mod_user_list),
-    'created_at': ISO8601(attribute='created_at')
+    'created_at': ISO8601(attribute='created_at'),
+    'system_generated': fields.Boolean
 })
 
 mod_role_list_paged = api.model('RolesPaged', {
