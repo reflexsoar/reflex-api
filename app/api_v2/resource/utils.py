@@ -35,7 +35,6 @@ def redistribute_detections(organization=None):
             for i in range(0,len(detection_sets)):
                 for detection in detection_sets[i]:
                     if detection.active:
-                        print(f"Assigned {detection.uuid} to {agents[i].uuid}")
                         if detection.assigned_agent != agents[i].uuid:                            
                             detection.assigned_agent = agents[i].uuid
                             detection.save()

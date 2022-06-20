@@ -2,6 +2,7 @@ import datetime
 from uuid import uuid4
 
 from app.api_v2.model.detection import DetectionException
+from app.api_v2.model.user import User
 from app.api_v2.model.utils import _current_user_id_or_none
 from ..utils import check_org, token_required, user_has, ip_approved
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
@@ -15,7 +16,7 @@ from ..utils import page_results
 from .mitre import mod_tactic_brief, mod_technique_brief
 
 api = Namespace(
-    'Detection', description='Reflex detection rules', path='/detection')
+    'Detection', description='Reflex detection rules', path='/detection', strict=True)
 
 
 mod_detection_exception = api.model('DetectionException', {
@@ -111,7 +112,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
     'created_at': ISO8601,
     'created_by': fields.Nested(mod_user_list)
-})
+}, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
     'name': fields.String(default='Sample Rule', required=True),
@@ -355,6 +356,22 @@ class DetectionDetails(Resource):
         '''
         Updates the details of a single detection rule
         '''
+
+        forbidden_user_fields = ['query_time_taken', 'total_hits', 'last_hit', 'last_run',
+                                 'created_at','time_taken','warnings','version','running',
+                                 'assigned_agents']
+
+        # Prevent users from updating these fields
+        if isinstance(current_user, User):
+            for field in list(api.payload):
+                if field in forbidden_user_fields:
+                    del api.payload[field]
+
+        import json
+        print(json.dumps(api.payload, indent=2))
+        return {}
+
+
         detection = Detection.get_by_uuid(uuid=uuid)
         if detection:
 
