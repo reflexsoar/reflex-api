@@ -138,7 +138,7 @@ class Detection(base.BaseDocument):
     references = Keyword() # A list of URLs that detail in greater depth why this detection exists
     false_positives = Keyword() # A list of false positives
     kill_chain_phase = Keyword() # Singular text based phase definition
-    rule_type = Integer() # 1 - Match 2 - Frequency 3 - Metric
+    rule_type = Integer() # 0 - Match 1 - Frequency 2 - Metric
     version = Integer() # Version number 
     active = Boolean() # Is the rule active or disabled
     warnings = Keyword() # A list of warnings for this alert e.g. slow, volume, field_missing, import_fail

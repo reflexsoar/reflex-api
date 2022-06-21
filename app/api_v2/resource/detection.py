@@ -100,6 +100,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'query_time_taken': fields.Integer,
     'interval': fields.Integer,
     'lookbehind': fields.Integer,
+    'mute_period': fields.Integer,
     'skip_event_rules': fields.Boolean,
     'last_run': ISO8601,
     'last_hit': ISO8601,
@@ -137,6 +138,7 @@ mod_create_detection = api.model('CreateDetection', {
     'observable_fields': fields.List(fields.Nested(mod_observable_field)),
     'interval': fields.Integer(default=5, required=True, min=1),
     'lookbehind': fields.Integer(default=5, required=True, min=1),
+    'mute_period': fields.Integer(default=5, required=True, min=1),
     'skip_event_rules': fields.Boolean(default=False),
     'threshold_config': fields.Nested(mod_threshold_config),
     'metric_change_config': fields.Nested(mod_metric_change_config),
@@ -158,12 +160,13 @@ mod_update_detection = api.model('UpdateDetection', {
     'active': fields.Boolean,
     'source': fields.String,
     'case_template': fields.String,
-    'risk_score': fields.Integer,
-    'severity': fields.Integer,
+    'risk_score': fields.Integer(default=50, min=0, max=100),
+    'severity': fields.Integer(required=True, default=1, min=1, max=4),
     'signature_fields': fields.List(fields.String),
     'observable_fields': fields.List(fields.String),
-    'interval': fields.Integer,
-    'lookbehind': fields.Integer,
+    'interval': fields.Integer(default=5, required=True, min=1),
+    'lookbehind': fields.Integer(default=5, required=True, min=1),
+    'mute_period': fields.Integer(default=5, required=True, min=1),
     'skip_event_rules': fields.Boolean
 }, strict=True)
 
