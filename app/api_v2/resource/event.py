@@ -15,9 +15,7 @@ from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateBy
 from ..model.exceptions import EventRuleFailure
 from ..utils import token_required, user_has, log_event
 from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged
-from ... import ep
-from pymemcache.client.base import Client
-
+from ... import ep, memcached_client
 
 api = Namespace('Events', description='Event related operations', path='/event')
 
@@ -853,7 +851,8 @@ class CreateBulkEvents(Resource):
         else:
             start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
 
-            client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
+            #client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
+            client = memcached_client.client
 
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
@@ -866,7 +865,7 @@ class CreateBulkEvents(Resource):
 
             end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
             total_process_time = end_bulk_process_dt - start_bulk_process_dt
-            client.close()
+            #client.close()
             return {"task_id": str(request_id), "response_time": total_process_time}
 
 
