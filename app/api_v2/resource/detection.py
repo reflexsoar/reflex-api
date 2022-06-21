@@ -370,11 +370,6 @@ class DetectionDetails(Resource):
                 if field in forbidden_user_fields:
                     del api.payload[field]
 
-        import json
-        print(json.dumps(api.payload, indent=2))
-        return {}
-
-
         detection = Detection.get_by_uuid(uuid=uuid)
         if detection:
 
