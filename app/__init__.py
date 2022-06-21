@@ -4,6 +4,7 @@ import atexit
 import logging
 from app.api_v2.model.system import Settings
 from app.services.sla_monitor.base import SLAMonitor
+from app.utils.memcached import MemcachedClient
 from flask import Flask, logging as flog
 from app.services import housekeeper
 from app.services.threat_list_poller.base import ThreatListPoller
@@ -52,7 +53,7 @@ cache = Cache(config={'CACHE_TYPE': 'simple'})
 scheduler = BackgroundScheduler()
 apm = ElasticAPM()
 ep = EventProcessor()
-
+memcached_client = MemcachedClient()
 
 def migrate(app, ALIAS, move_data=True, update_alias=True):
     '''
@@ -200,6 +201,7 @@ def create_app(environment='development'):
     cors.init_app(app)
     mail.init_app(app)
     cache.init_app(app)
+    memcached_client.init_app(app)
 
     authorizations = {"Bearer": {"type": "apiKey", "in": "header", "name":"Authorization"}}
 
