@@ -124,7 +124,10 @@ class ThreatListList(Resource):
         lists = ThreatList.search()
 
         if args.data_type:
-            data_type = DataType.get_by_name(name=args.data_type)
+            if user_in_default_org and args.organization:
+                data_type = DataType.get_by_name(name=args.data_type, organization=args.organization)
+            else:
+                data_type = DataType.get_by_name(name=args.data_type)
             if data_type:
                 lists = lists.filter('term', data_type_uuid=data_type.uuid)
 
