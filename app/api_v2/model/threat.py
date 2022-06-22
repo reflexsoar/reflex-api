@@ -203,30 +203,44 @@ class ThreatList(base.BaseDocument):
         based list and returns the number of hits on that list'
         '''
 
-        hasher = hashlib.md5()
-        hasher.update(value.encode())
-        value = hasher.hexdigest()
+        if not isinstance(value, list):           
 
-        if 'MEMCACHED_CONFIG' in kwargs and kwargs['MEMCACHED_CONFIG']:
-            memcached_host, memcached_port = kwargs['MEMCACHED_CONFIG']
+            found = False
+
+            
+            if self.list_type != 'patterns':
+                hasher = hashlib.md5()
+                hasher.update(value.encode())
+                value = hasher.hexdigest()
+
+                if 'MEMCACHED_CONFIG' in kwargs and kwargs['MEMCACHED_CONFIG']:
+                    memcached_host, memcached_port = kwargs['MEMCACHED_CONFIG']
+                else:
+                    memcached_host = os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST')
+                    memcached_port = os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_PORT')
+
+                # Create the memcached client
+                client = Client(f"{memcached_host}:{memcached_port}")
+            
+                # Check memcached first
+                memcached_key = f"{self.organization}:{self.uuid}:{self.data_type.name}:{value}"
+
+                if not found:               
+                    result = client.get(memcached_key)
+                    if result:
+                        found = True
+            
+            else:
+                patterns = list(self.values)
+                print(self.values)
+                for p in patterns:
+                    pattern = re.compile(p.value)
+                    if pattern.match(value):
+                        found = True
+            
+            return found
         else:
-            memcached_host = os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST')
-            memcached_port = os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_PORT')
-
-        # Create the memcached client
-        client = Client(f"{memcached_host}:{memcached_port}")
-        
-        found = False
-
-        # Check memcached first
-        memcached_key = f"{self.organization}:{self.uuid}:{self.data_type.name}:{value}"
-
-        if not found:               
-            result = client.get(memcached_key)
-            if result:
-                found = True
-        
-        return found
+            return False
 
     def remove_values(self, values:list):
         '''
