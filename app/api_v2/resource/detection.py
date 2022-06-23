@@ -22,13 +22,17 @@ api = Namespace(
 mod_detection_exception = api.model('DetectionException', {
     'uuid': fields.String,
     'description': fields.String,
-    'query': fields.String
+    'condition': fields.String(required=True),
+    'values': fields.List(fields.String(required=True)),
+    'field': fields.String(required=True)
 }, strict=True)
 
 mod_detection_exception_list = api.model('DetectionException', {
     'uuid': fields.String,
     'description': fields.String,
-    'query': fields.String,
+    'condition': fields.String,
+    'values': fields.List(fields.String),
+    'field': fields.String
     'created_by': fields.Nested(mod_user_list)
 }, strict=True)
 

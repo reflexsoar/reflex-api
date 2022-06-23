@@ -35,7 +35,9 @@ class DetectionException(base.BaseInnerDoc):
     '''
 
     description = Text()
-    query = Keyword()
+    condition = Keyword()
+    values = Keyword(fields={'text': Text()})
+    field = Keyword()
 
 
 class MetricChangeConfig(base.InnerDoc):
