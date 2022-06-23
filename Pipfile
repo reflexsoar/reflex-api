@@ -30,7 +30,7 @@ elasticsearch-dsl = "*"
 apscheduler = "*"
 requests = "*"
 opensearch-py = "*"
-opensearch-dsl = {git = "https://github.com/opensearch-project/opensearch-dsl-py.git"}
+opensearch-dsl = "==1.0.0"
 onetimepass = "*"
 pyqrcode = "*"
 tzdata = "*"

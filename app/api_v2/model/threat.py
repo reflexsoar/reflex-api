@@ -232,7 +232,6 @@ class ThreatList(base.BaseDocument):
             
             else:
                 patterns = list(self.values)
-                print(self.values)
                 for p in patterns:
                     pattern = re.compile(p.value)
                     if pattern.match(value):
