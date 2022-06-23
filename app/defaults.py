@@ -126,7 +126,11 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False):
         "add_organization": org_perms,
         "view_organizations": org_perms,
         "update_organization": org_perms,
-        "delete_organization": org_perms
+        "delete_organization": org_perms,
+        "create_detection": True,
+        "update_detection": True,
+        "view_detections": True,
+        "delete_detection": True
     }
 
     role_contents = {
@@ -201,7 +205,11 @@ def create_analyst_role(cls, org_id, org_perms=False):
         "update_close_reason": False,
         "delete_close_reason": False,
         'view_organizations': org_perms,
-        'view_event_rules': True
+        'view_event_rules': True,
+        "create_detection": True,
+        "update_detection": True,
+        "view_detections": True,
+        "delete_detection": True
     }
 
     role_contents = {
@@ -234,7 +242,8 @@ def create_agent_role(cls, org_id):
         "view_agents": True,
         "view_plugins": True,
         "add_event": True,
-        'view_settings': True
+        'view_settings': True,
+        'view_inputs': True
     }
 
     role_contents = {

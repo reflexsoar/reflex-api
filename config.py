@@ -89,6 +89,11 @@ class Config(object):
 
     NEW_EVENT_PIPELINE = True #as_bool(os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR')) if os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR') else False
 
+    MITRE_CONFIG = {
+        'JSON_URL': os.getenv('REFLEX_MITRE_ATTACK_JSON_URL') if os.getenv('REFLEX_MITRE_ATTACK_JSON_URL') else 'https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json',
+        'POLL_INTERVAL': os.getenv('REFLEX_MITRE_ATTACK_POLL_INTERVAL') if os.getenv('REFLEX_MITRE_ATTACK_POLL_INTERVAL') else 86400 # Once a day
+    }
+
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
 
 class ProductionConfig(Config):

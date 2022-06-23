@@ -77,7 +77,7 @@ class RoleList(Resource):
         roles = roles.sort(sort_by)
 
         # Do the pagination stuff
-        roles, total_results, pages = page_results(roles, args.page, args.page_size)        
+        roles, total_results, pages = page_results(roles, args.page, args.page_size)
 
         roles = roles.execute()
 
@@ -185,6 +185,7 @@ class RoleDetails(Resource):
     def get(self, uuid, current_user):
         ''' Gets the details of a Role '''
         role = Role.get_by_uuid(uuid=uuid)
+        
         if role:
             return role
         else:

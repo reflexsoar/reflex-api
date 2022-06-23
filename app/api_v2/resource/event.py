@@ -55,7 +55,8 @@ mod_event_create = api.model('EventCreate', {
     'source': fields.String,
     'signature': fields.String,
     'observables': fields.List(fields.Nested(mod_observable_create)),
-    'raw_log': fields.String
+    'raw_log': fields.String,
+    'detection_id': fields.String
 })
 
 mod_event_list = api.model('EventList', {
@@ -77,7 +78,8 @@ mod_event_list = api.model('EventList', {
     'related_events_count': fields.Integer,
     'raw_log': fields.Nested(mod_raw_log, attribute='_raw_log'),
     'event_rules': fields.List(fields.String),
-    'original_date': ISO8601(attribute='original_date')
+    'original_date': ISO8601(attribute='original_date'),
+    'detection_id': fields.String
 })
 
 mod_event_paged_list = api.model('PagedEventList', {
@@ -128,7 +130,8 @@ mod_event_details = api.model('EventDetails', {
     'dismiss_reason': fields.String,
     'dismiss_comment': fields.String,
     'event_rules': fields.List(fields.String),
-    'original_date': ISO8601(attribute='original_date')
+    'original_date': ISO8601(attribute='original_date'),
+    'detection_id': fields.String
 })
 
 mod_observable_update = api.model('ObservableUpdate', {

@@ -52,7 +52,20 @@ from .model import (
     Q
 )
 
-from .utils import default_org, ip_approved, check_org, page_results, token_required, user_has, generate_token, log_event, check_password_reset_token, escape_special_characters_rql
+from .utils import (
+    default_org,
+    ip_approved,
+    check_org,
+    page_results,
+    token_required,
+    user_has,
+    generate_token,
+    log_event,
+    check_password_reset_token,
+    escape_special_characters_rql
+)
+
+from .resource.utils import redistribute_detections
 
 from .resource import (
     ns_playbook_v2,
@@ -63,7 +76,9 @@ from .resource import (
     ns_auth_v2,
     ns_event_rule_v2,
     ns_role_v2,
-    ns_task_v2
+    ns_task_v2,
+    ns_detection_v2,
+    ns_mitre_v2
 )
 
 from .. import ep
@@ -117,6 +132,8 @@ api2.add_namespace(ns_auth_v2)
 api2.add_namespace(ns_event_rule_v2)
 api2.add_namespace(ns_role_v2)
 api2.add_namespace(ns_task_v2)
+api2.add_namespace(ns_detection_v2)
+api2.add_namespace(ns_mitre_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -331,8 +348,6 @@ class UserList(Resource):
         else:
             users = users.filter('match', deleted=False)
 
-        print(users.to_dict())
-
         users, total_results, pages = page_results(users, args.page, args.page_size)
 
         sort_by = args.sort_by
@@ -518,6 +533,7 @@ class UserDetails(Resource):
                 user.deleted = True
                 random_identifier = ''.join(random.choice(string.ascii_lowercase) for i in range(5))
                 user.username = f"{user.username}-DELETED-{random_identifier}"
+                user.email = None
                 user.locked = True
                 user.save()
                 return {'message': 'User successfully deleted.'}
@@ -2472,7 +2488,7 @@ class AgentList(Resource):
                         api2.payload['groups'] = [g.uuid for g in groups]
 
             agent = Agent(**api2.payload)
-            agent.save()
+            agent.save(refresh=True)
 
             # Add the agent to the groups
             if groups:
@@ -2486,6 +2502,8 @@ class AgentList(Resource):
             role.add_user_to_role(agent.uuid)
 
             token = generate_token(str(agent.uuid), 525600*5, token_type='agent', organization=current_user['organization'])
+
+            redistribute_detections(agent.organization)
 
             return {'message': 'Successfully created the agent.', 'uuid': str(agent.uuid), 'token': token}
         else:

@@ -45,6 +45,7 @@ maxminddb-geolite2 = "*"
 ndjson = "*"
 elastic-apm = {extras = ["flask"], version = "*"}
 psutil = "*"
+python-dateutil = "*"
 
 [requires]
 python_version = "3.8"

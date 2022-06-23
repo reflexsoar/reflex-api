@@ -2,6 +2,7 @@ import os
 import ssl
 import atexit
 import logging
+import datetime
 from app.api_v2.model.system import Settings
 from app.services.sla_monitor.base import SLAMonitor
 from app.utils.memcached import MemcachedClient
@@ -10,6 +11,7 @@ from app.services import housekeeper
 from app.services.threat_list_poller.base import ThreatListPoller
 from app.services.housekeeper import HouseKeeper
 from app.services.event_processor import EventProcessor
+from app.services.mitre import MITREAttack
 from multiprocessing import Queue
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -18,6 +20,7 @@ from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
 from elasticapm.contrib.flask import ElasticAPM
 
+
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
@@ -25,7 +28,7 @@ from app.api_v2.model import (
     Event,Tag,ExpiredToken,Credential,Agent,ThreatList,ThreatValue,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
-        Settings,Input,Organization,ObservableHistory,Task
+        Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic, MITRETechnique
 )
 
 from .defaults import (
@@ -107,7 +110,7 @@ def upgrade_indices(app):
         Event,Tag,ExpiredToken,Credential,Agent,ThreatList,ThreatValue,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
-        Input,Organization,ObservableHistory,Task
+        Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,MITRETechnique
         ]
 
     for model in models:
@@ -261,6 +264,10 @@ def create_app(environment='development'):
         if not app.config['SLAMONITOR_DISABLED']:
             sla_monitor = SLAMonitor(app, log_level=app.config['SLAMONITOR_LOG_LEVEL'])
             scheduler.add_job(func=sla_monitor.check_event_slas, trigger="interval", seconds=app.config['SLAMONITOR_INTERVAL'])
+
+        mattack = MITREAttack(app)
+        scheduler.add_job(func=mattack.download_framework, trigger="date", run_date=datetime.datetime.now())
+        scheduler.add_job(func=mattack.download_framework, trigger="interval", seconds=app.config['MITRE_CONFIG']['POLL_INTERVAL'])
 
         scheduler.start()
         atexit.register(lambda: scheduler.shutdown())
