@@ -49,6 +49,7 @@ class Config(object):
     THREAT_POLLER_MEMCACHED_HOST = os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST') if os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST') else None
     THREAT_POLLER_MEMCACHED_PORT = os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_PORT') if os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST') else None
     THREAT_POLLER_MEMCACHED_TTL = int(os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_TTL')) if os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST') else 60
+    MEMCACHED_POOL_SIZE = int(os.getenv('REFLEX_MEMCACHED_POOL_SIZE')) if os.getenv('REFLEX_MEMCACHED_POOL_SIZE') else 4
 
     # SLA MONITOR CONFIGURATION
     SLAMONITOR_INTERVAL = int(os.getenv('REFLEX_SLAMONITOR_INTERVAL')) if os.getenv('REFLEX_SLAMONITOR_INTERVAL') else 5*50 # Default to every 5 minutes
@@ -87,6 +88,11 @@ class Config(object):
     }
 
     NEW_EVENT_PIPELINE = True #as_bool(os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR')) if os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR') else False
+
+    MITRE_CONFIG = {
+        'JSON_URL': os.getenv('REFLEX_MITRE_ATTACK_JSON_URL') if os.getenv('REFLEX_MITRE_ATTACK_JSON_URL') else 'https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json',
+        'POLL_INTERVAL': os.getenv('REFLEX_MITRE_ATTACK_POLL_INTERVAL') if os.getenv('REFLEX_MITRE_ATTACK_POLL_INTERVAL') else 86400 # Once a day
+    }
 
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
 

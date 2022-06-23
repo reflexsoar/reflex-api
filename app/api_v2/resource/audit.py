@@ -69,7 +69,7 @@ class AuditLogsList(Resource):
         
         logs = logs.sort('-created_at')
         logs = logs[start:end]
-        logs = [l for l in logs]
+        logs = [l for l in logs]        
 
         return {
             'logs': logs,

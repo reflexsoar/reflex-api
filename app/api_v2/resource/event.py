@@ -15,9 +15,7 @@ from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateBy
 from ..model.exceptions import EventRuleFailure
 from ..utils import token_required, user_has, log_event
 from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged
-from ... import ep
-from pymemcache.client.base import Client
-
+from ... import ep, memcached_client
 
 api = Namespace('Events', description='Event related operations', path='/event')
 
@@ -57,7 +55,8 @@ mod_event_create = api.model('EventCreate', {
     'source': fields.String,
     'signature': fields.String,
     'observables': fields.List(fields.Nested(mod_observable_create)),
-    'raw_log': fields.String
+    'raw_log': fields.String,
+    'detection_id': fields.String
 })
 
 mod_event_list = api.model('EventList', {
@@ -79,7 +78,8 @@ mod_event_list = api.model('EventList', {
     'related_events_count': fields.Integer,
     'raw_log': fields.Nested(mod_raw_log, attribute='_raw_log'),
     'event_rules': fields.List(fields.String),
-    'original_date': ISO8601(attribute='original_date')
+    'original_date': ISO8601(attribute='original_date'),
+    'detection_id': fields.String
 })
 
 mod_event_paged_list = api.model('PagedEventList', {
@@ -130,7 +130,8 @@ mod_event_details = api.model('EventDetails', {
     'dismiss_reason': fields.String,
     'dismiss_comment': fields.String,
     'event_rules': fields.List(fields.String),
-    'original_date': ISO8601(attribute='original_date')
+    'original_date': ISO8601(attribute='original_date'),
+    'detection_id': fields.String
 })
 
 mod_observable_update = api.model('ObservableUpdate', {
@@ -850,7 +851,8 @@ class CreateBulkEvents(Resource):
         else:
             start_bulk_process_dt = datetime.datetime.utcnow().timestamp()
 
-            client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
+            #client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
+            client = memcached_client.client
 
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
@@ -863,7 +865,7 @@ class CreateBulkEvents(Resource):
 
             end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
             total_process_time = end_bulk_process_dt - start_bulk_process_dt
-            client.close()
+            #client.close()
             return {"task_id": str(request_id), "response_time": total_process_time}
 
 

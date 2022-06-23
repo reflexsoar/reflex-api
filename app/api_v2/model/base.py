@@ -12,8 +12,22 @@ from . import (
     Nested,
     AttrList,
     utils,
-    Search
+    Search,
+    InnerDoc
 )
+
+class BaseInnerDoc(InnerDoc):
+    """
+    Override for InnerDoc that contains Audit fields
+    """
+
+    uuid = Keyword()
+    created_at = Date()
+    updated_at = Date()
+    updated_by = Nested()
+    created_by = Nested()
+    organization = Keyword() # Required on all documents to provide logical isolate of tenants
+
 
 class BaseDocument(Document):
     """
