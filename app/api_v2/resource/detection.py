@@ -32,7 +32,7 @@ mod_detection_exception_list = api.model('DetectionException', {
     'description': fields.String,
     'condition': fields.String,
     'values': fields.List(fields.String),
-    'field': fields.String
+    'field': fields.String,
     'created_by': fields.Nested(mod_user_list)
 }, strict=True)
 
