@@ -29,6 +29,10 @@ class MITRETacticTechnique(base.InnerDoc):
     shortname = Keyword(fields={'text': Text()})
 
 
+class DetectionExceptionIntelList(base.BaseInnerDoc):
+
+    name = Keyword(fields={'text': Text()})
+
 class DetectionException(base.BaseInnerDoc):
     '''
     A DetectionException tells a detection to filter out specific criteria
@@ -38,6 +42,7 @@ class DetectionException(base.BaseInnerDoc):
     condition = Keyword()
     values = Keyword(fields={'text': Text()})
     field = Keyword()
+    list = Nested(DetectionExceptionIntelList)
 
 
 class MetricChangeConfig(base.InnerDoc):

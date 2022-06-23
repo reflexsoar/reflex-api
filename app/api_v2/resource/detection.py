@@ -19,20 +19,27 @@ api = Namespace(
     'Detection', description='Reflex detection rules', path='/detection', strict=True)
 
 
+mod_intel_list = api.model('DetectionIntelList', {
+    'name': fields.String,
+    'uuid': fields.String
+})
+
 mod_detection_exception = api.model('DetectionException', {
     'uuid': fields.String,
     'description': fields.String,
     'condition': fields.String(required=True),
     'values': fields.List(fields.String(required=True)),
-    'field': fields.String(required=True)
+    'field': fields.String(required=True),
+    'list': fields.Nested(mod_intel_list)
 }, strict=True)
 
-mod_detection_exception_list = api.model('DetectionException', {
+mod_detection_exception_list = api.model('DetectionExceptionList', {
     'uuid': fields.String,
     'description': fields.String,
     'condition': fields.String,
     'values': fields.List(fields.String),
     'field': fields.String,
+    'list': fields.Nested(mod_intel_list),
     'created_by': fields.Nested(mod_user_list)
 }, strict=True)
 
@@ -89,6 +96,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'tactics': fields.List(fields.Nested(mod_tactic_brief)),
     'techniques': fields.List(fields.Nested(mod_technique_brief)),
     'references': fields.List(fields.String),
+    'false_positives': fields.List(fields.String),
     'kill_chain_phase': fields.String,
     'rule_type': fields.Integer,
     'version': fields.Integer,
@@ -131,6 +139,7 @@ mod_create_detection = api.model('CreateDetection', {
     'tactics': fields.List(fields.Nested(mod_tactic_brief)),
     'techniques': fields.List(fields.Nested(mod_technique_brief)),
     'references': fields.List(fields.String),
+    'false_positives': fields.List(fields.String),
     'kill_chain_phase': fields.String,
     'rule_type': fields.Integer(required=True),
     'active': fields.Boolean,
@@ -142,8 +151,9 @@ mod_create_detection = api.model('CreateDetection', {
     'observable_fields': fields.List(fields.Nested(mod_observable_field)),
     'interval': fields.Integer(default=5, required=True, min=1),
     'lookbehind': fields.Integer(default=5, required=True, min=1),
-    'mute_period': fields.Integer(default=5, required=True, min=1),
+    'mute_period': fields.Integer(default=5, required=True, min=0),
     'skip_event_rules': fields.Boolean(default=False),
+    'exceptions': fields.List(fields.Nested(mod_detection_exception_list)),
     'threshold_config': fields.Nested(mod_threshold_config),
     'metric_change_config': fields.Nested(mod_metric_change_config),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config)
@@ -159,6 +169,7 @@ mod_update_detection = api.model('UpdateDetection', {
     'tactics': fields.List(fields.String),
     'techniques': fields.List(fields.String),
     'references': fields.List(fields.String),
+    'false_positives': fields.List(fields.String),
     'kill_chain_phase': fields.String,
     'rule_type': fields.Integer,
     'active': fields.Boolean,
@@ -170,15 +181,15 @@ mod_update_detection = api.model('UpdateDetection', {
     'observable_fields': fields.List(fields.String),
     'interval': fields.Integer(default=5, required=True, min=1),
     'lookbehind': fields.Integer(default=5, required=True, min=1),
-    'mute_period': fields.Integer(default=5, required=True, min=1),
-    'skip_event_rules': fields.Boolean
+    'mute_period': fields.Integer(default=5, required=True, min=0),
+    'skip_event_rules': fields.Boolean,
+    'exceptions': fields.List(fields.Nested(mod_detection_exception_list))
 }, strict=True)
 
 mod_detection_list_paged = api.model('DetectionListPaged', {
     'detections': fields.List(fields.Nested(mod_detection_details)),
     'pagination': fields.Nested(mod_pagination)
 })
-
 
 detection_list_parser = api.parser()
 detection_list_parser.add_argument(
