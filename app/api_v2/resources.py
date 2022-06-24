@@ -6,6 +6,7 @@ import string
 import os
 import json
 import hashlib
+import fnmatch
 
 from app.api_v2.model.user import Organization
 import pyqrcode
@@ -2397,9 +2398,52 @@ class InputDetails(Resource):
             return {'message': 'Sucessfully deleted input.'}
 
 
-@ns_input_v2.route("/<uuid>/update_index_fields")
-class InputDetails(Resource):
+input_list_index_fields_parser = api2.parser()
+input_list_index_fields_parser.add_argument(
+    'name__like', location='args', required=False
+)
+input_list_index_fields_parser.add_argument(
+    'organization', location='args', required=False
+)
 
+@ns_input_v2.route("/<uuid>/index_fields")
+class InputIndexFields(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_input_index_fields)
+    @api2.expect(input_list_index_fields_parser)
+    @token_required
+    @default_org
+    @user_has('view_inputs')
+    def get(self, uuid, user_in_default_org, current_user):
+
+        args = input_list_index_fields_parser.parse_args()
+
+        inp = Input.search()
+        inp = inp.filter('term', uuid=uuid)
+
+        if user_in_default_org and args.organization:
+            inp = inp.filter('term', organization=args.organization)
+
+        inp = inp.execute()
+
+        if inp:
+            inp = inp[0]
+            
+            if hasattr(inp, 'index_fields') and inp.index_fields != None:
+                fields = inp.index_fields
+            else:
+                fields = []
+
+            if args.name__like and len(fields) > 0:
+                fields = fnmatch.filter(fields,f"{args.name__like}*")
+
+            return {
+                'index_fields': fields[0:25]
+            }
+        else:
+            ns_input_v2.abort(404, 'Input not found.')
+    
     @api2.doc(security="Bearer")
     @api2.expect(mod_input_index_fields)
     @api2.marshal_with(mod_input_list)
