@@ -2405,6 +2405,9 @@ input_list_index_fields_parser.add_argument(
 input_list_index_fields_parser.add_argument(
     'organization', location='args', required=False
 )
+input_list_index_fields_parser.add_argument(
+    'limit', type=int, location='args', default=25, required=False
+)
 
 @ns_input_v2.route("/<uuid>/index_fields")
 class InputIndexFields(Resource):
@@ -2418,6 +2421,9 @@ class InputIndexFields(Resource):
     def get(self, uuid, user_in_default_org, current_user):
 
         args = input_list_index_fields_parser.parse_args()
+
+        if args.limit > 100:
+            ns_input_v2.abort(400, "'limit' can not exceed 1000")
 
         inp = Input.search()
         inp = inp.filter('term', uuid=uuid)
@@ -2439,7 +2445,7 @@ class InputIndexFields(Resource):
                 fields = fnmatch.filter(fields,f"{args.name__like}*")
 
             return {
-                'index_fields': fields[0:25]
+                'index_fields': fields[0:args.limit]
             }
         else:
             ns_input_v2.abort(404, 'Input not found.')
