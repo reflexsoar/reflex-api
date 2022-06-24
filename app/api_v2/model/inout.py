@@ -7,7 +7,8 @@ from . import (
     Object,
     Integer,
     AttrList,
-    InnerDoc
+    InnerDoc,
+    Date
 )
 
 class FieldMap(InnerDoc):
@@ -40,6 +41,8 @@ class Input(base.BaseDocument):
     credential = Keyword()  # The UUID of the credential in use
     tags = Keyword()
     field_mapping = Nested(FieldMap)
+    index_fields = Keyword() # A list of all the fields on the index via _mapping
+    index_fields_last_updated = Date()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

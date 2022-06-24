@@ -616,7 +616,9 @@ mod_input_list = Model('InputList', {
     'config': JSONField(attribute="_config"),
     'field_mapping': JSONField(attribute="_field_mapping"),
     'created_at': ISO8601(attribute='created_at'),
-    'updated_at': ISO8601(attribute='updated_at')
+    'updated_at': ISO8601(attribute='updated_at'),
+    'index_fields': fields.List(fields.String),
+    'index_fields_last_updated': ISO8601(attribute='index_fields_last_updated')
 })
 
 mod_input_list_paged = Model('InputListPaged', {
@@ -1105,6 +1107,10 @@ mod_bulk_event_uuids = Model('BulkEventUUIDs', {
     'organizations': JSONField(attribute='organizations')
 })
 
+mod_input_index_fields = Model('InputIndexFields', {
+    'index_fields': fields.List(fields.String)
+})
+
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full,
 mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create,
 mod_observable_brief, mod_observable_create, mod_observable_update, mod_raw_log, mod_permissions,
@@ -1128,4 +1134,4 @@ mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plu
 mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql,
 mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_event_rule_list_paged, mod_bulk_event_uuids,
 mod_list_values, mod_input_list_paged, mod_agent_group_list_paged, mod_credential_list_paged, mod_agent_list_paged,
-mod_user_list_paged, mod_password_update]
+mod_user_list_paged, mod_password_update, mod_input_index_fields]

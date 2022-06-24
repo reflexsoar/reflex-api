@@ -2397,6 +2397,29 @@ class InputDetails(Resource):
             return {'message': 'Sucessfully deleted input.'}
 
 
+@ns_input_v2.route("/<uuid>/update_index_fields")
+class InputDetails(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_input_index_fields)
+    @api2.marshal_with(mod_input_list)
+    @token_required
+    @user_has('update_input')
+    def put(self, uuid, current_user):
+        '''
+        Updates the fields that an input may have associated with its underlying indices
+        '''
+        inp = Input.get_by_uuid(uuid=uuid)
+        if inp:
+            if 'index_fields' in api2.payload and api2.payload['index_fields'] != None:
+                inp.update(
+                    index_fields=api2.payload['index_fields'],
+                    index_fields_last_updated=datetime.datetime.utcnow(),
+                    refresh=True)
+        else:
+            ns_input_v2.abort(404, 'Input not found.')
+
+
 @ns_agent_v2.route("/pair_token")
 class AgentPairToken(Resource):
 
