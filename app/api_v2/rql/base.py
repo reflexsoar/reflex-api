@@ -442,6 +442,8 @@ class RQLSearch:
 
             super().__call__(obj)
 
+            print(self.target_value, self.value)
+
             if self.target_value:
                 # If the target value is a list, calculate how many items are in the list
                 if isinstance(self.target_value, list):

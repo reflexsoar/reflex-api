@@ -101,6 +101,7 @@ mod_event_rql = api.model('EventDetailsRQLFormatted', {
     'description': fields.String(required=True),
     'tlp': fields.Integer,
     'severity': fields.Integer,
+    'risk_score': fields.Integer,
     'source': fields.String,
     'status': fields.Nested(mod_event_status),
     'tags': fields.List(fields.String),
