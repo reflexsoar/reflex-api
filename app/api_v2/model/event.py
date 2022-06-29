@@ -88,6 +88,7 @@ class Event(base.BaseDocument):
     sla_breach_time = Date()
     sla_violated = Boolean()
     detection_id = Keyword() # The UUID of the Detection rule that generated this event
+    risk_score = Integer() # The risk score if this originated from a detection rule
     original_date = Date() # The date the original log was generated (not when it was created in Reflex)
 
     class Index: # pylint: disable=too-few-public-methods

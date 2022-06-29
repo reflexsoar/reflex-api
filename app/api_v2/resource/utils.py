@@ -37,5 +37,5 @@ def redistribute_detections(organization=None):
                     if detection.active:
                         if detection.assigned_agent != agents[i].uuid:                            
                             detection.assigned_agent = agents[i].uuid
-                            detection.save()
+                            detection.save(skip_update_by=True)
                     

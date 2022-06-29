@@ -8,7 +8,8 @@ from ..utils import check_org, token_required, user_has, ip_approved
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import (
     Detection,
-    Organization
+    Organization,
+    Event
 )
 from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
@@ -124,14 +125,16 @@ mod_detection_details = api.model('DetectionDetails', {
     'metric_change_config': fields.Nested(mod_metric_change_config),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
     'created_at': ISO8601,
-    'created_by': fields.Nested(mod_user_list)
+    'created_by': fields.Nested(mod_user_list),
+    'updated_at': ISO8601,
+    'updated_by': fields.Nested(mod_user_list)
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
     'name': fields.String(default='Sample Rule', required=True),
     'query': fields.Nested(mod_query_config, required=True),
-    'from_sigma': fields.Boolean(default=False),
-    'sigma_rule': fields.String,
+    'from_sigma': fields.Boolean(default=False, required=False, skip_none=True),
+    'sigma_rule': fields.String(required=False, skip_none=True),
     'organization': fields.String,
     'description': fields.String(default="A detailed description.", required=True),
     'guide': fields.String(default="An investigation guide on how to triage this detection"),
@@ -188,6 +191,21 @@ mod_update_detection = api.model('UpdateDetection', {
 
 mod_detection_list_paged = api.model('DetectionListPaged', {
     'detections': fields.List(fields.Nested(mod_detection_details)),
+    'pagination': fields.Nested(mod_pagination)
+})
+
+mod_detection_hits = api.model('DetectionHit', {
+    'title': fields.String,
+    'tags': fields.List(fields.String),
+    'reference': fields.String(required=True),
+    'severity': fields.Integer,
+    'created_at': ISO8601(attribute='created_at'),
+    'modified_at': ISO8601(attribute='updated_at'),
+    'original_date': ISO8601(attribute='original_date'),
+})
+
+mod_detection_hits_paged = api.model('DetectionHit', {
+    'events': fields.List(fields.Nested(mod_detection_hits)),
     'pagination': fields.Nested(mod_pagination)
 })
 
@@ -286,6 +304,61 @@ class DetectionList(Resource):
             api.abort(409, 'A detection rule with this name already exists')
 
 
+detection_hit_parser = api.parser()
+detection_hit_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+detection_hit_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
+detection_hit_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+detection_hit_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
+
+@api.route("/<uuid>/hits")
+class DetectionHits(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_detection_hits_paged)
+    @api.expect(detection_hit_parser)
+    @token_required
+    @user_has('view_events')
+    def get(self, uuid, current_user):
+
+        args = detection_hit_parser.parse_args()
+
+        detection = Detection.get_by_uuid(uuid=uuid)
+        if detection:
+
+            events = Event.search()
+
+            events = events.filter('term', detection_id=detection.uuid)
+
+            sort_by = args.sort_by
+            if args.sort_direction == 'desc':
+                sort_by = f"-{sort_by}"
+
+            events = events.sort(sort_by)
+
+            events, total_results, pages = page_results(events, args.page, args.page_size)
+
+            events = events.execute()
+
+            response = {
+                'events': list(events),
+                'pagination': {
+                    'total_results': total_results,
+                    'pages': pages,
+                    'page': args['page'],
+                    'page_size': args['page_size']
+                }
+            }
+            return response
+        else:
+            api.abort(404, f'Detection rule for UUID {uuid} not found')
+
+
 @api.route("/<uuid>/add_exception")
 class AddDetectionException(Resource):
 
@@ -317,7 +390,7 @@ class AddDetectionException(Resource):
             else:
                 detection.exceptions = [exception]
 
-            detection.save()
+            detection.save(refresh=True)
 
             return detection
         else:
@@ -341,7 +414,7 @@ class RemoveDetectionException(Resource):
             if detection.exceptions:
                 detection.exceptions = [
                     exception for exception in detection.exceptions if exception.uuid != exception_uuid]
-                detection.save()
+                detection.save(refresh=True)
 
             return detection
         else:
@@ -375,8 +448,9 @@ class DetectionDetails(Resource):
         Updates the details of a single detection rule
         '''
 
+        should_redistribute = False
         forbidden_user_fields = ['query_time_taken', 'total_hits', 'last_hit', 'last_run',
-                                 'created_at','time_taken','warnings','version','running',
+                                 'created_at','created_by','updated_at','updated_by','time_taken','warnings','version','running',
                                  'assigned_agents']
 
         # Prevent users from updating these fields
@@ -407,10 +481,15 @@ class DetectionDetails(Resource):
             if 'hits' in api.payload and api.payload['hits'] > 10_000:
                 api.payload['warnings'].append('high-volume')
 
+            if 'active' in api.payload and detection.active != api.payload['active']:
+                should_redistribute = True
+
             detection.update(**api.payload, refresh=True)
 
-            if 'active' in api.payload:
+            if should_redistribute:
                 redistribute_detections(detection.organization)
+
+            print(detection.updated_at)
 
             return detection
         else:

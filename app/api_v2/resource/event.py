@@ -56,7 +56,8 @@ mod_event_create = api.model('EventCreate', {
     'signature': fields.String,
     'observables': fields.List(fields.Nested(mod_observable_create)),
     'raw_log': fields.String,
-    'detection_id': fields.String
+    'detection_id': fields.String,
+    'risk_score': fields.Integer(default=0)
 })
 
 mod_event_list = api.model('EventList', {
