@@ -1793,7 +1793,8 @@ class EventQueueStats(Resource):
                 {
                     'loaded_rules': len(worker.rules),
                     'events': len(worker.events),
-                    '_id': worker._sentinel
+                    '_id': worker._sentinel,
+                    'alive': worker.is_alive()
                 }
             )
         return {"size": ep.qsize(), "workers": worker_info}
