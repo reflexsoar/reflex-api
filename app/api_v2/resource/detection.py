@@ -46,7 +46,8 @@ mod_detection_exception_list = api.model('DetectionExceptionList', {
 
 mod_threshold_config = api.model('ThesholdConfig', {
     'threshold': fields.Integer,
-    'key_field': fields.String
+    'key_field': fields.String,
+    'operator': fields.String
 }, strict=True)
 
 mod_metric_change_config = api.model('MetricChangeConfig', {
@@ -148,7 +149,7 @@ mod_create_detection = api.model('CreateDetection', {
     'active': fields.Boolean,
     'source': fields.Nested(mod_source_config, required=True),
     'case_template': fields.String,
-    'risk_score': fields.Integer(default=50, min=0, max=100),
+    'risk_score': fields.Integer(default=10000, min=0, max=50000),
     'severity': fields.Integer(required=True, default=1, min=1, max=4),
     'signature_fields': fields.List(fields.String),
     'observable_fields': fields.List(fields.Nested(mod_observable_field)),
@@ -178,7 +179,7 @@ mod_update_detection = api.model('UpdateDetection', {
     'active': fields.Boolean,
     'source': fields.String,
     'case_template': fields.String,
-    'risk_score': fields.Integer(default=50, min=0, max=100),
+    'risk_score': fields.Integer(default=10000, min=0, max=50000),
     'severity': fields.Integer(required=True, default=1, min=1, max=4),
     'signature_fields': fields.List(fields.String),
     'observable_fields': fields.List(fields.String),
@@ -452,7 +453,7 @@ class DetectionDetails(Resource):
         should_redistribute = False
         forbidden_user_fields = ['query_time_taken', 'total_hits', 'last_hit', 'last_run',
                                  'created_at','created_by','updated_at','updated_by','time_taken','warnings','version','running',
-                                 'assigned_agents']
+                                 'assigned_agent']
 
         # Prevent users from updating these fields
         if isinstance(current_user, User):
