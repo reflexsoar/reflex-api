@@ -91,6 +91,9 @@ class EventProcessor:
 
         self.logger.setLevel(log_levels[log_level])
         self.log_level = log_level
+        
+        self.worker_monitor = threading.Thread(target=self.monitor_workers, args=(), daemon=True)
+        self.worker_monitor.start()
 
 
     def init_app(self, app, **defaults):
@@ -138,6 +141,27 @@ class EventProcessor:
                             )
             w.start()
             self.workers.append(w)
+
+    def monitor_workers(self):
+        '''
+        Monitors the workers to see if they are alive
+        If they are dead start a new worker in their place
+        '''
+        while True:
+            self.logger.info('Checking Event Worker health')
+            for worker in list(self.workers):
+                if worker.is_alive() == False:
+                    self.logger.error(f"Event Worker {worker._sentinel} died, starting new worker")
+                    self.workers.remove(worker)
+                    w = EventWorker(app_config=self.app.config,
+                            event_queue=self.event_queue,
+                            event_cache=self.event_cache,
+                            log_level=self.log_level
+                            )
+                    w.start()
+                    self.workers.append(w)
+
+            time.sleep(30)
 
     def restart_workers(self):
         '''

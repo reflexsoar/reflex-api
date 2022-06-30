@@ -1791,8 +1791,6 @@ class EventQueueStats(Resource):
         for worker in ep.workers:
             worker_info.append(
                 {
-                    'loaded_rules': len(worker.rules),
-                    'events': len(worker.events),
                     '_id': worker._sentinel,
                     'alive': worker.is_alive()
                 }
