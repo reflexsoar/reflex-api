@@ -100,6 +100,7 @@ class EventProcessor:
         ''' Initialize the EventProcessor from within an application factory '''
         self.app = app
         config = self.app.config.get('EVENT_PROCESSOR', {})
+        self.config = config
 
         logging.info('EventProcessor Started')
 
@@ -161,7 +162,7 @@ class EventProcessor:
                     w.start()
                     self.workers.append(w)
 
-            time.sleep(30)
+            time.sleep(self.config['WORKER_CHECK_INTERVAL'])
 
     def restart_workers(self):
         '''
