@@ -1789,7 +1789,7 @@ class EventQueueStats(Resource):
         for worker in ep.workers:
             worker_info.append(
                 {
-                    '_id': worker._sentinel,
+                    'pid': worker.pid,
                     'alive': worker.is_alive()
                 }
             )
