@@ -491,6 +491,7 @@ mod_event_details = Model('EventDetails', {
     'description': fields.String(required=True),
     'tlp': fields.Integer,
     'severity': fields.Integer,
+    'risk_score': fields.Integer,
     'status': fields.Nested(mod_event_status),
     'source': fields.String,
     'tags': fields.List(fields.String),
