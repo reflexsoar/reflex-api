@@ -154,7 +154,7 @@ class EventProcessor:
             self.logger.info('Checking Event Worker health')
             for worker in list(self.workers):
                 if worker.is_alive() == False:
-                    self.logger.error(f"Event Worker {worker._sentinel} died, starting new worker")
+                    self.logger.error(f"Event Worker {worker.pid} died, starting new worker")
                     self.workers.remove(worker)
                     w = EventWorker(app_config=self.app.config,
                             event_queue=self.event_queue,
