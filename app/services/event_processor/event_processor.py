@@ -154,7 +154,7 @@ class EventProcessor:
             self.logger.info('Checking Event Worker health')
             for worker in list(self.workers):
                 if worker.is_alive() == False:
-                    self.logger.error(f"Event Worker {worker._sentinel} died, starting new worker")
+                    self.logger.error(f"Event Worker {worker.pid} died, starting new worker")
                     self.workers.remove(worker)
                     w = EventWorker(app_config=self.app.config,
                             event_queue=self.event_queue,
@@ -165,6 +165,23 @@ class EventProcessor:
                     self.workers.append(w)
 
             time.sleep(self.config['WORKER_CHECK_INTERVAL'])
+
+    
+    def worker_info(self):
+        '''
+        Returns information about all the Event Workers so that the API can 
+        be used to monitor them
+        '''
+        worker_info = []
+        for worker in self.workers:
+            worker_info.append(
+                {
+                    'pid': worker.pid,
+                    'alive': worker.is_alive()
+                }
+            )
+        return worker_info
+
 
     def restart_workers(self):
         '''
@@ -217,6 +234,7 @@ class EventWorker(Process):
         self.events = []
         self.last_meta_refresh = None
         self.should_restart = mpEvent()
+
 
     def force_reload(self):
         self.logger.debug('Reload triggered by EventProcessor')
