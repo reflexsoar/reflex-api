@@ -1786,11 +1786,5 @@ class EventQueueStats(Resource):
     @api.doc(security="Bearer")
     def get(self):
         worker_info = []
-        for worker in ep.workers:
-            worker_info.append(
-                {
-                    'pid': worker.pid,
-                    'alive': worker.is_alive()
-                }
-            )
+        worker_info = ep.worker_info()
         return {"size": ep.qsize(), "workers": worker_info}
