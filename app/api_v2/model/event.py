@@ -1,7 +1,6 @@
 import datetime
 import hashlib
 import json
-from fnmatch import fnmatch
 from app.api_v2.model.exceptions import EventRuleFailure
 
 from app.api_v2.rql.parser import QueryParser
@@ -17,8 +16,16 @@ from . import (
     Date,
     system,
     utils,
-    Nested
+    Nested,
 )
+
+class EventComment(base.BaseInnerDoc):
+    '''
+    A comment that can be applied to an Event
+    '''
+    
+    comment = Keyword(fields={'text': Text()})
+
 
 class EventStatus(base.BaseDocument):
     '''
@@ -90,6 +97,7 @@ class Event(base.BaseDocument):
     detection_id = Keyword() # The UUID of the Detection rule that generated this event
     risk_score = Integer() # The risk score if this originated from a detection rule
     original_date = Date() # The date the original log was generated (not when it was created in Reflex)
+    comments = Nested()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -126,6 +134,34 @@ class Event(base.BaseDocument):
             self.event_rules.append(uuid)
         else:
             self.event_rules = [uuid]
+
+    def add_comment(self, comment, skip_save=False):
+        '''
+        Adds a comment to the event
+        '''
+        if not self.comments:
+            self.comments = [comment]
+        else:
+            self.comments.append(comment)
+
+        if not skip_save:
+            self.save()
+
+    def remove_comment(self, uuid, skip_save=False):
+        '''
+        Removes a comment from the event
+        '''
+
+        if not self.comments:
+            return
+
+        for comment in self.comments:
+            if comment['uuid'] == uuid:
+                self.comments.remove(comment)
+                break
+
+        if not skip_save:
+            self.save()
 
     def add_observable(self, content):
         '''

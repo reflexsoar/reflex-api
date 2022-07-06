@@ -7,17 +7,34 @@ import json
 import datetime
 import threading
 from queue import Queue
+from uuid import uuid4
 
 from app.api_v2.model.system import ObservableHistory, Settings
 from flask import current_app
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
-from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus
+from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus, EventComment
 from ..model.exceptions import EventRuleFailure
 from ..utils import token_required, user_has, log_event
 from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged
 from ... import ep, memcached_client
 
 api = Namespace('Events', description='Event related operations', path='/event')
+
+
+mod_event_comment = api.model('EventComment', {
+    'comment': fields.String(required=True, description='The comment to add to the event')
+})
+
+mod_event_comment_detailed = api.model('EventCommentDetailed', {
+    'uuid': fields.String,
+    'comment': fields.String,
+    'created_at': ISO8601,
+    'created_by': fields.String,
+})
+
+mod_event_comments = api.model('EventComments', {
+    'comments': fields.List(fields.Nested(mod_event_comment_detailed))
+})
 
 mod_bulk_event_uuids = api.model('BulkEventUUIDs', {
     'events': fields.List(fields.String),
@@ -1179,6 +1196,65 @@ class EventBulkUpdate(Resource):
             ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
 
         return {'task_id': str(task_id)}
+
+
+@api.route("/<uuid>/comment")
+class EventComment(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_event_comments)
+    @token_required
+    @user_has('view_events')
+    def get(self, uuid, current_user):
+
+        event = Event.get_by_uuid(uuid)
+
+        if not event:
+            api.abort(404, 'Event not found.')
+
+        return event
+    
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_event_comment_detailed)
+    @api.expect(mod_event_comment)
+    @token_required
+    @user_has('update_event')
+    def post(self, uuid, current_user):
+
+        event = Event.get_by_uuid(uuid)
+
+        if not event:
+            api.abort(404, 'Event not found')
+
+        comment = {
+            'uuid': uuid4(),
+            'comment': api.payload['comment'],
+            'organization': event.organization,
+            'created_by': current_user.username,
+            'created_at': datetime.datetime.utcnow(),
+        }
+
+        event.add_comment(comment=comment)
+        event.save()
+        return comment
+
+
+@api.route("/<uuid>/comment/<comment_uuid>")
+class EventCommentDelete(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('update_event')
+    def delete(self, uuid, comment_uuid, current_user):
+
+        event = Event.get_by_uuid(uuid)
+
+        if not event:
+            api.abort(404, 'Event not found')
+
+        event.remove_comment(comment_uuid)
+        event.save()
 
 
 @api.route("/<uuid>")
