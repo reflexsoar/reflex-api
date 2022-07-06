@@ -80,6 +80,7 @@ class EventProcessor:
         self.workers = []
         self.event_cache = []
 
+
     def set_log_level(self, log_level):
         '''Allows for changing the log level after initialization'''
 
@@ -91,9 +92,6 @@ class EventProcessor:
 
         self.logger.setLevel(log_levels[log_level])
         self.log_level = log_level
-        
-        self.worker_monitor = threading.Thread(target=self.monitor_workers, args=(), daemon=True)
-        self.worker_monitor.start()
 
 
     def init_app(self, app, **defaults):
@@ -102,7 +100,7 @@ class EventProcessor:
         config = self.app.config.get('EVENT_PROCESSOR', {})
         self.config = config
 
-        logging.info('EventProcessor Started')
+        self.logger.info('EventProcessor Started')
 
         # Process default settings
         for key, value in defaults.items():
@@ -115,6 +113,9 @@ class EventProcessor:
 
         if 'WORKER_COUNT' in config:
             self.worker_count = config['WORKER_COUNT']
+
+        self.worker_monitor = threading.Thread(target=self.monitor_workers, args=(), daemon=True)
+        self.worker_monitor.start()
 
 
     def enqueue(self, item):
@@ -148,11 +149,12 @@ class EventProcessor:
         Monitors the workers to see if they are alive
         If they are dead start a new worker in their place
         '''
-        while True:
+        
+        while True:            
             self.logger.info('Checking Event Worker health')
             for worker in list(self.workers):
                 if worker.is_alive() == False:
-                    self.logger.error(f"Event Worker {worker._sentinel} died, starting new worker")
+                    self.logger.error(f"Event Worker {worker.pid} died, starting new worker")
                     self.workers.remove(worker)
                     w = EventWorker(app_config=self.app.config,
                             event_queue=self.event_queue,
@@ -163,6 +165,23 @@ class EventProcessor:
                     self.workers.append(w)
 
             time.sleep(self.config['WORKER_CHECK_INTERVAL'])
+
+    
+    def worker_info(self):
+        '''
+        Returns information about all the Event Workers so that the API can 
+        be used to monitor them
+        '''
+        worker_info = []
+        for worker in self.workers:
+            worker_info.append(
+                {
+                    'pid': worker.pid,
+                    'alive': worker.is_alive()
+                }
+            )
+        return worker_info
+
 
     def restart_workers(self):
         '''
@@ -215,6 +234,7 @@ class EventWorker(Process):
         self.events = []
         self.last_meta_refresh = None
         self.should_restart = mpEvent()
+
 
     def force_reload(self):
         self.logger.debug('Reload triggered by EventProcessor')
