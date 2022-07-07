@@ -46,6 +46,7 @@ ndjson = "*"
 elastic-apm = {extras = ["flask"], version = "*"}
 psutil = "*"
 python-dateutil = "*"
+flask-saml2 = "*"
 
 [requires]
 python_version = "3.8"

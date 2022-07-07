@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from flask_saml2.utils import certificate_from_file, private_key_from_file
 import multiprocessing
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -96,6 +97,7 @@ class Config(object):
     }
 
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
+
 
 class ProductionConfig(Config):
     ENV = 'production'
