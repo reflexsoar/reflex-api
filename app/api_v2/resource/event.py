@@ -983,14 +983,16 @@ class EventBulkDismiss(Resource):
                 })
 
         status = EventStatus.get_by_name(name='Dismissed', organization=reason.organization)
+        reason = CloseReason.get_by_uuid(api.payload['dismiss_reason_uuid'])
 
         ubq = ubq.script(
             source="ctx._source.dismiss_comment = params.dismiss_comment; ctx._source.dismiss_reason = params.dismiss_reason; ctx._source.status.name = params.status_name; ctx._source.status.uuid = params.uuid",
             params={
                 'dismiss_comment': api.payload['dismiss_comment'],
-                'dismiss_reason': api.payload['dismiss_reason_uuid'],
+                'dismiss_reason': reason.title if reason else api.payload['dismiss_reason_uuid'],
                 'status_name': status.name,
-                'uuid': status.uuid
+                'uuid': status.uuid,
+                'dismissed_at': datetime.datetime.utcnow()
             }
         )
         ubq = ubq.params(slices='auto', refresh=True)
