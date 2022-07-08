@@ -175,8 +175,7 @@ class EventProcessor:
         for worker in self.workers:
             worker_info.append(
                 {
-                    'pid': worker.pid,
-                    'alive': worker.is_alive()
+                    'pid': worker.pid
                 }
             )
         return worker_info
