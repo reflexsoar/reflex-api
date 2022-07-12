@@ -75,6 +75,7 @@ class EventProcessor:
         self.log_level = log_level
 
         self.worker_count = 10
+        self.worker_respawns = 0
         self.event_queue = Queue()
         self.workers = []
         self.event_cache = []
@@ -161,6 +162,7 @@ class EventProcessor:
                             log_level=self.log_level
                             )
                     w.start()
+                    self.worker_respawns += 1
                     self.workers.append(w)
 
             time.sleep(self.config['WORKER_CHECK_INTERVAL'])

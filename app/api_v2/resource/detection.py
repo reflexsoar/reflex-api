@@ -47,7 +47,11 @@ mod_detection_exception_list = api.model('DetectionExceptionList', {
 mod_threshold_config = api.model('ThesholdConfig', {
     'threshold': fields.Integer,
     'key_field': fields.String,
-    'operator': fields.String
+    'operator': fields.String,
+    'dynamic': fields.Boolean,
+    'discovery_period': fields.Integer,
+    'recalculation_period': fields.Integer,
+    'per_field': fields.Boolean
 }, strict=True)
 
 mod_metric_change_config = api.model('MetricChangeConfig', {

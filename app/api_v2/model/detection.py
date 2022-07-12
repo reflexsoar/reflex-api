@@ -62,7 +62,13 @@ class ThresholdConfig(base.InnerDoc):
     '''
 
     threshold = Integer() # The number of items where the threshold is crossed
+    operator = Keyword() # The operator to use e.g. >, <, >=, <=, ==, !=
+    dynamic = Boolean() # True = dynamic, False = static
     key_field = Keyword() # Optional key to count against (count of records in this field)
+    discovery_period = Integer() # How far back to look to find average logs
+    recalculation_period = Integer() # How often to recompute the dynamic threshold
+    per_field = Boolean() # True = per field, False = per item
+    threshold_last_discovered = Date() # The last time the threshold was discovered
 
 
 class FieldMismatchConfig(base.InnerDoc):

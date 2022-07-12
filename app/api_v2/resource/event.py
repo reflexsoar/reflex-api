@@ -1867,4 +1867,4 @@ class EventQueueStats(Resource):
     def get(self):
         worker_info = []
         worker_info = ep.worker_info()
-        return {"size": ep.qsize(), "workers": worker_info}
+        return {"size": ep.qsize(), "workers": worker_info, "respawns": ep.worker_respawns}
