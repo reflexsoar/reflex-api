@@ -679,7 +679,14 @@ mod_agent_list = Model('AgentList', {
     'groups': fields.List(fields.Nested(mod_agent_group_list), attribute="_groups"),
     'active': fields.Boolean,
     'ip_address': fields.String,
+    'healthy': fields.Boolean,
+    'health_issues': fields.List(fields.String),
     'last_heartbeat': ISO8601(attribute='last_heartbeat')
+})
+
+mod_agent_heartbeat = Model('AgentHeartbeat', {
+    'healthy': fields.Boolean,
+    'health_issues': fields.List(fields.String)
 })
 
 mod_agent_list_paged = Model('AgentListPaged', {
@@ -1135,4 +1142,4 @@ mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plu
 mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql,
 mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_event_rule_list_paged, mod_bulk_event_uuids,
 mod_list_values, mod_input_list_paged, mod_agent_group_list_paged, mod_credential_list_paged, mod_agent_list_paged,
-mod_user_list_paged, mod_password_update, mod_input_index_fields]
+mod_user_list_paged, mod_password_update, mod_input_index_fields, mod_agent_heartbeat]

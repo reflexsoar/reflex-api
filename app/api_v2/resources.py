@@ -2587,13 +2587,16 @@ class AgentList(Resource):
 class AgentHeartbeat(Resource):
 
     @api2.doc(security="Bearer")
+    @api2.expect(mod_agent_heartbeat)
     @token_required
-    def get(self, uuid, current_user):
+    def post(self, uuid, current_user):
         agent = Agent.get_by_uuid(uuid=uuid)
+        
         if agent:
-            agent.last_heartbeat = datetime.datetime.utcnow()
-            agent.save()
-            return {'message': 'Your heart still beats!'}
+            if current_user.uuid == agent.uuid:
+                agent.last_heartbeat = datetime.datetime.utcnow()
+                agent.update(last_heartbeat=datetime.datetime.utcnow(), **api2.payload, refresh=True)
+                return {'message': 'Your heart still beats!'}
         else:
             '''
             If the agent can't be found, revoke the agent token

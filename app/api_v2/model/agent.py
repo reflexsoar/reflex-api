@@ -25,9 +25,11 @@ class Agent(base.BaseDocument):
     inputs = Keyword()  # A list of UUIDs of which inputs to run
     roles = Keyword()  # A list of roles that the agent belongs to
     groups = Keyword()  # A list of UUIDs that the agent belongs to
-    active = Boolean()
-    ip_address = Ip()
-    last_heartbeat = Date()
+    active = Boolean() # Is this agent active?
+    ip_address = Ip() # The IP address of the agent
+    last_heartbeat = Date() # The last time this agent was heard from
+    healthy = Boolean() # Is the agent in a healthy state?
+    health_issues = Keyword() # A list of issues that have been found with the agent
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
