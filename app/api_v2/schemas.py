@@ -558,7 +558,8 @@ mod_settings = Model('SettingsList', {
     'require_mfa': fields.Boolean,
     'minimum_password_length': fields.Integer,
     'enforce_password_complexity': fields.Boolean,
-    'disallowed_password_keywords': AsNewLineDelimited()
+    'disallowed_password_keywords': AsNewLineDelimited(),
+    'logon_expire_at': fields.Integer
 })
 
 mod_persistent_pairing_token = Model('PeristentPairingToken', {

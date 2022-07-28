@@ -4,6 +4,7 @@ Contains all the models related to users of the system
 '''
 
 import datetime
+from app.api_v2.model.system import Settings
 import jwt
 import onetimepass
 import base64
@@ -102,12 +103,15 @@ class User(base.BaseDocument):
         '''
 
         organization = Organization.get_by_uuid(self.organization)
+        settings = Settings.load(organization=self.organization)
+
+        jwt_exp = settings.logon_expire_at if hasattr(settings,'logon_expire_at') and settings.logon_expire_at else 6
 
         _access_token = jwt.encode({
             'uuid': self.uuid,
             'organization': self.organization,
             'default_org': organization.default_org if organization else False,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=360),
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60*jwt_exp),
             'iat': datetime.datetime.utcnow(),
             'type': 'user'
         }, current_app.config['SECRET_KEY'])
