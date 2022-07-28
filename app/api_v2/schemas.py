@@ -686,7 +686,8 @@ mod_agent_list = Model('AgentList', {
 
 mod_agent_heartbeat = Model('AgentHeartbeat', {
     'healthy': fields.Boolean,
-    'health_issues': fields.List(fields.String)
+    'health_issues': fields.List(fields.String),
+    'recovered': fields.Boolean
 })
 
 mod_agent_list_paged = Model('AgentListPaged', {

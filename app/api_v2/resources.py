@@ -2591,11 +2591,23 @@ class AgentHeartbeat(Resource):
     @token_required
     def post(self, uuid, current_user):
         agent = Agent.get_by_uuid(uuid=uuid)
-        
+       
         if agent:
             if current_user.uuid == agent.uuid:
                 agent.last_heartbeat = datetime.datetime.utcnow()
+
+                last_agent_health = agent.healthy
+
                 agent.update(last_heartbeat=datetime.datetime.utcnow(), **api2.payload, refresh=True)
+
+                # If agent was previously healthy and is not now redistribute detections
+                if api2.payload['healthy'] == False and last_agent_health == True:
+                    redistribute_detections(organization=agent.organization)
+
+                # If agent was previously unhealthy and is now healthy redistribute detections
+                if api2.payload['healthy'] == True and last_agent_health == False:
+                    redistribute_detections(organization=agent.organization)                
+
                 return {'message': 'Your heart still beats!'}
         else:
             '''
