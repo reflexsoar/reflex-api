@@ -14,7 +14,7 @@ from ..rql.parser import QueryParser
 from ..model import EventRule, Event, Task, CloseReason
 from ..model.exceptions import EventRuleFailure
 from ..utils import random_ending, token_required, user_has, check_org, log_event, default_org
-from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict
+from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict, mod_user_list
 from .event import mod_event_status
 from ... import ep
 
@@ -84,6 +84,8 @@ mod_event_rule_list = api.model('EventRuleList', {
     'expire_at': ISO8601(attribute='expire_at'),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
+    'updated_by': fields.Nested(mod_user_list),
+    'created_by': fields.Nested(mod_user_list),
     'last_matched_date': ISO8601(attribute='last_matched_date'),
     'global_rule': fields.Boolean,
     'disable_reason': fields.String
