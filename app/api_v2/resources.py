@@ -1115,7 +1115,7 @@ and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.valu
         if 'case_template_uuid' in api2.payload:
             case.apply_template(api2.payload['case_template_uuid'])
 
-        case.save()
+        case.save(refresh=True)
 
         # Save the tags so they can be referenced in the future
         save_tags(api2.payload['tags'])
