@@ -326,10 +326,14 @@ def create_default_case_status(cls, org_id):
 def create_default_closure_reasons(cls, org_id):
 
     reasons = [
-        {'title': 'False positive', 'description': 'False positive'},
+        {'title': 'False positive', 'description': 'Event matched detection rule but is not malicious'},
         {'title': 'No action required', 'description': 'No action required'},
-        {'title': 'True positive', 'description': 'True positive'},
-        {'title': 'Other', 'description': 'Other'}
+        {'title': 'True positive', 'description': 'Event is malicious'},
+        {'title': 'Other', 'description': 'Any other reason not listed'},
+        {'title': 'Insufficient Information', 'description': 'Additional enrichment and data is needed for this alert to be actionable.'},
+        {'title': 'Informational Event', 'description': 'Detection provides data that is not normally malicious but should be evaluated to ensure it is expected.'},
+        {'title': 'Rule Defective', 'description': 'Alert rule is not firing correctly.'},
+        {'title': 'Benign Activity', 'description': 'Event is not malicious'},
     ]
 
     for r in reasons:
