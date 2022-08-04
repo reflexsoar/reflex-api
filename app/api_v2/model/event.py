@@ -60,6 +60,21 @@ class EventStatus(base.BaseDocument):
         return response
 
 
+class EventView(base.BaseDocument):
+    '''
+    An EventView is a saved filter that can be used on the Event Queue page
+    to quickly change between filters
+    '''
+
+    class Index:
+        ''' Defines the index to use '''
+        name = 'reflex-event-views'
+
+    name = Keyword(fields={'text':Text()})
+    public = Boolean() # Is the filter public or private
+    filter_string = Text() # The JSON string of the filter
+
+
 class Event(base.BaseDocument):
     '''
     An event in reflex is anything sourced by an agent input that

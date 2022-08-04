@@ -79,7 +79,8 @@ from .resource import (
     ns_role_v2,
     ns_task_v2,
     ns_detection_v2,
-    ns_mitre_v2
+    ns_mitre_v2,
+    ns_event_view_v2
 )
 
 from .. import ep
@@ -135,6 +136,7 @@ api2.add_namespace(ns_role_v2)
 api2.add_namespace(ns_task_v2)
 api2.add_namespace(ns_detection_v2)
 api2.add_namespace(ns_mitre_v2)
+api2.add_namespace(ns_event_view_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
