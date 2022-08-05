@@ -39,6 +39,15 @@ class Agent(base.BaseDocument):
         }
 
     @property
+    def all_input_ids(self):
+        inputs = [input.uuid for input in self._inputs]
+        groups = AgentGroup.get_by_uuid(uuid=self.groups)
+        for group in groups:
+            if group.inputs:
+                inputs += group.inputs
+        return list(inputs)
+
+    @property
     def _input_count(self):
         inputs = self._inputs
         [inputs.append(g.inputs) for g in self.groups]
