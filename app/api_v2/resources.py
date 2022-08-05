@@ -848,6 +848,7 @@ class CloseReasonDetails(Resource):
         else:
             ns_close_reason_v2.abort(404, 'Close Reason not found.')
 
+
     @api2.doc(security="Bearer")
     @api2.expect(mod_close_reason_create)
     @api2.marshal_with(mod_close_reason_list)
@@ -866,6 +867,7 @@ class CloseReasonDetails(Resource):
                 return close_reason
         else:
             ns_close_reason_v2.abort(404, 'Close Reason not found.')
+
 
     @api2.doc(security="Bearer")
     @token_required

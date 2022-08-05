@@ -35,7 +35,7 @@ from app.api_v2.model import (
 from .defaults import (
     create_default_case_status, create_admin_role, create_default_organization, initial_settings, create_agent_role,
     create_default_closure_reasons, create_default_case_templates, create_default_data_types,
-    create_default_event_status, create_analyst_role,create_admin_user
+    create_default_event_status, create_analyst_role,create_admin_user, set_install_uuid, send_telemetry
 )
 
 REFLEX_VERSION = '0.1.4'
@@ -168,6 +168,7 @@ def setup(app, check_for_default=False):
         initial_settings(Settings, org_id)
     else:
         create_default_closure_reasons(CloseReason, org_id=None, check_for_default=check_for_default)
+
     return 
 
 
@@ -229,6 +230,11 @@ def create_app(environment='development'):
             setup(app, check_for_default=True)
             app.logger.info("Setup already complete, upgrading indices if required")
             upgrade_indices(app)
+
+        set_install_uuid()
+
+    if not app.config['DISABLE_TELEMETRY']:
+        send_telemetry()
 
     if app.config['ELASTIC_APM_ENABLED']:
         app.config['ELASTIC_APM'] = {

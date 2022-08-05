@@ -316,6 +316,7 @@ class Organization(base.BaseDocument):
     url = Keyword()
     logon_domains = Keyword()
     default_org = Boolean()
+    install_uuid = Keyword()
 
     @classmethod
     def get_by_name(self, name):

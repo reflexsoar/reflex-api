@@ -96,6 +96,8 @@ class Config(object):
         'POLL_INTERVAL': os.getenv('REFLEX_MITRE_ATTACK_POLL_INTERVAL') if os.getenv('REFLEX_MITRE_ATTACK_POLL_INTERVAL') else 86400 # Once a day
     }
 
+    DISABLE_TELEMETRY = as_bool(os.getenv('REFLEX_DISABLE_TELEMETRY')) if os.getenv('REFLEX_DISABLE_TELEMETRY') else False
+
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
 
 

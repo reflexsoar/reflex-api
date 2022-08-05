@@ -1,4 +1,8 @@
-from app.api_v2.model.user import Organization
+from datetime import datetime
+from uuid import uuid4
+from app.api_v2.model.user import Organization, User
+from app.api_v2.model.case import Case
+from app.api_v2.model.event import Event
 
 
 def create_default_organization(cls):
@@ -381,6 +385,49 @@ def create_default_case_templates(cls, org_id):
         template = cls(**t, organization=org_id)
         template.save()
 
+def set_install_uuid():
+    '''
+    Creates an install UUID for the default organization if one does not exist
+    '''
+
+    org = Organization.search().filter('term', default_org=True).execute()
+    if org:
+        org = org[0]
+        if not hasattr(org, 'install_uuid') or org.install_uuid == None:
+            org.install_uuid = uuid4()
+            org.save()
+
+
+def send_telemetry():
+    '''
+    Sends telemetry and usage information to telemetry.reflexsoar.com for usage in ReflexSOAR
+    product improvements and community support.  No sensitive information about the environment
+    is sent to the telemetry server.
+    '''
+
+    telemetry_body = {
+        'install_uuid': '',
+        'org_count': 0,
+        'user_count': 0,
+        'case_count': 0,
+        'event_count': 0,
+        'last_restart': datetime.utcnow().isoformat()
+    }
+    
+    org = Organization.search().filter('term', default_org=True).execute()
+    if org:
+        org = org[0]
+        telemetry_body['install_uuid'] = org.install_uuid
+
+    telemetry_body['user_count'] = User.search().count()
+    telemetry_body['case_count'] = Case.search().count()
+    telemetry_body['org_count'] = Organization.search().count()
+    telemetry_body['event_count'] = Event.search().count()
+
+    # TODO: Add the API call to telemetry.reflexsoar.com using requests
+    print(telemetry_body)
+
+
 def initial_settings(cls, org_id):
 
     settings_content = {
@@ -405,7 +452,7 @@ def initial_settings(cls, org_id):
         'data_types': ['ip','user','host','fqdn','sha1','md5','sha256','imphash','ssdeep','vthash','network','domain','url','mail','sid','mac'],
         'organization': org_id,
         'case_sla_days': 14,
-        'event_sla_minutes': 5,
+        'event_sla_minutes': 5
     }
 
     settings = cls(**settings_content)
