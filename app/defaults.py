@@ -1,3 +1,6 @@
+from app.api_v2.model.user import Organization
+
+
 def create_default_organization(cls):
 
     data = {
@@ -323,22 +326,36 @@ def create_default_case_status(cls, org_id):
             status.closed = True
             status.save()
 
-def create_default_closure_reasons(cls, org_id):
+def create_default_closure_reasons(cls, org_id, check_for_default=False):
 
     reasons = [
-        {'title': 'False positive', 'description': 'Event matched detection rule but is not malicious'},
-        {'title': 'No action required', 'description': 'No action required'},
-        {'title': 'True positive', 'description': 'Event is malicious'},
-        {'title': 'Other', 'description': 'Any other reason not listed'},
-        {'title': 'Insufficient Information', 'description': 'Additional enrichment and data is needed for this alert to be actionable.'},
-        {'title': 'Informational Event', 'description': 'Detection provides data that is not normally malicious but should be evaluated to ensure it is expected.'},
-        {'title': 'Rule Defective', 'description': 'Alert rule is not firing correctly.'},
-        {'title': 'Benign Activity', 'description': 'Event is not malicious'},
+        {'title': 'False positive', 'description': 'Event matched detection rule but is not malicious', 'enabled': True},
+        {'title': 'No action required', 'description': 'No action required', 'enabled': True},
+        {'title': 'True positive', 'description': 'Event is malicious', 'enabled': True},
+        {'title': 'Other', 'description': 'Any other reason not listed', 'enabled': True},
+        {'title': 'Insufficient Information', 'description': 'Additional enrichment and data is needed for this alert to be actionable.', 'enabled': True},
+        {'title': 'Informational Event', 'description': 'Detection provides data that is not normally malicious but should be evaluated to ensure it is expected.', 'enabled': True},
+        {'title': 'Rule Defective', 'description': 'Alert rule is not firing correctly.', 'enabled': True},
+        {'title': 'Benign Activity', 'description': 'Event is not malicious', 'enabled': True},
     ]
 
-    for r in reasons:
-        reason = cls(**r, organization=org_id)
-        reason.save()
+    # If this is the first setup of the system, we need to create the default closure reasons
+    # else we will just update the existing ones and replace those that are missing
+    if check_for_default == False:
+        for r in reasons:
+            reason = cls(**r, organization=org_id)
+            reason.save()
+    else:
+        orgs = Organization.search().execute()
+        for org in orgs:
+            existing_reasons = cls.search().filter('term', organization=org.uuid).execute()
+            for r in reasons:
+                if r['title'] not in [reason.title for reason in existing_reasons]:
+                    new_reason = next((reason for reason in reasons if reason['title'] == r['title']), None)
+                    reason = cls(**new_reason, organization=org.uuid)
+                    reason.save()
+                    print(f"{r['title']} missing from {org.name} - {new_reason}")
+
 
 def create_default_event_status(cls, org_id):
 

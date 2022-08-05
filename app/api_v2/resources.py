@@ -801,6 +801,7 @@ class CloseReasonList(Resource):
         args = close_reason_parser.parse_args()
 
         close_reasons = CloseReason.search()
+        close_reasons = close_reasons.exclude('term', enabled=False)
 
         if args.organization:
             close_reasons = close_reasons.filter('term', organization=args.organization)
@@ -870,10 +871,10 @@ class CloseReasonDetails(Resource):
     @token_required
     @user_has('delete_close_reason')
     def delete(self, uuid, current_user):
-        ''' Deletes an CloseReason '''
+        ''' Soft deletes a CloseReason '''
         close_reason = CloseReason.get_by_uuid(uuid=uuid)
         if close_reason:
-            close_reason.delete()
+            close_reason.update(enabled = False)
             return {'message': 'Sucessfully deleted Close Reason.'}
 
 
