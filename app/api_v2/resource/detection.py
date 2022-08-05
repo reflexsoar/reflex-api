@@ -51,7 +51,8 @@ mod_threshold_config = api.model('ThesholdConfig', {
     'dynamic': fields.Boolean,
     'discovery_period': fields.Integer,
     'recalculation_period': fields.Integer,
-    'per_field': fields.Boolean
+    'per_field': fields.Boolean,
+    'max_events': fields.Integer
 }, strict=True)
 
 mod_metric_change_config = api.model('MetricChangeConfig', {
@@ -62,11 +63,9 @@ mod_metric_change_config = api.model('MetricChangeConfig', {
 }, strict=True)
 
 mod_field_mistmatch_config = api.model('FieldMismatchConfig', {
-
     'source_field': fields.String,
     'target_field': fields.String,
     'operator': fields.String
-
 }, strict=True)
 
 mod_query_config = api.model('DetectionQuery', {

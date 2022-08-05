@@ -69,6 +69,7 @@ class ThresholdConfig(base.InnerDoc):
     recalculation_period = Integer() # How often to recompute the dynamic threshold
     per_field = Boolean() # True = per field, False = per item
     threshold_last_discovered = Date() # The last time the threshold was discovered
+    max_events = Integer() # The number of events to return when a threshold is crossed
 
 
 class FieldMismatchConfig(base.InnerDoc):

@@ -231,9 +231,8 @@ def create_app(environment='development'):
             app.logger.info("Setup already complete, upgrading indices if required")
             upgrade_indices(app)
 
-        set_install_uuid()
-
     if not app.config['DISABLE_TELEMETRY']:
+        set_install_uuid()
         send_telemetry()
 
     if app.config['ELASTIC_APM_ENABLED']:
