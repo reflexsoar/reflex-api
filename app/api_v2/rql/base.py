@@ -366,8 +366,11 @@ class RQLSearch:
 
             super().__call__(obj)
 
-            try: 
-                network = ipaddress.ip_network(self.value) 
+            try:
+                if isinstance(self.value, list):
+                    network = [ipaddress.ip_network(value) for value in self.value]
+                else:
+                    network = ipaddress.ip_network(self.value)
             except ValueError: 
                 network = None
 
@@ -390,6 +393,20 @@ class RQLSearch:
                 return False
             if not self.target_value:
                 return False
+
+            if isinstance(network, list):
+                if isinstance(self.target_value, list) and len(self.target_value) > 0:
+                    match = False
+                    for n in network:
+                        if any([ip for ip in self.target_value if ip in n]):
+                            match = True
+                    return self.has_key and match
+                else:
+                    match = False
+                    for n in network:
+                        if self.target_value in n:
+                            match = True
+                    return self.has_key and match
 
             if isinstance(self.target_value, list) and len(self.target_value) > 0:
                 return self.has_key and any([ip for ip in self.target_value if ip in network])

@@ -380,6 +380,8 @@ class QueryParser(object):
     def p_expression_in_cidr(self, p):
         """expression : target CIDR STRING
                     | target NOT CIDR STRING
+                    | target CIDR ARRAY
+                    | target NOT CIDR ARRAY
         """
 
         contains_not = False
