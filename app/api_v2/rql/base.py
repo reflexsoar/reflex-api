@@ -577,7 +577,6 @@ class RQLSearch:
 
             threat_list = threat_list.execute()
             if threat_list:
-                print([v.value for v in threat_list[0].values])
                 return [v.value for v in threat_list[0].values]
             else:
                 return []
