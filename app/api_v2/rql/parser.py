@@ -54,7 +54,7 @@ class QueryLexer(object):
     t_COMMA = r','
     t_EQUALS = r'=|eq|Eq|EQ'
     t_NOTEQUALS = r'!=|ne|NE|ne'
-    t_CIDR = r'cidr|InCIDR'
+    t_CIDR = r'cidr|InCIDR|incidr'
     t_CONTAINS = r'contains|Contains'
     t_CONTAINSCIS = r'containscis|ContainsCIS'
     t_IN = r'In|in|IN'
@@ -376,6 +376,11 @@ class QueryParser(object):
         
     
         p[0] = self.search.MathOp(mutators=mutators, operator=op, **{field: target})
+
+    
+    def p_expression_in_cidr_intel(self, p):
+        'expression : target CIDR INTEL LPAREN STRING RPAREN'
+        p[0] = self.search.InCIDR(mutators=[], **{p[1]: self.search.ThreatLookup(organization=self.organization, target={}).fetch_values(name=p[5])})
 
     def p_expression_in_cidr(self, p):
         """expression : target CIDR STRING
