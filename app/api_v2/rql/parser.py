@@ -377,6 +377,11 @@ class QueryParser(object):
     
         p[0] = self.search.MathOp(mutators=mutators, operator=op, **{field: target})
 
+    
+    def p_expression_in_cidr_intel(self, p):
+        'expression : target CIDR INTEL LPAREN STRING RPAREN'
+        p[0] = self.search.InCIDR(mutators=[], **{p[1]: self.search.ThreatLookup(organization=self.organization, target={}).fetch_values(name=p[5])})
+
     def p_expression_in_cidr(self, p):
         """expression : target CIDR STRING
                     | target NOT CIDR STRING

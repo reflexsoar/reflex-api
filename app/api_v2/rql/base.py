@@ -557,6 +557,7 @@ class RQLSearch:
                 return False
             return self.has_key and self.value == self.target_value
 
+
     class ThreatLookup(BaseExpression):
         '''
         Returns True if an item matches a defined threat list
@@ -567,6 +568,19 @@ class RQLSearch:
             super().__init__(mutators=mutators, **target)
             self.allowed_mutators=['lowercase','uppercase']
             self.organization = organization
+
+        def fetch_values(self, name):
+            threat_list = ThreatList.search()
+            threat_list = threat_list.filter('term', name=name)
+            if self.organization:
+                threat_list = threat_list.filter('term', organization=self.organization)
+
+            threat_list = threat_list.execute()
+            if threat_list:
+                print([v.value for v in threat_list[0].values])
+                return [v.value for v in threat_list[0].values]
+            else:
+                return []
 
         def __call__(self, obj):
 
