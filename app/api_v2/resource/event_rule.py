@@ -216,7 +216,7 @@ class EventRuleList(Resource):
             else:
                 api.abort(400, 'Missing expire_days field.')
 
-        if 'priority' in api.payload and api.payload['priority'] > 65535:
+        if 'priority' in api.payload and (api.payload['priority'] > 65535 or api.payload['priority'] < 1):
             api.abort(400, 'Priority must be between 0 and 65535.')
 
         if not event_rule:
@@ -419,7 +419,7 @@ class EventRuleDetails(Resource):
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
                     skip_previous = True
 
-                if 'priority' in api.payload and api.payload['priority'] > 65535:
+                if 'priority' in api.payload and (api.payload['priority'] > 65535 or api.payload['priority'] < 1):
                     api.abort(400, 'Priority must be between 0 and 65535.')
 
                 with current_app.app_context():
