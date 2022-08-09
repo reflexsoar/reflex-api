@@ -284,9 +284,21 @@ def random_event():
           "safe": False,
           "data_type": "auto",
           "source_field": "source_ip",
-          "tags": [
+          "tags": [ 
             "firewall",
             "source"
+          ]
+        },
+        {
+          "value": "52.180.181.61",
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "ip",
+          "source_field": "source_ip",
+          "tags": [
+            "firewall"
           ]
         }
       ],
