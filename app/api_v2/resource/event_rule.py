@@ -53,7 +53,8 @@ mod_event_rule_create = api.model('CreateEventRule', {
     'active': fields.Boolean,
     'global_rule': fields.Boolean,
     'run_retroactively': fields.Boolean(optional=True),
-    'skip_previous_match': fields.Boolean(optional=True)
+    'skip_previous_match': fields.Boolean(optional=True),
+    'priority': fields.Integer
 })
 
 mod_event_rule_list = api.model('EventRuleList', {
@@ -86,7 +87,8 @@ mod_event_rule_list = api.model('EventRuleList', {
     'updated_at': ISO8601(attribute='updated_at'),
     'last_matched_date': ISO8601(attribute='last_matched_date'),
     'global_rule': fields.Boolean,
-    'disable_reason': fields.String
+    'disable_reason': fields.String,
+    'priority': fields.Integer
 })
 
 mod_event_rule_list_paged = api.model('PagedEventRuleList', {
@@ -210,6 +212,9 @@ class EventRuleList(Resource):
                 api.payload['expire_at'] = expire_at
             else:
                 api.abort(400, 'Missing expire_days field.')
+
+        if 'priority' in api.payload and api.payload['priority'] > 65535:
+            api.abort(400, 'Priority must be between 0 and 65535.')
 
         if not event_rule:
 
@@ -410,6 +415,9 @@ class EventRuleDetails(Resource):
                 skip_previous = False
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
                     skip_previous = True
+
+                if 'priority' in api.payload and api.payload['priority'] > 65535:
+                    api.abort(400, 'Priority must be between 0 and 65535.')
 
                 with current_app.app_context():
                     t = threading.Thread(target=delayed_retro_push, daemon=True, args=(task, skip_previous, api.payload, events))
