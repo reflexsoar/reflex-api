@@ -304,7 +304,7 @@ class EventWorker(Process):
                 self.logger.error(f"Failed to parse Event Rule {rule.name}, rule has been disabled.  Invalid RQL query. {e}.")
 
         sorted_rules = [r for r in loaded_rules if r.priority]
-        sorted_rules.sort(key=lambda x: x.priority, reverse=True)
+        sorted_rules.sort(key=lambda x: x.priority)
         sorted_rules += [r for r in loaded_rules if not r.priority]
 
         loaded_rules = sorted_rules
@@ -752,7 +752,6 @@ class EventWorker(Process):
                                 matches = pattern.findall(observable['value'])
                             except Exception as error:
                                 observable['data_type'] = "generic"
-                                print(dt.regex, error)
                             if len(matches) > 0:
                                 observable['data_type'] = dt.name
                                 matched = True
