@@ -8,6 +8,7 @@ Pusher queue of the EventPusher service.
 
 import re
 import os
+import psutil
 import uuid
 import time
 import hashlib
@@ -16,6 +17,8 @@ import logging
 import threading
 from itertools import chain
 from multiprocessing import Queue
+from kafka import KafkaProducer, KafkaConsumer
+from kafka.errors import KafkaError
 #from queue import Queue
 from multiprocessing import Process, get_context, Event as mpEvent
 from app.api_v2.model import (
@@ -27,6 +30,7 @@ from app.api_v2.model import (
     Task,
     ThreatList
 )
+from app.api_v2.model.user import Organization
 
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
@@ -76,9 +80,13 @@ class EventProcessor:
 
         self.worker_count = 10
         self.worker_respawns = 0
-        self.event_queue = Queue()
+        self.event_queue = Queue() # Used when in shared worker mode
+        self.kf_producer = None
+        self.kf_consumer = None
         self.workers = []
         self.event_cache = []
+        self.max_workers_per_organization = 5
+        self.worker_processing_metrics = {}
 
 
     def set_log_level(self, log_level):
@@ -114,6 +122,13 @@ class EventProcessor:
         if 'WORKER_COUNT' in config:
             self.worker_count = config['WORKER_COUNT']
 
+        if 'DEDICATED_WORKERS' in config:
+            self.dedicated_workers = config['DEDICATED_WORKERS']
+            if self.dedicated_workers:
+                self.logger.info("EventProcessor running in dedicated worker mode")
+            else:
+                self.logger.info("EventProcessor running in shared worked mode")
+
         self.worker_monitor = threading.Thread(target=self.monitor_workers, args=(), daemon=True)
         self.worker_monitor.start()
 
@@ -134,15 +149,63 @@ class EventProcessor:
         '''
         Creates a set of workers to process incoming Events
         '''
-        self.logger.info('Spawning Event Processing workers')
-        for i in range(0, self.worker_count):
+
+        if self.config['DEDICATED_WORKERS']:
+            organizations = Organization.search().execute()        
+            for organization in organizations:
+                self.logger.info(f"Spawning Event Processing workers for {organization.uuid}")
+                for i in range(0, self.config['MAX_WORKERS_PER_ORGANIZATION']):                    
+                    w = EventWorker(app_config=self.app.config,
+                                    event_queue=self.event_queue,
+                                    event_cache=self.event_cache,
+                                    log_level=self.log_level,
+                                    organization=organization.uuid
+                                    )
+                    w.start()
+                    self.workers.append(w)
+            
+        else:
+            self.logger.info("Spawning Event Workers")
+            for i in range(0, self.worker_count):
+                w = EventWorker(app_config=self.app.config,
+                                event_queue=self.event_queue,
+                                event_cache=self.event_cache,
+                                log_level=self.log_level,
+                                organization='all'
+                                )
+                w.start()
+                self.workers.append(w)
+
+
+    def start_workers_for_new_organization(self, uuid):
+        '''
+        Starts new workers for a newly created organization
+        '''
+        self.logger.info(f"Spawning Event Processing workers for {uuid}")
+        for i in range(0, self.max_workers_per_organization):
             w = EventWorker(app_config=self.app.config,
                             event_queue=self.event_queue,
                             event_cache=self.event_cache,
-                            log_level=self.log_level
+                            log_level=self.log_level,
+                            organization=uuid
                             )
             w.start()
             self.workers.append(w)
+
+
+    def stop_workers_for_organization(self, uuid):
+        '''
+        Stops all the workers for a specific organization
+        '''
+        self.logger.info(f"Stopping Event workers for {uuid}")
+        workers = [w for w in self.workers if w.organization == uuid]
+        for w in workers:
+            try:
+                w.stop()
+                self.workers.remove(w)
+            except Exception as e:
+                self.logging.error(e)
+
 
     def monitor_workers(self):
         '''
@@ -153,13 +216,14 @@ class EventProcessor:
         while True:            
             self.logger.info('Checking Event Worker health')
             for worker in list(self.workers):
-                if worker.is_alive() == False:
+                if worker.alive() == False:
                     self.logger.error(f"Event Worker {worker.pid} died, starting new worker")
                     self.workers.remove(worker)
                     w = EventWorker(app_config=self.app.config,
                             event_queue=self.event_queue,
                             event_cache=self.event_cache,
-                            log_level=self.log_level
+                            log_level=self.log_level,
+                            organization=worker.organization
                             )
                     w.start()
                     self.worker_respawns += 1
@@ -177,11 +241,13 @@ class EventProcessor:
         for worker in self.workers:
             worker_info.append(
                 {
-                    'pid': worker.pid
+                    'pid': worker.pid,
+                    'organization': worker.organization,
+                    'name': worker.name,
+                    'alive': worker.alive()
                 }
             )
         return worker_info
-
 
     def restart_workers(self):
         '''
@@ -200,10 +266,9 @@ class EventWorker(Process):
     event queue for new events and process them into the EventPusher queue for ingest
     in to Reflex
     '''
-
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self, app_config, event_queue, event_cache, log_level='ERROR'):
+    def __init__(self, app_config, event_queue, event_cache, organization=None, log_level='ERROR'):
         
         super(EventWorker, self).__init__()
 
@@ -226,6 +291,7 @@ class EventWorker(Process):
         self.event_queue = event_queue
         self.event_cache = event_cache
         self.sleep_interval = 10
+        self.organization = organization
         self.rules = []
         self.cases = []
         self.reasons = []
@@ -234,11 +300,24 @@ class EventWorker(Process):
         self.events = []
         self.last_meta_refresh = None
         self.should_restart = mpEvent()
+        self.should_exit = mpEvent()
 
-
+        #if self.config['DEDICATED_WORKERS']:
+        #    self.kf_topic = f'events-{self.organization}'
+        #    self.kf_group_id = self.organization
+        #    self.kf_producer = KafkaProducer(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'])
+        #    self.kf_consumer = KafkaConsumer(self.kf_topic,group_id=self.kf_group_id,bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'])
+   
+    def alive(self):
+        return psutil.pid_exists(self.pid)
+    
     def force_reload(self):
         self.logger.debug('Reload triggered by EventProcessor')
         self.should_restart.set()
+
+    def stop(self):
+        self.logger.info(f"Stopping Event Worker {self.name}")
+        self.should_exit.set()
 
     def build_elastic_connection(self):
         '''
@@ -385,13 +464,6 @@ class EventWorker(Process):
             self.should_restart.clear()
 
 
-    def get_meta_info(self):
-        '''
-        Returns the currently loaded meta information'''
-        return {
-            'rules': self.rules
-        }
-
     def pop_events_by_action(self, events, action):
         return [e for e in events if '_meta' in e and e['_meta']['action'] == action]
 
@@ -408,8 +480,10 @@ class EventWorker(Process):
             if self.event_queue.empty():
 
                 if self.should_restart.is_set():
-                    #exit()
                     self.reload_meta_info(clear_reload_flag=True)
+
+                if self.should_exit.is_set():
+                    exit()
 
                 time.sleep(1)
 
