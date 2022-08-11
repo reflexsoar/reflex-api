@@ -1113,7 +1113,10 @@ and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.valu
             case.events = list(set(uuids))
         
         if len(events_to_update) > 0:
-            [ep.enqueue(event) for event in events_to_update]
+            if ep.dedicated_workers:
+                [ep.to_kafka_topic(event) for event in events_to_update]
+            else:
+                [ep.enqueue(event) for event in events_to_update]
 
         # If the user selected a case template, take the template items
         # and copy them over to the case
@@ -1344,7 +1347,11 @@ class AddEventsToCase(Resource):
                 case.events = uuids
 
             if len(events_to_update) > 0:
-                [ep.enqueue(event) for event in events_to_update]
+                
+                if ep.dedicated_workers:
+                    [ep.to_kafka_topic(event) for event in events_to_update]
+                else:
+                    [ep.enqueue(event) for event in events_to_update]
 
             case.add_history(message=f'{len(events_to_update)} events added')
             case.save()

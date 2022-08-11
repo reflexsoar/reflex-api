@@ -1187,7 +1187,11 @@ class EventBulkUpdate(Resource):
                                 }
                             }
 
-                ep.enqueue(event_dict)
+                
+                if ep.dedicated_workers:
+                    ep.to_kafka_topic(event_dict)
+                else:
+                    ep.enqueue(event_dict)
                 event_count += 1
                 if related_events:
                     for related in related_events:
@@ -1204,13 +1208,20 @@ class EventBulkUpdate(Resource):
                                     'uuid': current_user.uuid
                                 }
                             }
-                            ep.enqueue(related_dict)
+                            if ep.dedicated_workers:
+                                ep.to_kafka_topic(related_dict)
+                            else:
+                                ep.enqueue(related_dict)
                             event_count += 1
 
             # Signal the end of the task
             # The Event Processor will use this event to close the running task
             task.set_message(f'{event_count} Events marked for bulk dismissal')
-            ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+            
+            if ep.dedicated_workers:
+                ep.to_kafka_queue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+            else:
+                ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
 
         return {'task_id': str(task_id)}
 

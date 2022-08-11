@@ -131,7 +131,7 @@ class EventProcessor:
             if self.dedicated_workers:
                 self.logger.info("EventProcessor running in dedicated worker mode")
                 self.kf_producer = KafkaProducer(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'],
-                                             value_serializer=lambda m: json.dumps(m).encode('ascii'))
+                                             value_serializer=lambda m: json.dumps(m, default=str).encode('ascii'))
 
                 # Set the partition count on each event topic so that the workers can all consume
                 # from the message topic
@@ -163,7 +163,10 @@ class EventProcessor:
         '''
         Adds an item to the queue for Event Workers to work on
         '''
-        self.event_queue.put(item)
+        if self.dedicated_workers:
+            self.kf_producer.send(f"events-{item['organization']}", item)
+        else:
+            self.event_queue.put(item)
     
     def qsize(self):
         '''
