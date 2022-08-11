@@ -15,7 +15,7 @@ from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus, EventComment
 from ..model.exceptions import EventRuleFailure
 from ..utils import token_required, user_has, log_event
-from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged
+from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged, mod_user_list
 from ... import ep, memcached_client
 
 api = Namespace('Events', description='Event related operations', path='/event')
@@ -150,7 +150,8 @@ mod_event_details = api.model('EventDetails', {
     'dismiss_comment': fields.String,
     'event_rules': fields.List(fields.String),
     'original_date': ISO8601(attribute='original_date'),
-    'detection_id': fields.String
+    'detection_id': fields.String,
+    'dismissed_by': fields.Nested(mod_user_list)
 })
 
 mod_observable_update = api.model('ObservableUpdate', {
@@ -1010,17 +1011,24 @@ class EventBulkDismiss(Resource):
         status = EventStatus.get_by_name(name='Dismissed', organization=reason.organization)
         reason = CloseReason.get_by_uuid(api.payload['dismiss_reason_uuid'])
 
+        print(current_user.username, current_user.organization, current_user.uuid)
+
         ubq = ubq.script(
-            source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;",
+            source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;if(ctx._source.dismissed_by == null) { ctx._source.dismissed_by = [:];}\nctx._source.dismissed_by.username = params.dismissed_by_username;ctx._source.dismissed_by.organization = params.dismissed_by_organization;ctx._source.dismissed_by.uuid = params.dismissed_by_uuid;",
             #source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;DateTimeFormatter dtf = DateTimeFormatter.ofPattern(\"yyyy-MM-dd'T'HH:mm:ss.SSSSSS\").withZone(ZoneId.of('UTC'));ZonedDateTime zdt = ZonedDateTime.parse(params.dismissed_at, dtf);ZonedDateTime zdt2 = ZonedDateTime.parse(ctx._source.created_at, dtf);Instant Currentdate = Instant.ofEpochMilli(zdt.getMillis());Instant Startdate = Instant.ofEpochMilli(zdt2.getMillis());ctx._source.time_to_dismiss = ChronoUnit.SECONDS.between(Startdate, Currentdate);",
             params={
                 'dismiss_comment': api.payload['dismiss_comment'],
                 'dismiss_reason': reason.title if reason else api.payload['dismiss_reason_uuid'],
                 'status_name': status.name,
                 'uuid': status.uuid,
-                'dismissed_at': datetime.datetime.utcnow()
+                'dismissed_at': datetime.datetime.utcnow(),
+                'dismissed_by_username': current_user.username,
+                'dismissed_by_organization': current_user.organization,
+                'dismissed_by_uuid': current_user.uuid
             }
         )
+        
+        print(json.dumps(ubq.to_dict(), default=str))
         ubq = ubq.params(slices='auto', refresh=True)
 
         events = list(search.scan())
