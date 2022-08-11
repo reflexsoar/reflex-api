@@ -19,6 +19,7 @@ import threading
 from itertools import chain
 from multiprocessing import Queue
 from kafka import KafkaProducer, KafkaConsumer, KafkaAdminClient
+from kafka.admin import ConfigResource
 from kafka.admin.new_partitions import NewPartitions
 from kafka.errors import KafkaError, InvalidPartitionsError
 #from queue import Queue
@@ -138,13 +139,19 @@ class EventProcessor:
                 self.kf_client = KafkaAdminClient(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'])
                 organizations = Organization.search().execute()
                 if organizations:
+                    topic_list = []
                     for organization in organizations:
+                        topic_list.append(ConfigResource(resource_type='TOPIC',
+                                                         name=f"events-{organization.name}",
+                                                         configs={'delete.retention.ms':self.config['KAFKA_TOPIC_RETENTION']*1000}))
                         try:
                             self.kf_client.create_partitions({
                                 f'events-{organization.uuid}': NewPartitions(self.config['MAX_WORKERS_PER_ORGANIZATION'])
                             })
                         except InvalidPartitionsError:
                             pass
+                    # Update the retention.ms on all topics
+                    #self.kf_client.alter_configs(topic_list)
             else:
                 self.logger.info("EventProcessor running in shared worked mode")
             
