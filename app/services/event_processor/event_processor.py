@@ -18,8 +18,9 @@ import logging
 import threading
 from itertools import chain
 from multiprocessing import Queue
-from kafka import KafkaProducer, KafkaConsumer
-from kafka.errors import KafkaError
+from kafka import KafkaProducer, KafkaConsumer, KafkaAdminClient
+from kafka.admin.new_partitions import NewPartitions
+from kafka.errors import KafkaError, InvalidPartitionsError
 #from queue import Queue
 from multiprocessing import Process, get_context, Event as mpEvent
 from app.api_v2.model import (
@@ -84,6 +85,7 @@ class EventProcessor:
         self.worker_respawns = 0
         self.event_queue = Queue() # Used when in shared worker mode
         self.kf_producer = None
+        self.kf_client = None
         self.workers = []
         self.event_cache = []
         self.max_workers_per_organization = 5
@@ -125,12 +127,27 @@ class EventProcessor:
 
         if 'DEDICATED_WORKERS' in config:
             self.dedicated_workers = config['DEDICATED_WORKERS']
+            
             if self.dedicated_workers:
                 self.logger.info("EventProcessor running in dedicated worker mode")
+                self.kf_producer = KafkaProducer(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'],
+                                             value_serializer=lambda m: json.dumps(m).encode('ascii'))
+
+                # Set the partition count on each event topic so that the workers can all consume
+                # from the message topic
+                self.kf_client = KafkaAdminClient(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'])
+                organizations = Organization.search().execute()
+                if organizations:
+                    for organization in organizations:
+                        try:
+                            self.kf_client.create_partitions({
+                                f'events-{organization.uuid}': NewPartitions(self.config['MAX_WORKERS_PER_ORGANIZATION'])
+                            })
+                        except InvalidPartitionsError:
+                            pass
             else:
                 self.logger.info("EventProcessor running in shared worked mode")
-            self.kf_producer = KafkaProducer(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'],
-                                             value_serializer=lambda m: json.dumps(m).encode('ascii'))
+            
 
         self.worker_monitor = threading.Thread(target=self.monitor_workers, args=(), daemon=True)
         self.worker_monitor.start()
@@ -533,7 +550,7 @@ class EventWorker(Process):
             _events = []
 
             if self.config['DEDICATED_WORKERS']:
-                message = self.kf_consumer.poll(10.0)
+                message = self.kf_consumer.poll(10)
 
                 if not message:
                     if self.should_restart.is_set():
@@ -542,7 +559,7 @@ class EventWorker(Process):
                     if self.should_exit.is_set():
                         exit()
 
-                    time.sleep(1)
+                    time.sleep(0.5)
                 else:
                     for topic_data, consumer_records in message.items():
                         for msg in consumer_records:
