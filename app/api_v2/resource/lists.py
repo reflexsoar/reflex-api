@@ -234,12 +234,11 @@ class ThreatListList(Resource):
 
         value_list = ThreatList(**api.payload)
         value_list.save()
-        
 
         if not 'url' in api.payload:
             value_list.set_values(values)
 
-        ep.restart_workers()
+        ep.restart_workers(organization=value_list.organization)
 
         return value_list            
 

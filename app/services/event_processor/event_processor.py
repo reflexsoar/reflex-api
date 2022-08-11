@@ -258,14 +258,21 @@ class EventProcessor:
             )
         return worker_info
 
-    def restart_workers(self):
+    def restart_workers(self, organization=None):
         '''
         Forces all the Event workers to finish processing their current event
         and restart
         '''
-        self.logger.info('Restarting Event Processing workers')
+        if organization not in [None,'all']:
+            self.logger.info(f'Restarting Event Processing workers for {organization}')            
+        else:
+            self.logger.info('Restarting all Event Processing workers')            
         for worker in self.workers:
-            worker.force_reload()
+            if organization:
+                if worker.organization == organization:
+                    worker.force_reload()
+            else:
+                worker.force_reload()
 
         return True
 
@@ -317,7 +324,7 @@ class EventWorker(Process):
         return psutil.pid_exists(self.pid)
     
     def force_reload(self):
-        self.logger.debug('Reload triggered by EventProcessor')
+        self.logger.debug(f'Reload triggered by EventProcessor - {self.name} - {self.organization}')
         self.should_restart.set()
 
     def stop(self):

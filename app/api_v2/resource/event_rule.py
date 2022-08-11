@@ -237,7 +237,14 @@ class EventRuleList(Resource):
             event_rule.deleted = False
             event_rule.save(refresh=True)
             time.sleep(1)
-            ep.restart_workers()
+
+            if event_rule.global_rule and not ep.dedicated_workers:
+                ep.restart_workers()
+            else:
+                if ep.dedicated_workers:
+                    ep.restart_workers(organization=event_rule.organization)
+                else:
+                    ep.restart_workers(organization='all')
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
                 
@@ -359,7 +366,14 @@ class EventRuleDetails(Resource):
             if len(api.payload) > 0:
                 event_rule.update(**{**api.payload, 'disable_reason': None}, refresh=True)
                 time.sleep(1)
-                ep.restart_workers()
+                
+                if event_rule.global_rule:
+                    ep.restart_workers()
+                else:
+                    if ep.dedicated_workers:
+                        ep.restart_workers(organization=event_rule.organization)
+                    else:
+                        ep.restart_workers(organization='all')
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
 
