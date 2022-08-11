@@ -876,11 +876,17 @@ class CreateBulkEvents(Resource):
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
                 if not check_cache(event['reference'], client=client):
-                    ep.enqueue(event)
+                    if ep.dedicated_workers:
+                        ep.to_kafka_topic(event)
+                    else:
+                        ep.enqueue(event)
             
             # Signal the end of the task
             # The Event Processor will use this event to close the running task
-            ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+            if ep.dedicated_workers:
+                ep.to_kafka_topic({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+            else:
+                ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
 
             end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
             total_process_time = end_bulk_process_dt - start_bulk_process_dt

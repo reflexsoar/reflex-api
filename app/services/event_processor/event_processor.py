@@ -10,6 +10,7 @@ import re
 import os
 import psutil
 import uuid
+import json
 import time
 import hashlib
 import datetime
@@ -28,7 +29,8 @@ from app.api_v2.model import (
     DataType,
     EventStatus,
     Task,
-    ThreatList
+    ThreatList,
+    Q
 )
 from app.api_v2.model.user import Organization
 
@@ -82,7 +84,6 @@ class EventProcessor:
         self.worker_respawns = 0
         self.event_queue = Queue() # Used when in shared worker mode
         self.kf_producer = None
-        self.kf_consumer = None
         self.workers = []
         self.event_cache = []
         self.max_workers_per_organization = 5
@@ -128,9 +129,17 @@ class EventProcessor:
                 self.logger.info("EventProcessor running in dedicated worker mode")
             else:
                 self.logger.info("EventProcessor running in shared worked mode")
+            self.kf_producer = KafkaProducer(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'],
+                                             value_serializer=lambda m: json.dumps(m).encode('ascii'))
 
         self.worker_monitor = threading.Thread(target=self.monitor_workers, args=(), daemon=True)
         self.worker_monitor.start()
+
+    def to_kafka_topic(self, item):
+        '''
+        Pushes an item to a kafka topic
+        '''
+        self.kf_producer.send(f"events-{item['organization']}", item)
 
 
     def enqueue(self, item):
@@ -301,12 +310,8 @@ class EventWorker(Process):
         self.last_meta_refresh = None
         self.should_restart = mpEvent()
         self.should_exit = mpEvent()
-
-        #if self.config['DEDICATED_WORKERS']:
-        #    self.kf_topic = f'events-{self.organization}'
-        #    self.kf_group_id = self.organization
-        #    self.kf_producer = KafkaProducer(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'])
-        #    self.kf_consumer = KafkaConsumer(self.kf_topic,group_id=self.kf_group_id,bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'])
+        self.kf_consumer = None
+        self.dedicated_worker = self.config['DEDICATED_WORKERS']
    
     def alive(self):
         return psutil.pid_exists(self.pid)
@@ -318,6 +323,16 @@ class EventWorker(Process):
     def stop(self):
         self.logger.info(f"Stopping Event Worker {self.name}")
         self.should_exit.set()
+
+    def build_kafka_connection(self):
+        self.kf_topic = f'events-{self.organization}'
+        self.kf_group_id = self.organization
+        consumer = KafkaConsumer(group_id=self.kf_group_id,
+                                 auto_offset_reset='earliest',
+                                 bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'],
+                                 value_deserializer=lambda m: json.loads(m.decode('ascii')))
+        consumer.subscribe([self.kf_topic])
+        return consumer
 
     def build_elastic_connection(self):
         '''
@@ -355,6 +370,10 @@ class EventWorker(Process):
         '''
         search = ThreatList.search()
         search = search.filter('term', active=True)
+
+        if self.dedicated_worker:
+            search = search.filter('term', organization=self.organization)
+
         lists = search.scan()
         self.lists = list(lists)
 
@@ -369,6 +388,12 @@ class EventWorker(Process):
         search = search.filter('term', active=True)
         if rule_id:
             search = search.filter('term', uuid=rule_id)
+            
+        if self.dedicated_worker:
+            search = search.filter('bool', should=[
+                Q('term', organization=self.organization),
+                Q('term', global_rule=True)])        
+
         rules = search.scan()
         rules = list(rules)
 
@@ -402,6 +427,10 @@ class EventWorker(Process):
         '''
         search = Case.search()
         search = search.source(includes=['uuid', '_id'])
+
+        if self.dedicated_worker:
+            search = search.filter('term', organization=self.organization)
+
         cases = search.scan()
         self.cases = list(cases)
 
@@ -412,6 +441,10 @@ class EventWorker(Process):
         Elasticsearch
         '''
         search = CloseReason.search()
+
+        if self.dedicated_worker:
+            search = search.filter('term', organization=self.organization)
+
         reasons = search.scan()
         self.reasons = list(reasons)
 
@@ -422,6 +455,10 @@ class EventWorker(Process):
         Elasticsearch
         '''
         search = EventStatus.search()
+
+        if self.dedicated_worker:
+            search = search.filter('term', organization=self.organization)
+
         statuses = search.scan()
         self.statuses = list(statuses)
 
@@ -431,6 +468,10 @@ class EventWorker(Process):
         Fetches all the data types in the system
         '''
         search = DataType.search()
+
+        if self.dedicated_worker:
+            search = search.filter('term', organization=self.organization)
+
         data_types = search.scan()
         self.data_types = list(data_types)
 
@@ -472,85 +513,109 @@ class EventWorker(Process):
         ''' Processes events from the Event Queue '''
 
         connection = self.build_elastic_connection()
+
+        if self.config['DEDICATED_WORKERS']:
+            
+            self.kf_consumer = self.build_kafka_connection()
+
         self.reload_meta_info()
         self.logger.debug(f"Running")
 
         while True:
 
-            if self.event_queue.empty():
+            _events = []
 
-                if self.should_restart.is_set():
-                    self.reload_meta_info(clear_reload_flag=True)
+            if self.config['DEDICATED_WORKERS']:
+                message = self.kf_consumer.poll(10.0)
 
-                if self.should_exit.is_set():
-                    exit()
+                if not message:
+                    if self.should_restart.is_set():
+                        self.reload_meta_info(clear_reload_flag=True)
 
-                time.sleep(1)
+                    if self.should_exit.is_set():
+                        exit()
 
+                    time.sleep(1)
+                else:
+                    for topic_data, consumer_records in message.items():
+                        for msg in consumer_records:
+                            _events.append(msg.value)
             else:
+                if self.event_queue.empty():
 
-                # Reload all the event rules and other meta information if the refresh timer
-                # has expired
-                if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
-                    self.reload_meta_info()
+                    if self.should_restart.is_set():
+                        self.reload_meta_info(clear_reload_flag=True)
 
-                # Interrupt this flow if the worker is scheduled for restart
-                if self.should_restart.is_set():
-                    self.reload_meta_info(clear_reload_flag=True)
+                    if self.should_exit.is_set():
+                        exit()
 
-                event = self.event_queue.get()
+                    time.sleep(1)
+                else:
+                    # Reload all the event rules and other meta information if the refresh timer
+                    # has expired
+                    if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
+                        self.reload_meta_info()
 
-                # Process the event
-                event = self.process_event(event)
+                    # Interrupt this flow if the worker is scheduled for restart
+                    if self.should_restart.is_set():
+                        self.reload_meta_info(clear_reload_flag=True)
 
-                # If returned value is not None add the event to the list of events to be pushed
-                # via _bulk
-                if event:
-                    self.events.append(event)
+                    _events.append(self.event_queue.get())
 
-                if len(self.events) >= self.config["ES_BULK_SIZE"] or self.event_queue.empty():
+            if len(_events) > 0:
+                for event in _events:
 
-                    # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
-                    bulk_dismiss = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'dismiss']
-                    add_to_case = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'add_to_case']
-                    retro_apply_event_rule = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'retro_apply_event_rule']
-                    
-                    task_end = self.pop_events_by_action(self.events, 'task_end')
+                    # Process the event
+                    event = self.process_event(event)
 
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case)):
-                        pass
+                    # If returned value is not None add the event to the list of events to be pushed
+                    # via _bulk
+                    if event:
+                        self.events.append(event)
 
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss)):
-                        pass
+                    if len(self.events) >= self.config["ES_BULK_SIZE"] or self.event_queue.empty():
 
-                    for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule)):
-                        pass
+                        # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
+                        bulk_dismiss = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'dismiss']
+                        add_to_case = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'add_to_case']
+                        retro_apply_event_rule = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'retro_apply_event_rule']
+                        
+                        task_end = self.pop_events_by_action(self.events, 'task_end')
 
-                    self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
+                        for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case)):
+                            pass
 
-                    self.prepare_case_updates(self.events)
+                        for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss)):
+                            pass
 
-                    # Send Events
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events)):
-                        pass
+                        for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule)):
+                            pass
 
-                    # Update Cases
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(self.events)):
-                        pass
+                        self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
 
-                    if task_end:
-                        for item in task_end:
-                            
-                            task = Task.get_by_uuid(uuid=item['_meta']['task_id'])
+                        self.prepare_case_updates(self.events)
 
-                            # If the task_type is one that should be broadcast
-                            # set the broadcast flag
-                            if task.task_type in ['bulk_dismiss_events']:
-                                task.broadcast = True
+                        # Send Events
+                        for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events)):
+                            pass
 
-                            task.finish()
+                        # Update Cases
+                        for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(self.events)):
+                            pass
 
-                    self.events = []
+                        if task_end:
+                            for item in task_end:
+                                
+                                task = Task.get_by_uuid(uuid=item['_meta']['task_id'])
+
+                                # If the task_type is one that should be broadcast
+                                # set the broadcast flag
+                                if task.task_type in ['bulk_dismiss_events']:
+                                    task.broadcast = True
+
+                                task.finish()
+
+                        self.events = []
 
 
     def check_threat_list(self, observable, organization, MEMCACHED_CONFIG=None):
