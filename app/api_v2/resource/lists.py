@@ -57,7 +57,10 @@ mod_list_list = api.model('ListView', {
     'updated_at': ISO8601(attribute='updated_at'),
     'csv_headers': fields.String,
     'csv_headers_data_types': fields.String,
-    'case_sensitive': fields.Boolean
+    'case_sensitive': fields.Boolean,
+    'flag_ioc': fields.Boolean,
+    'flag_safe': fields.Boolean,
+    'flag_spotted': fields.Boolean
 })
 
 mod_list_list_paged = api.model('ListViewPaged', {
@@ -78,7 +81,10 @@ mod_list_create = api.model('ListCreate', {
     'active': fields.Boolean(example=True),
     'csv_headers': fields.String,
     'csv_headers_data_types': fields.String,
-    'case_sensitive': fields.Boolean
+    'case_sensitive': fields.Boolean,
+    'flag_ioc': fields.Boolean,
+    'flag_safe': fields.Boolean,
+    'flag_spotted': fields.Boolean
 })
 
 mod_list_values = api.model('ListValues', {

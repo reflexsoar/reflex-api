@@ -28,6 +28,7 @@ from app.api_v2.model import (
     Task,
     ThreatList
 )
+from ...api_v2.model.system import ObservableHistory
 
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
@@ -505,6 +506,14 @@ class EventWorker(Process):
                     observable['tags'].append(f"list: {l.name}")
                 else:
                     observable['tags'] = [f"list: {l.name}"]
+
+            if matched:
+                observable['ioc'] = l.flag_ioc if hasattr(l, 'flag_ioc') else False
+                observable['safe'] = l.flag_safe if hasattr(l, 'flag_safe') else False
+                observable['spotted'] = l.flag_spotted if hasattr(l, 'flag_spotted') else False
+
+                observable_history = ObservableHistory(**observable)
+                observable_history.save()
 
         return observable
 
