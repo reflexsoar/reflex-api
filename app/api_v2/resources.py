@@ -400,6 +400,7 @@ class UserList(Resource):
             # organization
             # TODO: replace with @check_org wrapper
             if 'organization' in api2.payload and hasattr(current_user,'default_org') and not current_user.default_org:
+
                 api2.payload.pop('organization')
 
             user_password = api2.payload.pop('password')
@@ -3315,7 +3316,6 @@ class DashboardMetrics(Resource):
         last_event = None
         if events_sorted.count() > 0:
             last_event = [e for e in events_sorted[0:1]][0]
-
 
         return {
             'total_cases': cases.count(),

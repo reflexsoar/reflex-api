@@ -1549,7 +1549,7 @@ class EventStats(Resource):
 
         events_by_day_by_org_series = []
 
-        if 'events_over_time' in args.metrics and current_user.default_org:
+        if 'events_over_time' in args.metrics and hasattr(current_user, 'default_org') and current_user.default_org:
             events_over_time_by_org = Event.search()
 
             events_over_time_by_org = events_over_time_by_org[0:0]
@@ -1658,7 +1658,7 @@ class EventStats(Resource):
             data['avg_time_to_dismiss']  = {v['key_as_string']: {x['key']: x['avg_time_to_dismiss']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
             data['avg_time_to_close']  = {v['key_as_string']: {x['key']: x['avg_time_to_close']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
 
-        if 'events_over_time' in args.metrics and current_user.default_org:
+        if 'events_over_time' in args.metrics and hasattr(current_user, 'default_org') and current_user.default_org:
             data['events_by_day_by_org_series'] = events_by_day_by_org_series
 
         return data
