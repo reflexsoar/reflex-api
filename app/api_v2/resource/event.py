@@ -124,6 +124,7 @@ mod_event_bulk_dismiss_by_filter = api.model('EventBulkDismissByFilter', {
     'filter': fields.String,
     'dismiss_reason_uuid': fields.String,
     'dismiss_comment': fields.String,
+    'tuning_advice': fields.String,
     'uuids': fields.List(fields.String)
 })
 
@@ -148,6 +149,7 @@ mod_event_details = api.model('EventDetails', {
     'signature': fields.String,
     'dismiss_reason': fields.String,
     'dismiss_comment': fields.String,
+    'tuning_advice': fields.String,
     'event_rules': fields.List(fields.String),
     'original_date': ISO8601(attribute='original_date'),
     'detection_id': fields.String,
@@ -1014,7 +1016,7 @@ class EventBulkDismiss(Resource):
         print(current_user.username, current_user.organization, current_user.uuid)
 
         ubq = ubq.script(
-            source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;if(ctx._source.dismissed_by == null) { ctx._source.dismissed_by = [:];}\nctx._source.dismissed_by.username = params.dismissed_by_username;ctx._source.dismissed_by.organization = params.dismissed_by_organization;ctx._source.dismissed_by.uuid = params.dismissed_by_uuid;",
+            source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;if(params.tuning_advice != null) { if (ctx._source.tuning_advice == null) { ctx._source.tuning_advice = '';}ctx._source.tuning_advice = params.tuning_advice;}if(ctx._source.dismissed_by == null) { ctx._source.dismissed_by = [:];}\nctx._source.dismissed_by.username = params.dismissed_by_username;ctx._source.dismissed_by.organization = params.dismissed_by_organization;ctx._source.dismissed_by.uuid = params.dismissed_by_uuid;",
             #source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;DateTimeFormatter dtf = DateTimeFormatter.ofPattern(\"yyyy-MM-dd'T'HH:mm:ss.SSSSSS\").withZone(ZoneId.of('UTC'));ZonedDateTime zdt = ZonedDateTime.parse(params.dismissed_at, dtf);ZonedDateTime zdt2 = ZonedDateTime.parse(ctx._source.created_at, dtf);Instant Currentdate = Instant.ofEpochMilli(zdt.getMillis());Instant Startdate = Instant.ofEpochMilli(zdt2.getMillis());ctx._source.time_to_dismiss = ChronoUnit.SECONDS.between(Startdate, Currentdate);",
             params={
                 'dismiss_comment': api.payload['dismiss_comment'],
@@ -1024,7 +1026,8 @@ class EventBulkDismiss(Resource):
                 'dismissed_at': datetime.datetime.utcnow(),
                 'dismissed_by_username': current_user.username,
                 'dismissed_by_organization': current_user.organization,
-                'dismissed_by_uuid': current_user.uuid
+                'dismissed_by_uuid': current_user.uuid,
+                'tuning_advice': api.payload['tuning_advice'] if 'tuning_advice' in api.payload else None
             }
         )
         
@@ -1217,7 +1220,7 @@ class EventBulkUpdate(Resource):
             # Signal the end of the task
             # The Event Processor will use this event to close the running task
             task.set_message(f'{event_count} Events marked for bulk dismissal')
-            
+
             if ep.dedicated_workers:
                 ep.to_kafka_queue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
             else:
@@ -1319,8 +1322,11 @@ class EventDetails(Resource):
             comment = None
             if 'dismiss_comment' in api.payload and api.payload['dismiss_comment'] != '':
                 comment = api.payload['dismiss_comment']
+
+            if 'tuning_advice' in api.payload and api.payload['tuning_advice'] not in ['',None]:
+                advice = api.payload['tuning_advice']
             
-            event.set_dismissed(reason, comment=comment)
+            event.set_dismissed(reason, comment=comment, advice=advice)
             return {'message':'Successfully dismissed event'}, 200
         else:
             return {}

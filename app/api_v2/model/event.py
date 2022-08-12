@@ -98,6 +98,7 @@ class Event(base.BaseDocument):
     dismissed = Boolean()
     dismiss_reason = Text(fields={'keyword':Keyword()})
     dismiss_comment = Text(fields={'keyword': Keyword()})
+    tuning_advice = Keyword(fields={'text':Text()}) # Used to supply tuning advice back to the customer
     dismissed_by = Object()
     dismissed_at = Date()
     dismissed_by_rule = Boolean()
@@ -230,13 +231,15 @@ class Event(base.BaseDocument):
         self.status = EventStatus.get_by_name(name='New')
         self.save()
 
-    def set_dismissed(self, reason, by_rule=False, comment=None):
+    def set_dismissed(self, reason, by_rule=False, comment=None, advice=None):
         '''
         Sets the event as dismissed
         '''
         self.status = EventStatus.get_by_name(name='Dismissed')
         if comment:
             self.dismiss_comment = comment
+        if advice:
+            self.tuning_advice = advice
         self.dismiss_reason = reason.title
         self.dismissed_by = utils._current_user_id_or_none()
         self.dismissed_at = datetime.datetime.utcnow()
