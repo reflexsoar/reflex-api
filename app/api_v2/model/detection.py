@@ -29,6 +29,10 @@ class MITRETacticTechnique(base.InnerDoc):
     shortname = Keyword(fields={'text': Text()})
 
 
+class DetectionExceptionIntelList(base.BaseInnerDoc):
+
+    name = Keyword(fields={'text': Text()})
+
 class DetectionException(base.BaseInnerDoc):
     '''
     A DetectionException tells a detection to filter out specific criteria
@@ -38,6 +42,7 @@ class DetectionException(base.BaseInnerDoc):
     condition = Keyword()
     values = Keyword(fields={'text': Text()})
     field = Keyword()
+    list = Nested(DetectionExceptionIntelList)
 
 
 class MetricChangeConfig(base.InnerDoc):
@@ -57,7 +62,14 @@ class ThresholdConfig(base.InnerDoc):
     '''
 
     threshold = Integer() # The number of items where the threshold is crossed
+    operator = Keyword() # The operator to use e.g. >, <, >=, <=, ==, !=
+    dynamic = Boolean() # True = dynamic, False = static
     key_field = Keyword() # Optional key to count against (count of records in this field)
+    discovery_period = Integer() # How far back to look to find average logs
+    recalculation_period = Integer() # How often to recompute the dynamic threshold
+    per_field = Boolean() # True = per field, False = per item
+    threshold_last_discovered = Date() # The last time the threshold was discovered
+    max_events = Integer() # The number of events to return when a threshold is crossed
 
 
 class FieldMismatchConfig(base.InnerDoc):
