@@ -1013,8 +1013,6 @@ class EventBulkDismiss(Resource):
         status = EventStatus.get_by_name(name='Dismissed', organization=reason.organization)
         reason = CloseReason.get_by_uuid(api.payload['dismiss_reason_uuid'])
 
-        print(current_user.username, current_user.organization, current_user.uuid)
-
         ubq = ubq.script(
             source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;if(params.tuning_advice != null) { if (ctx._source.tuning_advice == null) { ctx._source.tuning_advice = '';}ctx._source.tuning_advice = params.tuning_advice;}if(ctx._source.dismissed_by == null) { ctx._source.dismissed_by = [:];}\nctx._source.dismissed_by.username = params.dismissed_by_username;ctx._source.dismissed_by.organization = params.dismissed_by_organization;ctx._source.dismissed_by.uuid = params.dismissed_by_uuid;",
             #source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;DateTimeFormatter dtf = DateTimeFormatter.ofPattern(\"yyyy-MM-dd'T'HH:mm:ss.SSSSSS\").withZone(ZoneId.of('UTC'));ZonedDateTime zdt = ZonedDateTime.parse(params.dismissed_at, dtf);ZonedDateTime zdt2 = ZonedDateTime.parse(ctx._source.created_at, dtf);Instant Currentdate = Instant.ofEpochMilli(zdt.getMillis());Instant Startdate = Instant.ofEpochMilli(zdt2.getMillis());ctx._source.time_to_dismiss = ChronoUnit.SECONDS.between(Startdate, Currentdate);",
@@ -1031,7 +1029,6 @@ class EventBulkDismiss(Resource):
             }
         )
         
-        print(json.dumps(ubq.to_dict(), default=str))
         ubq = ubq.params(slices='auto', refresh=True)
 
         events = list(search.scan())
