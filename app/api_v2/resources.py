@@ -6,7 +6,6 @@ import string
 import os
 import json
 import hashlib
-import fnmatch
 
 from app.api_v2.model.user import Organization
 import pyqrcode
@@ -79,8 +78,7 @@ from .resource import (
     ns_role_v2,
     ns_task_v2,
     ns_detection_v2,
-    ns_mitre_v2,
-    ns_event_view_v2
+    ns_mitre_v2
 )
 
 from .. import ep
@@ -136,7 +134,6 @@ api2.add_namespace(ns_role_v2)
 api2.add_namespace(ns_task_v2)
 api2.add_namespace(ns_detection_v2)
 api2.add_namespace(ns_mitre_v2)
-api2.add_namespace(ns_event_view_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -802,7 +799,6 @@ class CloseReasonList(Resource):
         args = close_reason_parser.parse_args()
 
         close_reasons = CloseReason.search()
-        close_reasons = close_reasons.exclude('term', enabled=False)
 
         if args.organization:
             close_reasons = close_reasons.filter('term', organization=args.organization)
@@ -849,7 +845,6 @@ class CloseReasonDetails(Resource):
         else:
             ns_close_reason_v2.abort(404, 'Close Reason not found.')
 
-
     @api2.doc(security="Bearer")
     @api2.expect(mod_close_reason_create)
     @api2.marshal_with(mod_close_reason_list)
@@ -869,15 +864,14 @@ class CloseReasonDetails(Resource):
         else:
             ns_close_reason_v2.abort(404, 'Close Reason not found.')
 
-
     @api2.doc(security="Bearer")
     @token_required
     @user_has('delete_close_reason')
     def delete(self, uuid, current_user):
-        ''' Soft deletes a CloseReason '''
+        ''' Deletes an CloseReason '''
         close_reason = CloseReason.get_by_uuid(uuid=uuid)
         if close_reason:
-            close_reason.update(enabled = False)
+            close_reason.delete()
             return {'message': 'Sucessfully deleted Close Reason.'}
 
 
@@ -1114,10 +1108,7 @@ and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.valu
             case.events = list(set(uuids))
         
         if len(events_to_update) > 0:
-            if ep.dedicated_workers:
-                [ep.to_kafka_topic(event) for event in events_to_update]
-            else:
-                [ep.enqueue(event) for event in events_to_update]
+            [ep.enqueue(event) for event in events_to_update]
 
         # If the user selected a case template, take the template items
         # and copy them over to the case
@@ -1348,11 +1339,7 @@ class AddEventsToCase(Resource):
                 case.events = uuids
 
             if len(events_to_update) > 0:
-                
-                if ep.dedicated_workers:
-                    [ep.to_kafka_topic(event) for event in events_to_update]
-                else:
-                    [ep.enqueue(event) for event in events_to_update]
+                [ep.enqueue(event) for event in events_to_update]
 
             case.add_history(message=f'{len(events_to_update)} events added')
             case.save()
@@ -2411,78 +2398,6 @@ class InputDetails(Resource):
             return {'message': 'Sucessfully deleted input.'}
 
 
-input_list_index_fields_parser = api2.parser()
-input_list_index_fields_parser.add_argument(
-    'name__like', location='args', required=False
-)
-input_list_index_fields_parser.add_argument(
-    'organization', location='args', required=False
-)
-input_list_index_fields_parser.add_argument(
-    'limit', type=int, location='args', default=25, required=False
-)
-
-@ns_input_v2.route("/<uuid>/index_fields")
-class InputIndexFields(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_input_index_fields)
-    @api2.expect(input_list_index_fields_parser)
-    @token_required
-    @default_org
-    @user_has('view_inputs')
-    def get(self, uuid, user_in_default_org, current_user):
-
-        args = input_list_index_fields_parser.parse_args()
-
-        if args.limit > 100:
-            ns_input_v2.abort(400, "'limit' can not exceed 1000")
-
-        inp = Input.search()
-        inp = inp.filter('term', uuid=uuid)
-
-        if user_in_default_org and args.organization:
-            inp = inp.filter('term', organization=args.organization)
-
-        inp = inp.execute()
-
-        if inp:
-            inp = inp[0]
-            
-            if hasattr(inp, 'index_fields') and inp.index_fields != None:
-                fields = inp.index_fields
-            else:
-                fields = []
-
-            if args.name__like and len(fields) > 0:
-                fields = fnmatch.filter(fields,f"{args.name__like}*")
-
-            return {
-                'index_fields': fields[0:args.limit]
-            }
-        else:
-            ns_input_v2.abort(404, 'Input not found.')
-    
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_input_index_fields)
-    @api2.marshal_with(mod_input_list)
-    @token_required
-    @user_has('update_input')
-    def put(self, uuid, current_user):
-        '''
-        Updates the fields that an input may have associated with its underlying indices
-        '''
-        inp = Input.get_by_uuid(uuid=uuid)
-        if inp:
-            if 'index_fields' in api2.payload and api2.payload['index_fields'] != None:
-                inp.update(
-                    index_fields=api2.payload['index_fields'],
-                    index_fields_last_updated=datetime.datetime.utcnow(),
-                    refresh=True)
-        else:
-            ns_input_v2.abort(404, 'Input not found.')
-
-
 @ns_agent_v2.route("/pair_token")
 class AgentPairToken(Resource):
 
@@ -2600,28 +2515,13 @@ class AgentList(Resource):
 class AgentHeartbeat(Resource):
 
     @api2.doc(security="Bearer")
-    @api2.expect(mod_agent_heartbeat)
     @token_required
-    def post(self, uuid, current_user):
+    def get(self, uuid, current_user):
         agent = Agent.get_by_uuid(uuid=uuid)
-       
         if agent:
-            if current_user.uuid == agent.uuid:
-                agent.last_heartbeat = datetime.datetime.utcnow()
-
-                last_agent_health = agent.healthy
-
-                agent.update(last_heartbeat=datetime.datetime.utcnow(), **api2.payload, refresh=True)
-
-                # If agent was previously healthy and is not now redistribute detections
-                if api2.payload['healthy'] == False and last_agent_health == True:
-                    redistribute_detections(organization=agent.organization)
-
-                # If agent was previously unhealthy and is now healthy redistribute detections
-                if api2.payload['healthy'] == True and last_agent_health == False:
-                    redistribute_detections(organization=agent.organization)                
-
-                return {'message': 'Your heart still beats!'}
+            agent.last_heartbeat = datetime.datetime.utcnow()
+            agent.save()
+            return {'message': 'Your heart still beats!'}
         else:
             '''
             If the agent can't be found, revoke the agent token
