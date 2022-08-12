@@ -10,6 +10,7 @@ from queue import Queue
 from uuid import uuid4
 
 from app.api_v2.model.system import ObservableHistory, Settings
+from app.api_v2.model.user import Organization
 from flask import current_app
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus, EventComment
@@ -1546,6 +1547,37 @@ class EventStats(Resource):
 
             observable_search = observable_search.execute()"""
 
+        events_by_day_by_org_series = []
+
+        if 'events_over_time' in args.metrics and current_user.default_org:
+            events_over_time_by_org = Event.search()
+
+            events_over_time_by_org = events_over_time_by_org[0:0]
+
+            events_over_time_by_org.aggs.bucket('range', 'filter', range={'original_date': {
+                'gte': (datetime.datetime.utcnow()-datetime.timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%S'),
+                'lte': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
+            }})
+
+            events_over_time_by_org.aggs['range'].bucket('organizations', 'terms', field='organization')
+            events_over_time_by_org.aggs['range']['organizations'].bucket('events_per_day', 'date_histogram', field='original_date', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
+
+            events_over_time_by_org = events_over_time_by_org.execute()
+
+            organizations = Organization.search()
+            organizations = organizations.scan()
+            organization_list = {o.uuid: o.name for o in organizations}
+
+            data = {v['key']: [] for v in events_over_time_by_org.aggs.range.organizations.buckets}
+            for k, v in data.items():
+                for bucket in events_over_time_by_org.aggs.range.organizations:
+                    for b in bucket.events_per_day.buckets:
+                        data[bucket['key']].append({
+                            'x': b['key_as_string'],
+                            'y': b['doc_count']})
+
+            events_by_day_by_org_series = [{'name': organization_list[k], 'data': v} for k, v in data.items()]            
+
         if 'events_over_time' in args.metrics:
             events_over_time = Event.search()
        
@@ -1559,6 +1591,8 @@ class EventStats(Resource):
             events_over_time.aggs['range'].bucket('events_per_day', 'date_histogram', field='original_date', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
 
             events_over_time = events_over_time.execute()
+
+            
 
         if 'time_per_status_over_time' in args.metrics:
             time_per_status_over_time = Event.search()
@@ -1623,6 +1657,9 @@ class EventStats(Resource):
             data['avg_time_to_act']  = {v['key_as_string']: {x['key']: x['avg_time_to_act']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
             data['avg_time_to_dismiss']  = {v['key_as_string']: {x['key']: x['avg_time_to_dismiss']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
             data['avg_time_to_close']  = {v['key_as_string']: {x['key']: x['avg_time_to_close']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
+
+        if 'events_over_time' in args.metrics and current_user.default_org:
+            data['events_by_day_by_org_series'] = events_by_day_by_org_series
 
         return data
 
