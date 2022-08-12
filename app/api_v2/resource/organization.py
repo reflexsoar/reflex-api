@@ -25,7 +25,6 @@ from ...defaults import (
     create_default_event_status,
     initial_settings
 )
-from ... import ep
 
 api = Namespace('Organizations',
                 description="Organization operations", path="/organization")

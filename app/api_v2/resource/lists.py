@@ -103,9 +103,6 @@ list_parser.add_argument(
     'organization', location='args', required=False
 )
 list_parser.add_argument(
-    'name__like', location='args', required=False
-)
-list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 list_parser.add_argument(
     'page_size', type=int, location='args', default=10, required=False)
@@ -136,9 +133,6 @@ class ThreatListList(Resource):
 
         if user_in_default_org and args.organization:
             lists = lists.filter('term', organization=args.organization)
-
-        if args.name__like:
-            lists = lists.filter('wildcard', name=f"*{args.name__like}*")
 
         lists, total_results, pages = page_results(lists, args.page, args.page_size)
 
@@ -234,11 +228,12 @@ class ThreatListList(Resource):
 
         value_list = ThreatList(**api.payload)
         value_list.save()
+        
 
         if not 'url' in api.payload:
             value_list.set_values(values)
 
-        ep.restart_workers(organization=value_list.organization)
+        ep.restart_workers()
 
         return value_list            
 
