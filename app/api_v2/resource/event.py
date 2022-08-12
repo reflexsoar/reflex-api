@@ -1064,12 +1064,17 @@ class EventBulkDismiss(Resource):
                 api.abort(400, 'Bulk actions across organizations is unsupported')
 
             rubq = rubq.script(
-                source="ctx._source.dismiss_comment = params.dismiss_comment; ctx._source.dismiss_reason = params.dismiss_reason; ctx._source.status.name = params.status_name; ctx._source.status.uuid = params.uuid",
+                source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;if(ctx._source.dismissed_by == null) { ctx._source.dismissed_by = [:];}\nctx._source.dismissed_by.username = params.dismissed_by_username;ctx._source.dismissed_by.organization = params.dismissed_by_organization;ctx._source.dismissed_by.uuid = params.dismissed_by_uuid;",
+                #source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;DateTimeFormatter dtf = DateTimeFormatter.ofPattern(\"yyyy-MM-dd'T'HH:mm:ss.SSSSSS\").withZone(ZoneId.of('UTC'));ZonedDateTime zdt = ZonedDateTime.parse(params.dismissed_at, dtf);ZonedDateTime zdt2 = ZonedDateTime.parse(ctx._source.created_at, dtf);Instant Currentdate = Instant.ofEpochMilli(zdt.getMillis());Instant Startdate = Instant.ofEpochMilli(zdt2.getMillis());ctx._source.time_to_dismiss = ChronoUnit.SECONDS.between(Startdate, Currentdate);",
                 params={
                     'dismiss_comment': api.payload['dismiss_comment'],
-                    'dismiss_reason': api.payload['dismiss_reason_uuid'],
+                    'dismiss_reason': reason.title if reason else api.payload['dismiss_reason_uuid'],
                     'status_name': status.name,
-                    'uuid': status.uuid
+                    'uuid': status.uuid,
+                    'dismissed_at': datetime.datetime.utcnow(),
+                    'dismissed_by_username': current_user.username,
+                    'dismissed_by_organization': current_user.organization,
+                    'dismissed_by_uuid': current_user.uuid
                 }
             )
             rubq = rubq.params(slices='auto', refresh=True)
