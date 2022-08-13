@@ -1311,7 +1311,7 @@ class EventStats(Resource):
         if not args.start:
             args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
         if not args.end:
-            args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
+            args.end = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
         
         search_filters = []
 
