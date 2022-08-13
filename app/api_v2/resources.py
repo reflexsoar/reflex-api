@@ -1663,10 +1663,10 @@ class CaseStats(Resource):
 
         # Set default start/end date filters if they are not set above
         # We do this here because default= on add_argument() is only calculated when the API is initialized
-        #if not args.start:
-        #    args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
-        #if not args.end:
-        #    args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
+        if not args.start:
+            args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+        if not args.end:
+            args.end = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
 
         search_filters = []
 
