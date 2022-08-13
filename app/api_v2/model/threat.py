@@ -158,6 +158,11 @@ class ThreatList(base.BaseDocument):
     case_sensitive = Boolean() # Are the values on the list case sensitive
     import_time = Integer() # The time in seconds it took to import this list
     poll_uuid = Keyword() # The UUID of the last poll event that populated this lists values
+    flag_safe = Boolean()
+    flag_spotted = Boolean()
+    flag_ioc = Boolean()
+    change_tlp = Boolean()
+    new_tlp = Integer()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
