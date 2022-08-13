@@ -7,9 +7,10 @@ Pusher queue of the EventPusher service.
 '''
 
 import re
-import json
 import os
+import psutil
 import uuid
+import json
 import time
 import hashlib
 import datetime
@@ -17,6 +18,10 @@ import logging
 import threading
 from itertools import chain
 from multiprocessing import Queue
+from kafka import KafkaProducer, KafkaConsumer, KafkaAdminClient
+from kafka.admin import ConfigResource
+from kafka.admin.new_partitions import NewPartitions
+from kafka.errors import KafkaError, InvalidPartitionsError
 #from queue import Queue
 from multiprocessing import Process, get_context, Event as mpEvent
 from app.api_v2.model import (
@@ -26,9 +31,10 @@ from app.api_v2.model import (
     DataType,
     EventStatus,
     Task,
-    ThreatList
+    ThreatList,
+    Q
 )
-from ...api_v2.model.system import ObservableHistory
+from app.api_v2.model.user import Organization
 
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
@@ -77,9 +83,14 @@ class EventProcessor:
         self.log_level = log_level
 
         self.worker_count = 10
-        self.event_queue = Queue()
+        self.worker_respawns = 0
+        self.event_queue = Queue() # Used when in shared worker mode
+        self.kf_producer = None
+        self.kf_client = None
         self.workers = []
         self.event_cache = []
+        self.max_workers_per_organization = 5
+        self.worker_processing_metrics = {}
 
 
     def set_log_level(self, log_level):
@@ -115,15 +126,54 @@ class EventProcessor:
         if 'WORKER_COUNT' in config:
             self.worker_count = config['WORKER_COUNT']
 
+        if 'DEDICATED_WORKERS' in config:
+            self.dedicated_workers = config['DEDICATED_WORKERS']
+            
+            if self.dedicated_workers:
+                self.logger.info("EventProcessor running in dedicated worker mode")
+                self.kf_producer = KafkaProducer(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'],
+                                             value_serializer=lambda m: json.dumps(m, default=str).encode('ascii'))
+
+                # Set the partition count on each event topic so that the workers can all consume
+                # from the message topic
+                self.kf_client = KafkaAdminClient(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'])
+                organizations = Organization.search().execute()
+                if organizations:
+                    topic_list = []
+                    for organization in organizations:
+                        topic_list.append(ConfigResource(resource_type='TOPIC',
+                                                         name=f"events-{organization.name}",
+                                                         configs={'delete.retention.ms':self.config['KAFKA_TOPIC_RETENTION']*1000}))
+                        try:
+                            self.kf_client.create_partitions({
+                                f'events-{organization.uuid}': NewPartitions(self.config['MAX_WORKERS_PER_ORGANIZATION'])
+                            })
+                        except InvalidPartitionsError:
+                            pass
+                    # Update the retention.ms on all topics
+                    #self.kf_client.alter_configs(topic_list)
+            else:
+                self.logger.info("EventProcessor running in shared worked mode")
+            
+
         self.worker_monitor = threading.Thread(target=self.monitor_workers, args=(), daemon=True)
         self.worker_monitor.start()
+
+    def to_kafka_topic(self, item):
+        '''
+        Pushes an item to a kafka topic
+        '''
+        self.kf_producer.send(f"events-{item['organization']}", item)
 
 
     def enqueue(self, item):
         '''
         Adds an item to the queue for Event Workers to work on
         '''
-        self.event_queue.put(item)
+        if self.dedicated_workers:
+            self.kf_producer.send(f"events-{item['organization']}", item)
+        else:
+            self.event_queue.put(item)
     
     def qsize(self):
         '''
@@ -135,15 +185,63 @@ class EventProcessor:
         '''
         Creates a set of workers to process incoming Events
         '''
-        self.logger.info('Spawning Event Processing workers')
-        for i in range(0, self.worker_count):
+
+        if self.config['DEDICATED_WORKERS']:
+            organizations = Organization.search().execute()        
+            for organization in organizations:
+                self.logger.info(f"Spawning Event Processing workers for {organization.uuid}")
+                for i in range(0, self.config['MAX_WORKERS_PER_ORGANIZATION']):                    
+                    w = EventWorker(app_config=self.app.config,
+                                    event_queue=self.event_queue,
+                                    event_cache=self.event_cache,
+                                    log_level=self.log_level,
+                                    organization=organization.uuid
+                                    )
+                    w.start()
+                    self.workers.append(w)
+            
+        else:
+            self.logger.info("Spawning Event Workers")
+            for i in range(0, self.worker_count):
+                w = EventWorker(app_config=self.app.config,
+                                event_queue=self.event_queue,
+                                event_cache=self.event_cache,
+                                log_level=self.log_level,
+                                organization='all'
+                                )
+                w.start()
+                self.workers.append(w)
+
+
+    def start_workers_for_new_organization(self, uuid):
+        '''
+        Starts new workers for a newly created organization
+        '''
+        self.logger.info(f"Spawning Event Processing workers for {uuid}")
+        for i in range(0, self.max_workers_per_organization):
             w = EventWorker(app_config=self.app.config,
                             event_queue=self.event_queue,
                             event_cache=self.event_cache,
-                            log_level=self.log_level
+                            log_level=self.log_level,
+                            organization=uuid
                             )
             w.start()
             self.workers.append(w)
+
+
+    def stop_workers_for_organization(self, uuid):
+        '''
+        Stops all the workers for a specific organization
+        '''
+        self.logger.info(f"Stopping Event workers for {uuid}")
+        workers = [w for w in self.workers if w.organization == uuid]
+        for w in workers:
+            try:
+                w.stop()
+                self.workers.remove(w)
+            except Exception as e:
+                self.logging.error(e)
+
 
     def monitor_workers(self):
         '''
@@ -154,15 +252,17 @@ class EventProcessor:
         while True:            
             self.logger.info('Checking Event Worker health')
             for worker in list(self.workers):
-                if worker.is_alive() == False:
+                if worker.alive() == False:
                     self.logger.error(f"Event Worker {worker.pid} died, starting new worker")
                     self.workers.remove(worker)
                     w = EventWorker(app_config=self.app.config,
                             event_queue=self.event_queue,
                             event_cache=self.event_cache,
-                            log_level=self.log_level
+                            log_level=self.log_level,
+                            organization=worker.organization
                             )
                     w.start()
+                    self.worker_respawns += 1
                     self.workers.append(w)
 
             time.sleep(self.config['WORKER_CHECK_INTERVAL'])
@@ -177,20 +277,29 @@ class EventProcessor:
         for worker in self.workers:
             worker_info.append(
                 {
-                    'pid': worker.pid
+                    'pid': worker.pid,
+                    'organization': worker.organization,
+                    'name': worker.name,
+                    'alive': worker.alive()
                 }
             )
         return worker_info
 
-
-    def restart_workers(self):
+    def restart_workers(self, organization=None):
         '''
         Forces all the Event workers to finish processing their current event
         and restart
         '''
-        self.logger.info('Restarting Event Processing workers')
+        if organization not in [None,'all']:
+            self.logger.info(f'Restarting Event Processing workers for {organization}')            
+        else:
+            self.logger.info('Restarting all Event Processing workers')            
         for worker in self.workers:
-            worker.force_reload()
+            if organization:
+                if worker.organization == organization:
+                    worker.force_reload()
+            else:
+                worker.force_reload()
 
         return True
 
@@ -200,10 +309,9 @@ class EventWorker(Process):
     event queue for new events and process them into the EventPusher queue for ingest
     in to Reflex
     '''
-
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self, app_config, event_queue, event_cache, log_level='ERROR'):
+    def __init__(self, app_config, event_queue, event_cache, organization=None, log_level='ERROR'):
         
         super(EventWorker, self).__init__()
 
@@ -226,6 +334,7 @@ class EventWorker(Process):
         self.event_queue = event_queue
         self.event_cache = event_cache
         self.sleep_interval = 10
+        self.organization = organization
         self.rules = []
         self.cases = []
         self.reasons = []
@@ -234,11 +343,30 @@ class EventWorker(Process):
         self.events = []
         self.last_meta_refresh = None
         self.should_restart = mpEvent()
-
-
+        self.should_exit = mpEvent()
+        self.kf_consumer = None
+        self.dedicated_worker = self.config['DEDICATED_WORKERS']
+   
+    def alive(self):
+        return psutil.pid_exists(self.pid)
+    
     def force_reload(self):
-        self.logger.debug('Reload triggered by EventProcessor')
+        self.logger.debug(f'Reload triggered by EventProcessor - {self.name} - {self.organization}')
         self.should_restart.set()
+
+    def stop(self):
+        self.logger.info(f"Stopping Event Worker {self.name}")
+        self.should_exit.set()
+
+    def build_kafka_connection(self):
+        self.kf_topic = f'events-{self.organization}'
+        self.kf_group_id = self.organization
+        consumer = KafkaConsumer(group_id=self.kf_group_id,
+                                 auto_offset_reset='earliest',
+                                 bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'],
+                                 value_deserializer=lambda m: json.loads(m.decode('ascii')))
+        consumer.subscribe([self.kf_topic])
+        return consumer
 
     def build_elastic_connection(self):
         '''
@@ -276,6 +404,10 @@ class EventWorker(Process):
         '''
         search = ThreatList.search()
         search = search.filter('term', active=True)
+
+        if self.dedicated_worker:
+            search = search.filter('term', organization=self.organization)
+
         lists = search.scan()
         self.lists = list(lists)
 
@@ -290,6 +422,12 @@ class EventWorker(Process):
         search = search.filter('term', active=True)
         if rule_id:
             search = search.filter('term', uuid=rule_id)
+            
+        if self.dedicated_worker:
+            search = search.filter('bool', should=[
+                Q('term', organization=self.organization),
+                Q('term', global_rule=True)])        
+
         rules = search.scan()
         rules = list(rules)
 
@@ -323,6 +461,10 @@ class EventWorker(Process):
         '''
         search = Case.search()
         search = search.source(includes=['uuid', '_id'])
+
+        if self.dedicated_worker:
+            search = search.filter('term', organization=self.organization)
+
         cases = search.scan()
         self.cases = list(cases)
 
@@ -333,6 +475,10 @@ class EventWorker(Process):
         Elasticsearch
         '''
         search = CloseReason.search()
+
+        if self.dedicated_worker:
+            search = search.filter('term', organization=self.organization)
+
         reasons = search.scan()
         self.reasons = list(reasons)
 
@@ -343,6 +489,10 @@ class EventWorker(Process):
         Elasticsearch
         '''
         search = EventStatus.search()
+
+        if self.dedicated_worker:
+            search = search.filter('term', organization=self.organization)
+
         statuses = search.scan()
         self.statuses = list(statuses)
 
@@ -352,6 +502,10 @@ class EventWorker(Process):
         Fetches all the data types in the system
         '''
         search = DataType.search()
+
+        if self.dedicated_worker:
+            search = search.filter('term', organization=self.organization)
+
         data_types = search.scan()
         self.data_types = list(data_types)
 
@@ -385,13 +539,6 @@ class EventWorker(Process):
             self.should_restart.clear()
 
 
-    def get_meta_info(self):
-        '''
-        Returns the currently loaded meta information'''
-        return {
-            'rules': self.rules
-        }
-
     def pop_events_by_action(self, events, action):
         return [e for e in events if '_meta' in e and e['_meta']['action'] == action]
 
@@ -400,83 +547,109 @@ class EventWorker(Process):
         ''' Processes events from the Event Queue '''
 
         connection = self.build_elastic_connection()
+
+        if self.config['DEDICATED_WORKERS']:
+            
+            self.kf_consumer = self.build_kafka_connection()
+
         self.reload_meta_info()
         self.logger.debug(f"Running")
 
         while True:
 
-            if self.event_queue.empty():
+            _events = []
 
-                if self.should_restart.is_set():
-                    #exit()
-                    self.reload_meta_info(clear_reload_flag=True)
+            if self.config['DEDICATED_WORKERS']:
+                message = self.kf_consumer.poll(10)
 
-                time.sleep(1)
+                if not message:
+                    if self.should_restart.is_set():
+                        self.reload_meta_info(clear_reload_flag=True)
 
+                    if self.should_exit.is_set():
+                        exit()
+
+                    time.sleep(0.5)
+                else:
+                    for topic_data, consumer_records in message.items():
+                        for msg in consumer_records:
+                            _events.append(msg.value)
             else:
+                if self.event_queue.empty():
 
-                # Reload all the event rules and other meta information if the refresh timer
-                # has expired
-                if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
-                    self.reload_meta_info()
+                    if self.should_restart.is_set():
+                        self.reload_meta_info(clear_reload_flag=True)
 
-                # Interrupt this flow if the worker is scheduled for restart
-                if self.should_restart.is_set():
-                    self.reload_meta_info(clear_reload_flag=True)
+                    if self.should_exit.is_set():
+                        exit()
 
-                event = self.event_queue.get()
+                    time.sleep(1)
+                else:
+                    # Reload all the event rules and other meta information if the refresh timer
+                    # has expired
+                    if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
+                        self.reload_meta_info()
 
-                # Process the event
-                event = self.process_event(event)
+                    # Interrupt this flow if the worker is scheduled for restart
+                    if self.should_restart.is_set():
+                        self.reload_meta_info(clear_reload_flag=True)
 
-                # If returned value is not None add the event to the list of events to be pushed
-                # via _bulk
-                if event:
-                    self.events.append(event)
+                    _events.append(self.event_queue.get())
 
-                if len(self.events) >= self.config["ES_BULK_SIZE"] or self.event_queue.empty():
+            if len(_events) > 0:
+                for event in _events:
 
-                    # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
-                    bulk_dismiss = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'dismiss']
-                    add_to_case = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'add_to_case']
-                    retro_apply_event_rule = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'retro_apply_event_rule']
-                    
-                    task_end = self.pop_events_by_action(self.events, 'task_end')
+                    # Process the event
+                    event = self.process_event(event)
 
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case)):
-                        pass
+                    # If returned value is not None add the event to the list of events to be pushed
+                    # via _bulk
+                    if event:
+                        self.events.append(event)
 
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss)):
-                        pass
+                    if len(self.events) >= self.config["ES_BULK_SIZE"] or self.event_queue.empty():
 
-                    for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule)):
-                        pass
+                        # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
+                        bulk_dismiss = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'dismiss']
+                        add_to_case = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'add_to_case']
+                        retro_apply_event_rule = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'retro_apply_event_rule']
+                        
+                        task_end = self.pop_events_by_action(self.events, 'task_end')
 
-                    self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
+                        for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case)):
+                            pass
 
-                    self.prepare_case_updates(self.events)
+                        for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss)):
+                            pass
 
-                    # Send Events
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events)):
-                        pass
+                        for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule)):
+                            pass
 
-                    # Update Cases
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(self.events)):
-                        pass
+                        self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
 
-                    if task_end:
-                        for item in task_end:
-                            
-                            task = Task.get_by_uuid(uuid=item['_meta']['task_id'])
+                        self.prepare_case_updates(self.events)
 
-                            # If the task_type is one that should be broadcast
-                            # set the broadcast flag
-                            if task.task_type in ['bulk_dismiss_events']:
-                                task.broadcast = True
+                        # Send Events
+                        for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events)):
+                            pass
 
-                            task.finish()
+                        # Update Cases
+                        for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(self.events)):
+                            pass
 
-                    self.events = []
+                        if task_end:
+                            for item in task_end:
+                                
+                                task = Task.get_by_uuid(uuid=item['_meta']['task_id'])
+
+                                # If the task_type is one that should be broadcast
+                                # set the broadcast flag
+                                if task.task_type in ['bulk_dismiss_events']:
+                                    task.broadcast = True
+
+                                task.finish()
+
+                        self.events = []
 
 
     def check_threat_list(self, observable, organization, MEMCACHED_CONFIG=None):
@@ -506,14 +679,6 @@ class EventWorker(Process):
                     observable['tags'].append(f"list: {l.name}")
                 else:
                     observable['tags'] = [f"list: {l.name}"]
-
-            if matched:
-                observable['ioc'] = l.flag_ioc if hasattr(l, 'flag_ioc') else False
-                observable['safe'] = l.flag_safe if hasattr(l, 'flag_safe') else False
-                observable['spotted'] = l.flag_spotted if hasattr(l, 'flag_spotted') else False
-
-                observable_history = ObservableHistory(**observable)
-                observable_history.save()
 
         return observable
 

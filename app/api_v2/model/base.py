@@ -100,7 +100,7 @@ class BaseDocument(Document):
             return documents
         return []
 
-    def save(self, **kwargs):
+    def save(self, skip_update_by=False, **kwargs):
         '''
         Overrides the default Document save() function and adds
         audit fields created_at, updated_at and a default uuid field
@@ -123,17 +123,25 @@ class BaseDocument(Document):
             if current_user:
                 self.organization = current_user['organization']
 
-        self.updated_at = datetime.datetime.utcnow()
-        self.updated_by = utils._current_user_id_or_none()
+        # Skip updating the update_by this is useful if the system is updating something in the 
+        # backend and we don't want to trash manual updates from users
+        if skip_update_by == False:
+            self.updated_at = datetime.datetime.utcnow()
+            self.updated_by = utils._current_user_id_or_none()
+
         return super().save(**kwargs)
 
-    def update(self, **kwargs):
+    def update(self, skip_update_by=False, **kwargs):
         '''
         Overrides the default Document update() function and
         adds an update to updated_at each time the document
         is saved
         '''
 
-        self.updated_at = datetime.datetime.utcnow()
-        self.updated_by = utils._current_user_id_or_none()
+        # Skip updating the update_by this is useful if the system is updating something in the 
+        # backend and we don't want to trash manual updates from users
+        if skip_update_by == False:
+            self.updated_at = datetime.datetime.utcnow()
+            self.updated_by = utils._current_user_id_or_none()
+
         return super().update(**kwargs)
