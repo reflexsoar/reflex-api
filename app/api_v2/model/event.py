@@ -1,7 +1,6 @@
 import datetime
 import hashlib
 import json
-from fnmatch import fnmatch
 from app.api_v2.model.exceptions import EventRuleFailure
 
 from app.api_v2.rql.parser import QueryParser
@@ -17,8 +16,16 @@ from . import (
     Date,
     system,
     utils,
-    Nested
+    Nested,
 )
+
+class EventComment(base.BaseInnerDoc):
+    '''
+    A comment that can be applied to an Event
+    '''
+    
+    comment = Keyword(fields={'text': Text()})
+
 
 class EventStatus(base.BaseDocument):
     '''
@@ -53,6 +60,21 @@ class EventStatus(base.BaseDocument):
         return response
 
 
+class EventView(base.BaseDocument):
+    '''
+    An EventView is a saved filter that can be used on the Event Queue page
+    to quickly change between filters
+    '''
+
+    class Index:
+        ''' Defines the index to use '''
+        name = 'reflex-event-views'
+
+    name = Keyword(fields={'text':Text()})
+    public = Boolean() # Is the filter public or private
+    filter_string = Text() # The JSON string of the filter
+
+
 class Event(base.BaseDocument):
     '''
     An event in reflex is anything sourced by an agent input that
@@ -76,6 +98,7 @@ class Event(base.BaseDocument):
     dismissed = Boolean()
     dismiss_reason = Text(fields={'keyword':Keyword()})
     dismiss_comment = Text(fields={'keyword': Keyword()})
+    tuning_advice = Keyword(fields={'text':Text()}) # Used to supply tuning advice back to the customer
     dismissed_by = Object()
     dismissed_at = Date()
     dismissed_by_rule = Boolean()
@@ -88,7 +111,9 @@ class Event(base.BaseDocument):
     sla_breach_time = Date()
     sla_violated = Boolean()
     detection_id = Keyword() # The UUID of the Detection rule that generated this event
+    risk_score = Integer() # The risk score if this originated from a detection rule
     original_date = Date() # The date the original log was generated (not when it was created in Reflex)
+    comments = Nested()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -125,6 +150,34 @@ class Event(base.BaseDocument):
             self.event_rules.append(uuid)
         else:
             self.event_rules = [uuid]
+
+    def add_comment(self, comment, skip_save=False):
+        '''
+        Adds a comment to the event
+        '''
+        if not self.comments:
+            self.comments = [comment]
+        else:
+            self.comments.append(comment)
+
+        if not skip_save:
+            self.save()
+
+    def remove_comment(self, uuid, skip_save=False):
+        '''
+        Removes a comment from the event
+        '''
+
+        if not self.comments:
+            return
+
+        for comment in self.comments:
+            if comment['uuid'] == uuid:
+                self.comments.remove(comment)
+                break
+
+        if not skip_save:
+            self.save()
 
     def add_observable(self, content):
         '''
@@ -178,13 +231,15 @@ class Event(base.BaseDocument):
         self.status = EventStatus.get_by_name(name='New')
         self.save()
 
-    def set_dismissed(self, reason, by_rule=False, comment=None):
+    def set_dismissed(self, reason, by_rule=False, comment=None, advice=None):
         '''
         Sets the event as dismissed
         '''
         self.status = EventStatus.get_by_name(name='Dismissed')
         if comment:
             self.dismiss_comment = comment
+        if advice:
+            self.tuning_advice = advice
         self.dismiss_reason = reason.title
         self.dismissed_by = utils._current_user_id_or_none()
         self.dismissed_at = datetime.datetime.utcnow()

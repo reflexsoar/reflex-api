@@ -57,10 +57,7 @@ mod_list_list = api.model('ListView', {
     'updated_at': ISO8601(attribute='updated_at'),
     'csv_headers': fields.String,
     'csv_headers_data_types': fields.String,
-    'case_sensitive': fields.Boolean,
-    'flag_ioc': fields.Boolean,
-    'flag_safe': fields.Boolean,
-    'flag_spotted': fields.Boolean
+    'case_sensitive': fields.Boolean
 })
 
 mod_list_list_paged = api.model('ListViewPaged', {
@@ -81,10 +78,7 @@ mod_list_create = api.model('ListCreate', {
     'active': fields.Boolean(example=True),
     'csv_headers': fields.String,
     'csv_headers_data_types': fields.String,
-    'case_sensitive': fields.Boolean,
-    'flag_ioc': fields.Boolean,
-    'flag_safe': fields.Boolean,
-    'flag_spotted': fields.Boolean
+    'case_sensitive': fields.Boolean
 })
 
 mod_list_values = api.model('ListValues', {
@@ -107,6 +101,9 @@ list_parser.add_argument(
     'data_type', location='args', required=False)
 list_parser.add_argument(
     'organization', location='args', required=False
+)
+list_parser.add_argument(
+    'name__like', location='args', required=False
 )
 list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
@@ -139,6 +136,9 @@ class ThreatListList(Resource):
 
         if user_in_default_org and args.organization:
             lists = lists.filter('term', organization=args.organization)
+
+        if args.name__like:
+            lists = lists.filter('wildcard', name=f"*{args.name__like}*")
 
         lists, total_results, pages = page_results(lists, args.page, args.page_size)
 
@@ -234,12 +234,11 @@ class ThreatListList(Resource):
 
         value_list = ThreatList(**api.payload)
         value_list.save()
-        
 
         if not 'url' in api.payload:
             value_list.set_values(values)
 
-        ep.restart_workers()
+        ep.restart_workers(organization=value_list.organization)
 
         return value_list            
 

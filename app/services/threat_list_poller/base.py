@@ -58,11 +58,6 @@ class ThreatListPoller(object):
 
         self.es_client = self.build_elastic_connection()
         self.logger.info("Service Started")
-        self.logger.info('Checking rehydration flag')
-
-        flag = self.memcached_client.get('threat-poller-hydration')
-        if not flag:
-            self.rehydrate_memcached()
 
     def build_elastic_connection(self):
         elastic_connection = {
