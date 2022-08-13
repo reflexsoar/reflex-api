@@ -262,7 +262,6 @@ class CloseReason(base.BaseDocument):
 
     title = Keyword()
     description = Text(fields={'keyword':Keyword()})
-    enabled = Boolean()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

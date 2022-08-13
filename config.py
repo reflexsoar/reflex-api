@@ -1,6 +1,5 @@
 import os
 from dotenv import load_dotenv
-from flask_saml2.utils import certificate_from_file, private_key_from_file
 import multiprocessing
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -87,10 +86,6 @@ class Config(object):
         'ES_BULK_SIZE': int(os.getenv('REFLEX_EVENT_PROCESSOR_ES_BULK_SIZE')) if os.getenv('REFLEX_EVENT_PROCESSOR_ES_BULK_SIZE') else 500,
         'LOG_LEVEL': os.getenv('REFLEX_EVENT_PROCESSOR_LOG_LEVEL') if os.getenv('REFLEX_EVENT_PROCESSOR_LOG_LEVEL') else 'ERROR',
         'WORKER_CHECK_INTERVAL': int(os.getenv('REFLEX_EVENT_PROCESSOR_WORKER_CHECK_INTERVAL')) if os.getenv('REFLEX_EVENT_PROCESSOR_WORKER_CHECK_INTERVAL') else 60,
-        'DEDICATED_WORKERS': as_bool(os.getenv('REFLEX_EVENT_PROCESSOR_DEDICATED_WORKERS')) if os.getenv('REFLEX_EVENT_PROCESSOR_DEDICATED_WORKERS') else False,
-        'MAX_WORKERS_PER_ORGANIZATION': int(os.getenv('REFLEX_EVENT_PROCESSOR_MAX_WORKERS_PER_ORGANIZATION')) if os.getenv('REFLEX_EVENT_PROCESSOR_MAX_WORKERS_PER_ORGANIZATION') else 5,
-        'KAFKA_BOOTSTRAP_SERVERS': os.getenv('REFLEX_EVENT_PROCESSOR_KAFKA_BOOTSTRAP_SERVERS') if os.getenv('REFLEX_EVENT_PROCESSOR_KAFKA_BOOTSTRAP_SERVERS') else ['localhost:9092'],
-        'KAFKA_TOPIC_RETENTION': int(os.getenv('REFLEX_EVENT_PROCESSOR_KAFKA_TOPIC_RETENTION')) if os.getenv('REFLEX_EVENT_PROCESSOR_KAFKA_TOPIC_RETENTION') else 2,
     }
 
     NEW_EVENT_PIPELINE = True #as_bool(os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR')) if os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR') else False
@@ -100,10 +95,7 @@ class Config(object):
         'POLL_INTERVAL': os.getenv('REFLEX_MITRE_ATTACK_POLL_INTERVAL') if os.getenv('REFLEX_MITRE_ATTACK_POLL_INTERVAL') else 86400 # Once a day
     }
 
-    DISABLE_TELEMETRY = as_bool(os.getenv('REFLEX_DISABLE_TELEMETRY')) if os.getenv('REFLEX_DISABLE_TELEMETRY') else False
-
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
-
 
 class ProductionConfig(Config):
     ENV = 'production'

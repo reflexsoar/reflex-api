@@ -39,6 +39,11 @@ class ThreatValue(base.BaseDocument):
     key_field = Keyword() # If the value came from a CSV or a JSON string which key was it under
     record_num = Integer() # If the value came from a CSV or JSON list which record number was it
     record_id = Keyword()
+    flag_safe = Boolean()
+    flag_spotted = Boolean()
+    flag_ioc = Boolean()
+    change_tlp = Boolean()
+    new_tlp = Integer()
     poll_interval = Integer()
     expire_at = Date()
     ibytes = Integer()
@@ -206,7 +211,6 @@ class ThreatList(base.BaseDocument):
         if not isinstance(value, list):           
 
             found = False
-
             
             if self.list_type != 'patterns':
                 hasher = hashlib.md5()

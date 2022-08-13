@@ -8,8 +8,7 @@ from ..utils import check_org, token_required, user_has, ip_approved
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import (
     Detection,
-    Organization,
-    Event
+    Organization
 )
 from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
@@ -20,39 +19,26 @@ api = Namespace(
     'Detection', description='Reflex detection rules', path='/detection', strict=True)
 
 
-mod_intel_list = api.model('DetectionIntelList', {
-    'name': fields.String,
-    'uuid': fields.String
-})
-
 mod_detection_exception = api.model('DetectionException', {
     'uuid': fields.String,
     'description': fields.String,
     'condition': fields.String(required=True),
     'values': fields.List(fields.String(required=True)),
-    'field': fields.String(required=True),
-    'list': fields.Nested(mod_intel_list)
+    'field': fields.String(required=True)
 }, strict=True)
 
-mod_detection_exception_list = api.model('DetectionExceptionList', {
+mod_detection_exception_list = api.model('DetectionException', {
     'uuid': fields.String,
     'description': fields.String,
     'condition': fields.String,
     'values': fields.List(fields.String),
     'field': fields.String,
-    'list': fields.Nested(mod_intel_list),
     'created_by': fields.Nested(mod_user_list)
 }, strict=True)
 
 mod_threshold_config = api.model('ThesholdConfig', {
     'threshold': fields.Integer,
-    'key_field': fields.String,
-    'operator': fields.String,
-    'dynamic': fields.Boolean,
-    'discovery_period': fields.Integer,
-    'recalculation_period': fields.Integer,
-    'per_field': fields.Boolean,
-    'max_events': fields.Integer
+    'key_field': fields.String
 }, strict=True)
 
 mod_metric_change_config = api.model('MetricChangeConfig', {
@@ -63,9 +49,11 @@ mod_metric_change_config = api.model('MetricChangeConfig', {
 }, strict=True)
 
 mod_field_mistmatch_config = api.model('FieldMismatchConfig', {
+
     'source_field': fields.String,
     'target_field': fields.String,
     'operator': fields.String
+
 }, strict=True)
 
 mod_query_config = api.model('DetectionQuery', {
@@ -101,7 +89,6 @@ mod_detection_details = api.model('DetectionDetails', {
     'tactics': fields.List(fields.Nested(mod_tactic_brief)),
     'techniques': fields.List(fields.Nested(mod_technique_brief)),
     'references': fields.List(fields.String),
-    'false_positives': fields.List(fields.String),
     'kill_chain_phase': fields.String,
     'rule_type': fields.Integer,
     'version': fields.Integer,
@@ -129,16 +116,14 @@ mod_detection_details = api.model('DetectionDetails', {
     'metric_change_config': fields.Nested(mod_metric_change_config),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
     'created_at': ISO8601,
-    'created_by': fields.Nested(mod_user_list),
-    'updated_at': ISO8601,
-    'updated_by': fields.Nested(mod_user_list)
+    'created_by': fields.Nested(mod_user_list)
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
     'name': fields.String(default='Sample Rule', required=True),
     'query': fields.Nested(mod_query_config, required=True),
-    'from_sigma': fields.Boolean(default=False, required=False, skip_none=True),
-    'sigma_rule': fields.String(required=False, skip_none=True),
+    'from_sigma': fields.Boolean(default=False),
+    'sigma_rule': fields.String,
     'organization': fields.String,
     'description': fields.String(default="A detailed description.", required=True),
     'guide': fields.String(default="An investigation guide on how to triage this detection"),
@@ -146,21 +131,19 @@ mod_create_detection = api.model('CreateDetection', {
     'tactics': fields.List(fields.Nested(mod_tactic_brief)),
     'techniques': fields.List(fields.Nested(mod_technique_brief)),
     'references': fields.List(fields.String),
-    'false_positives': fields.List(fields.String),
     'kill_chain_phase': fields.String,
     'rule_type': fields.Integer(required=True),
     'active': fields.Boolean,
     'source': fields.Nested(mod_source_config, required=True),
     'case_template': fields.String,
-    'risk_score': fields.Integer(default=10000, min=0, max=50000),
+    'risk_score': fields.Integer(default=50, min=0, max=100),
     'severity': fields.Integer(required=True, default=1, min=1, max=4),
     'signature_fields': fields.List(fields.String),
     'observable_fields': fields.List(fields.Nested(mod_observable_field)),
     'interval': fields.Integer(default=5, required=True, min=1),
     'lookbehind': fields.Integer(default=5, required=True, min=1),
-    'mute_period': fields.Integer(default=5, required=True, min=0),
+    'mute_period': fields.Integer(default=5, required=True, min=1),
     'skip_event_rules': fields.Boolean(default=False),
-    'exceptions': fields.List(fields.Nested(mod_detection_exception_list)),
     'threshold_config': fields.Nested(mod_threshold_config),
     'metric_change_config': fields.Nested(mod_metric_change_config),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config)
@@ -176,21 +159,19 @@ mod_update_detection = api.model('UpdateDetection', {
     'tactics': fields.List(fields.String),
     'techniques': fields.List(fields.String),
     'references': fields.List(fields.String),
-    'false_positives': fields.List(fields.String),
     'kill_chain_phase': fields.String,
     'rule_type': fields.Integer,
     'active': fields.Boolean,
     'source': fields.String,
     'case_template': fields.String,
-    'risk_score': fields.Integer(default=10000, min=0, max=50000),
+    'risk_score': fields.Integer(default=50, min=0, max=100),
     'severity': fields.Integer(required=True, default=1, min=1, max=4),
     'signature_fields': fields.List(fields.String),
     'observable_fields': fields.List(fields.String),
     'interval': fields.Integer(default=5, required=True, min=1),
     'lookbehind': fields.Integer(default=5, required=True, min=1),
-    'mute_period': fields.Integer(default=5, required=True, min=0),
-    'skip_event_rules': fields.Boolean,
-    'exceptions': fields.List(fields.Nested(mod_detection_exception_list))
+    'mute_period': fields.Integer(default=5, required=True, min=1),
+    'skip_event_rules': fields.Boolean
 }, strict=True)
 
 mod_detection_list_paged = api.model('DetectionListPaged', {
@@ -198,21 +179,6 @@ mod_detection_list_paged = api.model('DetectionListPaged', {
     'pagination': fields.Nested(mod_pagination)
 })
 
-mod_detection_hits = api.model('DetectionHit', {
-    'title': fields.String,
-    'tags': fields.List(fields.String),
-    'reference': fields.String(required=True),
-    'severity': fields.Integer,
-    'risk_score': fields.Integer,
-    'created_at': ISO8601(attribute='created_at'),
-    'modified_at': ISO8601(attribute='updated_at'),
-    'original_date': ISO8601(attribute='original_date'),
-})
-
-mod_detection_hits_paged = api.model('DetectionHit', {
-    'events': fields.List(fields.Nested(mod_detection_hits)),
-    'pagination': fields.Nested(mod_pagination)
-})
 
 detection_list_parser = api.parser()
 detection_list_parser.add_argument(
@@ -309,61 +275,6 @@ class DetectionList(Resource):
             api.abort(409, 'A detection rule with this name already exists')
 
 
-detection_hit_parser = api.parser()
-detection_hit_parser.add_argument(
-    'page', type=int, location='args', default=1, required=False)
-detection_hit_parser.add_argument(
-    'page_size', type=int, location='args', default=10, required=False)
-detection_hit_parser.add_argument(
-    'sort_by', type=str, location='args', default='created_at', required=False
-)
-detection_hit_parser.add_argument(
-    'sort_direction', type=str, location='args', default='desc', required=False
-)
-
-@api.route("/<uuid>/hits")
-class DetectionHits(Resource):
-
-    @api.doc(security="Bearer")
-    @api.marshal_with(mod_detection_hits_paged)
-    @api.expect(detection_hit_parser)
-    @token_required
-    @user_has('view_events')
-    def get(self, uuid, current_user):
-
-        args = detection_hit_parser.parse_args()
-
-        detection = Detection.get_by_uuid(uuid=uuid)
-        if detection:
-
-            events = Event.search()
-
-            events = events.filter('term', detection_id=detection.uuid)
-
-            sort_by = args.sort_by
-            if args.sort_direction == 'desc':
-                sort_by = f"-{sort_by}"
-
-            events = events.sort(sort_by)
-
-            events, total_results, pages = page_results(events, args.page, args.page_size)
-
-            events = events.execute()
-
-            response = {
-                'events': list(events),
-                'pagination': {
-                    'total_results': total_results,
-                    'pages': pages,
-                    'page': args['page'],
-                    'page_size': args['page_size']
-                }
-            }
-            return response
-        else:
-            api.abort(404, f'Detection rule for UUID {uuid} not found')
-
-
 @api.route("/<uuid>/add_exception")
 class AddDetectionException(Resource):
 
@@ -395,7 +306,7 @@ class AddDetectionException(Resource):
             else:
                 detection.exceptions = [exception]
 
-            detection.save(refresh=True)
+            detection.save()
 
             return detection
         else:
@@ -419,7 +330,7 @@ class RemoveDetectionException(Resource):
             if detection.exceptions:
                 detection.exceptions = [
                     exception for exception in detection.exceptions if exception.uuid != exception_uuid]
-                detection.save(refresh=True)
+                detection.save()
 
             return detection
         else:
@@ -453,10 +364,9 @@ class DetectionDetails(Resource):
         Updates the details of a single detection rule
         '''
 
-        should_redistribute = False
         forbidden_user_fields = ['query_time_taken', 'total_hits', 'last_hit', 'last_run',
-                                 'created_at','created_by','updated_at','updated_by','time_taken','warnings','version','running',
-                                 'assigned_agent']
+                                 'created_at','time_taken','warnings','version','running',
+                                 'assigned_agents']
 
         # Prevent users from updating these fields
         if isinstance(current_user, User):
@@ -486,15 +396,10 @@ class DetectionDetails(Resource):
             if 'hits' in api.payload and api.payload['hits'] > 10_000:
                 api.payload['warnings'].append('high-volume')
 
-            if 'active' in api.payload and detection.active != api.payload['active']:
-                should_redistribute = True
-
             detection.update(**api.payload, refresh=True)
 
-            if should_redistribute:
+            if 'active' in api.payload:
                 redistribute_detections(detection.organization)
-
-            print(detection.updated_at)
 
             return detection
         else:

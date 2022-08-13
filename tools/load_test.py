@@ -25,7 +25,6 @@ def auth():
         token = response.json()['access_token']
         return token
     else:
-        print(response.text)
         return None
 
 
