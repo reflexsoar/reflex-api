@@ -14,7 +14,7 @@ from ..rql.parser import QueryParser
 from ..model import EventRule, Event, Task, CloseReason
 from ..model.exceptions import EventRuleFailure
 from ..utils import random_ending, token_required, user_has, check_org, log_event, default_org
-from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict, mod_user_list
+from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict
 from .event import mod_event_status
 from ... import ep
 
@@ -85,8 +85,6 @@ mod_event_rule_list = api.model('EventRuleList', {
     'expire_at': ISO8601(attribute='expire_at'),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
-    'updated_by': fields.Nested(mod_user_list),
-    'created_by': fields.Nested(mod_user_list),
     'last_matched_date': ISO8601(attribute='last_matched_date'),
     'global_rule': fields.Boolean,
     'disable_reason': fields.String,
@@ -105,7 +103,6 @@ mod_event_rql = api.model('EventDetailsRQLFormatted', {
     'description': fields.String(required=True),
     'tlp': fields.Integer,
     'severity': fields.Integer,
-    'risk_score': fields.Integer,
     'source': fields.String,
     'status': fields.Nested(mod_event_status),
     'tags': fields.List(fields.String),
@@ -237,14 +234,7 @@ class EventRuleList(Resource):
             event_rule.deleted = False
             event_rule.save(refresh=True)
             time.sleep(1)
-
-            if event_rule.global_rule and not ep.dedicated_workers:
-                ep.restart_workers()
-            else:
-                if ep.dedicated_workers:
-                    ep.restart_workers(organization=event_rule.organization)
-                else:
-                    ep.restart_workers(organization='all')
+            ep.restart_workers()
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
                 
@@ -366,14 +356,7 @@ class EventRuleDetails(Resource):
             if len(api.payload) > 0:
                 event_rule.update(**{**api.payload, 'disable_reason': None}, refresh=True)
                 time.sleep(1)
-                
-                if event_rule.global_rule:
-                    ep.restart_workers()
-                else:
-                    if ep.dedicated_workers:
-                        ep.restart_workers(organization=event_rule.organization)
-                    else:
-                        ep.restart_workers(organization='all')
+                ep.restart_workers()
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
 

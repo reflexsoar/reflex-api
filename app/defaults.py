@@ -1,10 +1,3 @@
-from datetime import datetime
-from uuid import uuid4
-from app.api_v2.model.user import Organization, User
-from app.api_v2.model.case import Case
-from app.api_v2.model.event import Event
-
-
 def create_default_organization(cls):
 
     data = {
@@ -330,36 +323,18 @@ def create_default_case_status(cls, org_id):
             status.closed = True
             status.save()
 
-def create_default_closure_reasons(cls, org_id, check_for_default=False):
+def create_default_closure_reasons(cls, org_id):
 
     reasons = [
-        {'title': 'False positive', 'description': 'Event matched detection rule but is not malicious', 'enabled': True},
-        {'title': 'No action required', 'description': 'No action required', 'enabled': True},
-        {'title': 'True positive', 'description': 'Event is malicious', 'enabled': True},
-        {'title': 'Other', 'description': 'Any other reason not listed', 'enabled': True},
-        {'title': 'Insufficient Information', 'description': 'Additional enrichment and data is needed for this alert to be actionable.', 'enabled': True},
-        {'title': 'Informational Event', 'description': 'Detection provides data that is not normally malicious but should be evaluated to ensure it is expected.', 'enabled': True},
-        {'title': 'Rule Defective', 'description': 'Alert rule is not firing correctly.', 'enabled': True},
-        {'title': 'Benign Activity', 'description': 'Event is not malicious', 'enabled': True},
+        {'title': 'False positive', 'description': 'False positive'},
+        {'title': 'No action required', 'description': 'No action required'},
+        {'title': 'True positive', 'description': 'True positive'},
+        {'title': 'Other', 'description': 'Other'}
     ]
 
-    # If this is the first setup of the system, we need to create the default closure reasons
-    # else we will just update the existing ones and replace those that are missing
-    if check_for_default == False:
-        for r in reasons:
-            reason = cls(**r, organization=org_id)
-            reason.save()
-    else:
-        orgs = Organization.search().execute()
-        for org in orgs:
-            existing_reasons = cls.search().filter('term', organization=org.uuid).execute()
-            for r in reasons:
-                if r['title'] not in [reason.title for reason in existing_reasons]:
-                    new_reason = next((reason for reason in reasons if reason['title'] == r['title']), None)
-                    reason = cls(**new_reason, organization=org.uuid)
-                    reason.save()
-                    print(f"{r['title']} missing from {org.name} - {new_reason}")
-
+    for r in reasons:
+        reason = cls(**r, organization=org_id)
+        reason.save()
 
 def create_default_event_status(cls, org_id):
 
@@ -385,49 +360,6 @@ def create_default_case_templates(cls, org_id):
         template = cls(**t, organization=org_id)
         template.save()
 
-def set_install_uuid():
-    '''
-    Creates an install UUID for the default organization if one does not exist
-    '''
-
-    org = Organization.search().filter('term', default_org=True).execute()
-    if org:
-        org = org[0]
-        if not hasattr(org, 'install_uuid') or org.install_uuid == None:
-            org.install_uuid = uuid4()
-            org.save()
-
-
-def send_telemetry():
-    '''
-    Sends telemetry and usage information to telemetry.reflexsoar.com for usage in ReflexSOAR
-    product improvements and community support.  No sensitive information about the environment
-    is sent to the telemetry server.
-    '''
-
-    telemetry_body = {
-        'install_uuid': '',
-        'org_count': 0,
-        'user_count': 0,
-        'case_count': 0,
-        'event_count': 0,
-        'last_restart': datetime.utcnow().isoformat()
-    }
-    
-    org = Organization.search().filter('term', default_org=True).execute()
-    if org:
-        org = org[0]
-        telemetry_body['install_uuid'] = org.install_uuid
-
-    telemetry_body['user_count'] = User.search().count()
-    telemetry_body['case_count'] = Case.search().count()
-    telemetry_body['org_count'] = Organization.search().count()
-    telemetry_body['event_count'] = Event.search().count()
-
-    # TODO: Add the API call to telemetry.reflexsoar.com using requests
-    print(telemetry_body)
-
-
 def initial_settings(cls, org_id):
 
     settings_content = {
@@ -452,7 +384,7 @@ def initial_settings(cls, org_id):
         'data_types': ['ip','user','host','fqdn','sha1','md5','sha256','imphash','ssdeep','vthash','network','domain','url','mail','sid','mac'],
         'organization': org_id,
         'case_sla_days': 14,
-        'event_sla_minutes': 5
+        'event_sla_minutes': 5,
     }
 
     settings = cls(**settings_content)

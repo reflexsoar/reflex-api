@@ -25,11 +25,9 @@ class Agent(base.BaseDocument):
     inputs = Keyword()  # A list of UUIDs of which inputs to run
     roles = Keyword()  # A list of roles that the agent belongs to
     groups = Keyword()  # A list of UUIDs that the agent belongs to
-    active = Boolean() # Is this agent active?
-    ip_address = Ip() # The IP address of the agent
-    last_heartbeat = Date() # The last time this agent was heard from
-    healthy = Boolean() # Is the agent in a healthy state?
-    health_issues = Keyword() # A list of issues that have been found with the agent
+    active = Boolean()
+    ip_address = Ip()
+    last_heartbeat = Date()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -37,15 +35,6 @@ class Agent(base.BaseDocument):
         settings = {
             'refresh_interval': '1s'
         }
-
-    @property
-    def all_input_ids(self):
-        inputs = [input.uuid for input in self._inputs]
-        groups = AgentGroup.get_by_uuid(uuid=self.groups)
-        for group in groups:
-            if group.inputs:
-                inputs += group.inputs
-        return list(inputs)
 
     @property
     def _input_count(self):
