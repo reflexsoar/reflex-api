@@ -7,17 +7,35 @@ import json
 import datetime
 import threading
 from queue import Queue
+from uuid import uuid4
 
 from app.api_v2.model.system import ObservableHistory, Settings
+from app.api_v2.model.user import Organization
 from flask import current_app
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
-from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus
+from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus, EventComment
 from ..model.exceptions import EventRuleFailure
 from ..utils import token_required, user_has, log_event
 from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged, mod_user_list
 from ... import ep, memcached_client
 
 api = Namespace('Events', description='Event related operations', path='/event')
+
+
+mod_event_comment = api.model('EventComment', {
+    'comment': fields.String(required=True, description='The comment to add to the event')
+})
+
+mod_event_comment_detailed = api.model('EventCommentDetailed', {
+    'uuid': fields.String,
+    'comment': fields.String,
+    'created_at': ISO8601,
+    'created_by': fields.String,
+})
+
+mod_event_comments = api.model('EventComments', {
+    'comments': fields.List(fields.Nested(mod_event_comment_detailed))
+})
 
 mod_bulk_event_uuids = api.model('BulkEventUUIDs', {
     'events': fields.List(fields.String),
@@ -56,7 +74,8 @@ mod_event_create = api.model('EventCreate', {
     'signature': fields.String,
     'observables': fields.List(fields.Nested(mod_observable_create)),
     'raw_log': fields.String,
-    'detection_id': fields.String
+    'detection_id': fields.String,
+    'risk_score': fields.Integer(default=0)
 })
 
 mod_event_list = api.model('EventList', {
@@ -106,6 +125,7 @@ mod_event_bulk_dismiss_by_filter = api.model('EventBulkDismissByFilter', {
     'filter': fields.String,
     'dismiss_reason_uuid': fields.String,
     'dismiss_comment': fields.String,
+    'tuning_advice': fields.String,
     'uuids': fields.List(fields.String)
 })
 
@@ -116,6 +136,7 @@ mod_event_details = api.model('EventDetails', {
     'description': fields.String(required=True),
     'tlp': fields.Integer,
     'severity': fields.Integer,
+    'risk_score': fields.Integer,
     'status': fields.Nested(mod_event_status),
     'source': fields.String,
     'tags': fields.List(fields.String),
@@ -129,6 +150,7 @@ mod_event_details = api.model('EventDetails', {
     'signature': fields.String,
     'dismiss_reason': fields.String,
     'dismiss_comment': fields.String,
+    'tuning_advice': fields.String,
     'event_rules': fields.List(fields.String),
     'original_date': ISO8601(attribute='original_date'),
     'detection_id': fields.String,
@@ -858,11 +880,17 @@ class CreateBulkEvents(Resource):
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
                 if not check_cache(event['reference'], client=client):
-                    ep.enqueue(event)
+                    if ep.dedicated_workers:
+                        ep.to_kafka_topic(event)
+                    else:
+                        ep.enqueue(event)
             
             # Signal the end of the task
             # The Event Processor will use this event to close the running task
-            ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+            if ep.dedicated_workers:
+                ep.to_kafka_topic({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+            else:
+                ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
 
             end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
             total_process_time = end_bulk_process_dt - start_bulk_process_dt
@@ -986,10 +1014,8 @@ class EventBulkDismiss(Resource):
         status = EventStatus.get_by_name(name='Dismissed', organization=reason.organization)
         reason = CloseReason.get_by_uuid(api.payload['dismiss_reason_uuid'])
 
-        print(current_user.username, current_user.organization, current_user.uuid)
-
         ubq = ubq.script(
-            source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;if(ctx._source.dismissed_by == null) { ctx._source.dismissed_by = [:];}\nctx._source.dismissed_by.username = params.dismissed_by_username;ctx._source.dismissed_by.organization = params.dismissed_by_organization;ctx._source.dismissed_by.uuid = params.dismissed_by_uuid;",
+            source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;if(params.tuning_advice != null) { if (ctx._source.tuning_advice == null) { ctx._source.tuning_advice = '';}ctx._source.tuning_advice = params.tuning_advice;}if(ctx._source.dismissed_by == null) { ctx._source.dismissed_by = [:];}\nctx._source.dismissed_by.username = params.dismissed_by_username;ctx._source.dismissed_by.organization = params.dismissed_by_organization;ctx._source.dismissed_by.uuid = params.dismissed_by_uuid;",
             #source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;DateTimeFormatter dtf = DateTimeFormatter.ofPattern(\"yyyy-MM-dd'T'HH:mm:ss.SSSSSS\").withZone(ZoneId.of('UTC'));ZonedDateTime zdt = ZonedDateTime.parse(params.dismissed_at, dtf);ZonedDateTime zdt2 = ZonedDateTime.parse(ctx._source.created_at, dtf);Instant Currentdate = Instant.ofEpochMilli(zdt.getMillis());Instant Startdate = Instant.ofEpochMilli(zdt2.getMillis());ctx._source.time_to_dismiss = ChronoUnit.SECONDS.between(Startdate, Currentdate);",
             params={
                 'dismiss_comment': api.payload['dismiss_comment'],
@@ -999,11 +1025,11 @@ class EventBulkDismiss(Resource):
                 'dismissed_at': datetime.datetime.utcnow(),
                 'dismissed_by_username': current_user.username,
                 'dismissed_by_organization': current_user.organization,
-                'dismissed_by_uuid': current_user.uuid
+                'dismissed_by_uuid': current_user.uuid,
+                'tuning_advice': api.payload['tuning_advice'] if 'tuning_advice' in api.payload else None
             }
         )
         
-        print(json.dumps(ubq.to_dict(), default=str))
         ubq = ubq.params(slices='auto', refresh=True)
 
         events = list(search.scan())
@@ -1064,7 +1090,7 @@ class EventBulkDismiss(Resource):
                 api.abort(400, 'Bulk actions across organizations is unsupported')
 
             rubq = rubq.script(
-                source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;if(ctx._source.dismissed_by == null) { ctx._source.dismissed_by = [:];}\nctx._source.dismissed_by.username = params.dismissed_by_username;ctx._source.dismissed_by.organization = params.dismissed_by_organization;ctx._source.dismissed_by.uuid = params.dismissed_by_uuid;",
+                source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;if(params.tuning_advice != null) { if (ctx._source.tuning_advice == null) { ctx._source.tuning_advice = '';}ctx._source.tuning_advice = params.tuning_advice;}if(ctx._source.dismissed_by == null) { ctx._source.dismissed_by = [:];}\nctx._source.dismissed_by.username = params.dismissed_by_username;ctx._source.dismissed_by.organization = params.dismissed_by_organization;ctx._source.dismissed_by.uuid = params.dismissed_by_uuid;",
                 #source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;DateTimeFormatter dtf = DateTimeFormatter.ofPattern(\"yyyy-MM-dd'T'HH:mm:ss.SSSSSS\").withZone(ZoneId.of('UTC'));ZonedDateTime zdt = ZonedDateTime.parse(params.dismissed_at, dtf);ZonedDateTime zdt2 = ZonedDateTime.parse(ctx._source.created_at, dtf);Instant Currentdate = Instant.ofEpochMilli(zdt.getMillis());Instant Startdate = Instant.ofEpochMilli(zdt2.getMillis());ctx._source.time_to_dismiss = ChronoUnit.SECONDS.between(Startdate, Currentdate);",
                 params={
                     'dismiss_comment': api.payload['dismiss_comment'],
@@ -1074,7 +1100,8 @@ class EventBulkDismiss(Resource):
                     'dismissed_at': datetime.datetime.utcnow(),
                     'dismissed_by_username': current_user.username,
                     'dismissed_by_organization': current_user.organization,
-                    'dismissed_by_uuid': current_user.uuid
+                    'dismissed_by_uuid': current_user.uuid,
+                    'tuning_advice': api.payload['tuning_advice'] if 'tuning_advice' in api.payload else None
                 }
             )
             rubq = rubq.params(slices='auto', refresh=True)
@@ -1167,7 +1194,11 @@ class EventBulkUpdate(Resource):
                                 }
                             }
 
-                ep.enqueue(event_dict)
+                
+                if ep.dedicated_workers:
+                    ep.to_kafka_topic(event_dict)
+                else:
+                    ep.enqueue(event_dict)
                 event_count += 1
                 if related_events:
                     for related in related_events:
@@ -1184,15 +1215,81 @@ class EventBulkUpdate(Resource):
                                     'uuid': current_user.uuid
                                 }
                             }
-                            ep.enqueue(related_dict)
+                            if ep.dedicated_workers:
+                                ep.to_kafka_topic(related_dict)
+                            else:
+                                ep.enqueue(related_dict)
                             event_count += 1
 
             # Signal the end of the task
             # The Event Processor will use this event to close the running task
             task.set_message(f'{event_count} Events marked for bulk dismissal')
-            ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+
+            if ep.dedicated_workers:
+                ep.to_kafka_queue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+            else:
+                ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
 
         return {'task_id': str(task_id)}
+
+
+@api.route("/<uuid>/comment")
+class EventComment(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_event_comments)
+    @token_required
+    @user_has('view_events')
+    def get(self, uuid, current_user):
+
+        event = Event.get_by_uuid(uuid)
+
+        if not event:
+            api.abort(404, 'Event not found.')
+
+        return event
+    
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_event_comment_detailed)
+    @api.expect(mod_event_comment)
+    @token_required
+    @user_has('update_event')
+    def post(self, uuid, current_user):
+
+        event = Event.get_by_uuid(uuid)
+
+        if not event:
+            api.abort(404, 'Event not found')
+
+        comment = {
+            'uuid': uuid4(),
+            'comment': api.payload['comment'],
+            'organization': event.organization,
+            'created_by': current_user.username,
+            'created_at': datetime.datetime.utcnow(),
+        }
+
+        event.add_comment(comment=comment)
+        event.save()
+        return comment
+
+
+@api.route("/<uuid>/comment/<comment_uuid>")
+class EventCommentDelete(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('update_event')
+    def delete(self, uuid, comment_uuid, current_user):
+
+        event = Event.get_by_uuid(uuid)
+
+        if not event:
+            api.abort(404, 'Event not found')
+
+        event.remove_comment(comment_uuid)
+        event.save()
 
 
 @api.route("/<uuid>")
@@ -1229,8 +1326,11 @@ class EventDetails(Resource):
             comment = None
             if 'dismiss_comment' in api.payload and api.payload['dismiss_comment'] != '':
                 comment = api.payload['dismiss_comment']
+
+            if 'tuning_advice' in api.payload and api.payload['tuning_advice'] not in ['',None]:
+                advice = api.payload['tuning_advice']
             
-            event.set_dismissed(reason, comment=comment)
+            event.set_dismissed(reason, comment=comment, advice=advice)
             return {'message':'Successfully dismissed event'}, 200
         else:
             return {}
@@ -1312,7 +1412,7 @@ class EventStats(Resource):
         if not args.start:
             args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
         if not args.end:
-            args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
+            args.end = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
         
         search_filters = []
 
@@ -1447,6 +1547,37 @@ class EventStats(Resource):
 
             observable_search = observable_search.execute()"""
 
+        events_by_day_by_org_series = []
+
+        if 'events_over_time' in args.metrics and hasattr(current_user, 'default_org') and current_user.default_org:
+            events_over_time_by_org = Event.search()
+
+            events_over_time_by_org = events_over_time_by_org[0:0]
+
+            events_over_time_by_org.aggs.bucket('range', 'filter', range={'original_date': {
+                'gte': (datetime.datetime.utcnow()-datetime.timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%S'),
+                'lte': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
+            }})
+
+            events_over_time_by_org.aggs['range'].bucket('organizations', 'terms', field='organization')
+            events_over_time_by_org.aggs['range']['organizations'].bucket('events_per_day', 'date_histogram', field='original_date', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
+
+            events_over_time_by_org = events_over_time_by_org.execute()
+
+            organizations = Organization.search()
+            organizations = organizations.scan()
+            organization_list = {o.uuid: o.name for o in organizations}
+
+            data = {v['key']: [] for v in events_over_time_by_org.aggs.range.organizations.buckets}
+            for k, v in data.items():
+                for bucket in events_over_time_by_org.aggs.range.organizations:
+                    for b in bucket.events_per_day.buckets:
+                        data[bucket['key']].append({
+                            'x': b['key_as_string'],
+                            'y': b['doc_count']})
+
+            events_by_day_by_org_series = [{'name': organization_list[k], 'data': v} for k, v in data.items()]            
+
         if 'events_over_time' in args.metrics:
             events_over_time = Event.search()
        
@@ -1460,6 +1591,8 @@ class EventStats(Resource):
             events_over_time.aggs['range'].bucket('events_per_day', 'date_histogram', field='original_date', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
 
             events_over_time = events_over_time.execute()
+
+            
 
         if 'time_per_status_over_time' in args.metrics:
             time_per_status_over_time = Event.search()
@@ -1524,6 +1657,9 @@ class EventStats(Resource):
             data['avg_time_to_act']  = {v['key_as_string']: {x['key']: x['avg_time_to_act']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
             data['avg_time_to_dismiss']  = {v['key_as_string']: {x['key']: x['avg_time_to_dismiss']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
             data['avg_time_to_close']  = {v['key_as_string']: {x['key']: x['avg_time_to_close']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
+
+        if 'events_over_time' in args.metrics and hasattr(current_user, 'default_org') and current_user.default_org:
+            data['events_by_day_by_org_series'] = events_by_day_by_org_series
 
         return data
 
@@ -1803,4 +1939,4 @@ class EventQueueStats(Resource):
     def get(self):
         worker_info = []
         worker_info = ep.worker_info()
-        return {"size": ep.qsize(), "workers": worker_info}
+        return {"size": ep.qsize(), "workers": worker_info, "respawns": ep.worker_respawns}

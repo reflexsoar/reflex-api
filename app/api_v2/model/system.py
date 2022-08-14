@@ -136,6 +136,7 @@ class Settings(base.BaseDocument):
     playbook_action_timeout = Integer()  # Default 300
     playbook_timeout = Integer()  # Default 3600
     logon_password_attempts = Integer()  # Default 5
+    logon_expire_at = Integer() # Default 6 hours
     api_key_valid_days = Integer()  # Default 366 days
     agent_pairing_token_valid_minutes = Integer()  # Default 15
     peristent_pairing_token = Text(fields={'keyword':Keyword()})

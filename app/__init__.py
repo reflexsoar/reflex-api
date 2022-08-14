@@ -28,13 +28,14 @@ from app.api_v2.model import (
     Event,Tag,ExpiredToken,Credential,Agent,ThreatList,ThreatValue,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
-        Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic, MITRETechnique
+        Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,
+        MITRETechnique, EventView
 )
 
 from .defaults import (
     create_default_case_status, create_admin_role, create_default_organization, initial_settings, create_agent_role,
     create_default_closure_reasons, create_default_case_templates, create_default_data_types,
-    create_default_event_status, create_analyst_role,create_admin_user
+    create_default_event_status, create_analyst_role,create_admin_user, set_install_uuid, send_telemetry
 )
 
 REFLEX_VERSION = '0.1.4'
@@ -110,7 +111,8 @@ def upgrade_indices(app):
         Event,Tag,ExpiredToken,Credential,Agent,ThreatList,ThreatValue,EventStatus,EventRule,
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
-        Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,MITRETechnique
+        Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,MITRETechnique,
+        EventView
         ]
 
     for model in models:
@@ -136,33 +138,37 @@ def setup_complete():
     es = connections.get_connection()
     return es.indices.exists('reflex-settings')
 
-def setup(app):
+def setup(app, check_for_default=False):
     '''
     Performs initial setup by setting defaults
     '''
 
-    app.logger.info("Creating default organization")
-    org_id = create_default_organization(Organization)
-    app.logger.info("Creating default admin user")
-    admin_id = create_admin_user(User, org_id)
-    app.logger.info("Creating default admin role")
-    create_admin_role(Role, admin_id, org_id, org_perms=True)
-    app.logger.info("Creating default analyst role")
-    create_analyst_role(Role, org_id, org_perms=True)
-    app.logger.info("Creating default agent role")
-    create_agent_role(Role,org_id)
-    app.logger.info("Creating default data types")
-    create_default_data_types(DataType,org_id)
-    app.logger.info("Creating default case and event closure reasons")
-    create_default_closure_reasons(CloseReason, org_id)
-    app.logger.info("Creating default case statuses")
-    create_default_case_status(CaseStatus,org_id )
-    app.logger.info("Creating default event statuses")
-    create_default_event_status(EventStatus,org_id)
-    app.logger.info("Creating default case templates")
-    create_default_case_templates(CaseTemplate, org_id)
-    app.logger.info("Creating default settings for default organization")
-    initial_settings(Settings, org_id)
+    if not check_for_default:
+        app.logger.info("Creating default organization")
+        org_id = create_default_organization(Organization)
+        app.logger.info("Creating default admin user")
+        admin_id = create_admin_user(User, org_id)
+        app.logger.info("Creating default admin role")
+        create_admin_role(Role, admin_id, org_id, org_perms=True)
+        app.logger.info("Creating default analyst role")
+        create_analyst_role(Role, org_id, org_perms=True)
+        app.logger.info("Creating default agent role")
+        create_agent_role(Role,org_id)
+        app.logger.info("Creating default data types")
+        create_default_data_types(DataType,org_id)
+        app.logger.info("Creating default case and event closure reasons")
+        create_default_closure_reasons(CloseReason, org_id)
+        app.logger.info("Creating default case statuses")
+        create_default_case_status(CaseStatus,org_id )
+        app.logger.info("Creating default event statuses")
+        create_default_event_status(EventStatus,org_id)
+        app.logger.info("Creating default case templates")
+        create_default_case_templates(CaseTemplate, org_id)
+        app.logger.info("Creating default settings for default organization")
+        initial_settings(Settings, org_id)
+    else:
+        create_default_closure_reasons(CloseReason, org_id=None, check_for_default=check_for_default)
+
     return 
 
 
@@ -221,8 +227,13 @@ def create_app(environment='development'):
             if not recovery_mode:
                 setup(app)
         else:
+            setup(app, check_for_default=True)
             app.logger.info("Setup already complete, upgrading indices if required")
             upgrade_indices(app)
+
+    if not app.config['DISABLE_TELEMETRY']:
+        set_install_uuid()
+        send_telemetry()
 
     if app.config['ELASTIC_APM_ENABLED']:
         app.config['ELASTIC_APM'] = {
