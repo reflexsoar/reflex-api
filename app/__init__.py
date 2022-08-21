@@ -12,6 +12,7 @@ from app.services.threat_list_poller.base import ThreatListPoller
 from app.services.housekeeper import HouseKeeper
 from app.services.event_processor import EventProcessor
 from app.services.mitre import MITREAttack
+from app.services.notifier import Notifier
 from multiprocessing import Queue
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -29,7 +30,7 @@ from app.api_v2.model import (
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
         Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,
-        MITRETechnique, EventView
+        MITRETechnique, EventView, NotificationChannel, Notification
 )
 
 from .defaults import (
@@ -58,6 +59,7 @@ scheduler = BackgroundScheduler()
 apm = ElasticAPM()
 ep = EventProcessor()
 memcached_client = MemcachedClient()
+notifier = Notifier()
 
 def migrate(app, ALIAS, move_data=True, update_alias=True):
     '''
@@ -112,7 +114,7 @@ def upgrade_indices(app):
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
         Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,MITRETechnique,
-        EventView
+        EventView, NotificationChannel, Notification
         ]
 
     for model in models:
@@ -201,6 +203,8 @@ def create_app(environment='development'):
     app.config.from_object(app_config[os.getenv('FLASK_CONFIG', environment)])
     app.config.from_pyfile('application.conf', silent=True)
 
+    print(app.config)
+
     #app.logger.propagate = False
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     gunicorn_logger = logging.getLogger('gunicorn.error')
@@ -287,6 +291,11 @@ def create_app(environment='development'):
         ep.init_app(app)
         ep.set_log_level(app.config['EVENT_PROCESSOR']['LOG_LEVEL'])
         ep.spawn_workers()
+
+    if not app.config['NOTIFIER']['DISABLED']:
+        notifier.init_app(app)
+        notifier.set_log_level(app.config['NOTIFIER']['LOG_LEVEL'])
+        notifier.start_polling()
 
     from app.api_v2.resources import api2
     api2.authorizations = authorizations
