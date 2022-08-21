@@ -69,31 +69,28 @@ class Notifier(object):
         Checks the notification queue to see if there are any to send
         '''
 
-        while True:
-            notifications = Notification.search()
-            notifications = notifications.filter(
-                'term', sent=False)  # Only send unsent notifications
-            notifications = notifications.filter('match', closed=False)
-            notifications = notifications.scan()
-            notifications = notifications.execute()
 
-            if notifications:
-                for notification in notifications:
+        notifications = Notification.search()
+        notifications = notifications.filter(
+            'term', sent=False)  # Only send unsent notifications
+        notifications = notifications.filter('match', closed=False)
+        notifications = notifications.scan()
 
-                    # If an incorrect notification type is assigned reject the notification
-                    if notification.channel_type not in NOTIFICATION_CHANNEL_TYPES:
-                        notification.send_failed(
-                            message='Invalid channel type')
+        if notifications:
+            for notification in notifications:
 
-                    # If the notification type is not mapped to a function reject the notification
-                    if notification.channel_type not in self.notification_type_mapping:
-                        notification.send_failed(
-                            message='Channel type not mapped to a notifier function')
-                    else:
-                        self.notification_type_mapping[notification.channel_type](
-                            notification)
+                # If an incorrect notification type is assigned reject the notification
+                if notification.channel_type not in NOTIFICATION_CHANNEL_TYPES:
+                    notification.send_failed(
+                        message='Invalid channel type')
 
-            time.sleep(self.config['POLL_INTERVAL'])
+                # If the notification type is not mapped to a function reject the notification
+                if notification.channel_type not in self.notification_type_mapping:
+                    notification.send_failed(
+                        message='Channel type not mapped to a notifier function')
+                else:
+                    self.notification_type_mapping[notification.channel_type](
+                        notification)
 
     def send_email(self, sender: str, users: list, subject: str, recipients: list = []):
         '''

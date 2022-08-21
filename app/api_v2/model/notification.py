@@ -11,7 +11,8 @@ from . import (
     Integer,
     Text,
     base,
-    Nested
+    Nested,
+    InnerDoc
 )
 
 
@@ -20,7 +21,7 @@ NOTIFICATION_CHANNEL_TYPES = [
 ]
 
 
-class PagerDutyWebhook(base.BaseDocument):
+class PagerDutyWebhook(InnerDoc):
     '''
     A simple configuration for creating incidents via PagerDuty
     '''
@@ -29,26 +30,22 @@ class PagerDutyWebhook(base.BaseDocument):
     message_template = Keyword()  # The message template to use when creating an incident
 
 
-class EmailNotification(base.BaseDocument):
+class EmailNotification(InnerDoc):
     '''
     Stores the configuration for an e-mail based notification channel
     '''
 
-    username = Keyword()
-    password = Keyword()
-    smtp_server = Keyword()
-    smtp_port = Keyword()
-    use_tls = Boolean()
-    message_template = Keyword()
-
-    def set_password(self, password):
-        '''
-        Encrypts the password for the Email
-        '''
-        raise NotImplementedError
+    credential = Keyword()  # The credential to use when sending the e-mail
+    mail_from = Keyword() # The e-mail address to send the e-mail from
+    subject = Keyword() # The subject of the e-mail
+    mail_to = Keyword() # The e-mail address to send the e-mail to
+    smtp_server = Keyword() # The SMTP server to use when sending the e-mail
+    smtp_port = Keyword() # The SMTP port to use when sending the e-mail
+    use_tls = Boolean() # Whether to use TLS when sending the e-mail
+    message_template = Keyword() # The message template to use when sending the e-mail
 
 
-class TeamsWebhook(base.BaseDocument):
+class TeamsWebhook(InnerDoc):
     '''
     A simple configuration for a Teams notification channel
     '''
@@ -57,7 +54,7 @@ class TeamsWebhook(base.BaseDocument):
     message_template = Keyword()  # The message template to use when creating a message
 
 
-class SlackWebhook(base.BaseDocument):
+class SlackWebhook(InnerDoc):
     '''
     A simple configuration for a Slack notification channel
     '''
@@ -85,7 +82,10 @@ class NotificationChannel(base.BaseDocument):
     enabled = Boolean()
     description = Keyword(fields={'Text': Text()})
     channel_type = Keyword()
-    configuration = Nested(dynamic=True)
+    email_configuration = Nested(EmailNotification)
+    slack_configuration = Nested(SlackWebhook)
+    teams_configuration = Nested(TeamsWebhook)
+    pagerduty_configuration = Nested(PagerDutyWebhook)
     max_messages = Integer()  # The max number of notifications to send per minute
     # How long the notifier should back off on this channel if max_messages is exceeded
     backoff = Integer()
@@ -100,6 +100,39 @@ class NotificationChannel(base.BaseDocument):
             raise ValueError('Invalid channel type')
 
         super().save(skip_update_by=skip_update_by, **kwargs)
+
+
+    @classmethod
+    def get_by_name(cls, name, organization=None):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = cls.search()
+        response = response.filter('term', name=name)
+        
+        if organization:
+            response = response.filter('term', organization=organization)
+
+        response = response.execute()
+        if response:
+            response = response[0]
+            return response
+        return response
+
+
+    @classmethod
+    def get_by_organization(cls, organization):
+        '''
+        Fetches a document by the organization field
+        '''
+        response = cls.search()
+        response = response.filter('term', organization=organization)
+        response = list(response.scan())
+
+        if len(response) > 0:
+            return response
+        return []
 
 
 class Notification(base.BaseDocument):
@@ -138,5 +171,19 @@ class Notification(base.BaseDocument):
         self.success = True
         self.time_sent = datetime.datetime.utcnow()
         self.save()
+
+
+    @classmethod
+    def get_by_organization(cls, organization):
+        '''
+        Fetches a document by the organization field
+        '''
+        response = cls.search()
+        response = response.filter('term', organization=organization)
+        response = list(response.scan())
+
+        if len(response) > 0:
+            return response
+        return []
 
 

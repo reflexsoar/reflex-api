@@ -42,6 +42,7 @@ class Credential(base.BaseDocument):
         )
         return base64.urlsafe_b64encode(kdf.derive(secret))
 
+
     def encrypt(self, message: bytes, secret: str, iterations: int = 100_000) -> bytes:
         iterations = 100_000
         salt = secrets.token_bytes(16)

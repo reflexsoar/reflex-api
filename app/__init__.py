@@ -203,8 +203,6 @@ def create_app(environment='development'):
     app.config.from_object(app_config[os.getenv('FLASK_CONFIG', environment)])
     app.config.from_pyfile('application.conf', silent=True)
 
-    print(app.config)
-
     #app.logger.propagate = False
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     gunicorn_logger = logging.getLogger('gunicorn.error')
@@ -287,15 +285,15 @@ def create_app(environment='development'):
         scheduler.start()
         atexit.register(lambda: scheduler.shutdown())
 
+    if not app.config['NOTIFIER']['DISABLED']:
+        notifier.init_app(app)
+        notifier.set_log_level(app.config['NOTIFIER']['LOG_LEVEL'])
+        scheduler.add_job(func=notifier.check_notifications, trigger="interval", seconds=app.config['NOTIFIER']['POLL_INTERVAL'])
+
     if not app.config['EVENT_PROCESSOR']['DISABLED']:
         ep.init_app(app)
         ep.set_log_level(app.config['EVENT_PROCESSOR']['LOG_LEVEL'])
         ep.spawn_workers()
-
-    if not app.config['NOTIFIER']['DISABLED']:
-        notifier.init_app(app)
-        notifier.set_log_level(app.config['NOTIFIER']['LOG_LEVEL'])
-        notifier.start_polling()
 
     from app.api_v2.resources import api2
     api2.authorizations = authorizations
