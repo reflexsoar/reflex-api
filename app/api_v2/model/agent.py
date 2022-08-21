@@ -13,10 +13,11 @@ from . import (
     user,
     base,
     inout,
+    InnerDoc
 )
 
 
-class RunnerRoleConfig(base.InnerDoc):
+class RunnerRoleConfig(InnerDoc):
     '''
     Contains information about the Runner role configuration
     '''
@@ -28,7 +29,7 @@ class RunnerRoleConfig(base.InnerDoc):
     logging_level = Keyword() # What logging level should the role use for its logs?
 
 
-class DetectorRoleConfig(base.InnerDoc):
+class DetectorRoleConfig(InnerDoc):
     '''
     Contains information about the Detector role configuration
     '''
@@ -41,7 +42,7 @@ class DetectorRoleConfig(base.InnerDoc):
     logging_level = Keyword() # What logging level should the role use for its logs?
     
 
-class PollerRoleConfig(base.InnerDoc):
+class PollerRoleConfig(InnerDoc):
     '''
     Contains information about the Poller role configuration
     '''
