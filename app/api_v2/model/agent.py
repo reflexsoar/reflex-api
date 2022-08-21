@@ -8,11 +8,72 @@ from . import (
     Ip,
     Date,
     Boolean,
+    Integer,
     Text,
     user,
     base,
     inout,
 )
+
+
+class RunnerRoleConfig(base.InnerDoc):
+    '''
+    Contains information about the Runner role configuration
+    '''
+
+    concurrent_actions = Integer() # How many actions can a single runner run concurrently
+    graceful_exit = Boolean() # Should the runner attempt a graceful exit when the runner is asked to shut down?
+    wait_interval = Integer() # How long should the runner wait to fetch new actions when no work is available?
+    plugin_poll_interval = Integer() # How often should the runner poll for new plugins?
+    logging_level = Keyword() # What logging level should the role use for its logs?
+
+
+class DetectorRoleConfig(base.InnerDoc):
+    '''
+    Contains information about the Detector role configuration
+    '''
+
+    concurrent_rules = Integer() # How many rules can a single detector run concurrently
+    graceful_exit = Boolean() # Should the detector attempt a graceful exit when the detector is asked to shut down?
+    catchup_period = Integer() # How far back should a detection rule look if its interval was missed
+    wait_interval = Integer() # How often should the detector wait between detection runs
+    max_threshold_events = Integer() # How many events should a detector send when a threshold rule is matched?
+    logging_level = Keyword() # What logging level should the role use for its logs?
+    
+
+class PollerRoleConfig(base.InnerDoc):
+    '''
+    Contains information about the Poller role configuration
+    '''
+
+    concurrent_inputs = Integer() # How many inputs can a single poller run concurrently
+    graceful_exit = Boolean() # Should the poller attempt a graceful exit when the poller is asked to shut down?
+    logging_level = Keyword() # What logging level should the role use for its logs?
+    max_input_attempts = Integer() # How many times should the poller attempt to read an input before giving up?
+
+
+class AgentPolicy(base.BaseDocument):
+    '''
+    A Reflex agent policy that controls all the configuration of an agent
+    from the central management console.  Policy settings can be changed locally
+    at the agent using agent parameters at run time or using environmental 
+    variables
+    '''
+
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
+        name = 'reflex-agent-policies'
+        settings = {
+            'refresh_interval': '1s'
+        }
+
+    name = Keyword() # What is a friendly name for this agent policy
+    roles = Keyword() # What roles do agents assigned to this policy have
+    health_check_interval = Integer() # How often should the agent check in with the server?
+    logging_level = Keyword() # What logging level should the agent use for its logs?
+    max_intel_db_size = Integer() # How much space should the agent use for its intelligence database?
+    event_realert_ttl = Integer() # How long should an event signature be kept in the cache before it is realerted?
+
 
 class Agent(base.BaseDocument):
     '''
@@ -30,6 +91,7 @@ class Agent(base.BaseDocument):
     last_heartbeat = Date() # The last time this agent was heard from
     healthy = Boolean() # Is the agent in a healthy state?
     health_issues = Keyword() # A list of issues that have been found with the agent
+    agent_policy = Keyword() # The agent policy that controls this agent
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -140,6 +202,7 @@ class AgentGroup(base.BaseDocument):
     description = Text(fields={'keyword':Keyword()})
     agents = Keyword()
     inputs = Keyword() # A list of UUIDs of which inputs to run
+    agent_policy = Keyword() # The agent policy that controls agents in this group
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
