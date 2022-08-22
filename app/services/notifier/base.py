@@ -3,7 +3,7 @@ import logging
 import time
 import pymsteams
 import chevron
-from app.api_v2.model import Notification, NotificationChannel, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE, Event, Case
+from app.api_v2.model import Notification, NotificationChannel, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE, Event, Case, Settings
 
 
 class Notifier(object):
@@ -178,10 +178,13 @@ class Notifier(object):
         '''
         Sends a message to a Microsoft Teams webhook
         '''
+        
         channel_config = channel.teams_configuration
         webhook_url = channel_config['webhook_url']
         message_template = channel_config['message_template']
         teams_message = pymsteams.connectorcard(webhook_url)
+
+        settings = Settings.load(organization=channel.organization)
 
         if hasattr(notification, 'title') and notification.title:
             teams_message.title(notification.title)
@@ -192,14 +195,19 @@ class Notifier(object):
             if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
                 notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
 
+                # Add a View Event button if this was sourced from an event
+                if notification.source_object_type == 'event':
+                    teams_message.addLinkButton("View Event", f"{settings.base_url}/#/alerts/{notification.source_object_uuid}")
+
+                # Add a View Case button if this was sourced from an event
+                if notification.source_object_type == 'case':
+                    teams_message.addLinkButton("View Case", f"{settings.base_url}/#/cases/{notification.source_object_uuid}")               
+
         teams_message.text(notification.message)
 
         result = teams_message.send()
         if result:
-            notification.sent = True
-            notification.time_sent = datetime.utcnow()
-            notification.success = True
-            notification.save()
+            notification.send_success()
 
 
     def send_webhook(self, channel, notification):
