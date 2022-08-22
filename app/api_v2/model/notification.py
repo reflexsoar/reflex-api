@@ -102,6 +102,9 @@ class NotificationChannel(base.BaseDocument):
         if self.channel_type not in NOTIFICATION_CHANNEL_TYPES:
             raise ValueError('Invalid channel type')
 
+        if not self.enabled:
+            self.enabled = True
+
         super().save(skip_update_by=skip_update_by, **kwargs)
 
 
@@ -113,6 +116,9 @@ class NotificationChannel(base.BaseDocument):
 
         if self.channel_type not in NOTIFICATION_CHANNEL_TYPES:
             raise ValueError('Invalid channel type')
+
+        if not self.enabled:
+            self.enabled = True
 
         super().update(skip_update_by=skip_update_by, **kwargs)
 
@@ -226,5 +232,8 @@ class Notification(base.BaseDocument):
 
         if self.source_object_type not in SOURCE_OBJECT_TYPE:
             raise ValueError('Invalid source object type')
+
+        if not self.sent:
+            self.sent = False
 
         super().save(skip_update_by=skip_update_by, **kwargs)

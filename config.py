@@ -107,7 +107,7 @@ class Config(object):
         'DISABLED': as_bool(os.getenv('REFLEX_NOTIFIER_DISABLED', False)),
         'LOG_LEVEL': os.getenv('REFLEX_NOTIFIER_LOG_LEVEL', 'ERROR'),
         'MAX_THREADS': int(os.getenv('REFLEX_NOTIFIER_MAX_NOTIFIER_THREADS', 1)),
-        'POLL_INTERVAL': int(os.getenv('REFLEX_NOTIFIER_POLL_INTERVAL', 10)),
+        'POLL_INTERVAL': int(os.getenv('REFLEX_NOTIFIER_POLL_INTERVAL', 30)),
     }
 
     NEW_EVENT_PIPELINE = True #as_bool(os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR')) if os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR') else False

@@ -61,7 +61,8 @@ class Notifier(object):
         self.app = app
         config = self.app.config.get('NOTIFIER', {
             'LOG_LEVEL': 'DEBUG',
-            'MAX_THREADS': 1
+            'MAX_THREADS': 1,
+            'POLL_INTERVAL': 30
         })
         self.config = config
         self.set_log_level(config['LOG_LEVEL'])
@@ -114,6 +115,7 @@ class Notifier(object):
         # Attempt to find the configured notification channel
         channel = NotificationChannel.search()
         channel = channel.filter('term', uuid=notification.channel)
+        channel = channel.filter('term', enabled=True)
         channels = channel.execute()
 
         errors = []
@@ -136,6 +138,9 @@ class Notifier(object):
                     self.logger.error(error_message)
                 else:
                     _channels.append(channel)
+
+        else:
+            notification.send_failed(message=['No channels available for notification'])
         
         if len(errors) > 0 and len(_channels) > 0:
             notification.error_message = errors

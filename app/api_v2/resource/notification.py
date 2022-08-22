@@ -71,7 +71,8 @@ mod_create_notification_channel = api.model('CreateNotificationChannel', {
     'teams_configuration': fields.Nested(mod_teams_configuration),
     'pagerduty_configuration': fields.Nested(mod_pagerduty_configuration),
     'max_messages': fields.Integer,
-    'backoff': fields.Integer
+    'backoff': fields.Integer,
+    'enabled': fields.Boolean
 })
 
 mod_notification_channel = api.clone('NotificationChannelDetails', mod_create_notification_channel, {
@@ -116,6 +117,35 @@ class TestNotification(Resource):
             source_object_uuid='87bd454a-01bd-409b-889a-14cd90ba30ec'
         )
         notification.save()
+
+@api.route("/channel/<uuid>")
+class NotificationChannelDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_list_with(mod_notification_channel)
+    @api.expect(mod_create_notification_channel)
+    @token_required
+    @check_org
+    #@user_has('update_notification_channel')
+    def put(self, current_user, uuid):
+
+        if 'organization' in api.payload:
+            channel = NotificationChannel.get_by_uuid(uuid, organization=api.payload['organization'])
+        else:
+            channel = NotificationChannel.get_by_uuid(uuid)
+
+        print(channel, api.payload)
+        if channel:
+
+            if 'name' in api.payload:
+                existing_channel = NotificationChannel.get_by_name(name=api.payload['name'], organization=channel.organization)
+                if existing_channel:
+                    api.abort(409, f"A channel with the name \"{api.payload['name']}\" already exists")
+
+            channel.update(**api.payload)
+
+        return channel
+
 
 @api.route("/channel")
 class NotificationChannelList(Resource):
