@@ -3,7 +3,9 @@ from ..utils import page_results, token_required, user_has, ip_approved, check_o
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from flask import current_app
 from .shared import mod_pagination, ISO8601, JSONField, mod_user_list
-from app.api_v2.model import NotificationChannel, Notification, NOTIFICATION_CHANNEL_TYPES, Credential
+from app.api_v2.model import (
+    NotificationChannel, Notification, NOTIFICATION_CHANNEL_TYPES, Credential, notification
+)
 
 api = Namespace('Notification', description='Notification Channels and Notifications',
                 path='/notification', strict=True)
@@ -27,6 +29,10 @@ mod_notification = api.model('NotificationDetails', {
     'error_message': fields.List(fields.String),
     'channel': fields.String,
     'viewed': fields.Boolean,
+    'source_object_type': fields.String,
+    'source_object_uuid': fields.String,
+    'message': fields.String,
+    'title': fields.String,
 })
 
 mod_email_configuration = api.model('EmailConfiguration', {
@@ -69,8 +75,11 @@ mod_create_notification_channel = api.model('CreateNotificationChannel', {
 })
 
 mod_notification_channel = api.clone('NotificationChannelDetails', mod_create_notification_channel, {
+    'uuid': fields.String,
     'created_at': ISO8601,
-    'created_by': fields.Nested(mod_user_list)
+    'created_by': fields.Nested(mod_user_list),
+    'updated_at': ISO8601,
+    'updated_by': fields.Nested(mod_user_list)
 })
 
 mod_notification_channel_paged_list = api.model('NotificationChannelPagedList', {
@@ -93,6 +102,20 @@ channel_parser.add_argument(
 channel_parser.add_argument('page_size', type=int, help='The number of items per page',
                             location='args', required=False, default=25)
 
+
+@api.route("/test")
+class TestNotification(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    def get(self, current_user):
+        notification = Notification(
+            sent=False,
+            channel='ff0bb016-173a-4241-a17c-99821d3d696a',
+            source_object_type='event',
+            source_object_uuid='87bd454a-01bd-409b-889a-14cd90ba30ec'
+        )
+        notification.save()
 
 @api.route("/channel")
 class NotificationChannelList(Resource):

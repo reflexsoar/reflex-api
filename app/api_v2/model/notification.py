@@ -19,6 +19,9 @@ from . import (
 NOTIFICATION_CHANNEL_TYPES = [
     'email', 'slack_webhook', 'pagerduty_webhook', 'teams_webhook', 'reflex', 'generic_webhook'
 ]
+SOURCE_OBJECT_TYPE = [
+    'event', 'case'
+]
 
 
 class PagerDutyWebhook(InnerDoc):
@@ -102,6 +105,18 @@ class NotificationChannel(base.BaseDocument):
         super().save(skip_update_by=skip_update_by, **kwargs)
 
 
+    def update(self, skip_update_by=False, **kwargs):
+        '''
+        Overrides the BaseDocument update() function and adds some checking on
+        the channel_types
+        '''
+
+        if self.channel_type not in NOTIFICATION_CHANNEL_TYPES:
+            raise ValueError('Invalid channel type')
+
+        super().update(skip_update_by=skip_update_by, **kwargs)
+
+
     @classmethod
     def get_by_name(cls, name, organization=None):
         '''
@@ -153,8 +168,12 @@ class Notification(base.BaseDocument):
     time_sent = DateTime()  # The time the notification was sent
     error = Boolean()  # True if there was an error sending the notification
     error_message = Keyword()  # The error message if there was an error
+    title = Keyword()
+    message = Keyword()
     channel = Keyword()  # What channel was used to send the notification
     viewed = Boolean()  # Was the notification viewed (used by Reflex internal notifications)
+    source_object_type = Keyword()
+    source_object_uuid = Keyword()
 
     def send_failed(self, message):
         '''
@@ -186,4 +205,26 @@ class Notification(base.BaseDocument):
             return response
         return []
 
+    
+    def update(self, skip_update_by=False, **kwargs):
+        '''
+        Overrides the BaseDocument update() function and adds some checking on
+        the source_item_type
+        '''
 
+        if self.source_object_type not in SOURCE_OBJECT_TYPE:
+            raise ValueError('Invalid source object type')
+
+        super().update(skip_update_by=skip_update_by, **kwargs)
+
+
+    def save(self, skip_update_by=False, **kwargs):
+        '''
+        Overrides the BaseDocument save() function and adds some checking on
+        the source_item_type
+        '''
+
+        if self.source_object_type not in SOURCE_OBJECT_TYPE:
+            raise ValueError('Invalid source object type')
+
+        super().save(skip_update_by=skip_update_by, **kwargs)

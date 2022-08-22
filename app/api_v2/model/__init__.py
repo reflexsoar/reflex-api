@@ -77,7 +77,7 @@ from .detection import (
 )
 from .task import Task
 from .mitre import MITRETactic, MITRETechnique
-from .notification import NotificationChannel, Notification, NOTIFICATION_CHANNEL_TYPES
+from .notification import NotificationChannel, Notification, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE
 
 VERSION = (2, 0, 0)
 __version__ = VERSION
@@ -126,5 +126,6 @@ __all__ = [
     EventView,
     NotificationChannel,
     Notification,
-    NOTIFICATION_CHANNEL_TYPES
+    NOTIFICATION_CHANNEL_TYPES,
+    SOURCE_OBJECT_TYPE
 ]

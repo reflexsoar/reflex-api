@@ -48,6 +48,8 @@ psutil = "*"
 python-dateutil = "*"
 flask-saml2 = "*"
 kafka-python = "*"
+pymsteams = "*"
+chevron = "*"
 
 [requires]
 python_version = "3.8"
