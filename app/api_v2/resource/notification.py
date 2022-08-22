@@ -133,8 +133,7 @@ class NotificationChannelDetails(Resource):
             channel = NotificationChannel.get_by_uuid(uuid, organization=api.payload['organization'])
         else:
             channel = NotificationChannel.get_by_uuid(uuid)
-
-        print(channel, api.payload)
+            
         if channel:
 
             if 'name' in api.payload:

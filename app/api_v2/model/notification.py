@@ -92,6 +92,24 @@ class NotificationChannel(base.BaseDocument):
     max_messages = Integer()  # The max number of notifications to send per minute
     # How long the notifier should back off on this channel if max_messages is exceeded
     backoff = Integer()
+    muted = Boolean() # If the max_messages is achieved then the notification channel will be disabled until the backoff is reset
+    muted_until = DateTime() # When the channel should be unmuted
+
+    def mute(self):
+        '''
+        Sets the channel to be disabled for the backoff period
+        '''
+        self.muted = True
+        self.muted_until = datetime.datetime.now() + datetime.timedelta(seconds=self.backoff)
+        self.save()
+
+    def unmute(self):
+        '''
+        Resets the channel to be unmuted
+        '''
+        self.muted = False
+        self.muted_until = None
+        self.save()
 
     def save(self, skip_update_by=False, **kwargs):
         '''

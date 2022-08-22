@@ -136,9 +136,12 @@ class Notifier(object):
                     error_message = f"No channel found for notification {notification.uuid}"
                     errors.append(error_message)
                     self.logger.error(error_message)
+                elif channel.muted:
+                    error_message = f"Channel {channel.uuid} is muted"
+                    errors.append(error_message)
+                    self.logger.error(error_message)
                 else:
                     _channels.append(channel)
-
         else:
             notification.send_failed(message=['No channels available for notification'])
         
