@@ -2840,10 +2840,16 @@ class EncryptPassword(Resource):
     @api2.response('400', 'Successfully created credential.')
     @api2.response('409', 'Credential already exists.')
     @token_required
+    @check_org
     @user_has('add_credential')
     def post(self, current_user):
         ''' Encrypts the password '''
-        credential = Credential.get_by_name(api2.payload['name'])
+
+        if 'organization' in api2.payload:
+            credential = Credential.get_by_name(api2.payload['name'], organization=api2.payload['organization'])
+        else:
+            credential = Credential.get_by_name(api2.payload['name'])
+
         if not credential:
             pw = api2.payload.pop('secret')
             credential = Credential(**api2.payload)

@@ -93,15 +93,7 @@ mod_notification_paged_list = api.model('NotificationPagedList', {
     'pagination': fields.Nested(mod_pagination)
 })
 
-channel_parser = api.parser()
-channel_parser.add_argument(
-    'organization', type=str, help='The organization to filter by', location='args', required=False)
-channel_parser.add_argument('enabled', type=xinputs.boolean,
-                            help='Is the channel enabled', location='args', required=False)
-channel_parser.add_argument(
-    'page', type=int, help='The page number', location='args', required=False, default=1)
-channel_parser.add_argument('page_size', type=int, help='The number of items per page',
-                            location='args', required=False, default=25)
+
 
 
 @api.route("/test")
@@ -145,6 +137,15 @@ class NotificationChannelDetails(Resource):
 
         return channel
 
+channel_parser = api.parser()
+channel_parser.add_argument(
+    'organization', type=str, help='The organization to filter by', location='args', required=False)
+channel_parser.add_argument('enabled', type=xinputs.boolean,
+                            help='Is the channel enabled', location='args', required=False)
+channel_parser.add_argument(
+    'page', type=int, help='The page number', location='args', required=False, default=1)
+channel_parser.add_argument('page_size', type=int, help='The number of items per page',
+                            location='args', required=False, default=25)
 
 @api.route("/channel")
 class NotificationChannelList(Resource):
@@ -169,6 +170,12 @@ class NotificationChannelList(Resource):
         # Filter by active or inactive channels
         if args.enabled:
             channels = channels.filter('term', enabled=args.active)
+
+        if args.organization:
+            if hasattr(current_user, 'default_org') and (current_user.organization != args.organization):
+                #channels = channels.filter('term', organization=current_user.organization+'foobar')
+            #else:
+                channels = channels.filter('term', organization=args.organization)
 
         channels, total_results, pages = page_results(
             channels, args.page, args.page_size)
