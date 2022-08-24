@@ -484,6 +484,7 @@ class UserDetails(Resource):
 
             # Allow the user to save their own password regardless of their permissions
             if 'password' in api2.payload and user.uuid == current_user.uuid:
+                pw = api2.payload.pop('password')
                 user.set_password(pw)
                 user.save()
 
