@@ -137,7 +137,12 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False):
         "create_detection": True,
         "update_detection": True,
         "view_detections": True,
-        "delete_detection": True
+        "delete_detection": True,
+        "create_notification_channel": True,
+        "view_notification_channels": True,
+        "update_notification_channel": True,
+        "delete_notification_channel": True,
+        "view_notifications": True,
     }
 
     role_contents = {
@@ -216,7 +221,12 @@ def create_analyst_role(cls, org_id, org_perms=False):
         "create_detection": True,
         "update_detection": True,
         "view_detections": True,
-        "delete_detection": True
+        "delete_detection": True,
+        "create_notification_channel": False,
+        "view_notification_channels": False,
+        "update_notification_channel": False,
+        "delete_notification_channel": False,
+        "view_notifications": True
     }
 
     role_contents = {

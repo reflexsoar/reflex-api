@@ -29,7 +29,7 @@ class Notifier(object):
         ch.setFormatter(logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
-        self.logger = logging.getLogger(f"ThreatPoller")
+        self.logger = logging.getLogger("Notifier")
         self.logger.addHandler(ch)
         self.logger.setLevel(log_levels[log_level])
 
@@ -66,7 +66,6 @@ class Notifier(object):
         })
         self.config = config
         self.set_log_level(config['LOG_LEVEL'])
-
         self.logger.info('Notifier Started')
 
 
@@ -86,9 +85,14 @@ class Notifier(object):
 
         if notifications:
             for notification in notifications:
-                channels = self.get_channels(notification)
-                for channel in channels:
-                    self.notification_type_mapping[channel.channel_type](channel,notification)
+                if not notification.is_native:
+                    channels = self.get_channels(notification)
+                    for channel in channels:
+                        self.notification_type_mapping[channel.channel_type](channel,notification)
+                else:
+                    # Send the notification via the organizations configured SMTP server
+                    # if the user has subscribed to events via SMTP
+                    pass
 
 
     def send_email(self, sender: str, users: list, subject: str, recipients: list = []):

@@ -4,6 +4,7 @@ Contains all the logic for Notification interaction with the API
 """
 
 import datetime
+from multiprocessing.sharedctypes import Value
 from xmlrpc.client import DateTime
 from . import (
     Keyword,
@@ -19,10 +20,18 @@ from . import (
 NOTIFICATION_CHANNEL_TYPES = [
     'email', 'slack_webhook', 'pagerduty_webhook', 'teams_webhook', 'reflex', 'generic_webhook'
 ]
+
 SOURCE_OBJECT_TYPE = [
     'event', 'case'
 ]
 
+NATIVE_TYPES = [
+    'case_assigned',
+    'case_severity_changed',
+    'case_closed',
+    'user_mentioned',
+    'case_comment_added'
+]
 
 class PagerDutyWebhook(InnerDoc):
     '''
@@ -198,6 +207,10 @@ class Notification(base.BaseDocument):
     viewed = Boolean()  # Was the notification viewed (used by Reflex internal notifications)
     source_object_type = Keyword()
     source_object_uuid = Keyword()
+    audience = Keyword() # The user this notification is intended for
+    is_native = Boolean() # If this is a native notification don't allow it to be sent via channels
+    use_org_smtp = Boolean() # If this is a native notification use the tenant SMTP server
+    native_type = Keyword() # case, event, mention, etc.
 
     def send_failed(self, message):
         '''
@@ -239,6 +252,18 @@ class Notification(base.BaseDocument):
         if self.source_object_type not in SOURCE_OBJECT_TYPE:
             raise ValueError('Invalid source object type')
 
+        if self.native_type not in NATIVE_TYPES:
+            raise ValueError('Invalid native type')
+
+        if not self.sent:
+            self.sent = False
+
+        if not self.is_native:
+            self.is_native = False
+
+        if self.is_native:
+            self.use_org_smtp = True
+
         super().update(skip_update_by=skip_update_by, **kwargs)
 
 
@@ -251,7 +276,16 @@ class Notification(base.BaseDocument):
         if self.source_object_type not in SOURCE_OBJECT_TYPE:
             raise ValueError('Invalid source object type')
 
+        if self.native_type not in NATIVE_TYPES:
+            raise ValueError('Invalid native type')
+
         if not self.sent:
             self.sent = False
+
+        if not self.is_native:
+            self.is_native = False
+
+        if self.is_native:
+            self.use_org_smtp = True
 
         super().save(skip_update_by=skip_update_by, **kwargs)
