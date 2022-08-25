@@ -880,7 +880,7 @@ class CreateBulkEvents(Resource):
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
                 if not check_cache(event['reference'], client=client):
-                    if ep.dedicated_workers:
+                    if hasattr(ep, 'dedicated_workers') and ep.dedicated_workers:
                         ep.to_kafka_topic(event)
                     else:
                         ep.enqueue(event)

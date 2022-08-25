@@ -62,6 +62,12 @@ mod_metric_change_config = api.model('MetricChangeConfig', {
     'increase': fields.Boolean()
 }, strict=True)
 
+mod_new_terms_config = api.model('NewTermsConfig', {
+    'key_field': fields.String,
+    'max_terms': fields.Integer,
+    'window_size': fields.Integer
+}, strict=True)
+
 mod_field_mistmatch_config = api.model('FieldMismatchConfig', {
     'source_field': fields.String,
     'target_field': fields.String,
@@ -128,6 +134,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'threshold_config': fields.Nested(mod_threshold_config),
     'metric_change_config': fields.Nested(mod_metric_change_config),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
+    'new_terms_config': fields.Nested(mod_new_terms_config),
     'created_at': ISO8601,
     'created_by': fields.Nested(mod_user_list),
     'updated_at': ISO8601,
@@ -163,7 +170,8 @@ mod_create_detection = api.model('CreateDetection', {
     'exceptions': fields.List(fields.Nested(mod_detection_exception_list)),
     'threshold_config': fields.Nested(mod_threshold_config),
     'metric_change_config': fields.Nested(mod_metric_change_config),
-    'field_mismatch_config': fields.Nested(mod_field_mistmatch_config)
+    'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
+    'new_terms_config': fields.Nested(mod_new_terms_config)
 }, strict=True)
 
 mod_update_detection = api.model('UpdateDetection', {

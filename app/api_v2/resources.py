@@ -2621,7 +2621,7 @@ class AgentHeartbeat(Resource):
                     redistribute_detections(organization=agent.organization)
 
                 # If agent was previously unhealthy and is now healthy redistribute detections
-                if api2.payload['healthy'] == True and last_agent_health == False:
+                if api2.payload['healthy'] == True and last_agent_health in [False, None]:
                     redistribute_detections(organization=agent.organization)                
 
                 return {'message': 'Your heart still beats!'}

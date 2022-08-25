@@ -72,6 +72,16 @@ class ThresholdConfig(base.InnerDoc):
     max_events = Integer() # The number of events to return when a threshold is crossed
 
 
+class NewTermsConfig(base.InnerDoc):
+    '''
+    The configuration for NewTerms
+    '''
+
+    key_field = Keyword() # The field to pull terms from
+    max_terms = Integer() # How many terms to look for in the baseline period
+    window_size = Integer() # How far back to look for the initial set of terms
+
+
 class FieldMismatchConfig(base.InnerDoc):
     '''
     A Field Mismatch rule will fire when two fields of an item returned by 
@@ -179,6 +189,7 @@ class Detection(base.BaseDocument):
     threshold_config = Object(ThresholdConfig)
     metric_change_config = Object(MetricChangeConfig)
     field_mismatch_config = Object(FieldMismatchConfig)
+    new_terms_config = Object(NewTermsConfig)
     assigned_agent = Keyword() # The UUID of the agent that should run this alarm
 
     class Index:

@@ -171,7 +171,7 @@ class EventProcessor:
         '''
         Adds an item to the queue for Event Workers to work on
         '''
-        if self.dedicated_workers:
+        if hasattr(self, 'dedicated_workers') and self.dedicated_workers:
             self.kf_producer.send(f"events-{item['organization']}", item)
         else:
             self.event_queue.put(item)
