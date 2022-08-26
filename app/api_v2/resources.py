@@ -1976,7 +1976,7 @@ class CaseTemplateList(Resource):
         case_templates = CaseTemplate.search()
 
         if args['title']:
-            case_templates = case_templates.filter('term', title=args.title)
+            case_templates = case_templates.filter('wildcard', title=f"*{args.title}*")
 
         if args['organization']:
             case_templates = case_templates.filter('term', organization=args.organization)

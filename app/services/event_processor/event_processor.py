@@ -25,6 +25,7 @@ from kafka.errors import KafkaError, InvalidPartitionsError
 #from queue import Queue
 from multiprocessing import Process, get_context, Event as mpEvent
 from app.api_v2.model import (
+    Case,
     EventRule,
     CloseReason,
     Case,
@@ -862,9 +863,35 @@ class EventWorker(Process):
                     tags.append(t)
             raw_event['tags'] = tags
 
+        # If the rule calls for making a brand new case
+        merge_into_new_case = False
+        new_case_target_uuid = None
+        if rule.create_new_case:
+            merge_into_new_case = True
+            
+            case_description = None
+            if 'description' in raw_event:
+                case_description = raw_event['description']
+                
+            case = Case(title=f"{raw_event['title']}", organization=raw_event['organization'], description=case_description)
+            case.save()
+
+            if case.events:
+                case.events.append(raw_event['uuid'])
+            else:
+                case.events = [raw_event['uuid']]
+            
+            new_case_target_uuid = case.uuid
+            if rule.case_template:
+                case.apply_template(rule.case_template)
+            
+
         # If the rule says to merge in to case
-        if rule.merge_into_case:
-            raw_event['case'] = rule.target_case_uuid
+        if rule.merge_into_case or merge_into_new_case:
+            if new_case_target_uuid:
+                raw_event['case'] = new_case_target_uuid
+            else:
+                raw_event['case'] = rule.target_case_uuid
 
             status = next((s for s in self.statuses if s.organization ==
                           raw_event['organization'] and s.name == 'Open'), None)
