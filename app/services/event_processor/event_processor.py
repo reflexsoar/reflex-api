@@ -571,7 +571,7 @@ class EventWorker(Process):
                     if self.should_exit.is_set():
                         exit()
 
-                    time.sleep(0.5)
+                    time.sleep(1)
                 else:
                     for topic_data, consumer_records in message.items():
                         for msg in consumer_records:
