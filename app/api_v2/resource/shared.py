@@ -212,6 +212,11 @@ mod_permissions = Model('Permissions', {
     'update_detection': fields.Boolean,
     'view_detections': fields.Boolean,
     'delete_detection': fields.Boolean,
+    'create_notification_channel': fields.Boolean,
+    'view_notification_channels': fields.Boolean,
+    'update_notification_channel': fields.Boolean,
+    'delete_notification_channel': fields.Boolean,
+    'view_notifications': fields.Boolean,
     'create_persistent_pairing_token': fields.Boolean,
     'use_api': fields.Boolean(optional=True)
 }, strict=True)

@@ -516,6 +516,13 @@ class Permission(InnerDoc):
     view_detection_exclusions = Boolean()
     delete_detection_exclusion = Boolean()
 
+    # Notification Channel Permissions
+    create_notification_channel = Boolean()
+    view_notification_channels = Boolean()
+    update_notification_channel = Boolean()
+    delete_notification_channel = Boolean()
+    view_notifications = Boolean()
+
 
 class Role(base.BaseDocument):
     '''

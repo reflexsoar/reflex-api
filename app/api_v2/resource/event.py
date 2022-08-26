@@ -16,7 +16,7 @@ from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus, EventComment
 from ..model.exceptions import EventRuleFailure
 from ..utils import token_required, user_has, log_event
-from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged, mod_user_list
+from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged, mod_user_list, ValueCount
 from ... import ep, memcached_client
 
 api = Namespace('Events', description='Event related operations', path='/event')
@@ -98,7 +98,8 @@ mod_event_list = api.model('EventList', {
     'raw_log': fields.Nested(mod_raw_log, attribute='_raw_log'),
     'event_rules': fields.List(fields.String),
     'original_date': ISO8601(attribute='original_date'),
-    'detection_id': fields.String
+    'detection_id': fields.String,
+    'total_comments': ValueCount(attribute='comments'),
 })
 
 mod_event_paged_list = api.model('PagedEventList', {
@@ -154,7 +155,8 @@ mod_event_details = api.model('EventDetails', {
     'event_rules': fields.List(fields.String),
     'original_date': ISO8601(attribute='original_date'),
     'detection_id': fields.String,
-    'dismissed_by': fields.Nested(mod_user_list)
+    'dismissed_by': fields.Nested(mod_user_list),
+    'total_comments': ValueCount(attribute='comments'),
 })
 
 mod_observable_update = api.model('ObservableUpdate', {
@@ -880,7 +882,7 @@ class CreateBulkEvents(Resource):
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
                 if not check_cache(event['reference'], client=client):
-                    if ep.dedicated_workers:
+                    if hasattr(ep, 'dedicated_workers') and ep.dedicated_workers:
                         ep.to_kafka_topic(event)
                     else:
                         ep.enqueue(event)
@@ -1243,6 +1245,7 @@ class EventComment(Resource):
     def get(self, uuid, current_user):
 
         event = Event.get_by_uuid(uuid)
+        event.comments.sort(key = lambda x: x['created_at'], reverse=True)
 
         if not event:
             api.abort(404, 'Event not found.')

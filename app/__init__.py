@@ -12,6 +12,7 @@ from app.services.threat_list_poller.base import ThreatListPoller
 from app.services.housekeeper import HouseKeeper
 from app.services.event_processor import EventProcessor
 from app.services.mitre import MITREAttack
+from app.services.notifier import Notifier
 from multiprocessing import Queue
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -29,7 +30,7 @@ from app.api_v2.model import (
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
         Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,
-        MITRETechnique, EventView
+        MITRETechnique, EventView, NotificationChannel, Notification
 )
 
 from .defaults import (
@@ -58,6 +59,7 @@ scheduler = BackgroundScheduler()
 apm = ElasticAPM()
 ep = EventProcessor()
 memcached_client = MemcachedClient()
+notifier = Notifier()
 
 def migrate(app, ALIAS, move_data=True, update_alias=True):
     '''
@@ -112,7 +114,7 @@ def upgrade_indices(app):
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
         Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,MITRETechnique,
-        EventView
+        EventView, NotificationChannel, Notification
         ]
 
     for model in models:
@@ -282,6 +284,11 @@ def create_app(environment='development'):
 
         scheduler.start()
         atexit.register(lambda: scheduler.shutdown())
+
+    if not app.config['NOTIFIER']['DISABLED']:
+        notifier.init_app(app)
+        notifier.set_log_level(app.config['NOTIFIER']['LOG_LEVEL'])
+        scheduler.add_job(func=notifier.check_notifications, trigger="interval", seconds=app.config['NOTIFIER']['POLL_INTERVAL'])
 
     if not app.config['EVENT_PROCESSOR']['DISABLED']:
         ep.init_app(app)

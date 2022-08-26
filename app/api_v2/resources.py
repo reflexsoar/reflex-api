@@ -80,7 +80,8 @@ from .resource import (
     ns_task_v2,
     ns_detection_v2,
     ns_mitre_v2,
-    ns_event_view_v2
+    ns_event_view_v2,
+    ns_notification_v2
 )
 
 from .. import ep
@@ -137,6 +138,7 @@ api2.add_namespace(ns_task_v2)
 api2.add_namespace(ns_detection_v2)
 api2.add_namespace(ns_mitre_v2)
 api2.add_namespace(ns_event_view_v2)
+api2.add_namespace(ns_notification_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -1974,7 +1976,7 @@ class CaseTemplateList(Resource):
         case_templates = CaseTemplate.search()
 
         if args['title']:
-            case_templates = case_templates.filter('term', title=args.title)
+            case_templates = case_templates.filter('wildcard', title=f"*{args.title}*")
 
         if args['organization']:
             case_templates = case_templates.filter('term', organization=args.organization)
@@ -2619,7 +2621,7 @@ class AgentHeartbeat(Resource):
                     redistribute_detections(organization=agent.organization)
 
                 # If agent was previously unhealthy and is now healthy redistribute detections
-                if api2.payload['healthy'] == True and last_agent_health == False:
+                if api2.payload['healthy'] == True and last_agent_health in [False, None]:
                     redistribute_detections(organization=agent.organization)                
 
                 return {'message': 'Your heart still beats!'}
@@ -2839,10 +2841,16 @@ class EncryptPassword(Resource):
     @api2.response('400', 'Successfully created credential.')
     @api2.response('409', 'Credential already exists.')
     @token_required
+    @check_org
     @user_has('add_credential')
     def post(self, current_user):
         ''' Encrypts the password '''
-        credential = Credential.get_by_name(api2.payload['name'])
+
+        if 'organization' in api2.payload:
+            credential = Credential.get_by_name(api2.payload['name'], organization=api2.payload['organization'])
+        else:
+            credential = Credential.get_by_name(api2.payload['name'])
+
         if not credential:
             pw = api2.payload.pop('secret')
             credential = Credential(**api2.payload)

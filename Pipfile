@@ -10,6 +10,7 @@ elasticsearch = "*"
 python-dotenv = "*"
 bandit = "*"
 pylint = "*"
+autopep8 = "*"
 
 [packages]
 flask = "==2.1.2"
@@ -47,6 +48,8 @@ psutil = "*"
 python-dateutil = "*"
 flask-saml2 = "*"
 kafka-python = "*"
+pymsteams = "*"
+chevron = "*"
 
 [requires]
 python_version = "3.8"

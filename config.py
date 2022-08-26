@@ -7,6 +7,16 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv()
 
 def as_bool(value):
+    '''
+    Returns a string value as a boolean
+    if the value is already boolean do a simple comparison and return'''
+
+    if value == True:
+        return True
+
+    if value == False:
+        return False
+
     return value.lower() in ['true', '1', 't']
 
 class Config(object):
@@ -91,6 +101,13 @@ class Config(object):
         'MAX_WORKERS_PER_ORGANIZATION': int(os.getenv('REFLEX_EVENT_PROCESSOR_MAX_WORKERS_PER_ORGANIZATION')) if os.getenv('REFLEX_EVENT_PROCESSOR_MAX_WORKERS_PER_ORGANIZATION') else 5,
         'KAFKA_BOOTSTRAP_SERVERS': os.getenv('REFLEX_EVENT_PROCESSOR_KAFKA_BOOTSTRAP_SERVERS') if os.getenv('REFLEX_EVENT_PROCESSOR_KAFKA_BOOTSTRAP_SERVERS') else ['localhost:9092'],
         'KAFKA_TOPIC_RETENTION': int(os.getenv('REFLEX_EVENT_PROCESSOR_KAFKA_TOPIC_RETENTION')) if os.getenv('REFLEX_EVENT_PROCESSOR_KAFKA_TOPIC_RETENTION') else 2,
+    }
+
+    NOTIFIER = {
+        'DISABLED': as_bool(os.getenv('REFLEX_NOTIFIER_DISABLED', False)),
+        'LOG_LEVEL': os.getenv('REFLEX_NOTIFIER_LOG_LEVEL', 'ERROR'),
+        'MAX_THREADS': int(os.getenv('REFLEX_NOTIFIER_MAX_NOTIFIER_THREADS', 1)),
+        'POLL_INTERVAL': int(os.getenv('REFLEX_NOTIFIER_POLL_INTERVAL', 30)),
     }
 
     NEW_EVENT_PIPELINE = True #as_bool(os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR')) if os.getenv('REFLEX_USE_NEW_EVENT_PROCESSOR') else False

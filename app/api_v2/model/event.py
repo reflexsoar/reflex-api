@@ -431,6 +431,8 @@ class EventRule(base.BaseDocument):
     rule_signature = Keyword()  # A hash of the title + user customized observable values
     target_case_uuid = Keyword() # The target case to merge this into if merge into case is selected
     merge_into_case = Boolean()
+    create_new_case = Boolean() # If true, a new case will be created for the matching events
+    case_template = Keyword() # The template to use when creating a new case
     query = Text(fields={'keyword':Keyword()}) # The RQL query to run against events
     deleted = Boolean() # A soft delete flag
     version = Integer() # A version tracking integer
