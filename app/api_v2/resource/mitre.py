@@ -69,6 +69,7 @@ mod_techniques_paged = api.model('MITRETechniquePaged', {
 
 tactic_list_parser = api.parser()
 tactic_list_parser.add_argument('name__like', location='args', type=str, required=False)
+
 tactic_list_parser.add_argument('external_id__like', location='args', type=str, required=False)
 tactic_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
@@ -92,8 +93,9 @@ class TacticList(Resource):
 
         args = tactic_list_parser.parse_args()
         
-        search = MITRETactic.search()   
+        search = MITRETactic.search()
 
+        
         if args.name__like and not args.external_id__like:
             search = search.filter('wildcard', name=f"{args.name__like}*")
 
@@ -102,6 +104,7 @@ class TacticList(Resource):
 
         if args.name__like and args.external_id__like:
             search = search.filter('bool', should=[Q('wildcard', external_id__keyword=f"{args.external_id__like.upper()}*"), Q('wildcard', name=f"*{args.name__like}*")])
+
 
         search, total_results, pages = page_results(search, args.page, args.page_size)
         tactics = search.execute()
@@ -118,6 +121,7 @@ class TacticList(Resource):
 
 technique_list_parser = api.parser()
 technique_list_parser.add_argument('name__like', location='args', type=str, required=False)
+technique_list_parser.add_argument('external_id', location='args', type=str, required=False)
 technique_list_parser.add_argument('external_id__like', location='args', type=str, required=False)
 technique_list_parser.add_argument('phase_names', location='args', required=False, type=str, action='split')
 technique_list_parser.add_argument(
@@ -143,6 +147,9 @@ class TechniqueList(Resource):
         args = technique_list_parser.parse_args()
         
         search = MITRETechnique.search()
+
+        if args.external_id:
+            search = search.filter('term', external_id__keyword=args.external_id)
 
         if args.name__like and not args.external_id__like:
             search = search.filter('wildcard', name=f"{args.name__like}*")
