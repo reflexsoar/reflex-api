@@ -240,6 +240,8 @@ detection_list_parser.add_argument(
     'techniques', location='args',  action='append', type=str, required=False)
 detection_list_parser.add_argument(
     'tactics', location='args', action='append', type=str, required=False)
+detection_list_parser.add_argument(
+    'organization', location='args', type=str, required=False)
 
 
 @api.route("")
@@ -265,6 +267,9 @@ class DetectionList(Resource):
             search = search.sort(f"-{args.sort_by}")
         else:
             search = search.sort(args.sort_by)
+
+        if args.organization:
+            search = search.filter('term', organization=args.organization)
 
         if 'active' in args and args.active in (True, False):
             search = search.filter('term', active=args.active)
