@@ -9,7 +9,8 @@ from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import (
     Detection,
     Organization,
-    Event
+    Event,
+    Q
 )
 from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
@@ -230,7 +231,17 @@ detection_list_parser.add_argument(
 detection_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 detection_list_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False)
+detection_list_parser.add_argument(
+    'sort_direction', type=str, location='args', default='asc', required=False)
+detection_list_parser.add_argument(
     'page_size', type=int, location='args', default=10, required=False)
+detection_list_parser.add_argument(
+    'techniques', location='args',  action='append', type=str, required=False)
+detection_list_parser.add_argument(
+    'tactics', location='args', action='append', type=str, required=False)
+detection_list_parser.add_argument(
+    'organization', location='args', type=str, required=False)
 
 
 @api.route("")
@@ -252,9 +263,23 @@ class DetectionList(Resource):
         args = detection_list_parser.parse_args()
 
         search = Detection.search()
+        if args.sort_direction == 'desc':
+            search = search.sort(f"-{args.sort_by}")
+        else:
+            search = search.sort(args.sort_by)
+
+        if args.organization:
+            search = search.filter('term', organization=args.organization)
 
         if 'active' in args and args.active in (True, False):
             search = search.filter('term', active=args.active)
+
+        if args.tactics and args.techniques:
+            search = search.filter('bool', must=[Q('nested', path='techniques', query={'terms': {'techniques.external_id': args.techniques}}), Q('nested', path='tactics', query={'terms': {'tactics.shortname': args.tactics}})])
+        elif args.tactics and not args.techniques:
+            search = search.filter('nested', path='tactics', query={'terms': {'tactics.shortname': args.tactics}})
+        elif args.techniques and not args.tactics:
+            search = search.filter('nested', path='techniques', query={'terms': {'techniques.external_id': args.techniques}})
 
         # If the agent parameter is provided do not page the results, load them all
         if 'agent' in args and args.agent not in (None, ''):

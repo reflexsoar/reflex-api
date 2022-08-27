@@ -61,7 +61,7 @@ class BaseDocument(Document):
             
             is_default_org = 'default_org' in current_user and current_user['default_org']
 
-            if cls.Index.name != 'reflex-organizations':
+            if cls.Index.name not in ['reflex-organizations', 'reflex-mitre-tactics', 'reflex-mitre-techniques']:
                 
                 if not is_default_org:
                     s = s.filter('term', organization=current_user['organization'])
