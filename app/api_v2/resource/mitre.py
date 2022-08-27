@@ -163,9 +163,6 @@ class TechniqueList(Resource):
         if args.phase_names and len(args.phase_names) > 0 and args.phase_names != ['']:
             search = search.filter('terms', phase_names=args.phase_names)
 
-        import json
-        print(json.dumps(search.to_dict(), indent=2))
-
         search, total_results, pages = page_results(search, args.page, args.page_size)
         techniques = search.execute()
 
