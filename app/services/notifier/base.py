@@ -227,6 +227,13 @@ class Notifier(object):
 
         return False
 
+    def send_rest_api_call(self, channel, notification): 
+        '''
+        Sends a REST API call to the defined destination
+        '''
+        return False
+         
+
     def send_reflex(self):
         '''
         Sends the notification to a users specific notification queue

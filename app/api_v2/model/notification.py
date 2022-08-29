@@ -18,7 +18,7 @@ from . import (
 
 
 NOTIFICATION_CHANNEL_TYPES = [
-    'email', 'slack_webhook', 'pagerduty_webhook', 'teams_webhook', 'reflex', 'generic_webhook'
+    'email', 'slack_webhook', 'pagerduty_webhook', 'teams_webhook', 'reflex', 'generic_webhook', 'rest_api'
 ]
 
 SOURCE_OBJECT_TYPE = [
@@ -75,6 +75,24 @@ class SlackWebhook(InnerDoc):
     message_template = Keyword()  # The message template to use when creating a message
 
 
+class APIHeader(InnerDoc):
+    '''
+    An API header
+    '''
+    key = Keyword() # The key of the header
+    value = Keyword() # The value of the header
+
+
+class CustomAPI(InnerDoc):
+    '''
+    A simple configuration for a custom API call
+    '''
+    api_url = Keyword() # The URL to send the API call to
+    headers = Nested(APIHeader) # The headers to use when making the API call
+    body = Keyword() # The body to use when making the API call
+    tls_insecure = Boolean() # Whether to use TLS when making the API call
+
+
 class NotificationChannel(base.BaseDocument):
 
     '''
@@ -98,6 +116,7 @@ class NotificationChannel(base.BaseDocument):
     slack_configuration = Nested(SlackWebhook)
     teams_configuration = Nested(TeamsWebhook)
     pagerduty_configuration = Nested(PagerDutyWebhook)
+    rest_api_configuration = Nested(CustomAPI)
     max_messages = Integer()  # The max number of notifications to send per minute
     # How long the notifier should back off on this channel if max_messages is exceeded
     backoff = Integer()

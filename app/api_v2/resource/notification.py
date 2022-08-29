@@ -61,6 +61,18 @@ mod_pagerduty_configuration = api.model('PagerDutyWebhook', {
     'message_template': fields.String
 })
 
+mod_api_header = api.model('CustomerAPIHeader', {
+    'key': fields.String,
+    'value': fields.String
+})
+
+mod_custom_api_configuration = api.model('CustomAPI', {
+    'api_url': fields.String,
+    'headers': fields.List(fields.Nested(mod_api_header)),
+    'body': fields.String,
+    'tls_insecure': fields.Boolean
+})
+
 mod_create_notification_channel = api.model('CreateNotificationChannel', {
     'organization': fields.String,
     'name': fields.String,
@@ -70,6 +82,7 @@ mod_create_notification_channel = api.model('CreateNotificationChannel', {
     'slack_configuration': fields.Nested(mod_slack_configuration),
     'teams_configuration': fields.Nested(mod_teams_configuration),
     'pagerduty_configuration': fields.Nested(mod_pagerduty_configuration),
+    'rest_api_configuration': fields.Nested(mod_custom_api_configuration),
     'max_messages': fields.Integer,
     'backoff': fields.Integer,
     'enabled': fields.Boolean
@@ -154,7 +167,7 @@ class NotificationChannelList(Resource):
     @api.marshal_with(mod_notification_channel_paged_list)
     @api.expect(channel_parser)
     @token_required
-    # @user_has('view_notification_channels')
+    @user_has('view_notification_channels')
     def get(self, current_user):
         '''
         Get a list of all notification channels
@@ -196,7 +209,7 @@ class NotificationChannelList(Resource):
     @api.expect(mod_create_notification_channel)
     @token_required
     @check_org
-    # @user_has('create_notification_channel')
+    @user_has('create_notification_channel')
     def post(self, current_user):
 
         if api.payload['channel_type'] not in NOTIFICATION_CHANNEL_TYPES:
