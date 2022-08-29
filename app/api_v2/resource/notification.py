@@ -1,5 +1,5 @@
 from ..model.user import Organization
-from ..utils import page_results, token_required, user_has, ip_approved, check_org
+from ..utils import page_results, token_required, user_has, ip_approved, check_org, strip_meta_fields
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from flask import current_app
 from .shared import mod_pagination, ISO8601, JSONField, mod_user_list
@@ -86,7 +86,7 @@ mod_create_notification_channel = api.model('CreateNotificationChannel', {
     'max_messages': fields.Integer,
     'backoff': fields.Integer,
     'enabled': fields.Boolean
-})
+}, strict=True)
 
 mod_notification_channel = api.clone('NotificationChannelDetails', mod_create_notification_channel, {
     'uuid': fields.String,
@@ -127,28 +127,44 @@ class TestNotification(Resource):
 class NotificationChannelDetails(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_list_with(mod_notification_channel)
-    @api.expect(mod_create_notification_channel)
+    @api.marshal_with(mod_notification_channel)
+    @api.expect(mod_create_notification_channel, skip_none=True)
     @token_required
+    @strip_meta_fields
     @check_org
-    #@user_has('update_notification_channel')
+    @user_has('update_notification_channel')
     def put(self, current_user, uuid):
 
+        if api.payload['channel_type'] not in NOTIFICATION_CHANNEL_TYPES:
+            api.abort(
+                400, f'Invalid channel type {api.payload["channel_type"]}.  Must be one of {NOTIFICATION_CHANNEL_TYPES}')
+
+        channel = None
         if 'organization' in api.payload:
-            channel = NotificationChannel.get_by_uuid(uuid, organization=api.payload['organization'])
+            org = Organization.get_by_uuid(api.payload['organization'])
+
+            if not org:
+                api.abort(
+                    400, f'Invalid organization "{api.payload["organization"]}"')
+
+            channel = NotificationChannel.get_by_uuid(
+                organization=api.payload['organization'], uuid=uuid)
+            existing_channel = NotificationChannel.get_by_name(
+                organization=api.payload['organization'], name=api.payload['name'])
         else:
-            channel = NotificationChannel.get_by_uuid(uuid)
-            
-        if channel:
+            channel = NotificationChannel.get_by_uuid(uuid=uuid)
+            existing_channel = NotificationChannel.get_by_name(name=api.payload['name'])
 
-            if 'name' in api.payload:
-                existing_channel = NotificationChannel.get_by_name(name=api.payload['name'], organization=channel.organization)
-                if existing_channel:
-                    api.abort(409, f"A channel with the name \"{api.payload['name']}\" already exists")
+        if not channel:
+            api.abort(404, f'Notification channel "{uuid}" not found')
 
-            channel.update(**api.payload)
+        if channel and existing_channel:
+            if channel.name == existing_channel.name:
+                api.abort(409, f'Channel for the name "{api.payload["name"]}" already exists')
 
+        channel.update(**api.payload)
         return channel
+
 
 channel_parser = api.parser()
 channel_parser.add_argument(
@@ -159,7 +175,6 @@ channel_parser.add_argument(
     'page', type=int, help='The page number', location='args', required=False, default=1)
 channel_parser.add_argument('page_size', type=int, help='The number of items per page',
                             location='args', required=False, default=25)
-
 @api.route("/channel")
 class NotificationChannelList(Resource):
 
@@ -203,7 +218,7 @@ class NotificationChannelList(Resource):
                 'page_size': args.page_size
             }
         }
-
+    
     @api.doc(security="Bearer")
     @api.marshal_with(mod_notification_channel)
     @api.expect(mod_create_notification_channel)
