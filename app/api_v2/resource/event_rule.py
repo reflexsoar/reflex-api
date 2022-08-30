@@ -31,6 +31,11 @@ mod_event_rule_test = api.model('TestEventRuleQuery', {
     'end_date': fields.String,
 })
 
+mod_notification_channel = api.model('NotificationChannel', {
+    'name': fields.String,
+    'uuid': fields.String
+})
+
 mod_event_rule_create = api.model('CreateEventRule', {
     'name': fields.String,
     'organization': fields.String,
@@ -56,7 +61,7 @@ mod_event_rule_create = api.model('CreateEventRule', {
     'run_retroactively': fields.Boolean(optional=True),
     'skip_previous_match': fields.Boolean(optional=True),
     'priority': fields.Integer,
-    'notification_channels': fields.List(fields.String)
+    'notification_channels': fields.List(fields.Nested(mod_notification_channel))
 })
 
 mod_event_rule_list = api.model('EventRuleList', {
@@ -94,7 +99,7 @@ mod_event_rule_list = api.model('EventRuleList', {
     'global_rule': fields.Boolean,
     'disable_reason': fields.String,
     'priority': fields.Integer,
-    'notification_channels': fields.List(fields.String)
+    'notification_channels': fields.List(fields.Nested(mod_notification_channel))
 })
 
 mod_event_rule_list_paged = api.model('PagedEventRuleList', {
