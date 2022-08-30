@@ -3,6 +3,7 @@ import logging
 import time
 import pymsteams
 import chevron
+import requests
 from requests.exceptions import ConnectionError
 from app.api_v2.model import Notification, NotificationChannel, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE, Event, Case, Settings
 
@@ -39,7 +40,8 @@ class Notifier(object):
         for notification_type in NOTIFICATION_CHANNEL_TYPES:
             if notification_type == 'teams_webhook':
                 self.notification_type_mapping[notification_type] = self.send_teams_webhook
-                #self.notification_type_mapping[notification_type] = self.send_webhook
+            if notification_type == 'slack_webhook':
+                self.notification_type_mapping[notification_type] = self.send_slack_webhook
             if notification_type == 'email':
                 self.notification_type_mapping[notification_type] = self.send_email
             if notification_type == 'reflex':
@@ -89,7 +91,10 @@ class Notifier(object):
                 if not notification.is_native:
                     channels = self.get_channels(notification)
                     for channel in channels:
-                        self.notification_type_mapping[channel.channel_type](channel,notification)
+                        try:
+                            self.notification_type_mapping[channel.channel_type](channel,notification)
+                        except KeyError:
+                            self.logger.error(f"Channel type {channel.channel_type} is not supported")
                 else:
                     # Send the notification via the organizations configured SMTP server
                     # if the user has subscribed to events via SMTP
@@ -220,6 +225,42 @@ class Notifier(object):
         except ConnectionError as e:
             notification.send_failed(message=[f'Could not connect to Microsoft Teams. {e}'])       
 
+    def send_slack_webhook(self, channel, notification):
+        '''
+        Sends a webhook to Slack
+        '''
+        message = notification.message
+        channel_config = channel.slack_configuration
+        webhook_url = channel_config['webhook_url']
+        message_template = channel_config['message_template']
+
+        if hasattr(notification, 'source_object_type') and hasattr(notification, 'source_object_uuid'):
+            if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
+                notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
+
+        try:
+            data = {
+                "blocks": [
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": notification.message
+                        }
+                    }
+                ]
+            }
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            request = requests.post(webhook_url, headers=headers, json=data)
+            if request.status_code == 200:
+                notification.send_success()
+            else:
+                notification.send_failed(message=[f'Could not connect to Slack. {request.status_code} - {request.text}'])
+        except Exception as e:
+            notification.send_failed(message=[f'Could not connect to Slack. {e}'])
+
 
     def send_webhook(self, channel, notification):
         '''
@@ -227,6 +268,7 @@ class Notifier(object):
         '''
 
         print(f"Webhook URL: {channel.to_dict()}")
+        
 
 
         return False
