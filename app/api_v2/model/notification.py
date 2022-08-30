@@ -271,7 +271,7 @@ class Notification(base.BaseDocument):
         if self.source_object_type not in SOURCE_OBJECT_TYPE:
             raise ValueError('Invalid source object type')
 
-        if self.native_type not in NATIVE_TYPES:
+        if self.is_native and self.native_type not in NATIVE_TYPES:
             raise ValueError('Invalid native type')
 
         if not self.sent:
@@ -295,7 +295,7 @@ class Notification(base.BaseDocument):
         if self.source_object_type not in SOURCE_OBJECT_TYPE:
             raise ValueError('Invalid source object type')
 
-        if self.native_type not in NATIVE_TYPES:
+        if self.is_native and self.native_type not in NATIVE_TYPES:
             raise ValueError('Invalid native type')
 
         if not self.sent:

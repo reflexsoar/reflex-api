@@ -1,5 +1,5 @@
 from ..model.user import Organization
-from ..utils import page_results, token_required, user_has, ip_approved, check_org, strip_meta_fields
+from ..utils import page_results, strip_meta_fields, token_required, user_has, ip_approved, check_org, default_org, strip_meta_fields
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from flask import current_app
 from .shared import mod_pagination, ISO8601, JSONField, mod_user_list
@@ -159,7 +159,7 @@ class NotificationChannelDetails(Resource):
             api.abort(404, f'Notification channel "{uuid}" not found')
 
         if channel and existing_channel:
-            if channel.name == existing_channel.name:
+            if channel.name == existing_channel.name and channel.uuid != existing_channel.uuid:
                 api.abort(409, f'Channel for the name "{api.payload["name"]}" already exists')
 
         channel.update(**api.payload)
@@ -171,6 +171,7 @@ channel_parser.add_argument(
     'organization', type=str, help='The organization to filter by', location='args', required=False)
 channel_parser.add_argument('enabled', type=xinputs.boolean,
                             help='Is the channel enabled', location='args', required=False)
+channel_parser.add_argument('name__like', type=str, help='The name to filter by', location='args', required=False)
 channel_parser.add_argument(
     'page', type=int, help='The page number', location='args', required=False, default=1)
 channel_parser.add_argument('page_size', type=int, help='The number of items per page',
@@ -182,8 +183,9 @@ class NotificationChannelList(Resource):
     @api.marshal_with(mod_notification_channel_paged_list)
     @api.expect(channel_parser)
     @token_required
+    @default_org
     @user_has('view_notification_channels')
-    def get(self, current_user):
+    def get(self, current_user, user_in_default_org):
         '''
         Get a list of all notification channels
         '''
@@ -199,10 +201,12 @@ class NotificationChannelList(Resource):
         if args.enabled:
             channels = channels.filter('term', enabled=args.active)
 
-        if args.organization:
-            if hasattr(current_user, 'default_org') and (current_user.organization != args.organization):
-                #channels = channels.filter('term', organization=current_user.organization+'foobar')
-            #else:
+        # Wildcard search on a name __like
+        if args.name__like:
+            channels = channels.query('wildcard', name=f'*{args.name__like}*')
+
+        if user_in_default_org:
+            if args.organization:
                 channels = channels.filter('term', organization=args.organization)
 
         channels, total_results, pages = page_results(

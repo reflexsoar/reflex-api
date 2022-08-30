@@ -132,13 +132,17 @@ class RoleDetails(Resource):
     @token_required
     @ip_approved
     @check_org
+    @default_org
     @user_has('update_role')
-    def put(self, uuid, current_user):
+    def put(self, uuid, current_user, user_in_default_org):
         ''' Updates an Role '''
         role = Role.get_by_uuid(uuid=uuid)
 
         if role:
-            exists = Role.get_by_name(name=api.payload['name'], organization=api.payload['organization'])
+            if 'organization' in api.payload and user_in_default_org:
+                exists = Role.get_by_name(name=api.payload['name'], organization=api.payload['organization'])
+            else:
+                exists = Role.get_by_name(name=api.payload['name'])
 
             if 'name' in api.payload and exists and exists.uuid != role.uuid:
                 api.abort(409, 'Role with that name already exists.')

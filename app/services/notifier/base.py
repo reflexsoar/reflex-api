@@ -3,6 +3,7 @@ import logging
 import time
 import pymsteams
 import chevron
+from requests.exceptions import ConnectionError
 from app.api_v2.model import Notification, NotificationChannel, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE, Event, Case, Settings
 
 
@@ -212,9 +213,12 @@ class Notifier(object):
 
         teams_message.text(notification.message)
 
-        result = teams_message.send()
-        if result:
-            notification.send_success()
+        try:
+            result = teams_message.send()
+            if result:
+                notification.send_success()
+        except ConnectionError as e:
+            notification.send_failed(message=[f'Could not connect to Microsoft Teams. {e}'])       
 
 
     def send_webhook(self, channel, notification):

@@ -55,7 +55,8 @@ mod_event_rule_create = api.model('CreateEventRule', {
     'global_rule': fields.Boolean,
     'run_retroactively': fields.Boolean(optional=True),
     'skip_previous_match': fields.Boolean(optional=True),
-    'priority': fields.Integer
+    'priority': fields.Integer,
+    'notification_channels': fields.List(fields.String)
 })
 
 mod_event_rule_list = api.model('EventRuleList', {
@@ -92,7 +93,8 @@ mod_event_rule_list = api.model('EventRuleList', {
     'last_matched_date': ISO8601(attribute='last_matched_date'),
     'global_rule': fields.Boolean,
     'disable_reason': fields.String,
-    'priority': fields.Integer
+    'priority': fields.Integer,
+    'notification_channels': fields.List(fields.String)
 })
 
 mod_event_rule_list_paged = api.model('PagedEventRuleList', {
@@ -248,6 +250,11 @@ class EventRuleList(Resource):
                 else:
                     ep.restart_workers(organization='all')
 
+            # Do not allow running a rule retroactively if the rule has notification channels
+            if 'run_retroactively' in api.payload and 'notification_channels' in api.payload:
+                if api.payload['run_retroactively'] and len(api.payload['notification_channels']) > 0:
+                    api.payload['run_retroactively'] = False
+
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
                 
                 task = Task()
@@ -376,6 +383,11 @@ class EventRuleDetails(Resource):
                         ep.restart_workers(organization=event_rule.organization)
                     else:
                         ep.restart_workers(organization='all')
+
+            # Do not allow running a rule retroactively if the rule has notification channels
+            if 'run_retroactively' in api.payload and 'notification_channels' in api.payload:
+                if api.payload['run_retroactively'] and len(api.payload['notification_channels']) > 0:
+                    api.payload['run_retroactively'] = False
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
 
