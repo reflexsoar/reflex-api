@@ -99,7 +99,8 @@ mod_event_rule_list = api.model('EventRuleList', {
     'global_rule': fields.Boolean,
     'disable_reason': fields.String,
     'priority': fields.Integer,
-    'notification_channels': fields.List(fields.Nested(mod_notification_channel))
+    'notification_channels': fields.List(fields.Nested(mod_notification_channel)),
+    'run_retroactively': fields.Boolean,
 })
 
 mod_event_rule_list_paged = api.model('PagedEventRuleList', {
