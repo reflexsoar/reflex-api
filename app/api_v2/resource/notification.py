@@ -118,7 +118,7 @@ class TestNotification(Resource):
     def get(self, current_user):
         notification = Notification(
             sent=False,
-            channel='8d2f6ebe-6ec4-4b3f-a715-bbdddabb8bf9',
+            channel='d89024dc-4660-4ed0-95ec-7b6e4fbb2531',
             source_object_type='event',
             source_object_uuid='87bd454a-01bd-409b-889a-14cd90ba30ec'
         )

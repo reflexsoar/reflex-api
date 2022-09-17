@@ -49,6 +49,8 @@ class Notifier(object):
                 self.notification_type_mapping[notification_type] = self.send_reflex
             if notification_type == 'pagerduty_api':
                 self.notification_type_mapping[notification_type] = self.send_pagerduty_api
+            if notification_type == 'rest_api':
+                self.notification_type_mapping[notification_type] = self.send_rest_api_call
 
     def set_log_level(self, log_level):
         '''Allows for changing the log level after initialization'''
@@ -308,7 +310,21 @@ class Notifier(object):
         '''
         Sends a REST API call to the defined destination
         '''
-        return False
+        
+        channel_config = channel.rest_api_configuration
+        session = requests.Session()
+        session.headers.update(channel_config.headers)
+        
+        if hasattr(notification, 'source_object_type') and hasattr(notification, 'source_object_uuid'):
+            if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
+                channel_config.body = self.use_template(channel_config.body, notification.source_object_type, notification.source_object_uuid)
+
+        response = session.post(channel_config.api_url, data=channel_config.body)
+
+        if response.status_code == 200:
+            notification.send_success()
+        else:
+            notification.send_failed(message=[f'Could not send notification to REST API. {response.status_code} - {response.text}'])
          
 
     def send_reflex(self):
