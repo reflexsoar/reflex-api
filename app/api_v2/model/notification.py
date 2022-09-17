@@ -18,7 +18,7 @@ from . import (
 
 
 NOTIFICATION_CHANNEL_TYPES = [
-    'email', 'slack_webhook', 'pagerduty_webhook', 'teams_webhook', 'reflex', 'generic_webhook', 'rest_api'
+    'email', 'slack_webhook', 'pagerduty_api', 'teams_webhook', 'reflex', 'generic_webhook', 'rest_api'
 ]
 
 SOURCE_OBJECT_TYPE = [
@@ -33,13 +33,14 @@ NATIVE_TYPES = [
     'case_comment_added'
 ]
 
-class PagerDutyWebhook(InnerDoc):
+class PagerDutyAPI(InnerDoc):
     '''
     A simple configuration for creating incidents via PagerDuty
     '''
 
-    webhook_url = Keyword()  # The URL to send the PagerDuty webhook to
     message_template = Keyword()  # The message template to use when creating an incident
+    credential = Keyword() # The PD API key to use when creating an incident
+    default_from = Keyword() # The dummy user to send the incident from
 
 
 class EmailNotification(InnerDoc):
@@ -115,7 +116,7 @@ class NotificationChannel(base.BaseDocument):
     email_configuration = Nested(EmailNotification)
     slack_configuration = Nested(SlackWebhook)
     teams_configuration = Nested(TeamsWebhook)
-    pagerduty_configuration = Nested(PagerDutyWebhook)
+    pagerduty_configuration = Nested(PagerDutyAPI)
     rest_api_configuration = Nested(CustomAPI)
     max_messages = Integer()  # The max number of notifications to send per minute
     # How long the notifier should back off on this channel if max_messages is exceeded
@@ -160,7 +161,10 @@ class NotificationChannel(base.BaseDocument):
         the channel_types
         '''
 
-        if self.channel_type not in NOTIFICATION_CHANNEL_TYPES:
+        if 'channel_type' in kwargs:
+            if kwargs['channel_type'] not in NOTIFICATION_CHANNEL_TYPES:
+                raise ValueError('Invalid channel type')
+        elif self.channel_type not in NOTIFICATION_CHANNEL_TYPES:
             raise ValueError('Invalid channel type')
 
         if not self.enabled:

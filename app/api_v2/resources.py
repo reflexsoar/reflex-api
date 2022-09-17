@@ -2637,6 +2637,26 @@ class AgentHeartbeat(Resource):
 
             ns_agent_v2.abort(400, 'Your heart stopped.')
 
+    @api2.doc(security="Bearer")
+    @token_required
+    def get(self, uuid, current_user):
+        agent = Agent.get_by_uuid(uuid=uuid)
+        if agent:
+            agent.last_heartbeat = datetime.datetime.utcnow()
+            agent.save()
+            return {'message': 'Your heart still beats!'}
+        else:
+            '''
+            If the agent can't be found, revoke the agent token
+            '''
+
+            auth_header = request.headers.get('Authorization')
+            access_token = auth_header.split(' ')[1]
+            expired = ExpiredToken(token=access_token)
+            expired.save()
+
+            ns_agent_v2.abort(400, 'Your heart stopped.')
+
 
 @ns_agent_v2.route("/<uuid>")
 class AgentDetails(Resource):

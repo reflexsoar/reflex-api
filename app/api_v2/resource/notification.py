@@ -56,9 +56,10 @@ mod_teams_configuration = api.model('TeamsWebhook', {
     'message_template': fields.String
 })
 
-mod_pagerduty_configuration = api.model('PagerDutyWebhook', {
-    'webhook_url': fields.String,
-    'message_template': fields.String
+mod_pagerduty_configuration = api.model('PagerDutyAPI', {
+    'message_template': fields.String,
+    'credential': fields.String,
+    'default_from': fields.String
 })
 
 mod_api_header = api.model('CustomerAPIHeader', {
@@ -117,7 +118,7 @@ class TestNotification(Resource):
     def get(self, current_user):
         notification = Notification(
             sent=False,
-            channel='ff0bb016-173a-4241-a17c-99821d3d696a',
+            channel='8d2f6ebe-6ec4-4b3f-a715-bbdddabb8bf9',
             source_object_type='event',
             source_object_uuid='87bd454a-01bd-409b-889a-14cd90ba30ec'
         )
@@ -162,7 +163,11 @@ class NotificationChannelDetails(Resource):
             if channel.name == existing_channel.name and channel.uuid != existing_channel.uuid:
                 api.abort(409, f'Channel for the name "{api.payload["name"]}" already exists')
 
-        channel.update(**api.payload)
+        try:
+            channel.update(**api.payload)
+        except Exception as e:
+            api.abort(400, str(e))
+
         return channel
 
 

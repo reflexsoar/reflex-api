@@ -4,8 +4,9 @@ import time
 import pymsteams
 import chevron
 import requests
+from pdpyras import EventsAPISession
 from requests.exceptions import ConnectionError
-from app.api_v2.model import Notification, NotificationChannel, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE, Event, Case, Settings
+from app.api_v2.model import Notification, NotificationChannel, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE, Event, Case, Settings, Credential
 
 
 class Notifier(object):
@@ -46,6 +47,8 @@ class Notifier(object):
                 self.notification_type_mapping[notification_type] = self.send_email
             if notification_type == 'reflex':
                 self.notification_type_mapping[notification_type] = self.send_reflex
+            if notification_type == 'pagerduty_api':
+                self.notification_type_mapping[notification_type] = self.send_pagerduty_api
 
     def set_log_level(self, log_level):
         '''Allows for changing the log level after initialization'''
@@ -115,6 +118,8 @@ class Notifier(object):
         """
         raise NotImplementedError
 
+
+    
 
     def get_channels(self, notification):
         '''
@@ -187,6 +192,32 @@ class Notifier(object):
         return template       
 
     
+    def send_pagerduty_api(self, channel, notification):
+        '''
+        Sends a notification to PagerDuty via the API
+        '''
+        channel_config = channel.pagerduty_configuration
+        message_template = channel_config['message_template']
+        credential = Credential.get_by_uuid(uuid=channel_config.credential)
+        if credential:
+            try:
+                secret = credential.decrypt(secret=self.app.config['MASTER_PASSWORD'])
+            except:
+                self.logger.error(f"Unable to decrypt credential {credential.uuid}")
+                notification.send_failed(message=f"Unable to decrypt credential {credential.uuid}")
+            session = EventsAPISession(secret)
+
+            if hasattr(notification, 'source_object_type') and hasattr(notification, 'source_object_uuid'):
+                if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
+                    notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
+
+            dedup_key = session.trigger(notification.message, "ReflexSOAR Notifications")
+            if dedup_key:
+                notification.send_success()
+        else:
+            notification.send_failed(message=[f'Could not connect locate Credential.  Please check the configuration for channel {channel.uuid}']) 
+
+
     def send_teams_webhook(self, channel, notification):
         '''
         Sends a message to a Microsoft Teams webhook
