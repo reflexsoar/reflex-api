@@ -156,6 +156,7 @@ mod_event_details = api.model('EventDetails', {
     'original_date': ISO8601(attribute='original_date'),
     'detection_id': fields.String,
     'dismissed_by': fields.Nested(mod_user_list),
+    'dismissed_at': ISO8601(attribute='dismissed_at'),
     'total_comments': ValueCount(attribute='comments'),
 })
 
@@ -1558,7 +1559,7 @@ class EventStats(Resource):
             events_over_time_by_org = events_over_time_by_org[0:0]
 
             events_over_time_by_org.aggs.bucket('range', 'filter', range={'original_date': {
-                'gte': (datetime.datetime.utcnow()-datetime.timedelta(days=30)).strftime('%Y-%m-%dT%H:%M:%S'),
+                'gte': (datetime.datetime.utcnow()-datetime.timedelta(days=14)).strftime('%Y-%m-%dT%H:%M:%S'),
                 'lte': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
             }})
 
