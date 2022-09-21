@@ -886,6 +886,7 @@ class CloseReasonDetails(Resource):
 
 case_parser = pager_parser.copy()
 case_parser.add_argument('title', location='args', required=False, type=str)
+case_parser.add_argument('title__like', location='args', required=False, type=str)
 case_parser.add_argument('description__like', location='args', required=False, type=str)
 case_parser.add_argument('observables', location='args', required=False, type=str, action='split')
 case_parser.add_argument('organization', location='args', required=False, type=str)
@@ -964,11 +965,14 @@ class CaseList(Resource):
         if case_uuids:
             cases = cases.filter('terms', uuid=case_uuids)
 
+        if 'title__like' in args and args['title__like']:
+            cases = cases.filter('wildcard', title=args['title__like']+"*")
+
         if 'title' in args and args['title']:
             cases = cases.filter('wildcard', title=args['title']+"*")
 
         if 'description__like' in args and args['description__like']:
-            cases = cases.filter('wildcard', description="*"+args['description__like']+"*")
+            cases = cases.filter('wildcard', description__keyword="*"+args['description__like']+"*")
 
         if 'status' in args and args['status']:
             cases = cases.filter('match', status__name=args['status'])
@@ -1702,10 +1706,10 @@ class CaseStats(Resource):
 
         # Set default start/end date filters if they are not set above
         # We do this here because default= on add_argument() is only calculated when the API is initialized
-        if not args.start:
-            args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
-        if not args.end:
-            args.end = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
+        #if not args.start:
+        #    args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+        #if not args.end:
+        #    args.end = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
 
         search_filters = []
 
