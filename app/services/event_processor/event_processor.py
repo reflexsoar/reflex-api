@@ -21,7 +21,7 @@ from multiprocessing import Queue
 from kafka import KafkaProducer, KafkaConsumer, KafkaAdminClient
 from kafka.admin import ConfigResource
 from kafka.admin.new_partitions import NewPartitions
-from kafka.errors import KafkaError, InvalidPartitionsError
+from kafka.errors import KafkaError, InvalidPartitionsError, UnknownTopicOrPartitionError
 #from queue import Queue
 from multiprocessing import Process, get_context, Event as mpEvent
 from app.api_v2.model import (
@@ -151,6 +151,8 @@ class EventProcessor:
                                 f'events-{organization.uuid}': NewPartitions(self.config['MAX_WORKERS_PER_ORGANIZATION'])
                             })
                         except InvalidPartitionsError:
+                            pass
+                        except UnknownTopicOrPartitionError:
                             pass
                     # Update the retention.ms on all topics
                     #self.kf_client.alter_configs(topic_list)
@@ -726,6 +728,10 @@ class EventWorker(Process):
             if '_meta' in event:
                 event_meta_data = event.pop('_meta')
 
+                for field in ['created_at', 'updated_at', 'original_date']:
+                    if field in event:
+                        del event[field]
+
                 yield {
                     'doc': event,
                     '_index': 'reflex-events',
@@ -1006,6 +1012,7 @@ class EventWorker(Process):
 
                     if matched:
                         raw_event = self.mutate_event(rule, raw_event)
+                        rule.create_notification(organization=raw_event['organization'], source_object_type='event', source_object_uuid=raw_event['uuid'])
                 except Exception as e:
                     self.logger.error(f"Failed to process rule {rule.uuid} ({rule.name}). Reason: {e}")
 
@@ -1019,12 +1026,14 @@ class EventWorker(Process):
                 if not rule:
                     
                     attempts = 0
-                    while attempts != 10:
+                    while attempts != 3:
                         if not rule:
                             self.load_rules(rule_id=event_meta_data['rule_id'])
                             rule = next((r for r in self.rules if r.uuid == event_meta_data['rule_id']), None)
                             if not rule:
                                 attempts += 1
+                                if attempts == 3:
+                                    break
                                 self.logger.error(f"No rule found for {event_meta_data['rule_id']}. Attempt {attempts}/10.")
                             else:
                                 break
@@ -1043,6 +1052,12 @@ class EventWorker(Process):
 
                         if matched:
                             raw_event = self.mutate_event(rule, raw_event)
+
+                            # Only apply notification rules if this is not a retro application of
+                            # the Event Rule
+                            if event_meta_data['action'] != 'retro_apply_event_rule':
+                                rule.create_notification(organization=raw_event['organization'], source_object_type='event', source_object_uuid=raw_event['uuid'])
+
                     except Exception as e:
                         self.logger.error(f"Failed to process rule {rule.uuid}. Reason: {e}")
                 else:

@@ -31,6 +31,11 @@ mod_event_rule_test = api.model('TestEventRuleQuery', {
     'end_date': fields.String,
 })
 
+mod_notification_channel = api.model('NotificationChannel', {
+    'name': fields.String,
+    'uuid': fields.String
+})
+
 mod_event_rule_create = api.model('CreateEventRule', {
     'name': fields.String,
     'organization': fields.String,
@@ -55,7 +60,8 @@ mod_event_rule_create = api.model('CreateEventRule', {
     'global_rule': fields.Boolean,
     'run_retroactively': fields.Boolean(optional=True),
     'skip_previous_match': fields.Boolean(optional=True),
-    'priority': fields.Integer
+    'priority': fields.Integer,
+    'notification_channels': fields.List(fields.Nested(mod_notification_channel))
 })
 
 mod_event_rule_list = api.model('EventRuleList', {
@@ -92,7 +98,9 @@ mod_event_rule_list = api.model('EventRuleList', {
     'last_matched_date': ISO8601(attribute='last_matched_date'),
     'global_rule': fields.Boolean,
     'disable_reason': fields.String,
-    'priority': fields.Integer
+    'priority': fields.Integer,
+    'notification_channels': fields.List(fields.Nested(mod_notification_channel)),
+    'run_retroactively': fields.Boolean,
 })
 
 mod_event_rule_list_paged = api.model('PagedEventRuleList', {
@@ -218,7 +226,7 @@ class EventRuleList(Resource):
             else:
                 api.abort(400, 'Missing expire_days field.')
 
-        if 'priority' in api.payload and (api.payload['priority'] > 65535 or api.payload['priority'] < 1):
+        if 'priority' in api.payload and api.payload['priority'] is not None and (api.payload['priority'] > 65535 or api.payload['priority'] < 1):
             api.abort(400, 'Priority must be between 0 and 65535.')
 
         if not event_rule:
@@ -377,6 +385,7 @@ class EventRuleDetails(Resource):
                     else:
                         ep.restart_workers(organization='all')
 
+
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
 
                 task = Task()
@@ -435,7 +444,7 @@ class EventRuleDetails(Resource):
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
                     skip_previous = True
 
-                if 'priority' in api.payload and (api.payload['priority'] > 65535 or api.payload['priority'] < 1):
+                if 'priority' in api.payload and api.payload['priority'] is not None and (api.payload['priority'] > 65535 or api.payload['priority'] < 1):
                     api.abort(400, 'Priority must be between 0 and 65535.')
 
                 with current_app.app_context():

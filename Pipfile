@@ -50,6 +50,7 @@ flask-saml2 = "*"
 kafka-python = "*"
 pymsteams = "*"
 chevron = "*"
+pdpyras = "*"
 
 [requires]
 python_version = "3.8"

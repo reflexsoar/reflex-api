@@ -18,7 +18,7 @@ from . import (
 
 
 NOTIFICATION_CHANNEL_TYPES = [
-    'email', 'slack_webhook', 'pagerduty_webhook', 'teams_webhook', 'reflex', 'generic_webhook'
+    'email', 'slack_webhook', 'pagerduty_api', 'teams_webhook', 'reflex', 'generic_webhook', 'rest_api'
 ]
 
 SOURCE_OBJECT_TYPE = [
@@ -33,13 +33,14 @@ NATIVE_TYPES = [
     'case_comment_added'
 ]
 
-class PagerDutyWebhook(InnerDoc):
+class PagerDutyAPI(InnerDoc):
     '''
     A simple configuration for creating incidents via PagerDuty
     '''
 
-    webhook_url = Keyword()  # The URL to send the PagerDuty webhook to
     message_template = Keyword()  # The message template to use when creating an incident
+    credential = Keyword() # The PD API key to use when creating an incident
+    default_from = Keyword() # The dummy user to send the incident from
 
 
 class EmailNotification(InnerDoc):
@@ -75,6 +76,24 @@ class SlackWebhook(InnerDoc):
     message_template = Keyword()  # The message template to use when creating a message
 
 
+class APIHeader(InnerDoc):
+    '''
+    An API header
+    '''
+    key = Keyword() # The key of the header
+    value = Keyword() # The value of the header
+
+
+class CustomAPI(InnerDoc):
+    '''
+    A simple configuration for a custom API call
+    '''
+    api_url = Keyword() # The URL to send the API call to
+    headers = Nested(APIHeader) # The headers to use when making the API call
+    body = Keyword() # The body to use when making the API call
+    tls_insecure = Boolean() # Whether to use TLS when making the API call
+
+
 class NotificationChannel(base.BaseDocument):
 
     '''
@@ -97,7 +116,8 @@ class NotificationChannel(base.BaseDocument):
     email_configuration = Nested(EmailNotification)
     slack_configuration = Nested(SlackWebhook)
     teams_configuration = Nested(TeamsWebhook)
-    pagerduty_configuration = Nested(PagerDutyWebhook)
+    pagerduty_configuration = Nested(PagerDutyAPI)
+    rest_api_configuration = Nested(CustomAPI)
     max_messages = Integer()  # The max number of notifications to send per minute
     # How long the notifier should back off on this channel if max_messages is exceeded
     backoff = Integer()
@@ -141,7 +161,10 @@ class NotificationChannel(base.BaseDocument):
         the channel_types
         '''
 
-        if self.channel_type not in NOTIFICATION_CHANNEL_TYPES:
+        if 'channel_type' in kwargs:
+            if kwargs['channel_type'] not in NOTIFICATION_CHANNEL_TYPES:
+                raise ValueError('Invalid channel type')
+        elif self.channel_type not in NOTIFICATION_CHANNEL_TYPES:
             raise ValueError('Invalid channel type')
 
         if not self.enabled:
@@ -252,7 +275,7 @@ class Notification(base.BaseDocument):
         if self.source_object_type not in SOURCE_OBJECT_TYPE:
             raise ValueError('Invalid source object type')
 
-        if self.native_type not in NATIVE_TYPES:
+        if self.is_native and self.native_type not in NATIVE_TYPES:
             raise ValueError('Invalid native type')
 
         if not self.sent:
@@ -276,7 +299,7 @@ class Notification(base.BaseDocument):
         if self.source_object_type not in SOURCE_OBJECT_TYPE:
             raise ValueError('Invalid source object type')
 
-        if self.native_type not in NATIVE_TYPES:
+        if self.is_native and self.native_type not in NATIVE_TYPES:
             raise ValueError('Invalid native type')
 
         if not self.sent:

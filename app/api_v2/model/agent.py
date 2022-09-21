@@ -51,6 +51,7 @@ class PollerRoleConfig(InnerDoc):
     graceful_exit = Boolean() # Should the poller attempt a graceful exit when the poller is asked to shut down?
     logging_level = Keyword() # What logging level should the role use for its logs?
     max_input_attempts = Integer() # How many times should the poller attempt to read an input before giving up?
+    signature_cache_ttl = Integer() # How long should the poller keep a cached copy of the event signature
 
 
 class AgentPolicy(base.BaseDocument):

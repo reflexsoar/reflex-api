@@ -1,6 +1,5 @@
 import os
 from dotenv import load_dotenv
-from flask_saml2.utils import certificate_from_file, private_key_from_file
 import multiprocessing
 basedir = os.path.abspath(os.path.dirname(__file__))
 

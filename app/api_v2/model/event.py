@@ -2,6 +2,7 @@ import datetime
 import hashlib
 import json
 from app.api_v2.model.exceptions import EventRuleFailure
+from app.api_v2.model.notification import Notification
 
 from app.api_v2.rql.parser import QueryParser
 from . import case as c
@@ -16,7 +17,7 @@ from . import (
     Date,
     system,
     utils,
-    Nested,
+    Nested
 )
 
 class EventComment(base.BaseInnerDoc):
@@ -456,6 +457,7 @@ class EventRule(base.BaseDocument):
     global_rule = Boolean() # Is it a global rule that should be processed on everything
     disable_reason = Keyword() # The reason why a rule was disabled (internally set by the system)
     priority = Integer() # The priority of the event rule, lower is more important
+    notification_channels = Keyword() # The channels to send notifications to
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -464,6 +466,21 @@ class EventRule(base.BaseDocument):
             'refresh_interval': '1s'
         }
 
+    
+    def create_notification(self, source_object_uuid, organization, source_object_type='event'):
+        '''
+        Creates a notification for the event rule
+        '''
+        if self.notification_channels and len(self.notification_channels) > 0:
+            for channel in self.notification_channels:
+                notification = Notification(
+                    sent=False,
+                    channel=channel.uuid,
+                    source_object_type=source_object_type,
+                    source_object_uuid=source_object_uuid,
+                    organization=organization
+                )
+                notification.save()
 
     def update_order(self, order):
         '''

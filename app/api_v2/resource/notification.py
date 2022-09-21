@@ -1,5 +1,5 @@
 from ..model.user import Organization
-from ..utils import page_results, token_required, user_has, ip_approved, check_org
+from ..utils import page_results, strip_meta_fields, token_required, user_has, ip_approved, check_org, default_org, strip_meta_fields
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from flask import current_app
 from .shared import mod_pagination, ISO8601, JSONField, mod_user_list
@@ -56,9 +56,22 @@ mod_teams_configuration = api.model('TeamsWebhook', {
     'message_template': fields.String
 })
 
-mod_pagerduty_configuration = api.model('PagerDutyWebhook', {
-    'webhook_url': fields.String,
-    'message_template': fields.String
+mod_pagerduty_configuration = api.model('PagerDutyAPI', {
+    'message_template': fields.String,
+    'credential': fields.String,
+    'default_from': fields.String
+})
+
+mod_api_header = api.model('CustomerAPIHeader', {
+    'key': fields.String,
+    'value': fields.String
+})
+
+mod_custom_api_configuration = api.model('CustomAPI', {
+    'api_url': fields.String,
+    'headers': fields.List(fields.Nested(mod_api_header)),
+    'body': fields.String,
+    'tls_insecure': fields.Boolean
 })
 
 mod_create_notification_channel = api.model('CreateNotificationChannel', {
@@ -70,10 +83,11 @@ mod_create_notification_channel = api.model('CreateNotificationChannel', {
     'slack_configuration': fields.Nested(mod_slack_configuration),
     'teams_configuration': fields.Nested(mod_teams_configuration),
     'pagerduty_configuration': fields.Nested(mod_pagerduty_configuration),
+    'rest_api_configuration': fields.Nested(mod_custom_api_configuration),
     'max_messages': fields.Integer,
     'backoff': fields.Integer,
     'enabled': fields.Boolean
-})
+}, strict=True)
 
 mod_notification_channel = api.clone('NotificationChannelDetails', mod_create_notification_channel, {
     'uuid': fields.String,
@@ -104,7 +118,7 @@ class TestNotification(Resource):
     def get(self, current_user):
         notification = Notification(
             sent=False,
-            channel='ff0bb016-173a-4241-a17c-99821d3d696a',
+            channel='d89024dc-4660-4ed0-95ec-7b6e4fbb2531',
             source_object_type='event',
             source_object_uuid='87bd454a-01bd-409b-889a-14cd90ba30ec'
         )
@@ -114,39 +128,59 @@ class TestNotification(Resource):
 class NotificationChannelDetails(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_list_with(mod_notification_channel)
-    @api.expect(mod_create_notification_channel)
+    @api.marshal_with(mod_notification_channel)
+    @api.expect(mod_create_notification_channel, skip_none=True)
     @token_required
+    @strip_meta_fields
     @check_org
-    #@user_has('update_notification_channel')
+    @user_has('update_notification_channel')
     def put(self, current_user, uuid):
 
+        if api.payload['channel_type'] not in NOTIFICATION_CHANNEL_TYPES:
+            api.abort(
+                400, f'Invalid channel type {api.payload["channel_type"]}.  Must be one of {NOTIFICATION_CHANNEL_TYPES}')
+
+        channel = None
         if 'organization' in api.payload:
-            channel = NotificationChannel.get_by_uuid(uuid, organization=api.payload['organization'])
+            org = Organization.get_by_uuid(api.payload['organization'])
+
+            if not org:
+                api.abort(
+                    400, f'Invalid organization "{api.payload["organization"]}"')
+
+            channel = NotificationChannel.get_by_uuid(
+                organization=api.payload['organization'], uuid=uuid)
+            existing_channel = NotificationChannel.get_by_name(
+                organization=api.payload['organization'], name=api.payload['name'])
         else:
-            channel = NotificationChannel.get_by_uuid(uuid)
-            
-        if channel:
+            channel = NotificationChannel.get_by_uuid(uuid=uuid)
+            existing_channel = NotificationChannel.get_by_name(name=api.payload['name'])
 
-            if 'name' in api.payload:
-                existing_channel = NotificationChannel.get_by_name(name=api.payload['name'], organization=channel.organization)
-                if existing_channel:
-                    api.abort(409, f"A channel with the name \"{api.payload['name']}\" already exists")
+        if not channel:
+            api.abort(404, f'Notification channel "{uuid}" not found')
 
+        if channel and existing_channel:
+            if channel.name == existing_channel.name and channel.uuid != existing_channel.uuid:
+                api.abort(409, f'Channel for the name "{api.payload["name"]}" already exists')
+
+        try:
             channel.update(**api.payload)
+        except Exception as e:
+            api.abort(400, str(e))
 
         return channel
+
 
 channel_parser = api.parser()
 channel_parser.add_argument(
     'organization', type=str, help='The organization to filter by', location='args', required=False)
 channel_parser.add_argument('enabled', type=xinputs.boolean,
                             help='Is the channel enabled', location='args', required=False)
+channel_parser.add_argument('name__like', type=str, help='The name to filter by', location='args', required=False)
 channel_parser.add_argument(
     'page', type=int, help='The page number', location='args', required=False, default=1)
 channel_parser.add_argument('page_size', type=int, help='The number of items per page',
                             location='args', required=False, default=25)
-
 @api.route("/channel")
 class NotificationChannelList(Resource):
 
@@ -154,8 +188,9 @@ class NotificationChannelList(Resource):
     @api.marshal_with(mod_notification_channel_paged_list)
     @api.expect(channel_parser)
     @token_required
-    # @user_has('view_notification_channels')
-    def get(self, current_user):
+    @default_org
+    @user_has('view_notification_channels')
+    def get(self, current_user, user_in_default_org):
         '''
         Get a list of all notification channels
         '''
@@ -171,10 +206,12 @@ class NotificationChannelList(Resource):
         if args.enabled:
             channels = channels.filter('term', enabled=args.active)
 
-        if args.organization:
-            if hasattr(current_user, 'default_org') and (current_user.organization != args.organization):
-                #channels = channels.filter('term', organization=current_user.organization+'foobar')
-            #else:
+        # Wildcard search on a name __like
+        if args.name__like:
+            channels = channels.query('wildcard', name=f'*{args.name__like}*')
+
+        if user_in_default_org:
+            if args.organization:
                 channels = channels.filter('term', organization=args.organization)
 
         channels, total_results, pages = page_results(
@@ -190,13 +227,13 @@ class NotificationChannelList(Resource):
                 'page_size': args.page_size
             }
         }
-
+    
     @api.doc(security="Bearer")
     @api.marshal_with(mod_notification_channel)
     @api.expect(mod_create_notification_channel)
     @token_required
     @check_org
-    # @user_has('create_notification_channel')
+    @user_has('create_notification_channel')
     def post(self, current_user):
 
         if api.payload['channel_type'] not in NOTIFICATION_CHANNEL_TYPES:

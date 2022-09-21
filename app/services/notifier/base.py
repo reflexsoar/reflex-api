@@ -3,7 +3,10 @@ import logging
 import time
 import pymsteams
 import chevron
-from app.api_v2.model import Notification, NotificationChannel, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE, Event, Case, Settings
+import requests
+from pdpyras import EventsAPISession
+from requests.exceptions import ConnectionError
+from app.api_v2.model import Notification, NotificationChannel, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE, Event, Case, Settings, Credential
 
 
 class Notifier(object):
@@ -38,11 +41,16 @@ class Notifier(object):
         for notification_type in NOTIFICATION_CHANNEL_TYPES:
             if notification_type == 'teams_webhook':
                 self.notification_type_mapping[notification_type] = self.send_teams_webhook
-                #self.notification_type_mapping[notification_type] = self.send_webhook
+            if notification_type == 'slack_webhook':
+                self.notification_type_mapping[notification_type] = self.send_slack_webhook
             if notification_type == 'email':
                 self.notification_type_mapping[notification_type] = self.send_email
             if notification_type == 'reflex':
                 self.notification_type_mapping[notification_type] = self.send_reflex
+            if notification_type == 'pagerduty_api':
+                self.notification_type_mapping[notification_type] = self.send_pagerduty_api
+            if notification_type == 'rest_api':
+                self.notification_type_mapping[notification_type] = self.send_rest_api_call
 
     def set_log_level(self, log_level):
         '''Allows for changing the log level after initialization'''
@@ -88,7 +96,10 @@ class Notifier(object):
                 if not notification.is_native:
                     channels = self.get_channels(notification)
                     for channel in channels:
-                        self.notification_type_mapping[channel.channel_type](channel,notification)
+                        try:
+                            self.notification_type_mapping[channel.channel_type](channel,notification)
+                        except KeyError:
+                            self.logger.error(f"Channel type {channel.channel_type} is not supported")
                 else:
                     # Send the notification via the organizations configured SMTP server
                     # if the user has subscribed to events via SMTP
@@ -109,6 +120,8 @@ class Notifier(object):
         """
         raise NotImplementedError
 
+
+    
 
     def get_channels(self, notification):
         '''
@@ -181,6 +194,32 @@ class Notifier(object):
         return template       
 
     
+    def send_pagerduty_api(self, channel, notification):
+        '''
+        Sends a notification to PagerDuty via the API
+        '''
+        channel_config = channel.pagerduty_configuration
+        message_template = channel_config['message_template']
+        credential = Credential.get_by_uuid(uuid=channel_config.credential)
+        if credential:
+            try:
+                secret = credential.decrypt(secret=self.app.config['MASTER_PASSWORD'])
+            except:
+                self.logger.error(f"Unable to decrypt credential {credential.uuid}")
+                notification.send_failed(message=f"Unable to decrypt credential {credential.uuid}")
+            session = EventsAPISession(secret)
+
+            if hasattr(notification, 'source_object_type') and hasattr(notification, 'source_object_uuid'):
+                if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
+                    notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
+
+            dedup_key = session.trigger(notification.message, "ReflexSOAR Notifications")
+            if dedup_key:
+                notification.send_success()
+        else:
+            notification.send_failed(message=[f'Could not connect locate Credential.  Please check the configuration for channel {channel.uuid}']) 
+
+
     def send_teams_webhook(self, channel, notification):
         '''
         Sends a message to a Microsoft Teams webhook
@@ -212,9 +251,48 @@ class Notifier(object):
 
         teams_message.text(notification.message)
 
-        result = teams_message.send()
-        if result:
-            notification.send_success()
+        try:
+            result = teams_message.send()
+            if result:
+                notification.send_success()
+        except ConnectionError as e:
+            notification.send_failed(message=[f'Could not connect to Microsoft Teams. {e}'])       
+
+    def send_slack_webhook(self, channel, notification):
+        '''
+        Sends a webhook to Slack
+        '''
+        message = notification.message
+        channel_config = channel.slack_configuration
+        webhook_url = channel_config['webhook_url']
+        message_template = channel_config['message_template']
+
+        if hasattr(notification, 'source_object_type') and hasattr(notification, 'source_object_uuid'):
+            if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
+                notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
+
+        try:
+            data = {
+                "blocks": [
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": notification.message
+                        }
+                    }
+                ]
+            }
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            request = requests.post(webhook_url, headers=headers, json=data)
+            if request.status_code == 200:
+                notification.send_success()
+            else:
+                notification.send_failed(message=[f'Could not connect to Slack. {request.status_code} - {request.text}'])
+        except Exception as e:
+            notification.send_failed(message=[f'Could not connect to Slack. {e}'])
 
 
     def send_webhook(self, channel, notification):
@@ -223,9 +301,31 @@ class Notifier(object):
         '''
 
         print(f"Webhook URL: {channel.to_dict()}")
+        
 
 
         return False
+
+    def send_rest_api_call(self, channel, notification): 
+        '''
+        Sends a REST API call to the defined destination
+        '''
+        
+        channel_config = channel.rest_api_configuration
+        session = requests.Session()
+        session.headers.update(channel_config.headers)
+        
+        if hasattr(notification, 'source_object_type') and hasattr(notification, 'source_object_uuid'):
+            if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
+                channel_config.body = self.use_template(channel_config.body, notification.source_object_type, notification.source_object_uuid)
+
+        response = session.post(channel_config.api_url, data=channel_config.body)
+
+        if response.status_code == 200:
+            notification.send_success()
+        else:
+            notification.send_failed(message=[f'Could not send notification to REST API. {response.status_code} - {response.text}'])
+         
 
     def send_reflex(self):
         '''

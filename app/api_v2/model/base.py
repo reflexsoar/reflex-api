@@ -80,7 +80,7 @@ class BaseDocument(Document):
             if isinstance(uuid, (AttrList, list)):
                 response = self.search()
                 if organization:
-                    response = response.filter(organization=organization)
+                    response = response.filter('term', organization=organization)
                     
                 response = response.query('terms', uuid=uuid, **kwargs)
                 if all_results:
@@ -91,7 +91,8 @@ class BaseDocument(Document):
             else:
                 response = self.search()
                 if organization:
-                    response = response.filter(organization=organization)
+                    response = response.filter('term', organization=organization)
+                    
                 response = response.query('term', uuid=uuid, **kwargs).execute()
                 if response:
                     documents = response[0]

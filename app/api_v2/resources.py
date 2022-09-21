@@ -886,7 +886,11 @@ class CloseReasonDetails(Resource):
 
 case_parser = pager_parser.copy()
 case_parser.add_argument('title', location='args', required=False, type=str)
+case_parser.add_argument('title__like', location='args', required=False, type=str)
+case_parser.add_argument('description__like', location='args', required=False, type=str)
+case_parser.add_argument('observables', location='args', required=False, type=str, action='split')
 case_parser.add_argument('organization', location='args', required=False, type=str)
+case_parser.add_argument('comments__like', location='args', required=False, type=str)
 case_parser.add_argument('status', location='args', required=False, type=str)
 case_parser.add_argument('close_reason', location='args', required=False, action="split", type=str)
 case_parser.add_argument('severity', location='args', required=False, action="split", type=str)
@@ -931,8 +935,44 @@ class CaseList(Resource):
         cases = cases.sort('-created_at')
 
         # Apply filters
+
+
+        # If the user is attempting to filter by observables, find all the events that have
+        # the related observables so we can map them to the cases they belong to
+        # and use that as a filter on our overall case search
+        case_uuids = []
+        if 'observables' in args and args.observables:
+            events = Event.search()
+            events = events.filter('exists', field='case')
+            events = events.filter('nested', path='event_observables', query=Q('terms', event_observables__value__keyword=args.observables))
+            events = events.source(['case'])
+            events = [e for e in events.scan()]
+            if events:
+                case_uuids = [e.case for e in events]
+
+        # If the user is attempting to filter by comments, find all the comments
+        # with the text they are searching for and use that as a filter on our
+        # overall case search
+        if 'comments__like' in args and args.comments__like:
+            comments = CaseComment.search()
+            comments = comments.filter('exists', field='case_uuid')
+            comments = comments.filter('wildcard', message__keyword="*"+args.comments__like+"*")
+            comments = comments.source(['case_uuid'])
+            comments = [c for c in comments.scan()]
+            if comments:
+                [case_uuids.append(c.case_uuid) for c in comments]
+
+        if case_uuids:
+            cases = cases.filter('terms', uuid=case_uuids)
+
+        if 'title__like' in args and args['title__like']:
+            cases = cases.filter('wildcard', title=args['title__like']+"*")
+
         if 'title' in args and args['title']:
             cases = cases.filter('wildcard', title=args['title']+"*")
+
+        if 'description__like' in args and args['description__like']:
+            cases = cases.filter('wildcard', description__keyword="*"+args['description__like']+"*")
 
         if 'status' in args and args['status']:
             cases = cases.filter('match', status__name=args['status'])
@@ -1666,10 +1706,10 @@ class CaseStats(Resource):
 
         # Set default start/end date filters if they are not set above
         # We do this here because default= on add_argument() is only calculated when the API is initialized
-        if not args.start:
-            args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
-        if not args.end:
-            args.end = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
+        #if not args.start:
+        #    args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
+        #if not args.end:
+        #    args.end = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
 
         search_filters = []
 
@@ -2625,6 +2665,26 @@ class AgentHeartbeat(Resource):
                     redistribute_detections(organization=agent.organization)                
 
                 return {'message': 'Your heart still beats!'}
+        else:
+            '''
+            If the agent can't be found, revoke the agent token
+            '''
+
+            auth_header = request.headers.get('Authorization')
+            access_token = auth_header.split(' ')[1]
+            expired = ExpiredToken(token=access_token)
+            expired.save()
+
+            ns_agent_v2.abort(400, 'Your heart stopped.')
+
+    @api2.doc(security="Bearer")
+    @token_required
+    def get(self, uuid, current_user):
+        agent = Agent.get_by_uuid(uuid=uuid)
+        if agent:
+            agent.last_heartbeat = datetime.datetime.utcnow()
+            agent.save()
+            return {'message': 'Your heart still beats!'}
         else:
             '''
             If the agent can't be found, revoke the agent token

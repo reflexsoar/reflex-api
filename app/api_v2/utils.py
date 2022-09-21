@@ -111,6 +111,20 @@ def org_check(current_user, payload):
     return payload
 
 
+def strip_meta_fields(f):
+    '''
+    Strips the meta fields off the API request as only the system can update them
+    '''
+    def wrapper(*args, **kwargs):
+        for key in ['created_at','updated_at','created_by','updated_by','uuid']:
+            if hasattr(args[0].api,'payload') and key in args[0].api.payload:
+                args[0].api.payload.pop(key)
+        return f(*args, **kwargs)
+    wrapper.__doc__ = f.__doc__
+    wrapper.__name__ = f.__name__
+    return wrapper
+
+
 def check_org(f):
     '''
     Returns a stripped api payload if the user violates organization guidelines
