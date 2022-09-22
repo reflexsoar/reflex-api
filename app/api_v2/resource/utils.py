@@ -22,7 +22,7 @@ def redistribute_detections(organization=None):
     if len(agents) > 0:
         
         # Filter for agents that are detectors
-        agents = [agent for agent in agents if 'detector' in agent.roles and agent.healthy]
+        agents = [agent for agent in agents if agent.roles and 'detector' in agent.roles and agent.healthy]
         if len(agents) > 0:
 
             detection_sets = []

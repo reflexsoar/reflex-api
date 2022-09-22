@@ -81,7 +81,9 @@ from .resource import (
     ns_detection_v2,
     ns_mitre_v2,
     ns_event_view_v2,
-    ns_notification_v2
+    ns_notification_v2,
+    ns_agent_v2,
+    ns_agent_group_v2
 )
 
 from .. import ep
@@ -101,10 +103,10 @@ ns_credential_v2 = api2.namespace(
     'Credential', description='Credential operations', path='/credential')
 ns_input_v2 = api2.namespace(
     'Input', description='Input operations', path='/input')
-ns_agent_v2 = api2.namespace(
-    'Agent', description='Agent operations', path='/agent')
-ns_agent_group_v2 = api2.namespace(
-    'AgentGroup', description='Agent Group operations', path='/agent_group')
+#s_agent_v2 = api2.namespace(
+    #'Agent', description='Agent operations', path='/agent')
+#ns_agent_group_v2 = api2.namespace(
+    #'AgentGroup', description='Agent Group operations', path='/agent_group')
 ns_data_type_v2 = api2.namespace(
     'DataType', description='DataType operations', path='/data_type')
 ns_case_v2 = api2.namespace(
@@ -139,6 +141,8 @@ api2.add_namespace(ns_detection_v2)
 api2.add_namespace(ns_mitre_v2)
 api2.add_namespace(ns_event_view_v2)
 api2.add_namespace(ns_notification_v2)
+api2.add_namespace(ns_agent_v2)
+api2.add_namespace(ns_agent_group_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -2525,7 +2529,7 @@ class InputIndexFields(Resource):
         else:
             ns_input_v2.abort(404, 'Input not found.')
 
-
+"""
 @ns_agent_v2.route("/pair_token")
 class AgentPairToken(Resource):
 
@@ -2710,7 +2714,12 @@ class AgentDetails(Resource):
         ''' Updates an Agent '''
         agent = Agent.get_by_uuid(uuid=uuid)
         if agent:
-            agent.update(**api2.payload)
+
+            agent.update(**api2.payload, refresh=True)
+
+            if 'roles' in api2.payload:
+                redistribute_detections(organization=agent.organization)
+
             return agent
         else:
             ns_agent_v2.abort(404, 'Agent not found.')
@@ -2890,7 +2899,7 @@ class AgentGroupList(Resource):
         else:
             ns_agent_group_v2.abort(409, 'Group with that name already exists.')
         return group
-
+"""
 
 @ns_credential_v2.route('/encrypt')
 class EncryptPassword(Resource):
