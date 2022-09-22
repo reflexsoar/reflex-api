@@ -13,7 +13,8 @@ from . import (
     user,
     base,
     inout,
-    InnerDoc
+    InnerDoc,
+    Nested
 )
 
 
@@ -75,6 +76,9 @@ class AgentPolicy(base.BaseDocument):
     logging_level = Keyword() # What logging level should the agent use for its logs?
     max_intel_db_size = Integer() # How much space should the agent use for its intelligence database?
     event_realert_ttl = Integer() # How long should an event signature be kept in the cache before it is realerted?
+    poller_config = Nested(PollerRoleConfig) # What is the configuration for the poller role?
+    detector_config = Nested(DetectorRoleConfig) # What is the configuration for the detector role?
+    runner_config = Nested(RunnerRoleConfig) # What is the configuration for the runner role?
 
 
 class Agent(base.BaseDocument):
