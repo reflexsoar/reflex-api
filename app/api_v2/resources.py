@@ -2710,7 +2710,12 @@ class AgentDetails(Resource):
         ''' Updates an Agent '''
         agent = Agent.get_by_uuid(uuid=uuid)
         if agent:
-            agent.update(**api2.payload)
+
+            agent.update(**api2.payload, refresh=True)
+
+            if 'roles' in api2.payload:
+                redistribute_detections(organization=agent.organization)
+
             return agent
         else:
             ns_agent_v2.abort(404, 'Agent not found.')
