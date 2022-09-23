@@ -38,6 +38,11 @@ mod_agent_group_list_paged = api.model('AgentGroupListPaged', {
     'pagination': fields.Nested(mod_pagination)
 })
 
+mod_paged_agent_group_list = api.model('PagedAgentGroupList', {
+    'groups': fields.List(fields.Nested(mod_agent_group_list)),
+    'pagination': fields.Nested(mod_pagination)
+})
+
 
 @api.route("/<uuid>")
 class AgentGroupDetails(Resource):
@@ -98,3 +103,91 @@ class AgentGroupDetails(Resource):
             return {'message': f'Successfully deleted Agent Group {group.name}'}, 200
         else:
             api.abort(404, 'Agent Group not found')
+
+
+agent_group_list_parser = api.parser()
+agent_group_list_parser.add_argument('organization', location='args', required=False)
+agent_group_list_parser.add_argument(
+    'page', type=int, location='args', default=1, required=False)
+agent_group_list_parser.add_argument(
+    'page_size', type=int, location='args', default=10, required=False)
+agent_group_list_parser.add_argument(
+    'sort_by', type=str, location='args', default='created_at', required=False
+)
+agent_group_list_parser.add_argument(
+    'sort_direction', type=str, location='args', default='desc', required=False
+)
+
+@api.route("")
+class AgentGroupList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_paged_agent_group_list)
+    @api.expect(mod_agent_group_list_paged)
+    @token_required
+    @default_org
+    @user_has('view_agent_groups')
+    def get(self, user_in_default_org, current_user):
+
+        args = agent_group_list_parser.parse_args()
+
+        groups = AgentGroup.search()
+
+        if user_in_default_org:
+            if args.organization:
+                groups = groups.filter('term', organization=args.organization)
+
+        sort_by = args.sort_by
+        if sort_by not in ['name']:
+            sort_by = "created_at"
+
+        if args.sort_direction == 'desc':
+            sort_by = f"-{sort_by}"
+
+        groups = groups.sort(sort_by)
+
+        groups, total_results, pages = page_results(groups, args.page, args.page_size)
+
+        groups = groups.execute()
+
+        response = {
+            'groups': list(groups),
+            'pagination': {
+                'total_results': total_results,
+                'pages': pages,
+                'page': args['page'],
+                'page_size': args['page_size']
+            }
+        }
+
+        return response
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_agent_group_create)
+    @api.marshal_with(mod_agent_group_list)
+    @api.response('200', 'Successfully created agent group.')
+    @api.response('409', 'Agent group already exists.')
+    @token_required
+    @default_org
+    @user_has('add_agent_group')
+    def post(self, user_in_default_org, current_user):
+        '''
+        Creates a new agent group that can be used to assign 
+        certain stack features to specific agents
+        '''
+       
+        if user_in_default_org:
+            if 'organization' in api.payload:
+                group = AgentGroup.get_by_name(name=api.payload['name'], organization=api.payload['organization'])
+            else:
+                group = AgentGroup.get_by_name(name=api.payload['name'])
+        else:
+            group = AgentGroup.get_by_name(name=api.payload['name'])
+
+        if not group:
+
+            group = AgentGroup(**api.payload)
+            group.save()
+        else:
+            api.abort(409, 'Group with that name already exists.')
+        return group

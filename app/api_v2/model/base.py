@@ -101,6 +101,7 @@ class BaseDocument(Document):
             return documents
         return []
 
+
     def save(self, skip_update_by=False, **kwargs):
         '''
         Overrides the default Document save() function and adds

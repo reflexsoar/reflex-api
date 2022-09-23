@@ -23,6 +23,42 @@ class FieldMap(InnerDoc):
     tags = Keyword()
 
 
+class FieldMappingTemplate(base.BaseDocument):
+    '''
+    A FieldMappingTemplate can be applied globally to many inputs
+    '''
+
+    name = Keyword()
+    description = Text(fields={'keyword':Keyword()})
+    field_mapping = Nested(FieldMap)
+    is_global = Boolean()
+
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
+        name = 'reflex-field-mapping-templates'
+        settings = {
+            'refresh_interval': '1s'
+        }
+
+    @classmethod
+    def get_by_name(self, name, organization=None):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = self.search()
+        
+        response = response.filter('term', name=name)
+        if organization:
+            response = response.filter('term', organization=organization)
+            
+        response = response.execute()
+        if response:
+            user = response[0]
+            return user
+        return response
+
+
 class Input(base.BaseDocument):
     '''
     An input defines where an Agent should fetch information.
