@@ -30,7 +30,7 @@ from app.api_v2.model import (
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
         Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,
-        MITRETechnique, EventView, NotificationChannel, Notification
+        MITRETechnique, EventView, NotificationChannel, Notification, FieldMappingTemplate
 )
 
 from .defaults import (
@@ -114,7 +114,7 @@ def upgrade_indices(app):
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
         Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,MITRETechnique,
-        EventView, NotificationChannel, Notification
+        EventView, NotificationChannel, Notification, FieldMappingTemplate
         ]
 
     for model in models:
@@ -202,6 +202,7 @@ def create_app(environment='development'):
     app = Flask(__name__, instance_relative_config=True)   
     app.config.from_object(app_config[os.getenv('FLASK_CONFIG', environment)])
     app.config.from_pyfile('application.conf', silent=True)
+    app.config['ERROR_404_HELP'] = False
 
     #app.logger.propagate = False
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
