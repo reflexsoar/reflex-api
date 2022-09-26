@@ -143,7 +143,9 @@ class BaseDocument(Document):
         # Skip updating the update_by this is useful if the system is updating something in the 
         # backend and we don't want to trash manual updates from users
         if skip_update_by == False:
-            self.updated_at = datetime.datetime.utcnow()
-            self.updated_by = utils._current_user_id_or_none()
+            kwargs['updated_at'] = datetime.datetime.utcnow()
+            kwargs['updated_by'] = utils._current_user_id_or_none()
+            #self.updated_at = datetime.datetime.utcnow()
+            #self.updated_by = utils._current_user_id_or_none()
 
         return super().update(**kwargs)
