@@ -142,6 +142,7 @@ class CaseTask(base.BaseDocument):
     start_date = Date()
     finish_date = Date()
     notes = Keyword()
+    require_previous_step_complete = Boolean()  # Should the previous step be complete before this one can be started
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -641,6 +642,7 @@ class CaseTemplateTask(InnerDoc):
     status = Integer()  # 0 = Open, 1 = Started, 2 = Complete
     start_date = Date()
     finish_date = Date()
+    require_previous_step_complete = Boolean()  # Should the previous step be complete before this one can be started
 
 
 class CaseTemplate(base.BaseDocument):

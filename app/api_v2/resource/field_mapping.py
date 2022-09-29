@@ -28,6 +28,7 @@ mod_field_mapping = api.model('FieldMapping', {
 mod_create_field_mapping_template = api.model('FieldMappingCreate', {
     'name': fields.String,
     'description': fields.String,
+    'priority': fields.Integer,
     'field_mapping': fields.List(fields.Nested(mod_field_mapping)),
     'organization': fields.String,
     'is_global': fields.Boolean
@@ -37,6 +38,7 @@ mod_field_mapping_template_details = api.model('FieldMappingTemplateDetails', {
     'uuid': fields.String,
     'name': fields.String,
     'description': fields.String,
+    'priority': fields.Integer,
     'field_mapping': fields.List(fields.Nested(mod_field_mapping)),
     'organization': fields.String,
     'is_global': fields.Boolean,
