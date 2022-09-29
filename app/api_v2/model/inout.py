@@ -104,7 +104,7 @@ class Input(base.BaseDocument):
         ''' Returns the field mapping as a dict '''
 
         # Pull any field mapping templates assigned to this input and merge them
-        if hasattr(self, 'field_mapping_templates') and len(self.field_mapping_templates) > 0:
+        #if hasattr(self, 'field_mapping_templates') and len(self.field_mapping_templates) > 0:
 
 
         if isinstance(self.field_mapping, AttrList):
