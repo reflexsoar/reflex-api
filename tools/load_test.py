@@ -301,6 +301,18 @@ def random_event():
           "tags": [
             "firewall"
           ]
+        },
+        {
+          "value": 59852,
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "port",
+          "source_field": "destination_port",
+          "tags": [
+            "destination_port"
+          ]
         }
       ],
       #"raw_log": json.dumps({"destination":{"ip": ip}})
