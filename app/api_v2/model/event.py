@@ -192,6 +192,10 @@ class Event(base.BaseDocument):
             # FIX: Don't create observables with empty or placeholder values
             if o['value'] not in [None,'','-']:
 
+                # Cast all the values to strings
+                if not isinstance(o['value'], str):
+                    o['value'] = str(o['value'])
+
                 observable = system.Observable(**o, organization=self.organization)
 
                 observable.add_event_uuid(self.uuid)

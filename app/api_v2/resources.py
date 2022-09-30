@@ -1295,7 +1295,7 @@ class CaseDetails(Resource):
                 if remove_successful:
                     case.apply_template(api2.payload['case_template_uuid'])
 
-            case.update(**api2.payload)
+            case.update(**api2.payload, refresh=True)
 
             return case
         else:

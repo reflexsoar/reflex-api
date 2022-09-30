@@ -622,6 +622,7 @@ mod_input_list = Model('InputList', {
     'tags': fields.List(fields.String),
     'config': JSONField(attribute="_config"),
     'field_mapping': JSONField(attribute="_field_mapping"),
+    'field_mapping_templates': fields.List(fields.String),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
     'index_fields': fields.List(fields.String),
@@ -642,7 +643,8 @@ mod_input_create = Model('CreateInput', {
     'credential': fields.String(required=True),
     'tags': fields.List(fields.String),
     'config': fields.String,
-    'field_mapping': fields.String
+    'field_mapping': fields.String,
+    'field_mapping_templates': fields.List(fields.String)
 })
 
 mod_agent_create = Model('AgentCreate', {

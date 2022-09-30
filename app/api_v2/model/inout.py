@@ -30,6 +30,7 @@ class FieldMappingTemplate(base.BaseDocument):
 
     name = Keyword()
     description = Text(fields={'keyword':Keyword()})
+    priority = Integer() # Higher priority templates are applied last and override lower priority
     field_mapping = Nested(FieldMap)
     is_global = Boolean()
 
@@ -79,6 +80,7 @@ class Input(base.BaseDocument):
     field_mapping = Nested(FieldMap)
     index_fields = Keyword() # A list of all the fields on the index via _mapping
     index_fields_last_updated = Date()
+    field_mapping_templates = Keyword() # A list of UUIDs of FieldMappingTemplates
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -100,6 +102,11 @@ class Input(base.BaseDocument):
     @property
     def _field_mapping(self):
         ''' Returns the field mapping as a dict '''
+
+        # Pull any field mapping templates assigned to this input and merge them
+        #if hasattr(self, 'field_mapping_templates') and len(self.field_mapping_templates) > 0:
+
+
         if isinstance(self.field_mapping, AttrList):
             if self.field_mapping and len(self.field_mapping) >= 1:
                 return self.field_mapping[0].to_dict()
