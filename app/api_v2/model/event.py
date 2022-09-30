@@ -119,7 +119,7 @@ class Event(base.BaseDocument):
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
-        name = 'reflex-events-test'
+        name = 'reflex-events'
         settings = {
             'refresh_interval': '1s',
             'max_inner_result_window': 10000
