@@ -101,7 +101,7 @@ class Event(base.BaseDocument):
     dismiss_reason = Text(fields={'keyword':Keyword()})
     dismiss_comment = Text(fields={'keyword': Keyword()})
     tuning_advice = Keyword(fields={'text':Text()}) # Used to supply tuning advice back to the customer
-    dismissed_by = Object(User)
+    dismissed_by = Object()
     dismissed_at = Date()
     dismissed_by_rule = Boolean()
     closed_at = Date()
