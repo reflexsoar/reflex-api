@@ -4,6 +4,7 @@ import json
 from app.api_v2.model.exceptions import EventRuleFailure
 from app.api_v2.model.notification import Notification
 from app.api_v2.model.system import Observable
+from app.api_v2.model.user import User
 
 from app.api_v2.rql.parser import QueryParser
 from . import case as c
@@ -89,19 +90,18 @@ class Event(base.BaseDocument):
     reference = Keyword()
     case = Keyword()
     source = Text(fields={'keyword':Keyword()})
-    event_observables = Nested()
     source_uuid = Keyword()
     tlp = Integer()
     severity = Integer()
     tags = Keyword()
     event_observables = Nested(Observable)
-    status = Object()
+    status = Object(EventStatus)
     signature = Keyword()
     dismissed = Boolean()
     dismiss_reason = Text(fields={'keyword':Keyword()})
     dismiss_comment = Text(fields={'keyword': Keyword()})
     tuning_advice = Keyword(fields={'text':Text()}) # Used to supply tuning advice back to the customer
-    dismissed_by = Object()
+    dismissed_by = Object(User)
     dismissed_at = Date()
     dismissed_by_rule = Boolean()
     closed_at = Date()
@@ -115,11 +115,11 @@ class Event(base.BaseDocument):
     detection_id = Keyword() # The UUID of the Detection rule that generated this event
     risk_score = Integer() # The risk score if this originated from a detection rule
     original_date = Date() # The date the original log was generated (not when it was created in Reflex)
-    comments = Nested()
+    comments = Nested(EventComment)
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
-        name = 'reflex-events'
+        name = 'reflex-events-test'
         settings = {
             'refresh_interval': '1s',
             'max_inner_result_window': 10000
