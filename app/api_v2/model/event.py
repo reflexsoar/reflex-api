@@ -19,7 +19,8 @@ from . import (
     Date,
     system,
     utils,
-    Nested
+    Nested,
+    InnerDoc
 )
 
 class EventComment(base.BaseInnerDoc):
@@ -78,6 +79,21 @@ class EventView(base.BaseDocument):
     filter_string = Text() # The JSON string of the filter
 
 
+class EventObservable(InnerDoc):
+    '''
+    A list of observables associated with an Event
+    '''
+    tags = Keyword()
+    data_type = Text(fields={'keyword':Keyword()})
+    value = Keyword()
+    spotted = Boolean()
+    ioc = Boolean()
+    safe = Boolean()
+    tlp = Integer()
+    source_field = Keyword() # The source field or alias being used
+    original_source_field = Keyword() # The source field where the observable was extracted from
+
+
 class Event(base.BaseDocument):
     '''
     An event in reflex is anything sourced by an agent input that
@@ -94,8 +110,8 @@ class Event(base.BaseDocument):
     tlp = Integer()
     severity = Integer()
     tags = Keyword()
-    event_observables = Nested(Observable)
-    status = Object(EventStatus)
+    event_observables = Nested(EventObservable)
+    status = Object()
     signature = Keyword()
     dismissed = Boolean()
     dismiss_reason = Text(fields={'keyword':Keyword()})
@@ -115,7 +131,7 @@ class Event(base.BaseDocument):
     detection_id = Keyword() # The UUID of the Detection rule that generated this event
     risk_score = Integer() # The risk score if this originated from a detection rule
     original_date = Date() # The date the original log was generated (not when it was created in Reflex)
-    comments = Nested(EventComment)
+    comments = Nested()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
