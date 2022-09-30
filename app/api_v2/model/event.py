@@ -3,6 +3,7 @@ import hashlib
 import json
 from app.api_v2.model.exceptions import EventRuleFailure
 from app.api_v2.model.notification import Notification
+from app.api_v2.model.system import Observable
 
 from app.api_v2.rql.parser import QueryParser
 from . import case as c
@@ -93,7 +94,7 @@ class Event(base.BaseDocument):
     tlp = Integer()
     severity = Integer()
     tags = Keyword()
-    event_observables = Nested()
+    event_observables = Nested(Observable)
     status = Object()
     signature = Keyword()
     dismissed = Boolean()
