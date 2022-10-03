@@ -85,7 +85,7 @@ class EventObservable(InnerDoc):
     '''
     tags = Keyword()
     data_type = Text(fields={'keyword':Keyword()})
-    value = Keyword()
+    value = Text(fields={'keyword':Keyword()})
     spotted = Boolean()
     ioc = Boolean()
     safe = Boolean()
