@@ -170,6 +170,7 @@ def setup(app, check_for_default=False):
         initial_settings(Settings, org_id)
     else:
         create_default_closure_reasons(CloseReason, org_id=None, check_for_default=check_for_default)
+        create_agent_role(Role, org_id=None, check_for_default=check_for_default)
 
     return 
 
