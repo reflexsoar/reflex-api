@@ -241,7 +241,7 @@ def create_analyst_role(cls, org_id, org_perms=False):
     role = cls(**role_contents)
     role.save()
 
-def create_agent_role(cls, org_id):
+def create_agent_role(cls, org_id, check_for_default=False):
 
     perms = { 
         "decrypt_credential": True,
@@ -272,8 +272,20 @@ def create_agent_role(cls, org_id):
         'organization': org_id
     }
 
-    role = cls(**role_contents)
-    role.save()
+    # If this is the first setup of the system, we need to create the default closure reasons
+    # else we will just update the existing ones and replace those that are missing
+    if check_for_default == False:
+        role = cls(**role_contents)
+        role.save()
+    else:
+        orgs = Organization.search().execute()
+        for org in orgs:
+            role = cls.search().filter('term', organization=org.uuid).filter('term', name='Agent').execute()
+            if role:
+                role = role[0]
+                role.permissions = perms
+                role.save()
+    
 
 def create_admin_user(cls, org_id):
 
