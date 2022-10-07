@@ -19,7 +19,7 @@ def create_default_organization(cls):
 
     return org.uuid
 
-def create_admin_role(cls, admin_id, org_id, org_perms=False):
+def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=False):
 
     perms = { 
         'add_user': True,
@@ -143,6 +143,10 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False):
         "update_notification_channel": True,
         "delete_notification_channel": True,
         "view_notifications": True,
+        "create_agent_policy": True,
+        "view_agent_policies": True,
+        "update_agent_policy": True,
+        "delete_agent_policy": True,
     }
 
     role_contents = {
@@ -154,10 +158,34 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False):
         'organization': org_id
     }
 
-    role = cls(**role_contents)
-    role.save()
+    # If this is the first setup of the system, we need to create the default closure reasons
+    # else we will just update the existing ones and replace those that are missing
+    if check_for_default == False:
+        role = cls(**role_contents)
+        role.save()
+    else:
+        orgs = Organization.search().execute()
+        for org in orgs:
+            role = cls.search().filter('term', organization=org.uuid).filter('term', name='Admin').execute()
+            if role:
+                if org.default_org:
+                    perms['view_organizations'] = True
+                    perms['add_organization'] = True
+                    perms['view_organizations'] = True
+                    perms['update_organization'] = True
+                    perms['delete_organization'] = True
+                else:
+                    perms['view_organizations'] = False
+                    perms['add_organization'] = False
+                    perms['view_organizations'] = False
+                    perms['update_organization'] = False
+                    perms['delete_organization'] = False
+                role = role[0]
+                role.permissions = perms
+                role.save()
 
-def create_analyst_role(cls, org_id, org_perms=False):
+
+def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
 
     perms = { 
         'view_users': True,
@@ -226,7 +254,11 @@ def create_analyst_role(cls, org_id, org_perms=False):
         "view_notification_channels": True,
         "update_notification_channel": False,
         "delete_notification_channel": False,
-        "view_notifications": True
+        "view_notifications": True,
+        "create_agent_policy": False,
+        "view_agent_policies": True,
+        "update_agent_policy": False,
+        "delete_agent_policy": False,
     }
 
     role_contents = {
@@ -238,8 +270,24 @@ def create_analyst_role(cls, org_id, org_perms=False):
         'organization': org_id
     }
 
-    role = cls(**role_contents)
-    role.save()
+    # If this is the first setup of the system, we need to create the default closure reasons
+    # else we will just update the existing ones and replace those that are missing
+    if check_for_default == False:
+        role = cls(**role_contents)
+        role.save()
+    else:
+        orgs = Organization.search().execute()
+        for org in orgs:
+            role = cls.search().filter('term', organization=org.uuid).filter('term', name='Analyst').execute()
+            if role:
+                if org.default_org:
+                    perms['view_organizations'] = True
+                else:
+                    perms['view_organizations'] = False
+                role = role[0]
+                role.permissions = perms
+                role.save()
+
 
 def create_agent_role(cls, org_id, check_for_default=False):
 
@@ -263,7 +311,8 @@ def create_agent_role(cls, org_id, check_for_default=False):
         'view_inputs': True,
         'view_detections': True,
         'update_input': True,
-        'update_detection': True
+        'update_detection': True,
+        "view_agent_policies": True,
     }
 
     role_contents = {

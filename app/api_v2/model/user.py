@@ -523,6 +523,12 @@ class Permission(InnerDoc):
     delete_notification_channel = Boolean()
     view_notifications = Boolean()
 
+    # Agent Policy Permissions
+    create_agent_policy = Boolean()
+    view_agent_policies = Boolean()
+    update_agent_policy = Boolean()
+    delete_agent_policy = Boolean()
+
 
 class Role(base.BaseDocument):
     '''
