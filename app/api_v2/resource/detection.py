@@ -251,7 +251,7 @@ class DetectionList(Resource):
     @api.marshal_with(mod_detection_list_paged)
     @api.expect(detection_list_parser)
     @token_required
-    # @user_has('view_detections')
+    @user_has('view_detections')
     def get(self, current_user):
         '''
         Returns a list of detections

@@ -75,10 +75,13 @@ class AgentPolicy(base.BaseDocument):
     health_check_interval = Integer() # How often should the agent check in with the server?
     logging_level = Keyword() # What logging level should the agent use for its logs?
     max_intel_db_size = Integer() # How much space should the agent use for its intelligence database?
+    disable_event_cache_check = Boolean() # Should the agent check the event cache for duplicate events?
     event_realert_ttl = Integer() # How long should an event signature be kept in the cache before it is realerted?
     poller_config = Nested(PollerRoleConfig) # What is the configuration for the poller role?
     detector_config = Nested(DetectorRoleConfig) # What is the configuration for the detector role?
     runner_config = Nested(RunnerRoleConfig) # What is the configuration for the runner role?
+    tags = Keyword() # Tags to categorize this policy
+    priority = Integer() # What is the priority of this policy?
 
 
 class Agent(base.BaseDocument):
