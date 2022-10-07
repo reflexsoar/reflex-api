@@ -71,6 +71,7 @@ class AgentPolicy(base.BaseDocument):
         }
 
     name = Keyword() # What is a friendly name for this agent policy
+    description = Text(fields={'keyword': Keyword()}) # A description of the policy
     roles = Keyword() # What roles do agents assigned to this policy have
     health_check_interval = Integer() # How often should the agent check in with the server?
     logging_level = Keyword() # What logging level should the agent use for its logs?
@@ -82,6 +83,7 @@ class AgentPolicy(base.BaseDocument):
     runner_config = Nested(RunnerRoleConfig) # What is the configuration for the runner role?
     tags = Keyword() # Tags to categorize this policy
     priority = Integer() # What is the priority of this policy?
+    revision = Integer() # What is the revision of this policy?
 
 
 class Agent(base.BaseDocument):

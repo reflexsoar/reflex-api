@@ -27,7 +27,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from app.api_v2.model import (
     Event,Tag,ExpiredToken,Credential,Agent,ThreatList,ThreatValue,EventStatus,EventRule,
-        CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
+        CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,AgentPolicy,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
         Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,
         MITRETechnique, EventView, NotificationChannel, Notification, FieldMappingTemplate
@@ -111,7 +111,7 @@ def upgrade_indices(app):
    
     models = [
         Event,Tag,ExpiredToken,Credential,Agent,ThreatList,ThreatValue,EventStatus,EventRule,
-        CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,
+        CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,AgentPolicy,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
         Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,MITRETechnique,
         EventView, NotificationChannel, Notification, FieldMappingTemplate
@@ -172,6 +172,8 @@ def setup(app, check_for_default=False):
     else:
         create_default_closure_reasons(CloseReason, org_id=None, check_for_default=check_for_default)
         create_agent_role(Role, org_id=None, check_for_default=check_for_default)
+        create_admin_role(Role, admin_id=None, org_id=None, org_perms=True, check_for_default=check_for_default)
+        create_analyst_role(Role, org_id=None, org_perms=True, check_for_default=check_for_default)
 
     return 
 

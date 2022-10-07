@@ -50,7 +50,7 @@ else:
     )
 
 from .user import User, Role, ExpiredToken, Organization
-from .agent import Agent, AgentGroup
+from .agent import Agent, AgentGroup, AgentPolicy
 from .inout import Input, FieldMappingTemplate
 from .threat import ThreatList, ThreatValue
 from .event import Event, EventRule, EventStatus, EventComment, EventView
@@ -88,6 +88,7 @@ __all__ = [
     ExpiredToken,
     Agent,
     AgentGroup,
+    AgentPolicy,
     Input,
     FieldMappingTemplate,
     Tag,

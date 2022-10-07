@@ -84,7 +84,8 @@ from .resource import (
     ns_notification_v2,
     ns_agent_v2,
     ns_agent_group_v2,
-    ns_field_mapping_v2
+    ns_field_mapping_v2,
+    ns_agent_policy_v2
 )
 
 from .. import ep
@@ -145,6 +146,7 @@ api2.add_namespace(ns_notification_v2)
 api2.add_namespace(ns_agent_v2)
 api2.add_namespace(ns_agent_group_v2)
 api2.add_namespace(ns_field_mapping_v2)
+api2.add_namespace(ns_agent_policy_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
