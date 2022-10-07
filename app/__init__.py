@@ -145,6 +145,7 @@ def setup(app, check_for_default=False):
     Performs initial setup by setting defaults
     '''
 
+    # If check for default is set to true, update the default settings for the system
     if not check_for_default:
         app.logger.info("Creating default organization")
         org_id = create_default_organization(Organization)
