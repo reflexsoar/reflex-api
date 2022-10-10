@@ -5,6 +5,7 @@ from sigma.rule import SigmaRule
 from sigma.collection import SigmaCollection
 from sigma.pipelines.sysmon import sysmon_pipeline
 from sigma.pipelines.elasticsearch.windows import ecs_windows
+from sigma.pipelines.elasticsearch.zeek import ecs_zeek_beats, ecs_zeek_corelight, zeek_raw
 from sigma.backends.elasticsearch import LuceneBackend
 from app.api_v2.model.detection import Detection
 from app.api_v2.model.mitre import MITRETactic, MITRETechnique
@@ -24,6 +25,9 @@ BACKENDS = {
 PIPELINES = {
     'sysmon': sysmon_pipeline,
     'ecs_windows': ecs_windows,
+    'ecs_zeek_beats': ecs_zeek_beats,
+    'ecs_zeek_corelight': ecs_zeek_corelight,
+    'zeek_raw': zeek_raw
 }
 
 class SigmaParser(object):
