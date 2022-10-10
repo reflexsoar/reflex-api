@@ -1,6 +1,8 @@
 import datetime
-from uuid import uuid4
+import yaml
+import urllib.parse
 
+from uuid import uuid4
 from app.api_v2.model.detection import DetectionException
 from app.api_v2.model.user import User
 from app.api_v2.model.utils import _current_user_id_or_none
@@ -16,6 +18,7 @@ from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
 from ..utils import page_results
 from .mitre import mod_tactic_brief, mod_technique_brief
+from ..sigma_parsing.main import SigmaParser
 
 api = Namespace(
     'Detection', description='Reflex detection rules', path='/detection', strict=True)
@@ -221,6 +224,12 @@ mod_detection_hits = api.model('DetectionHit', {
 mod_detection_hits_paged = api.model('DetectionHit', {
     'events': fields.List(fields.Nested(mod_detection_hits)),
     'pagination': fields.Nested(mod_pagination)
+})
+
+mod_sigma = api.model('Sigma', {
+    'sigma_rule': fields.String,
+    'input': fields.String,
+    'organization': fields.String
 })
 
 detection_list_parser = api.parser()
@@ -552,3 +561,25 @@ class DetectionDetails(Resource):
             return {}
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')
+
+
+@api.route("/parse_sigma")
+class ParseSigma(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_detection_details)
+    @api.expect(mod_sigma)
+    @token_required
+    @user_has('create_detection')
+    def post(self, current_user):
+        '''
+        Parses a Sigma rule and returns the detection rule
+        '''
+
+        sigma_rule = api.payload['sigma_rule']
+        sp = SigmaParser(rule=sigma_rule, input=None, organization=None)
+        detection = sp.generate_detection()
+        #sigma_parser = SigmaParser()
+        #detection = sigma_parser.parse(sigma_rule)
+
+        return detection

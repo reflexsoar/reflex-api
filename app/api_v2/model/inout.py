@@ -81,6 +81,7 @@ class Input(base.BaseDocument):
     index_fields = Keyword() # A list of all the fields on the index via _mapping
     index_fields_last_updated = Date()
     field_mapping_templates = Keyword() # A list of UUIDs of FieldMappingTemplates
+    sigma_backend = Keyword() # What sigma backend sigmac should convert to when this input is used
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
