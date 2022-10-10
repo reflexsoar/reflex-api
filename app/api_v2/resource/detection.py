@@ -23,7 +23,6 @@ from ..sigma_parsing.main import SigmaParser
 api = Namespace(
     'Detection', description='Reflex detection rules', path='/detection', strict=True)
 
-
 mod_intel_list = api.model('DetectionIntelList', {
     'name': fields.String,
     'uuid': fields.String
@@ -135,14 +134,14 @@ mod_detection_details = api.model('DetectionDetails', {
     'running': fields.Boolean,
     'assigned_agent': fields.String,
     'exceptions': fields.List(fields.Nested(mod_detection_exception_list)),
-    'threshold_config': fields.Nested(mod_threshold_config),
-    'metric_change_config': fields.Nested(mod_metric_change_config),
-    'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
-    'new_terms_config': fields.Nested(mod_new_terms_config),
+    'threshold_config': fields.Nested(mod_threshold_config, skip_none=True),
+    'metric_change_config': fields.Nested(mod_metric_change_config, skip_none=True),
+    'field_mismatch_config': fields.Nested(mod_field_mistmatch_config, skip_none=True),
+    'new_terms_config': fields.Nested(mod_new_terms_config, skip_none=True),
     'created_at': ISO8601,
-    'created_by': fields.Nested(mod_user_list),
+    'created_by': fields.Nested(mod_user_list, skip_none=True),
     'updated_at': ISO8601,
-    'updated_by': fields.Nested(mod_user_list)
+    'updated_by': fields.Nested(mod_user_list, skip_none=True)
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
@@ -567,7 +566,7 @@ class DetectionDetails(Resource):
 class ParseSigma(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_detection_details)
+    @api.marshal_with(mod_detection_details, skip_none=True)
     @api.expect(mod_sigma)
     @token_required
     @user_has('create_detection')
@@ -577,7 +576,7 @@ class ParseSigma(Resource):
         '''
 
         sigma_rule = api.payload['sigma_rule']
-        sp = SigmaParser(rule=sigma_rule, input=None, organization=None)
+        sp = SigmaParser(rule=sigma_rule)
         detection = sp.generate_detection()
         #sigma_parser = SigmaParser()
         #detection = sigma_parser.parse(sigma_rule)

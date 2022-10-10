@@ -626,7 +626,10 @@ mod_input_list = Model('InputList', {
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
     'index_fields': fields.List(fields.String),
-    'index_fields_last_updated': ISO8601(attribute='index_fields_last_updated')
+    'index_fields_last_updated': ISO8601(attribute='index_fields_last_updated'),
+    'sigma_backend': fields.String,
+    'sigma_pipeline': fields.String,
+    'sigma_field_mapping': fields.String
 })
 
 mod_input_list_paged = Model('InputListPaged', {
@@ -644,7 +647,10 @@ mod_input_create = Model('CreateInput', {
     'tags': fields.List(fields.String),
     'config': fields.String,
     'field_mapping': fields.String,
-    'field_mapping_templates': fields.List(fields.String)
+    'field_mapping_templates': fields.List(fields.String),
+    'sigma_backend': fields.String,
+    'sigma_pipeline': fields.String,
+    'sigma_field_mapping': fields.String
 })
 
 mod_agent_create = Model('AgentCreate', {

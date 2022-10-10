@@ -6,6 +6,7 @@ from sigma.collection import SigmaCollection
 from sigma.pipelines.sysmon import sysmon_pipeline
 from sigma.pipelines.elasticsearch.windows import ecs_windows
 from sigma.pipelines.elasticsearch.zeek import ecs_zeek_beats, ecs_zeek_corelight, zeek_raw
+from sigma.backends.opensearch import OpensearchLuceneBackend
 from sigma.backends.elasticsearch import LuceneBackend
 from app.api_v2.model.detection import Detection
 from app.api_v2.model.mitre import MITRETactic, MITRETechnique
@@ -20,6 +21,7 @@ LEVELS = {
 
 BACKENDS = {
     'elasticsearch': LuceneBackend,
+    'opensearch': OpensearchLuceneBackend
 }
 
 PIPELINES = {
@@ -36,12 +38,12 @@ class SigmaParser(object):
     Reflex can understand
     '''
 
-    def __init__(self, rule, input, organization):
+    def __init__(self, rule, source_input=None, organization=None):
+        '''Initializes the SigmaParser object'''
         self.raw_rule = urllib.parse.unquote(rule)
         self.rule = self._parse(self.raw_rule)
-        self.input = input
-        self.organization = organization
-        
+        self.input = source_input
+        self.organization = organization        
 
     def _parse(self, rule):
         '''
@@ -50,6 +52,11 @@ class SigmaParser(object):
         return SigmaRule.from_yaml(self.raw_rule)
 
     def generate_detection(self):
+        '''
+        Generates Reflex detection object from a Sigma rule
+        '''
+
+        print(self.rule.level)
 
         detection_config = {
             'name': getattr(self.rule, 'title', None),
