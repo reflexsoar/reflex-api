@@ -9,6 +9,7 @@ from sigma.pipelines.elasticsearch.zeek import ecs_zeek_beats, ecs_zeek_coreligh
 from sigma.backends.opensearch import OpensearchLuceneBackend
 from sigma.backends.elasticsearch import LuceneBackend
 from app.api_v2.model.detection import Detection
+from app.api_v2.model.inout import Input
 from app.api_v2.model.mitre import MITRETactic, MITRETechnique
 
 
@@ -17,6 +18,7 @@ LEVELS = {
     'high': 3,
     'medium': 2,
     'low': 1,
+    'informational': 1
 }
 
 BACKENDS = {
@@ -32,18 +34,22 @@ PIPELINES = {
     'zeek_raw': zeek_raw
 }
 
+
 class SigmaParser(object):
     '''
     Takes a YAML configuration file and parses it in to a format that 
     Reflex can understand
     '''
 
-    def __init__(self, rule, source_input=None, organization=None):
+    def __init__(self, sigma_rule, source_input=None, organization=None, pipeline=None, backend=None, mapping=None):
         '''Initializes the SigmaParser object'''
-        self.raw_rule = urllib.parse.unquote(rule)
+        self.raw_rule = urllib.parse.unquote(sigma_rule)
         self.rule = self._parse(self.raw_rule)
         self.input = source_input
-        self.organization = organization        
+        self.organization = organization
+        self.pipeline = pipeline
+        self.backend = backend
+        self.mapping = mapping
 
     def _parse(self, rule):
         '''
@@ -56,28 +62,54 @@ class SigmaParser(object):
         Generates Reflex detection object from a Sigma rule
         '''
 
-        print(self.rule.level)
-
         detection_config = {
             'name': getattr(self.rule, 'title', None),
             'query': {
                 'query': '',
                 'language': ''
             },
-            'detection_id': getattr(self.rule, 'id', uuid.uuid4()),
+            'sigma_rule_id': getattr(self.rule, 'id', uuid.uuid4()),
             'description': getattr(self.rule, 'description', ''),
             'tags': getattr(self.rule, 'tags', []),
             'references': getattr(self.rule, 'references', []),
             'false_positives': getattr(self.rule, 'falsepositives', []),
-            'severity': LEVELS.get(getattr(self.rule, 'level', 'low'), 1),
+            'severity': LEVELS[str(getattr(self.rule, 'level', 'low'))],
             'from_sigma': True,
             'sigma_rule': self.raw_rule,
             'tactics': [],
             'techniques': []
         }
 
-        pipeline = PIPELINES['ecs_windows']()
-        backend = BACKENDS['elasticsearch'](pipeline)
+        NO_PIPELINE_ERROR = "No pipeline specified"
+        NO_BACKEND_ERROR = "No backend specified"
+        UNSUPPORTED_PIPELINE_ERROR = "Pipeline {} not supported"
+        UNSUPPORTED_BACKEND_ERROR = "Backend {} not supported"
+
+        if self.input:
+            source_input = Input.get_by_uuid(self.input)
+
+            # If no backend is specified, use the default backend for the input
+            if not self.backend:
+                if hasattr(source_input, 'sigma_backend'):
+                    self.backend = source_input.sigma_backend
+
+            # If no pipeline is specified, use the default pipeline for the input
+            if not self.pipeline:
+                if hasattr(source_input, 'sigma_pipeline'):
+                    self.pipeline = source_input.sigma_pipeline
+
+        if not self.backend:
+            raise ValueError(NO_BACKEND_ERROR)
+        if not self.pipeline:
+            raise ValueError(NO_PIPELINE_ERROR)
+
+        if self.backend not in BACKENDS:
+            raise ValueError(UNSUPPORTED_BACKEND_ERROR.format(self.backend))
+        if self.pipeline not in PIPELINES:
+            raise ValueError(UNSUPPORTED_PIPELINE_ERROR.format(self.pipeline))
+
+        pipeline = PIPELINES[self.pipeline]()
+        backend = BACKENDS[self.backend](pipeline)
         rules = SigmaCollection([self.rule])
 
         if rules:
@@ -90,7 +122,8 @@ class SigmaParser(object):
                 tag = t.name
                 if t.namespace == 'attack':
                     if tag.lower().startswith('t'):
-                        technique = MITRETechnique.get_by_external_id(tag.upper())
+                        technique = MITRETechnique.get_by_external_id(
+                            tag.upper())
                         if technique:
                             detection_config['techniques'].append(technique)
                     else:

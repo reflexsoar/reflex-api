@@ -149,6 +149,7 @@ mod_create_detection = api.model('CreateDetection', {
     'query': fields.Nested(mod_query_config, required=True),
     'from_sigma': fields.Boolean(default=False, required=False, skip_none=True),
     'sigma_rule': fields.String(required=False, skip_none=True),
+    'sigma_rule_id': fields.String(required=False),
     'organization': fields.String,
     'description': fields.String(default="A detailed description.", required=True),
     'guide': fields.String(default="An investigation guide on how to triage this detection"),
@@ -227,8 +228,10 @@ mod_detection_hits_paged = api.model('DetectionHit', {
 
 mod_sigma = api.model('Sigma', {
     'sigma_rule': fields.String,
-    'input': fields.String,
-    'organization': fields.String
+    'source_input': fields.String,
+    'organization': fields.String,
+    'pipeline': fields.String(default='ecs_windows'),
+    'backend': fields.String(default='opensearch')
 })
 
 detection_list_parser = api.parser()
@@ -575,9 +578,12 @@ class ParseSigma(Resource):
         Parses a Sigma rule and returns the detection rule
         '''
 
-        sigma_rule = api.payload['sigma_rule']
-        sp = SigmaParser(rule=sigma_rule)
-        detection = sp.generate_detection()
+        try:
+            sp = SigmaParser(**api.payload)
+            detection = sp.generate_detection()
+        except Exception as e:
+            api.abort(400, f'Error parsing Sigma rule: {e}')
+        
         #sigma_parser = SigmaParser()
         #detection = sigma_parser.parse(sigma_rule)
 

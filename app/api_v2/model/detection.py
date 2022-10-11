@@ -154,6 +154,7 @@ class Detection(base.BaseDocument):
     detection_id = Keyword() # A persistent UUID that follows the rule and is associated to events
     from_sigma = Boolean() # Tells you if the rule was converted from a Sigma rule
     sigma_rule = Keyword(fields={'text':Text()}) # The raw sigma rule
+    sigma_rule_id = Keyword() # The ID of the Sigma rule
     description = Text()
     guide = Text() # A descriptive process for how to triage/investigate this detection
     tags = Keyword() # A list of tags used to categorize this repository
