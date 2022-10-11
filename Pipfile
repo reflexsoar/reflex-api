@@ -51,6 +51,12 @@ kafka-python = "*"
 pymsteams = "*"
 chevron = "*"
 pdpyras = "*"
+pyyaml = "*"
+pysigma = "*"
+pysigma-backend-elasticsearch = "*"
+pysigma-pipeline-sysmon = "*"
+pysigma-pipeline-windows = "*"
+pysigma-backend-opensearch = "*"
 
 [requires]
 python_version = "3.8"

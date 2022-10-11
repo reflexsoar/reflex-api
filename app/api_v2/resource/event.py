@@ -725,6 +725,7 @@ def check_cache(reference, client):
                 if result:
                     found = True
             except Exception as e:
+                current_app.logger.error(f"Error checking memcached for {memcached_key}: {e}")
                 found = False
 
     # If the item was not found in memcached check Elasticsearch

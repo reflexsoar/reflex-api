@@ -86,6 +86,8 @@ class MITRETechnique(base.BaseDocument):
         else:
             return None
 
+    
+
 
 class MITRETactic(base.BaseDocument):
     '''
@@ -116,6 +118,18 @@ class MITRETactic(base.BaseDocument):
         ''' Fetches the tactic by its external ID '''
         search = cls.search()
         search = search.filter('term', external_id=external_id)
+        result = search.execute()
+        if result:
+            return result[0]
+        else:
+            return None
+
+
+    @classmethod
+    def get_by_shortname(cls, shortname):
+        ''' Fetches the tactic by its short_name '''
+        search = cls.search()
+        search = search.filter('match_phrase', shortname=shortname)
         result = search.execute()
         if result:
             return result[0]

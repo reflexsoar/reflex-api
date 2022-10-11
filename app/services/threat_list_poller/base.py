@@ -60,16 +60,20 @@ class ThreatListPoller(object):
         self.logger.info("Service Started")
         self.logger.info('Checking rehydration flag')
 
-        flag = self.memcached_client.get('threat-poller-hydration')
-        if not flag:
-            self.rehydrate_memcached()
+        try:
+            flag = self.memcached_client.get('threat-poller-hydration')
+            if not flag:
+                self.rehydrate_memcached()
+        except Exception as e:
+            self.logger.error(f"An error occurred while trying to rehydrate memcached. {e}")
 
     def build_elastic_connection(self):
         elastic_connection = {
             'hosts': self.app.config['ELASTICSEARCH_URL'],
             'verify_certs': self.app.config['ELASTICSEARCH_CERT_VERIFY'],
             'use_ssl': self.app.config['ELASTICSEARCH_SCHEME'],
-            'ssl_show_warn': self.app.config['ELASTICSEARCH_SHOW_SSL_WARN']
+            'ssl_show_warn': self.app.config['ELASTICSEARCH_SHOW_SSL_WARN'],
+            'timeout': self.app.config['ELASTICSEARCH_TIMEOUT']
         }
 
         username = self.app.config['ELASTICSEARCH_USERNAME']
@@ -255,9 +259,12 @@ class ThreatListPoller(object):
         '''
         self.logger.info('Checking rehydration flag')
 
-        flag = self.memcached_client.get('threat-poller-hydration')
-        if not flag:
-            self.rehydrate_memcached()
+        try:
+            flag = self.memcached_client.get('threat-poller-hydration')
+            if not flag:
+                self.rehydrate_memcached()
+        except Exception as e:
+            self.logger.error(f"An error occurred while trying to rehydrate memcached. {e}")
 
         self.logger.info('Fetching threat lists')
         self.refresh_lists()

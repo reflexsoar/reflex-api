@@ -1,6 +1,8 @@
 import datetime
-from uuid import uuid4
+import yaml
+import urllib.parse
 
+from uuid import uuid4
 from app.api_v2.model.detection import DetectionException
 from app.api_v2.model.user import User
 from app.api_v2.model.utils import _current_user_id_or_none
@@ -16,10 +18,10 @@ from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
 from ..utils import page_results
 from .mitre import mod_tactic_brief, mod_technique_brief
+from ..sigma_parsing.main import SigmaParser
 
 api = Namespace(
     'Detection', description='Reflex detection rules', path='/detection', strict=True)
-
 
 mod_intel_list = api.model('DetectionIntelList', {
     'name': fields.String,
@@ -132,14 +134,14 @@ mod_detection_details = api.model('DetectionDetails', {
     'running': fields.Boolean,
     'assigned_agent': fields.String,
     'exceptions': fields.List(fields.Nested(mod_detection_exception_list)),
-    'threshold_config': fields.Nested(mod_threshold_config),
-    'metric_change_config': fields.Nested(mod_metric_change_config),
-    'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
-    'new_terms_config': fields.Nested(mod_new_terms_config),
+    'threshold_config': fields.Nested(mod_threshold_config, skip_none=True),
+    'metric_change_config': fields.Nested(mod_metric_change_config, skip_none=True),
+    'field_mismatch_config': fields.Nested(mod_field_mistmatch_config, skip_none=True),
+    'new_terms_config': fields.Nested(mod_new_terms_config, skip_none=True),
     'created_at': ISO8601,
-    'created_by': fields.Nested(mod_user_list),
+    'created_by': fields.Nested(mod_user_list, skip_none=True),
     'updated_at': ISO8601,
-    'updated_by': fields.Nested(mod_user_list)
+    'updated_by': fields.Nested(mod_user_list, skip_none=True)
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
@@ -147,6 +149,7 @@ mod_create_detection = api.model('CreateDetection', {
     'query': fields.Nested(mod_query_config, required=True),
     'from_sigma': fields.Boolean(default=False, required=False, skip_none=True),
     'sigma_rule': fields.String(required=False, skip_none=True),
+    'sigma_rule_id': fields.String(required=False),
     'organization': fields.String,
     'description': fields.String(default="A detailed description.", required=True),
     'guide': fields.String(default="An investigation guide on how to triage this detection"),
@@ -221,6 +224,14 @@ mod_detection_hits = api.model('DetectionHit', {
 mod_detection_hits_paged = api.model('DetectionHit', {
     'events': fields.List(fields.Nested(mod_detection_hits)),
     'pagination': fields.Nested(mod_pagination)
+})
+
+mod_sigma = api.model('Sigma', {
+    'sigma_rule': fields.String,
+    'source_input': fields.String,
+    'organization': fields.String,
+    'pipeline': fields.String(default='ecs_windows'),
+    'backend': fields.String(default='opensearch')
 })
 
 detection_list_parser = api.parser()
@@ -552,3 +563,28 @@ class DetectionDetails(Resource):
             return {}
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')
+
+
+@api.route("/parse_sigma")
+class ParseSigma(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_detection_details, skip_none=True)
+    @api.expect(mod_sigma)
+    @token_required
+    @user_has('create_detection')
+    def post(self, current_user):
+        '''
+        Parses a Sigma rule and returns the detection rule
+        '''
+
+        try:
+            sp = SigmaParser(**api.payload)
+            detection = sp.generate_detection()
+        except Exception as e:
+            api.abort(400, f'Error parsing Sigma rule: {e}')
+        
+        #sigma_parser = SigmaParser()
+        #detection = sigma_parser.parse(sigma_rule)
+
+        return detection

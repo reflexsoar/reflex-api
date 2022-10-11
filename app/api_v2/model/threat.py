@@ -230,10 +230,13 @@ class ThreatList(base.BaseDocument):
                 # Check memcached first
                 memcached_key = f"{self.organization}:{self.uuid}:{self.data_type.name}:{value}"
 
-                if not found:               
-                    result = client.get(memcached_key)
-                    if result:
-                        found = True
+                if not found:
+                    try:
+                        result = client.get(memcached_key)
+                        if result:
+                            found = True
+                    except Exception as e:
+                        current_app.logger.error(f"Error checking memcached for {memcached_key}: {e}")
             
             else:
                 patterns = list(self.values)

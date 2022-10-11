@@ -81,6 +81,9 @@ class Input(base.BaseDocument):
     index_fields = Keyword() # A list of all the fields on the index via _mapping
     index_fields_last_updated = Date()
     field_mapping_templates = Keyword() # A list of UUIDs of FieldMappingTemplates
+    sigma_backend = Keyword() # What sigma backend pysigma should convert to when this input is used
+    sigma_pipeline = Keyword() # What sigma pipeline pysigma should use when this input is used
+    sigma_field_mapping = Keyword() # What sigma field mapping pysigma should use when this input is used
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -105,7 +108,6 @@ class Input(base.BaseDocument):
 
         # Pull any field mapping templates assigned to this input and merge them
         #if hasattr(self, 'field_mapping_templates') and len(self.field_mapping_templates) > 0:
-
 
         if isinstance(self.field_mapping, AttrList):
             if self.field_mapping and len(self.field_mapping) >= 1:
