@@ -27,7 +27,8 @@ def build_elastic_connection():
         'hosts': current_app.config['ELASTICSEARCH_URL'],
         'verify_certs': current_app.config['ELASTICSEARCH_CERT_VERIFY'],
         'use_ssl': current_app.config['ELASTICSEARCH_SCHEME'],
-        'ssl_show_warn': current_app.config['ELASTICSEARCH_SHOW_SSL_WARN']
+        'ssl_show_warn': current_app.config['ELASTICSEARCH_SHOW_SSL_WARN'],
+        'timeout': current_app.config['ELASTICSEARCH_TIMEOUT']
     }
 
     username = current_app.config['ELASTICSEARCH_USERNAME']
