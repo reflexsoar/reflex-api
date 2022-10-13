@@ -83,7 +83,7 @@ policy_list_parser.add_argument(
     'sort_direction', type=str, location='args', default='desc', required=False
 )
 
-@api.route("/")
+@api.route("")
 class AgentPolicyList(Resource):
 
     @api.doc(security="Bearer")

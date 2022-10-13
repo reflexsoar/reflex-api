@@ -217,7 +217,7 @@ mod_detection_hits = api.model('DetectionHit', {
     'severity': fields.Integer,
     'risk_score': fields.Integer,
     'created_at': ISO8601(attribute='created_at'),
-    'modified_at': ISO8601(attribute='updated_at'),
+    'updated_at': ISO8601(attribute='updated_at'),
     'original_date': ISO8601(attribute='original_date'),
 })
 
