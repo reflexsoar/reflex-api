@@ -2,7 +2,7 @@ import datetime
 from flask import request
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 
-from app.api_v2.model.agent import AgentPolicy
+from app.api_v2.model.agent import AgentGroup, AgentPolicy
 from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
 from ..utils import check_org, token_required, user_has, ip_approved, page_results, generate_token, default_org
@@ -53,7 +53,7 @@ mod_agent_policy = api.model('AgentPolicy', {
     'runner_config': fields.Nested(mod_runner_config),
     'tags': fields.List(fields.String, default=[]),
     'priority': fields.Integer(default=1)
-})
+}, strict=True)
 
 mod_agent_policy_detailed = api.clone('AgentPolicyDetailed', mod_agent_policy, {
     'uuid': fields.String,
@@ -82,6 +82,53 @@ policy_list_parser.add_argument(
 policy_list_parser.add_argument(
     'sort_direction', type=str, location='args', default='desc', required=False
 )
+
+@api.route("/<uuid>")
+class AgentPolicyDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_agent_policy, validate=True)
+    @api.marshal_with(mod_agent_policy_detailed)
+    @token_required
+    @default_org
+    @check_org
+    @user_has('update_agent_policy')
+    def put(self, uuid, user_in_default_org, current_user):
+
+        policy = None
+        import json
+        print(json.dumps(request.json))
+        if user_in_default_org:
+            policy = AgentPolicy.get_by_uuid(uuid)
+        else:
+            policy = AgentPolicy.get_by_uuid(uuid, current_user.organization)
+
+        if policy:
+
+            existing_policy = None
+            if 'name' in api.payload:
+                
+                if user_in_default_org:
+                    if 'organization' in api.payload:
+                        existing_policy = AgentPolicy.get_by_name(api.payload['name'], api.payload['organization'])
+                    else:
+                        existing_policy = AgentPolicy.get_by_name(api.payload['name'], policy.organization)
+                else:
+                    existing_policy = AgentPolicy.get_by_name(api.payload['name'], current_user.organization)
+
+            if existing_policy and existing_policy.uuid != policy.uuid and existing_policy.name == api.payload['name']:
+                api.abort(409, f"Agent policy with name {api.payload['name']} already exists")
+
+            if 'organization' in api.payload and api.payload['organization'] != policy.organization:
+                agent_group = AgentGroup.get_by_policy(policy.uuid)
+                if agent_group:
+                    api.abort(400, f"Unable to move policy to different organization. Policy is currently assigned to agent group {agent_group.name}")
+            
+            policy.update(**api.payload)
+            return policy
+            
+        else:
+            api.abort(400, f"Agent policy with uuid {uuid} does not exist")
 
 @api.route("")
 class AgentPolicyList(Resource):

@@ -85,6 +85,27 @@ class AgentPolicy(base.BaseDocument):
     priority = Integer() # What is the priority of this policy?
     revision = Integer() # What is the revision of this policy?
 
+    @classmethod
+    def get_by_name(cls, name, organization=None):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = cls.search()
+
+        if isinstance(name, list):
+            response = response.filter('terms', name=name)
+        else:
+            response = response.filter('term', name=name)
+        if organization:
+            response = response.filter('term', organization=organization)
+            
+        response = response.execute()
+        if response:
+            usr = response[0]
+            return usr
+        return response
+
 
 class Agent(base.BaseDocument):
     '''
@@ -251,6 +272,21 @@ class AgentGroup(base.BaseDocument):
         self.save()
 
 
+    @classmethod
+    def get_by_policy(cls, policy, organization=None):
+        '''
+        Fetches a document by the policy field
+        '''
+        response = cls.search()
+        response = response.filter('term', agent_policy=policy)
+        if organization:
+            response = response.filter('term', organization=organization)
+        response = list(response.scan())
+
+        if len(response) > 0:
+            return response
+        return []
+    
     @classmethod
     def get_by_member(cls, member):
         '''
