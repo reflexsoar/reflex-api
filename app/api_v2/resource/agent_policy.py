@@ -162,7 +162,7 @@ class AgentPolicyList(Resource):
 
         if user_in_default_org:
             if args.organization:
-                templates = templates.filter('term', organization=args.organization)
+                policies = policies.filter('term', organization=args.organization)
 
         sort_by = args.sort_by
         if sort_by not in ['name']:

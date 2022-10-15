@@ -252,6 +252,15 @@ class AgentGroup(base.BaseDocument):
 
         return list(inputs)
 
+    @property
+    def _policies(self):
+        policies = []
+
+        if self.agent_policy:
+            policies = AgentPolicy.get_by_uuid(uuid=self.agent_policy, all_results=True)        
+
+        return list(policies)
+
     def add_agent(self, uuid):
         '''
         Adds an agent to to the group
