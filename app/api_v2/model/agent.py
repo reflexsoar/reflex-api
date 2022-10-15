@@ -198,6 +198,7 @@ class Agent(base.BaseDocument):
             return policies[0]
         else:
             return AgentPolicy(
+                uuid='00000000-0000-0000-0000-000000000000',
                 name='default',
                 description='Default agent policy',
                 roles=[],
@@ -230,7 +231,7 @@ class Agent(base.BaseDocument):
                 ),
                 tags=['default'],
                 priority=0,
-                revision=1
+                revision=0
             )
 
     def has_right(self, permission):
