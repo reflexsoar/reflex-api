@@ -42,7 +42,7 @@ mod_agent_policy = api.model('AgentPolicy', {
     'name': fields.String,
     'organization': fields.String,
     'description': fields.String,
-    'roles': fields.List(fields.String, default=['runner', 'detector', 'poller']),
+    'roles': fields.List(fields.String, default=[]),
     'health_check_interval': fields.Integer,
     'logging_level': fields.String(default='ERROR'),
     'max_intel_db_size': fields.Integer,
@@ -124,7 +124,7 @@ class AgentPolicyDetails(Resource):
                 if agent_group:
                     api.abort(400, f"Unable to move policy to different organization. Policy is currently assigned to agent group {agent_group.name}")
             
-            policy.update(**api.payload)
+            policy.update(**api.payload, revision=policy.revision+1)
             return policy
             
         else:
