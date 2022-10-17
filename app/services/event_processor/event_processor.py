@@ -139,7 +139,8 @@ class EventProcessor:
                 # Set the partition count on each event topic so that the workers can all consume
                 # from the message topic
                 self.kf_client = KafkaAdminClient(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'])
-                organizations = Organization.search().execute()
+                organizations = Organization.search()
+                organizations = organizations.scan()
                 if organizations:
                     topic_list = []
                     for organization in organizations:
@@ -191,7 +192,8 @@ class EventProcessor:
         '''
 
         if self.config['DEDICATED_WORKERS']:
-            organizations = Organization.search().execute()        
+            organizations = Organization.search()
+            organizations = organizations.scan()
             for organization in organizations:
                 self.logger.info(f"Spawning Event Processing workers for {organization.uuid}")
                 for i in range(0, self.config['MAX_WORKERS_PER_ORGANIZATION']):                    
