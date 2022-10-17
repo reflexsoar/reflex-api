@@ -12,6 +12,7 @@ from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
 from ..utils import check_org, token_required, user_has, ip_approved, page_results, generate_token, default_org
 from .agent_group import mod_agent_group_list
+from .agent_policy import mod_agent_policy_detailed
 from ..schemas import mod_input_list
 
 api = Namespace(
@@ -29,7 +30,8 @@ mod_agent_list = api.model('AgentList', {
     'ip_address': fields.String,
     'healthy': fields.Boolean,
     'health_issues': fields.List(fields.String),
-    'last_heartbeat': ISO8601(attribute='last_heartbeat')
+    'last_heartbeat': ISO8601(attribute='last_heartbeat'),
+    'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
 })
 
 mod_agent_heartbeat = api.model('AgentHeartbeat', {

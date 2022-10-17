@@ -17,10 +17,16 @@ mod_agent_group_create = api.model('AgentGroupList', {
     'organization': fields.String,
     'name': fields.String,
     'description': fields.String,
-    'inputs': fields.List(fields.String)
+    'inputs': fields.List(fields.String),
+    'agent_policy': fields.List(fields.String)
 })
 
 mod_agent_group_brief = api.model('AgentGroupBrief', {
+    'uuid': fields.String,
+    'name': fields.String
+})
+
+mod_agent_policy_brief = api.model('AgentPolicyBrief', {
     'uuid': fields.String,
     'name': fields.String
 })
@@ -31,6 +37,7 @@ mod_agent_group_list = api.model('AgentGroupList', {
     'name': fields.String,
     'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
     'description': fields.String,
+    'agent_policy': fields.List(fields.Nested(mod_agent_policy_brief), attribute="_policies")
 })
 
 mod_agent_group_list_paged = api.model('AgentGroupListPaged', {

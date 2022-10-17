@@ -99,6 +99,7 @@ mod_event_list = api.model('EventList', {
     'event_rules': fields.List(fields.String),
     'original_date': ISO8601(attribute='original_date'),
     'detection_id': fields.String,
+    'risk_score': fields.Integer(default=0),
     'total_comments': ValueCount(attribute='comments'),
 })
 
