@@ -295,9 +295,12 @@ def check_password_reset_token(token):
     try:
         decoded_token = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
 
-        expired = ExpiredToken.search().filter('term', token=token).execute()
-        if expired:
-            abort(401, 'Token retired.')
+        try:
+            expired = ExpiredToken.search().filter('term', token=token).execute()
+            if expired:
+                abort(401, 'Token retired.')
+        except Exception as e:
+            current_app.logger.error(f"Error checking for expired token: {e}")
 
         if 'type' in decoded_token and decoded_token['type'] in ['password_reset','mfa_challenge']:
             user = User.get_by_uuid(uuid=decoded_token['uuid'])
@@ -322,9 +325,13 @@ def _check_token():
         try:
             access_token = auth_header.split(' ')[1]
 
-            expired = ExpiredToken.search().filter('term', token=access_token).execute()
-            if expired:
-                abort(401, 'Token retired.')
+            try:
+                expired = ExpiredToken.search().filter('term', token=access_token).execute()
+                if expired:
+                    abort(401, 'Token retired.')
+            except Exception as e:
+                current_app.logger.error(f"Error checking for expired token: {e}")
+
             try:
                 token = jwt.decode(access_token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
 

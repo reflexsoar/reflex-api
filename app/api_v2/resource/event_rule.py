@@ -646,7 +646,11 @@ class TestEventRQL(Resource):
                     organization = api.payload['organization']
             
             qp = QueryParser(organization=organization)
-            parsed_query = qp.parser.parse(api.payload['query'])
+            try:
+                parsed_query = qp.parser.parse(api.payload['query'])
+            except SyntaxError as e:
+                print(e.__dict__)
+                api.abort(400, f"Invalid RQL Query.  Please consult the RQL documentation for more information.")
             result = [r for r in qp.run_search(event_data, parsed_query)]
             hits = len(result)
 
