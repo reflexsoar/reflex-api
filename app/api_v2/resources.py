@@ -1362,53 +1362,57 @@ class AddEventsToCase(Resource):
         '''
 
         case = Case.get_by_uuid(uuid=uuid)
-        events = Event.get_by_uuid(uuid=api2.payload['events'])
-        
-        if events:
-            events_to_update = []
-            uuids = []
-            for event in events:
-                event_dict = event.to_dict()
-                event_dict['_meta'] = {
-                    'action': 'add_to_case',
-                    'case': case.uuid,
-                    '_id': event.meta.id
-                }
-                events_to_update.append(event_dict)
-                uuids.append(event.uuid)
-
-                if 'include_related_events' in api2.payload and api2.payload['include_related_events'] == True:
-                    related_events = Event.get_by_signature_and_status(signature=event.signature,
-                                                                       status='New',
-                                                                       all_events=True)
-                    if related_events:
-                        for related_event in related_events:
-                            if related_event.uuid != event.uuid:
-                                related_dict = related_event.to_dict()
-                                related_dict['_meta'] = {
-                                    'action': 'add_to_case',
-                                    'case': case.uuid,
-                                    '_id': related_event.meta.id
-                                }
-                                events_to_update.append(related_dict)
-                                uuids.append(related_event.uuid)
+        if case:
+            events = Event.get_by_uuid(uuid=api2.payload['events'])
             
-            if case.events:
-                [case.events.append(uuid) for uuid in uuids]
-            else:
-                case.events = uuids
+            if events:
+                events_to_update = []
+                uuids = []
+                for event in events:
+                    event_dict = event.to_dict()
+                    event_dict['_meta'] = {
+                        'action': 'add_to_case',
+                        'case': case.uuid,
+                        '_id': event.meta.id
+                    }
+                    events_to_update.append(event_dict)
+                    uuids.append(event.uuid)
 
-            if len(events_to_update) > 0:
+                    if 'include_related_events' in api2.payload and api2.payload['include_related_events'] == True:
+                        related_events = Event.get_by_signature_and_status(signature=event.signature,
+                                                                        status='New',
+                                                                        all_events=True)
+                        if related_events:
+                            for related_event in related_events:
+                                if related_event.uuid != event.uuid:
+                                    related_dict = related_event.to_dict()
+                                    related_dict['_meta'] = {
+                                        'action': 'add_to_case',
+                                        'case': case.uuid,
+                                        '_id': related_event.meta.id
+                                    }
+                                    events_to_update.append(related_dict)
+                                    uuids.append(related_event.uuid)
                 
-                if ep.dedicated_workers:
-                    [ep.to_kafka_topic(event) for event in events_to_update]
+                if case.events:
+                    [case.events.append(uuid) for uuid in uuids]
                 else:
-                    [ep.enqueue(event) for event in events_to_update]
+                    case.events = uuids
 
-            case.add_history(message=f'{len(events_to_update)} events added')
-            case.save()
-            return "YARP"
-        return "NARP"
+                if len(events_to_update) > 0:
+                    
+                    if ep.dedicated_workers:
+                        [ep.to_kafka_topic(event) for event in events_to_update]
+                    else:
+                        [ep.enqueue(event) for event in events_to_update]
+
+                case.add_history(message=f'{len(events_to_update)} events added')
+                case.save()
+                return "YARP"
+            else:
+                ns_case_v2.abort(404, 'Events not found.')
+        
+        ns_case_v2.abort(404, 'Case not found.')
 
 
 @ns_case_v2.route("/<uuid>/observables")
