@@ -42,9 +42,13 @@ from app.api_v2.model.user import Organization
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
     from opensearch_dsl import connections
     from opensearchpy.helpers import streaming_bulk
+    from opensearchpy.exceptions import ConnectionTimeout as EXC_CONNECTION_TIMEOUT
+    from opensearchpy.helpers.errors import BulkIndexError as EXC_BULK_INDEX_ERROR
 else:
     from elasticsearch_dsl import connections
-    from elasticsearch.helpers import streaming_bulk          
+    from elasticsearch.helpers import async_streaming_bulk
+    from elasticsearch.exceptions import ConnectionTimeout as EXC_CONNECTION_TIMEOUT
+    from elasticsearch.helpers.errors import BulkIndexError as EXC_BULK_INDEX_ERROR
 
 
 class EventProcessor: 
@@ -638,26 +642,29 @@ class EventWorker(Process):
                         
                         task_end = self.pop_events_by_action(self.events, 'task_end')
 
-                        for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case)):
-                            pass
+                        try:
+                            for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case)):
+                                pass
 
-                        for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss)):
-                            pass
+                            for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss)):
+                                pass
 
-                        for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule)):
-                            pass
+                            for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule)):
+                                pass
 
-                        self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
+                            self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
 
-                        self.prepare_case_updates(self.events)
+                            self.prepare_case_updates(self.events)
 
-                        # Send Events
-                        for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events)):
-                            pass
+                            # Send Events
+                            for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events)):
+                                pass
 
-                        # Update Cases
-                        for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(self.events)):
-                            pass
+                            # Update Cases
+                            for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(self.events)):
+                                pass
+                        except EXC_BULK_INDEX_ERROR as e:
+                            self.logger.error(f"Bulk index error: {e}")
 
                         if task_end:
                             for item in task_end:
@@ -669,7 +676,10 @@ class EventWorker(Process):
                                 if task.task_type in ['bulk_dismiss_events']:
                                     task.broadcast = True
 
-                                task.finish()
+                                try:
+                                    task.finish()
+                                except EXC_CONNECTION_TIMEOUT as e:
+                                    self.logger.error(f"Unable to mark task {task.uuid} as finished. Reason: {e}")
 
                         self.events = []
 

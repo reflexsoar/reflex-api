@@ -212,7 +212,6 @@ class ThreatList(base.BaseDocument):
 
             found = False
 
-            
             if self.list_type != 'patterns':
                 hasher = hashlib.md5()
                 hasher.update(value.encode())
