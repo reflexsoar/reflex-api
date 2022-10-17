@@ -78,10 +78,16 @@ class EventProcessor:
         log_handler = logging.StreamHandler()
         log_handler.setFormatter(logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        ew_handler  = logging.StreamHandler()
+        ew_handler.setFormatter(logging.Formatter(
+            '%(asctime)s - %(name)s (%(process)d) - %(levelname)s - %(message)s'))
 
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.ew_logger = logging.getLogger('EventWorker')
         self.logger.addHandler(log_handler)
+        self.ew_logger.addHandler(ew_handler)
         self.logger.setLevel(log_levels[log_level])
+        self.ew_logger.setLevel(log_levels[log_level])
         self.log_level = log_level
 
         self.worker_count = 10
@@ -132,31 +138,34 @@ class EventProcessor:
             self.dedicated_workers = config['DEDICATED_WORKERS']
             
             if self.dedicated_workers:
-                self.logger.info("EventProcessor running in dedicated worker mode")
-                self.kf_producer = KafkaProducer(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'],
+                try:
+                    self.logger.info("EventProcessor running in dedicated worker mode")
+                    self.kf_producer = KafkaProducer(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'],
                                              value_serializer=lambda m: json.dumps(m, default=str).encode('ascii'))
 
-                # Set the partition count on each event topic so that the workers can all consume
-                # from the message topic
-                self.kf_client = KafkaAdminClient(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'])
-                organizations = Organization.search()
-                organizations = organizations.scan()
-                if organizations:
-                    topic_list = []
-                    for organization in organizations:
-                        topic_list.append(ConfigResource(resource_type='TOPIC',
-                                                         name=f"events-{organization.name}",
-                                                         configs={'delete.retention.ms':self.config['KAFKA_TOPIC_RETENTION']*1000}))
-                        try:
-                            self.kf_client.create_partitions({
-                                f'events-{organization.uuid}': NewPartitions(self.config['MAX_WORKERS_PER_ORGANIZATION'])
-                            })
-                        except InvalidPartitionsError:
-                            pass
-                        except UnknownTopicOrPartitionError:
-                            pass
-                    # Update the retention.ms on all topics
-                    #self.kf_client.alter_configs(topic_list)
+                    # Set the partition count on each event topic so that the workers can all consume
+                    # from the message topic
+                    self.kf_client = KafkaAdminClient(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'])
+                    organizations = Organization.search()
+                    organizations = organizations.scan()
+                    if organizations:
+                        topic_list = []
+                        for organization in organizations:
+                            topic_list.append(ConfigResource(resource_type='TOPIC',
+                                                            name=f"events-{organization.name}",
+                                                            configs={'delete.retention.ms':self.config['KAFKA_TOPIC_RETENTION']*1000}))
+                            try:
+                                self.kf_client.create_partitions({
+                                    f'events-{organization.uuid}': NewPartitions(self.config['MAX_WORKERS_PER_ORGANIZATION'])
+                                })
+                            except InvalidPartitionsError:
+                                pass
+                            except UnknownTopicOrPartitionError:
+                                pass
+                        # Update the retention.ms on all topics
+                        #self.kf_client.alter_configs(topic_list)
+                except Exception as e:
+                    self.logger.error(f"Error connecting to Kafka: {e}")
             else:
                 self.logger.info("EventProcessor running in shared worked mode")
             
@@ -331,7 +340,7 @@ class EventWorker(Process):
         log_handler.setFormatter(logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logging.getLogger('EventWorker')
         self.logger.addHandler(log_handler)
         self.logger.setLevel(log_levels[log_level])
 
@@ -352,7 +361,7 @@ class EventWorker(Process):
         self.should_exit = mpEvent()
         self.kf_consumer = None
         self.dedicated_worker = self.config['DEDICATED_WORKERS']
-   
+           
     def alive(self):
         return psutil.pid_exists(self.pid)
     
@@ -365,14 +374,19 @@ class EventWorker(Process):
         self.should_exit.set()
 
     def build_kafka_connection(self):
-        self.kf_topic = f'events-{self.organization}'
-        self.kf_group_id = self.organization
-        consumer = KafkaConsumer(group_id=self.kf_group_id,
-                                 auto_offset_reset='earliest',
-                                 bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'],
-                                 value_deserializer=lambda m: json.loads(m.decode('ascii')))
-        consumer.subscribe([self.kf_topic])
-        return consumer
+        try:
+            self.kf_topic = f'events-{self.organization}'
+            self.kf_group_id = self.organization
+            consumer = KafkaConsumer(group_id=self.kf_group_id,
+                                    auto_offset_reset='earliest',
+                                    bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'],
+                                    value_deserializer=lambda m: json.loads(m.decode('ascii')))
+            consumer.subscribe([self.kf_topic])
+            return consumer
+        except Exception as e:
+            self.logger.error(f"Error connecting to Kafka: {e}")
+        return None
+        
 
     def build_elastic_connection(self):
         '''
@@ -557,9 +571,11 @@ class EventWorker(Process):
         if self.config['DEDICATED_WORKERS']:
             
             self.kf_consumer = self.build_kafka_connection()
+            if self.kf_consumer is None:
+                self.logger.error('Running in dedicated worker mode but no Kafka connection could be made, exiting')
+                exit(1)
 
         self.reload_meta_info()
-        self.logger.debug(f"Running")
 
         while True:
 
