@@ -164,7 +164,7 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         role = cls(**role_contents)
         role.save()
     else:
-        orgs = Organization.search().execute()
+        orgs = Organization.search().scan()
         for org in orgs:
             role = cls.search().filter('term', organization=org.uuid).filter('term', name='Admin').execute()
             if role:
@@ -276,7 +276,7 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         role = cls(**role_contents)
         role.save()
     else:
-        orgs = Organization.search().execute()
+        orgs = Organization.search().scan()
         for org in orgs:
             role = cls.search().filter('term', organization=org.uuid).filter('term', name='Analyst').execute()
             if role:
@@ -330,7 +330,7 @@ def create_agent_role(cls, org_id, check_for_default=False):
         role = cls(**role_contents)
         role.save()
     else:
-        orgs = Organization.search().execute()
+        orgs = Organization.search().scan()
         for org in orgs:
             role = cls.search().filter('term', organization=org.uuid).filter('term', name='Agent').execute()
             if role:
@@ -424,7 +424,7 @@ def create_default_closure_reasons(cls, org_id, check_for_default=False):
             reason = cls(**r, organization=org_id)
             reason.save()
     else:
-        orgs = Organization.search().execute()
+        orgs = Organization.search().scan()
         for org in orgs:
             existing_reasons = cls.search().filter('term', organization=org.uuid).execute()
             for r in reasons:
