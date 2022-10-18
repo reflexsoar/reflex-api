@@ -299,7 +299,7 @@ def check_password_reset_token(token):
             expired = ExpiredToken.search().filter('term', token=token).execute()
             if expired:
                 abort(401, 'Token retired.')
-        except Exception as e:
+        except ConnectionResetError as e:
             current_app.logger.error(f"Error checking for expired token: {e}")
 
         if 'type' in decoded_token and decoded_token['type'] in ['password_reset','mfa_challenge']:
@@ -329,7 +329,7 @@ def _check_token():
                 expired = ExpiredToken.search().filter('term', token=access_token).execute()
                 if expired:
                     abort(401, 'Token retired.')
-            except Exception as e:
+            except ConnectionResetError as e:
                 current_app.logger.error(f"Error checking for expired token: {e}")
 
             try:
