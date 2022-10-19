@@ -72,7 +72,7 @@ class Login(Resource):
                 request.user_agent.string.encode('utf-8'))
 
             # Update the users failed_logons and last_logon entries
-            user.update(failed_logons=0, last_logon=datetime.datetime.utcnow())
+            user.update(failed_logons=0, last_logon=datetime.datetime.utcnow(), refresh=True)
        
             log_event(organization=user.organization, event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Successful Authentication.", status="Success")
 
@@ -82,13 +82,13 @@ class Login(Resource):
                 return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
 
         if user.failed_logons == None:
-            user.update(failed_logons=0)
+            user.update(failed_logons=0, refresh=True)
 
         if user.failed_logons >= Settings.load().logon_password_attempts:
-            user.update(locked=True)
+            user.update(locked=True, refresh=True)
             log_event(organization=user.organization, event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Account Locked.", status="Failed")
         else:
-            user.update(failed_logons=user.failed_logons+1)
+            user.update(failed_logons=user.failed_logons+1, refresh=True)
             log_event(organization=user.organization, event_type="Authentication", source_user=user.username, source_ip=request.remote_addr, message="Bad username or password.", status="Failed")
 
         api.abort(401, 'Incorrect username or password')

@@ -124,7 +124,7 @@ class AgentPolicyDetails(Resource):
                 if agent_group:
                     api.abort(400, f"Unable to move policy to different organization. Policy is currently assigned to agent group {agent_group.name}")
             
-            policy.update(**api.payload, revision=policy.revision+1)
+            policy.update(**api.payload, revision=policy.revision+1, refresh=True)
             return policy
             
         else:

@@ -58,7 +58,7 @@ class MITREAttack(object):
                 existing_tactic = MITRETactic.get_by_external_id(
                     tactic.external_id)
                 if existing_tactic:
-                    existing_tactic.update(**tactic.to_dict())
+                    existing_tactic.update(**tactic.to_dict(), refresh=True)
                 else:
                     tactic.save()
 
@@ -88,6 +88,6 @@ class MITREAttack(object):
             for tech in techniques:
                 existing_tech = MITRETechnique.get_by_external_id(tech.external_id)
                 if existing_tech:
-                    existing_tech.update(**tech.to_dict())
+                    existing_tech.update(**tech.to_dict(), refresh=True)
                 else:
                     tech.save()

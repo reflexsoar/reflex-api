@@ -151,7 +151,7 @@ class RoleDetails(Resource):
                 api.abort(400, 'A role must be empty before it can be moved between Organizations.')
 
             else:
-                role.update(**api.payload)
+                role.update(**api.payload, refresh=True)
                 return role
         else:
             api.abort(404, 'Role not found.')

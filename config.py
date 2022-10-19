@@ -120,11 +120,14 @@ class Config(object):
 
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
 
+    SHOW_SWAGGER = as_bool(os.getenv('REFLEX_SHOW_SWAGGER')) if os.getenv('REFLEX_SHOW_SWAGGER') else True
+
 
 class ProductionConfig(Config):
     ENV = 'production'
     DEBUG = False
-    RESTPLUS_MASK_SWAGGER = True    
+    RESTPLUS_MASK_SWAGGER = True
+    SHOW_SWAGGER = False
 
 class DevelopmentConfig(Config):
     DEBUG = True

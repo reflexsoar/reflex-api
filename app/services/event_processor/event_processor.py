@@ -463,7 +463,7 @@ class EventWorker(Process):
                 rule.parse_rule()
                 loaded_rules.append(rule)
             except Exception as e:
-                rule.update(active=False, disable_reason=f"Invalid RQL query. {e}")
+                rule.update(active=False, disable_reason=f"Invalid RQL query. {e}", refresh=True)
                 self.logger.error(f"Failed to parse Event Rule {rule.name}, rule has been disabled.  Invalid RQL query. {e}.")
 
         sorted_rules = [r for r in loaded_rules if r.priority]
