@@ -1040,7 +1040,8 @@ class EventWorker(Process):
 
                     if matched:
                         raw_event = self.mutate_event(rule, raw_event)
-                        rule.create_notification(organization=raw_event['organization'], source_object_type='event', source_object_uuid=raw_event['uuid'])
+                        if hasattr(rule, 'notification_channels'):
+                            rule.create_notification(organization=raw_event['organization'], source_object_type='event', source_object_uuid=raw_event['uuid'])
                 except Exception as e:
                     self.logger.error(f"Failed to process rule {rule.uuid} ({rule.name}). Reason: {e}")
 
@@ -1084,7 +1085,8 @@ class EventWorker(Process):
                             # Only apply notification rules if this is not a retro application of
                             # the Event Rule
                             if event_meta_data['action'] != 'retro_apply_event_rule':
-                                rule.create_notification(organization=raw_event['organization'], source_object_type='event', source_object_uuid=raw_event['uuid'])
+                                if hasattr(rule, 'notification_channels'):
+                                    rule.create_notification(organization=raw_event['organization'], source_object_type='event', source_object_uuid=raw_event['uuid'])
 
                     except Exception as e:
                         self.logger.error(f"Failed to process rule {rule.uuid}. Reason: {e}")
