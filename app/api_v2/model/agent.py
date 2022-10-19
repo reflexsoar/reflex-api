@@ -200,6 +200,7 @@ class Agent(base.BaseDocument):
             return AgentPolicy(
                 uuid='00000000-0000-0000-0000-000000000000',
                 name='default',
+                organization=self.organization,
                 description='Default agent policy',
                 roles=[],
                 health_check_interval=30,

@@ -235,7 +235,8 @@ class ThreatList(base.BaseDocument):
                         if result:
                             found = True
                     except Exception as e:
-                        current_app.logger.error(f"Error checking memcached for {memcached_key}: {e}")
+                        pass
+                        #current_app.logger.error(f"Error checking memcached for {memcached_key}: {e}")
             
             else:
                 patterns = list(self.values)
