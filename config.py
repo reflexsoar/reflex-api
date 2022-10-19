@@ -71,6 +71,8 @@ class Config(object):
     HOUSEKEEPER_LOG_LEVEL = os.getenv('REFLEX_HOUSEKEEPER_LOG_LEVEL') if os.getenv('REFLEX_HOUSEKEEPER_LOG_LEVEL') else 'ERROR'
     AGENT_PRUNE_INTERVAL = int(os.getenv('REFLEX_AGENT_PRUNE_INTERVAL'))*60 if os.getenv('REFLEX_AGENT_PRUNE_INTERVAL') else 15*60 # Default to every 15 minutes
     AGENT_PRUNE_LIFETIME = int(os.getenv('REFLEX_AGENT_PRUNE_LIFETIME')) if os.getenv('REFLEX_AGENT_PRUNE_LIFETIME') else 5
+    AGENT_HEALTH_CHECK_INTERVAL = int(os.getenv('REFLEX_AGENT_HEALTH_CHECK_INTERVAL', 15))*60 # Default to every 15 minutes
+    AGENT_HEALTH_LIFETIME = int(os.getenv('REFLEX_AGENT_HEALTH_LIFETIME', 1)) # Defaults to 1 hour
     TASK_PRUNE_INTERVAL = int(os.getenv('REFLEX_TASK_PRUNE_INTERVAL')) if os.getenv('REFLEX_TASK_PRUNE_INTERVAL') else 3600 # Default to every hour
     TASK_PRUNE_LIFETIME = int(os.getenv('REFLEX_TASK_PRUNE_LIFETIME')) if os.getenv('REFLEX_TASK_PRUNE_LIFETIME') else 30 # Default to 30 days
     

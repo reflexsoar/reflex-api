@@ -3,6 +3,8 @@ import ssl
 import atexit
 import logging
 import datetime
+
+from click import secho
 from app.api_v2.model.system import Settings
 from app.services.sla_monitor.base import SLAMonitor
 from app.utils.memcached import MemcachedClient
@@ -277,6 +279,11 @@ def create_app(environment='development'):
                 func=housekeeper.prune_old_tasks,
                 trigger="interval",
                 seconds=app.config['TASK_PRUNE_INTERVAL']
+            )
+            scheduler.add_job(
+                func=housekeeper.check_agent_health,
+                trigger="interval",
+                seconds=app.config['AGENT_HEALTH_CHECK_INTERVAL']
             )
 
         if not app.config['SLAMONITOR_DISABLED']:

@@ -102,6 +102,7 @@ class AgentPolicy(base.BaseDocument):
     tags = Keyword()  # Tags to categorize this policy
     priority = Integer()  # What is the priority of this policy?
     revision = Integer()  # What is the revision of this policy?
+    
 
     @classmethod
     def get_by_name(cls, name, organization=None):
@@ -143,6 +144,7 @@ class Agent(base.BaseDocument):
     healthy = Boolean()  # Is the agent in a healthy state?
     health_issues = Keyword()  # A list of issues that have been found with the agent
     agent_policy = Keyword()  # The agent policy that controls this agent
+    version = Keyword() # What is the version of this policy?
 
     class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
