@@ -5,6 +5,7 @@ import json
 import hashlib
 import datetime
 from flask import current_app
+
 from .utils import build_elastic_connection, execution_timer
 from . import (
     base,
@@ -19,7 +20,8 @@ from . import (
 
 from opensearchpy.helpers import streaming_bulk as obulk
 from elasticsearch.helpers import streaming_bulk as ebulk
-from pymemcache.client.base import Client
+from . import memcached_client
+
 
 class ThreatValue(base.BaseDocument):
     '''
@@ -92,7 +94,8 @@ class ThreatValue(base.BaseDocument):
         '''
         Pushes the intel to memcached if memcached is enabled and configured
         '''
-        client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
+        #client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
+        client = memcached_client.client
 
         for value in values:
 
@@ -224,7 +227,8 @@ class ThreatList(base.BaseDocument):
                     memcached_port = os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_PORT')
 
                 # Create the memcached client
-                client = Client(f"{memcached_host}:{memcached_port}")
+                #client = Client(f"{memcached_host}:{memcached_port}")
+                client = memcached_client.client
             
                 # Check memcached first
                 memcached_key = f"{self.organization}:{self.uuid}:{self.data_type.name}:{value}"

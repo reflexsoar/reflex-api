@@ -125,7 +125,7 @@ class OrganizationDetails(Resource):
                 # if they had this level of access anyway
                 api.abort(400, 'Invalid logon domain provided.')
 
-        organization.update(**api.payload)
+        organization.update(**api.payload, refresh=True)
 
         return organization
 

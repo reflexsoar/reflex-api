@@ -164,7 +164,7 @@ class NotificationChannelDetails(Resource):
                 api.abort(409, f'Channel for the name "{api.payload["name"]}" already exists')
 
         try:
-            channel.update(**api.payload)
+            channel.update(**api.payload, refresh=True)
         except Exception as e:
             api.abort(400, str(e))
 

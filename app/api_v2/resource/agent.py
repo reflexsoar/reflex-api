@@ -32,12 +32,14 @@ mod_agent_list = api.model('AgentList', {
     'health_issues': fields.List(fields.String),
     'last_heartbeat': ISO8601(attribute='last_heartbeat'),
     'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
+    'version': fields.String,
 })
 
 mod_agent_heartbeat = api.model('AgentHeartbeat', {
     'healthy': fields.Boolean,
     'health_issues': fields.List(fields.String),
-    'recovered': fields.Boolean
+    'recovered': fields.Boolean,
+    'version': fields.String,
 })
 
 mod_agent_list_paged = api.model('AgentListPaged', {

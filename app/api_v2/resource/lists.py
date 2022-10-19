@@ -315,7 +315,7 @@ class ThreatListDetails(Resource):
 
             # Update the list with all other fields
             if len(api.payload) > 0:
-                value_list.update(**api.payload)
+                value_list.update(**api.payload, refresh=True)
                 ep.restart_workers()
 
             return value_list

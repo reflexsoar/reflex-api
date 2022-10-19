@@ -11,7 +11,7 @@ from app.api_v2.model import (
     Agent,
     Role,
     AgentGroup,
-    Task
+    Task,Q
 )
 
 class HouseKeeper(object):
@@ -40,7 +40,31 @@ class HouseKeeper(object):
 
         self.agent_prune_lifetime = self.app.config['AGENT_PRUNE_LIFETIME']
         self.task_prune_lifetime = self.app.config['TASK_PRUNE_LIFETIME']
+        self.agent_health_lifetime = self.app.config['AGENT_HEALTH_LIFETIME']
         self.logger.info(f"Service started. Task Lifetime: {self.task_prune_lifetime} | Agent Lifetime: {self.agent_prune_lifetime}")
+
+
+    def check_agent_health(self):
+        ''' Checks the health of all agents if the agent hasn't check in for a set
+        period of time, set the agent to unhealthy and remove it from any work it has to do
+        '''
+        self.logger.info('Checking for unhealthy agents')
+
+        days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=self.agent_health_lifetime)
+
+        search = Agent.search()
+        search = search[0:search.count()]
+        search = search.filter('bool', should=[Q('range', last_heartbeat={'lte': days_ago.isoformat()}), Q('bool', must_not=[Q('exists', field='last_heartbeat')])])
+        agents = search.scan()
+        for agent in agents:
+            agent.healthy = False
+            if hasattr(agent, 'health_issues'):
+                if isinstance(agent.health_issues, list):
+                    agent.health_issues.append("Heartbeat TTL Expired")
+                else:
+                    agent.health_issues = ["Heartbeat TTL Expired"]
+            agent.save()
+
 
     def prune_old_agents(self):
         ''' Automatically removes any agents that have not actively
@@ -49,15 +73,20 @@ class HouseKeeper(object):
         Parameters:
             days_back (int): How long since the agent last communicated
         '''
+        self.logger.info('Checking for old agents to prune')
 
         days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=self.agent_prune_lifetime)
 
         search = Agent.search()
         search = search[0:search.count()]
-        search = search.filter('range', last_heartbeat={
-                            'lte': days_ago.isoformat()
-                        })
-        agents = search.execute()
+        #search = search.filter('range', last_heartbeat={
+        #                    'lte': days_ago.isoformat()
+        #                })
+
+        #search = search.filter('bool', should=[Q('wildcard', external_id__keyword=f"{args.external_id__like.upper()}*"), Q('wildcard', name=f"*{args.name__like}*")])
+        search = search.filter('bool', should=[Q('range', last_heartbeat={'lte': days_ago.isoformat()}), Q('bool', must_not=[Q('exists', field='last_heartbeat')])])
+        
+        agents = [a for a in search.scan()]
 
         for agent in agents:
 

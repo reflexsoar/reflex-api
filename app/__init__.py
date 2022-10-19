@@ -3,17 +3,16 @@ import ssl
 import atexit
 import logging
 import datetime
+
 from app.api_v2.model.system import Settings
 from app.services.sla_monitor.base import SLAMonitor
 from app.utils.memcached import MemcachedClient
-from flask import Flask, logging as flog
-from app.services import housekeeper
+from flask import Flask
 from app.services.threat_list_poller.base import ThreatListPoller
 from app.services.housekeeper import HouseKeeper
 from app.services.event_processor import EventProcessor
 from app.services.mitre import MITREAttack
 from app.services.notifier import Notifier
-from multiprocessing import Queue
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_mail import Mail
@@ -277,6 +276,11 @@ def create_app(environment='development'):
                 func=housekeeper.prune_old_tasks,
                 trigger="interval",
                 seconds=app.config['TASK_PRUNE_INTERVAL']
+            )
+            scheduler.add_job(
+                func=housekeeper.check_agent_health,
+                trigger="interval",
+                seconds=app.config['AGENT_HEALTH_CHECK_INTERVAL']
             )
 
         if not app.config['SLAMONITOR_DISABLED']:
