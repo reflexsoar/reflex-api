@@ -6,6 +6,14 @@ in the Elasticsearch or Opensearch backend.
 
 import os
 
+from app.utils.memcached import MemcachedClient
+
+mc = None
+if os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST') and os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_PORT'):
+    mc = MemcachedClient(f"{os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST')}:{os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_PORT')}")
+
+memcached_client = mc
+
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
     from opensearch_dsl.utils import AttrList
     from opensearch_dsl import (
