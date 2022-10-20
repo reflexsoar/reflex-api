@@ -8,19 +8,22 @@ class MemcachedClient:
         '''
         self.client = None
 
-    def init_app(self, app, host=None, port=None, timeout=None, max_pool_size=4, *args, **kwargs):
+        self.timeout = kwargs.get('timeout', 10)
+        self.max_pool_size = kwargs.get('max_pool_size', 4)
+        self.host = kwargs.get('host', None)
+        self.port = kwargs.get('port', None)
+
+        if self.port and self.host:
+            self.client = PooledClient(
+                f"{self.host}:{self.port}",
+                max_pool_size=self.max_pool_size,
+                timeout=self.timeout)
+
+    def init_app(self, app, *args, **kwargs):
         '''
         Initializes the MemcachedClient with a Flask App
-        '''
-
-        self.client = None
-        
+        '''        
         if app:
             self.client = PooledClient(
                 f"{app.config['THREAT_POLLER_MEMCACHED_HOST']}:{app.config['THREAT_POLLER_MEMCACHED_PORT']}",
                 max_pool_size=app.config['MEMCACHED_POOL_SIZE'])
-        else:
-            if host and port:
-                self.client = PooledClient(
-                    f"{host}:{port}",
-                    max_pool_size=max_pool_size)
