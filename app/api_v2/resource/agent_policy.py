@@ -96,8 +96,6 @@ class AgentPolicyDetails(Resource):
     def put(self, uuid, user_in_default_org, current_user):
 
         policy = None
-        import json
-        print(json.dumps(request.json))
         if user_in_default_org:
             policy = AgentPolicy.get_by_uuid(uuid)
         else:
@@ -123,8 +121,12 @@ class AgentPolicyDetails(Resource):
                 agent_group = AgentGroup.get_by_policy(policy.uuid)
                 if agent_group:
                     api.abort(400, f"Unable to move policy to different organization. Policy is currently assigned to agent group {agent_group.name}")
-            
+
             policy.update(**api.payload, revision=policy.revision+1, refresh=True)
+
+            if 'roles' in api.payload:
+                redistribute_detections(organization=policy.organization)
+
             return policy
             
         else:
@@ -143,6 +145,8 @@ class AgentPolicyList(Resource):
     def post(self, user_in_default_org, current_user):
 
         policy = AgentPolicy(**api.payload)
+        if 'detector' in policy.roles:
+            redistribute_detections(organization=policy.organization)
         policy.revision = 1
         policy.save()
         return policy

@@ -183,6 +183,22 @@ class Agent(base.BaseDocument):
         return list(groups)
 
     @property
+    def merged_roles(self):
+        '''
+        Returns a combined list of the roles assigned to this agent directly or by policy
+        '''
+        if self.roles and len(self.roles) > 0:
+            roles = self.roles
+        else:
+            roles = []
+
+        if self._policy:
+            if self._policy.roles and len(self._policy.roles) > 0:
+                [roles.append(r) for r in self._policy.roles]
+        return list(set(roles))
+
+
+    @property
     def _policy(self):
         '''
         Fetches the agent policy assigned to this agent

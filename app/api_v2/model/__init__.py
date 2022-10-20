@@ -10,7 +10,7 @@ from app.utils.memcached import MemcachedClient
 
 mc = None
 if os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST') and os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_PORT'):
-    mc = MemcachedClient(f"{os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST')}:{os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_PORT')}")
+    mc = MemcachedClient(host=os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_HOST'), port=os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_PORT'))
 
 memcached_client = mc
 
@@ -137,5 +137,6 @@ __all__ = [
     NotificationChannel,
     Notification,
     NOTIFICATION_CHANNEL_TYPES,
-    SOURCE_OBJECT_TYPE
+    SOURCE_OBJECT_TYPE,
+    memcached_client
 ]

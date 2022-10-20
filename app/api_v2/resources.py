@@ -90,9 +90,11 @@ from .resource import (
 
 from .. import ep
 
+show_swagger_docs = (os.getenv('REFLEX_SHOW_SWAGGER_DOCS', 'False').lower() == 'true')
+
 # Instantiate a new API object
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
-api2 = Api(api_v2)
+api2 = Api(api_v2) if show_swagger_docs else Api(api_v2, doc=False)
 
 # All the API namespaces
 ns_user_v2 = api2.namespace(
