@@ -22,7 +22,7 @@ def redistribute_detections(organization=None):
     if len(agents) > 0:
         
         # Filter for agents that are detectors
-        agents = [agent for agent in agents if agent.roles and 'detector' in agent.roles and agent.healthy]
+        agents = [agent for agent in agents if agent.merged_roles and 'detector' in agent.merged_roles and agent.healthy]
         if len(agents) > 0:
 
             detection_sets = []
@@ -36,10 +36,10 @@ def redistribute_detections(organization=None):
                     if detection.active:
                         if detection.assigned_agent != agents[i].uuid:                            
                             detection.assigned_agent = agents[i].uuid
-                            detection.save(skip_update_by=True)
+                            detection.save(skip_update_by=True, refresh=True)
         else:
             # If there are no agents set all assigned_agents to None
             for detection in detections:
                 detection.assigned_agent = None
-                detection.save(skip_update_by=True)
+                detection.save(skip_update_by=True, refresh=True)
                     
