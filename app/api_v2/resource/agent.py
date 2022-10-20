@@ -110,9 +110,15 @@ class AgentList(Resource):
             if args.organization:
                 agents = agents.filter('term', organization=args.organization)
 
+        
+
         sort_by = args.sort_by
+        if sort_by in ['health_issues','version']:
+            sort_by = f"{sort_by}.keyword"
         if args.sort_direction == 'desc':
             sort_by = f"-{sort_by}"
+
+        
 
         agents = agents.sort(sort_by)
 
