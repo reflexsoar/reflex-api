@@ -89,6 +89,7 @@ class RQLSearch:
             self.any_mode = True
             self.all_mode = False
             self.organization = None
+            self.name = ''
 
             # Setting the allowed_mutators each expression is allowed to run, default to all
             self.allowed_mutators = MUTATORS
@@ -195,9 +196,15 @@ class RQLSearch:
 
         def __call__(self, obj):
 
+            self.name = 'contains'
+
             super().__call__(obj)
 
             if self.target_value:
+
+                if not isinstance(self.target_value, (list, str)):
+                    raise ValueError(f"When using the \"{self.name}\" operator the target field must be a list or string. {self.target_value} is a \"{type(self.target_value).__name__}\".")
+
                 if isinstance(self.target_value, list):
                     if self.all_mode:
                         if isinstance(self.value, list):
@@ -209,8 +216,7 @@ class RQLSearch:
                             return self.has_key and any([self.value in v for v in self.target_value])
                         else:
                             return self.has_key and any([v in self.target_value for v in self.value])
-                else:
-                    
+                else:                    
                     if isinstance(self.value, list) and isinstance(self.target_value, (list, str)):
                         return any([v in self.target_value for v in self.value])
                         
@@ -458,8 +464,6 @@ class RQLSearch:
         def __call__(self, obj):
 
             super().__call__(obj)
-
-            print(self.target_value, self.value)
 
             if self.target_value:
                 # If the target value is a list, calculate how many items are in the list
