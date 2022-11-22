@@ -35,6 +35,10 @@ mod_agent_list = api.model('AgentList', {
     'version': fields.String,
 })
 
+mod_agent_inputs = api.model('AgentInputs', {
+    'inputs': fields.List(fields.Nested(mod_input_list)),
+})
+
 mod_agent_heartbeat = api.model('AgentHeartbeat', {
     'healthy': fields.Boolean,
     'health_issues': fields.List(fields.String),
@@ -110,15 +114,11 @@ class AgentList(Resource):
             if args.organization:
                 agents = agents.filter('term', organization=args.organization)
 
-        
-
         sort_by = args.sort_by
         if sort_by in ['health_issues','version']:
             sort_by = f"{sort_by}.keyword"
         if args.sort_direction == 'desc':
             sort_by = f"-{sort_by}"
-
-        
 
         agents = agents.sort(sort_by)
 
@@ -150,7 +150,7 @@ class AgentList(Resource):
         if not agent:
 
             groups = None
-            if 'groups' in api.payload:
+            if 'groups' in api.payload and api.payload['groups']:
                 groups = api.payload.pop('groups')
                 groups = AgentGroup.get_by_name(
                     name=groups, organization=current_user['organization'])
@@ -182,7 +182,6 @@ class AgentList(Resource):
 
             return {'message': 'Successfully created the agent.', 'uuid': str(agent.uuid), 'token': token}
         else:
-
             api.abort(409, "Agent already exists.")
 
 
@@ -193,6 +192,7 @@ class AgentHeartbeat(Resource):
     @api.expect(mod_agent_heartbeat)
     @token_required
     def post(self, uuid, current_user):
+        '''Collects heartbeat and health check information from Agents'''
         agent = Agent.get_by_uuid(uuid=uuid)
 
         if agent:
@@ -228,6 +228,9 @@ class AgentHeartbeat(Resource):
     @api.doc(security="Bearer")
     @token_required
     def get(self, uuid, current_user):
+        '''DEPRECATED: Collects heartbeat and health check information from Agents.  
+        Will be removed in the future for the POST version of this endpoint.
+        '''
         agent = Agent.get_by_uuid(uuid=uuid)
         if agent:
             agent.last_heartbeat = datetime.datetime.utcnow()
@@ -245,6 +248,27 @@ class AgentHeartbeat(Resource):
 
             api.abort(400, 'Your heart stopped.')
 
+@api.route("/inputs")
+class AgentInputs(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_agent_inputs)
+    @token_required
+    @user_has('view_agents')
+    def get(self, current_user):
+        ''' Returns a list of Inputs for an Agent '''
+
+        agent = Agent.get_by_uuid(uuid=current_user.uuid)
+        if agent:
+            _inputs = []
+            [_inputs.append(_input) for _input in agent._inputs]
+            for group in agent._groups:
+
+                [_inputs.append(_input) for _input in group._inputs]
+                
+            return {'inputs': _inputs}
+        else:
+            api.abort(404, "Agent not found.")
 
 @api.route("/<uuid>")
 class AgentDetails(Resource):
