@@ -1158,7 +1158,7 @@ and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.valu
                         expire=False,
                         expire_days=0,
                         merge_into_case=True,
-                        taget_case_uuid=case.uuid,
+                        target_case_uuid=case.uuid,
                         query=rule_text,
                         dismiss=False)
                     event_rule.active = True
