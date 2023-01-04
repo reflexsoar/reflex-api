@@ -649,9 +649,12 @@ class TestEventRQL(Resource):
             try:
                 parsed_query = qp.parser.parse(api.payload['query'])
             except SyntaxError as e:
-                print(e.__dict__)
                 api.abort(400, f"Invalid RQL Query.  Please consult the RQL documentation for more information.")
-            result = [r for r in qp.run_search(event_data, parsed_query)]
+                
+            try:
+                result = [r for r in qp.run_search(event_data, parsed_query)]
+            except Exception as e:
+                api.abort(400, f"Invalid RQL Query. {e}")
             hits = len(result)
 
             if hits > 0:

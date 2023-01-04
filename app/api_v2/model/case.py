@@ -33,7 +33,7 @@ class CaseHistory(base.BaseDocument):
         '''
         Fetches a document by the uuid field
         '''
-        response = self.search().query('match', case=uuid)
+        response = self.search().query('term', case__keyword=uuid)
         response = response.sort(sort_by)
         response = response.execute()
         if response:
