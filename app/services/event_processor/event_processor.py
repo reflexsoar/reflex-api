@@ -897,6 +897,13 @@ class EventWorker(Process):
                     tags.append(t)
             raw_event['tags'] = tags
 
+        # If the rule says to remove tags
+        if rule.remove_tags:
+            if 'tags' in raw_event:
+                for t in rule.tags_to_remove:
+                    if t in raw_event['tags']:
+                        raw_event['tags'].remove(t)
+
         # If the rule calls for making a brand new case
         merge_into_new_case = False
         new_case_target_uuid = None
@@ -918,7 +925,10 @@ class EventWorker(Process):
             new_case_target_uuid = case.uuid
             if rule.case_template:
                 case.apply_template(rule.case_template)
-            
+
+        # If the rule calls for changing the organization
+        if rule.set_organization:
+            raw_event['organization'] = rule.target_organization            
 
         # If the rule says to merge in to case
         if rule.merge_into_case or merge_into_new_case:
