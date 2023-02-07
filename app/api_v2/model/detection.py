@@ -158,8 +158,8 @@ class Detection(base.BaseDocument):
     description = Text()
     guide = Text() # A descriptive process for how to triage/investigate this detection
     tags = Keyword() # A list of tags used to categorize this repository
-    tactics = Nested(MITRETacticTechnique)#Keyword()  # T1085.1
-    techniques = Nested(MITRETacticTechnique)#Keyword() # T1085
+    tactics = Nested(MITRETacticTechnique) # T1085.1
+    techniques = Nested(MITRETacticTechnique) # T1085
     references = Keyword() # A list of URLs that detail in greater depth why this detection exists
     false_positives = Keyword() # A list of false positives
     kill_chain_phase = Keyword() # Singular text based phase definition
