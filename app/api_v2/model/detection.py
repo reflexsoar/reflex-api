@@ -192,13 +192,13 @@ class Detection(base.BaseDocument):
     field_mismatch_config = Object(FieldMismatchConfig)
     new_terms_config = Object(NewTermsConfig)
     assigned_agent = Keyword() # The UUID of the agent that should run this alarm
+    include_source_meta_data = Boolean() # If true the detection will include the meta data from the source event in the alert
 
     class Index:
         name = "reflex-detections"
         settings = {
             "refresh_interval": "1s"
         }
-
 
     @classmethod
     def get_by_name(cls, name, organization=None):

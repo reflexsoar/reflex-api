@@ -1,20 +1,19 @@
 import datetime
-import yaml
-import urllib.parse
 
 from uuid import uuid4
 from app.api_v2.model.detection import DetectionException
 from app.api_v2.model.user import User
 from app.api_v2.model.utils import _current_user_id_or_none
-from ..utils import check_org, token_required, user_has, ip_approved
+from ..utils import check_org, token_required, user_has
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import (
     Detection,
     Organization,
     Event,
-    Q
+    Q,
+    Agent
 )
-from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
+from .shared import mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
 from ..utils import page_results
 from .mitre import mod_tactic_brief, mod_technique_brief
@@ -138,6 +137,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'metric_change_config': fields.Nested(mod_metric_change_config, skip_none=True),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config, skip_none=True),
     'new_terms_config': fields.Nested(mod_new_terms_config, skip_none=True),
+    'include_source_meta_data': fields.Boolean(),
     'created_at': ISO8601,
     'created_by': fields.Nested(mod_user_list, skip_none=True),
     'updated_at': ISO8601,
@@ -175,7 +175,8 @@ mod_create_detection = api.model('CreateDetection', {
     'threshold_config': fields.Nested(mod_threshold_config),
     'metric_change_config': fields.Nested(mod_metric_change_config),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
-    'new_terms_config': fields.Nested(mod_new_terms_config)
+    'new_terms_config': fields.Nested(mod_new_terms_config),
+    'include_source_meta_data': fields.Boolean(default=False)
 }, strict=True)
 
 mod_update_detection = api.model('UpdateDetection', {
@@ -202,7 +203,12 @@ mod_update_detection = api.model('UpdateDetection', {
     'lookbehind': fields.Integer(default=5, required=True, min=1),
     'mute_period': fields.Integer(default=5, required=True, min=0),
     'skip_event_rules': fields.Boolean,
-    'exceptions': fields.List(fields.Nested(mod_detection_exception_list))
+    'exceptions': fields.List(fields.Nested(mod_detection_exception_list)),
+    'threshold_config': fields.Nested(mod_threshold_config),
+    'metric_change_config': fields.Nested(mod_metric_change_config),
+    'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
+    'new_terms_config': fields.Nested(mod_new_terms_config),
+    'include_source_meta_data': fields.Boolean()
 }, strict=True)
 
 mod_detection_list_paged = api.model('DetectionListPaged', {
@@ -273,6 +279,9 @@ class DetectionList(Resource):
 
         args = detection_list_parser.parse_args()
 
+        if isinstance(current_user, Agent):
+            args.agent = current_user.uuid
+
         search = Detection.search()
         if args.sort_direction == 'desc':
             search = search.sort(f"-{args.sort_by}")
@@ -286,11 +295,14 @@ class DetectionList(Resource):
             search = search.filter('term', active=args.active)
 
         if args.tactics and args.techniques:
-            search = search.filter('bool', must=[Q('nested', path='techniques', query={'terms': {'techniques.external_id': args.techniques}}), Q('nested', path='tactics', query={'terms': {'tactics.shortname': args.tactics}})])
+            search = search.filter('bool', must=[Q('nested', path='techniques', query={'terms': {'techniques.external_id': args.techniques}}), Q(
+                'nested', path='tactics', query={'terms': {'tactics.shortname': args.tactics}})])
         elif args.tactics and not args.techniques:
-            search = search.filter('nested', path='tactics', query={'terms': {'tactics.shortname': args.tactics}})
+            search = search.filter('nested', path='tactics', query={
+                                   'terms': {'tactics.shortname': args.tactics}})
         elif args.techniques and not args.tactics:
-            search = search.filter('nested', path='techniques', query={'terms': {'techniques.external_id': args.techniques}})
+            search = search.filter('nested', path='techniques', query={
+                                   'terms': {'techniques.external_id': args.techniques}})
 
         # If the agent parameter is provided do not page the results, load them all
         if 'agent' in args and args.agent not in (None, ''):
@@ -328,9 +340,11 @@ class DetectionList(Resource):
         if 'organization' in api.payload:
 
             # Check to make sure the organization is a valid organization
-            organization = Organization.get_by_uuid(uuid=api.payload['organization'])
+            organization = Organization.get_by_uuid(
+                uuid=api.payload['organization'])
             if not organization:
-                api.abort(404, f"Organization with UUID {api.payload['organization']} not found")
+                api.abort(
+                    404, f"Organization with UUID {api.payload['organization']} not found")
 
             exists = Detection.get_by_name(
                 name=api.payload['name'], organization=api.payload['organization'])
@@ -365,6 +379,7 @@ detection_hit_parser.add_argument(
     'sort_direction', type=str, location='args', default='desc', required=False
 )
 
+
 @api.route("/<uuid>/hits")
 class DetectionHits(Resource):
 
@@ -390,7 +405,8 @@ class DetectionHits(Resource):
 
             events = events.sort(sort_by)
 
-            events, total_results, pages = page_results(events, args.page, args.page_size)
+            events, total_results, pages = page_results(
+                events, args.page, args.page_size)
 
             events = events.execute()
 
@@ -467,7 +483,7 @@ class RemoveDetectionException(Resource):
 
             return detection
         else:
-            api.abort(404, f'Detection rule for UUID {uuid} not found') 
+            api.abort(404, f'Detection rule for UUID {uuid} not found')
 
 
 @api.route("/<uuid>")
@@ -499,7 +515,7 @@ class DetectionDetails(Resource):
 
         should_redistribute = False
         forbidden_user_fields = ['query_time_taken', 'total_hits', 'last_hit', 'last_run',
-                                 'created_at','created_by','updated_at','updated_by','time_taken','warnings','version','running',
+                                 'created_at', 'created_by', 'updated_at', 'updated_by', 'time_taken', 'warnings', 'version', 'running',
                                  'assigned_agent']
 
         # Prevent users from updating these fields
@@ -513,7 +529,7 @@ class DetectionDetails(Resource):
 
             # Update the detection version number when the detection is saved and certain fields
             # are present in the update payoad
-            if any([field in api.payload for field in ['query','description','guide']]):
+            if any([field in api.payload for field in ['query', 'description', 'guide']]):
                 if hasattr(detection, 'version'):
                     detection.version += 1
                 else:
@@ -554,7 +570,7 @@ class DetectionDetails(Resource):
         detection = Detection.get_by_uuid(uuid=uuid)
         if detection:
 
-            organization = detection.organization            
+            organization = detection.organization
             detection.delete(refresh=True)
 
             # Redistribute the detection workload for the organization
@@ -583,7 +599,7 @@ class ParseSigma(Resource):
             detection = sp.generate_detection()
         except Exception as e:
             api.abort(400, f'Error parsing Sigma rule: {e}')
-        
+
         #sigma_parser = SigmaParser()
         #detection = sigma_parser.parse(sigma_rule)
 
