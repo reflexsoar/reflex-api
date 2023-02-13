@@ -5,6 +5,3 @@
 ## Quick Start
 
 https://docs.reflexsoar.com/en/dev/getting-started/
-
-
-test
