@@ -86,7 +86,8 @@ from .resource import (
     ns_agent_group_v2,
     ns_field_mapping_v2,
     ns_agent_policy_v2,
-    ns_case_v2
+    ns_case_v2,
+    ns_user_v2
 )
 
 from .. import ep
@@ -98,8 +99,8 @@ api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
 api2 = Api(api_v2) if show_swagger_docs else Api(api_v2, doc=False)
 
 # All the API namespaces
-ns_user_v2 = api2.namespace(
-    'User', description='User operations', path='/user')
+#ns_user_v2 = api2.namespace(
+#    'User', description='User operations', path='/user')
 #ns_role_v2 = api2.namespace(
  #   'Role', description='Role operations', path='/role')
 ns_settings_v2 = api2.namespace(
@@ -151,6 +152,7 @@ api2.add_namespace(ns_agent_group_v2)
 api2.add_namespace(ns_field_mapping_v2)
 api2.add_namespace(ns_agent_policy_v2)
 api2.add_namespace(ns_case_v2)
+api2.add_namespace(ns_user_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -181,6 +183,7 @@ def save_tags(tags):
             tag = Tag(name=tag)
             tag.save()
 
+""" DEPRECATED USER CODE
 
 @ns_user_v2.route("/me")
 class UserInfo(Resource):
@@ -569,7 +572,7 @@ class UserDetails(Resource):
         else:
             ns_user_v2.abort(404, 'User not found.')
 
-
+"""
 
 data_type_parser = api2.parser()
 data_type_parser.add_argument('organization', location='args', required=False)
