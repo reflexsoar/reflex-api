@@ -110,6 +110,19 @@ mod_mfa_token = api.model('MFATOTP', {
     'token': fields.String
 })
 
+mod_user_notification_settings = api.model('UserNotificationSettings', {
+    'email_mention': fields.Boolean,
+    'email_case_comment': fields.Boolean,
+    'email_case_status': fields.Boolean,
+    'email_case_assign': fields.Boolean,
+    'email_new_case': fields.Boolean,
+    'email_case_task_status': fields.Boolean,
+    'email_case_task_assign': fields.Boolean,
+    'email_case_task_create': fields.Boolean,
+    'email_case_task_status': fields.Boolean,
+    'only_watched_cases': fields.Boolean
+})
+
 
 @api.route("/me")
 class UserInfo(Resource):
@@ -401,6 +414,30 @@ class UserSetPassword(Resource):
             current_user.save()
         else:
             api.abort(400, 'Password required.')
+
+
+@api.route('/notification_settings')
+class UserNotificationSettings(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_user_notification_settings)
+    @token_required
+    def get(self, current_user):
+        ''' Returns the current users notification settings '''
+
+        return current_user.notification_settings
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_user_notification_settings)
+    @api.marshal_with(mod_user_notification_settings)
+    @token_required
+    def put(self, current_user):
+        ''' Updates the current users notification settings '''
+
+        current_user.notification_settings = api.payload
+        current_user.save()
+
+        return current_user.notification_settings
 
 
 @api.route("/<uuid>")

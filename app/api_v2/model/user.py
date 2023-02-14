@@ -262,12 +262,19 @@ class User(base.BaseDocument):
         return response
 
     @classmethod
-    def get_by_username(self, username):
-        response = self.search().query(
-            'term', username__keyword=username).execute()
-        if response:
-            user = response[0]
-            return user
+    def get_by_username(self, username, as_text=False):
+
+        field = 'username' if as_text else 'username__keyword'
+        
+        if isinstance(username, str):
+            response = self.search().query(
+                'term', **{field: username}).execute()
+            if response:
+                response = response[0]
+
+        if isinstance(username, list):
+            response = self.search().query(
+                'terms', **{field: username}).execute()
         return response
 
     @classmethod

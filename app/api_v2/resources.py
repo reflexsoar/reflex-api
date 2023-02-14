@@ -1,3 +1,4 @@
+import re
 import base64
 import math
 import datetime
@@ -1970,6 +1971,13 @@ class CaseCommentList(Resource):
             if current_user.organization != case.organization:
                 api2.payload['cross_organization'] = True
                 api2.payload['other_organization'] = current_user.organization
+
+            # Determine if the comment has any user mentions in it and 
+            # notify any users that are mentioned if they have notifications enabled
+            matches = re.findall(r'\B@(\w+)', api2.payload['message'])
+            matches = list(set([m.lower() for m in matches]))
+            mentioned_users = User.get_by_username(matches, as_text=True)
+            # TODO - NOTIFICATIONS: Add notification for mentioned users if they have notifications enabled
 
             case_comment = CaseComment(**api2.payload)
             case_comment.save()
