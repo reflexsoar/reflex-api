@@ -85,7 +85,8 @@ from .resource import (
     ns_agent_v2,
     ns_agent_group_v2,
     ns_field_mapping_v2,
-    ns_agent_policy_v2
+    ns_agent_policy_v2,
+    ns_case_v2
 )
 
 from .. import ep
@@ -113,8 +114,8 @@ ns_input_v2 = api2.namespace(
     #'AgentGroup', description='Agent Group operations', path='/agent_group')
 ns_data_type_v2 = api2.namespace(
     'DataType', description='DataType operations', path='/data_type')
-ns_case_v2 = api2.namespace(
-    'Case', description='Case operations', path='/case')
+#ns_case_v2 = api2.namespace(
+#    'Case', description='Case operations', path='/case')
 ns_case_status_v2 = api2.namespace(
     'CaseStatus', description='Case Status operations', path='/case_status')
 ns_case_comment_v2 = api2.namespace(
@@ -149,6 +150,7 @@ api2.add_namespace(ns_agent_v2)
 api2.add_namespace(ns_agent_group_v2)
 api2.add_namespace(ns_field_mapping_v2)
 api2.add_namespace(ns_agent_policy_v2)
+api2.add_namespace(ns_case_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -903,7 +905,7 @@ class CloseReasonDetails(Resource):
             close_reason.update(enabled = False)
             return {'message': 'Sucessfully deleted Close Reason.'}
 
-
+""" DEPRECATED CASE CODE
 case_parser = pager_parser.copy()
 case_parser.add_argument('title', location='args', required=False, type=str)
 case_parser.add_argument('title__like', location='args', required=False, type=str)
@@ -1880,6 +1882,7 @@ class CaseStats(Resource):
             metrics['escalated'] = {v['key']: v['doc_count'] for v in cases.aggs.range.escalated.buckets}
 
         return metrics
+"""
 
 case_history_parser = api2.parser()
 case_history_parser.add_argument(
@@ -2549,7 +2552,7 @@ class InputIndexFields(Resource):
         else:
             ns_input_v2.abort(404, 'Input not found.')
 
-"""
+""" DEPRECATED AGENT CODE
 @ns_agent_v2.route("/pair_token")
 class AgentPairToken(Resource):
 

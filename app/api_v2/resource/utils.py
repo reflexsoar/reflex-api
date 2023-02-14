@@ -1,6 +1,17 @@
 import math
 from ..model import Agent, Detection
 
+def save_tags(tags):
+    '''
+    Adds tags to a reference index that the UI uses for 
+    suggesting reasonable tags to the user
+    '''
+
+    for tag in tags:
+        _tag = Tag.get_by_name(name=tag)
+        if not _tag:
+            tag = Tag(name=tag)
+            tag.save()
 
 def chunks(l, n):
     for i in range(0, len(l), n):

@@ -1,6 +1,6 @@
 import json
 import dateutil.parser
-from flask_restx import Model, fields
+from flask_restx import Model, fields, reqparse
 
 
 class ISO8601(fields.Raw):
@@ -227,3 +227,8 @@ mod_user_list = Model('UserList', {
     'organization': fields.String
 })
 
+pager_parser = reqparse.RequestParser()
+pager_parser.add_argument('page_size', location='args',
+                          required=False, type=int, default=25)
+pager_parser.add_argument('page', location='args',
+                          required=False, type=int, default=1)
