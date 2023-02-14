@@ -22,6 +22,11 @@ from .utils import save_tags
 api = Namespace('Case', description='Reflex cases', path='/case')
 
 
+mod_case_watchers = api.model('CaseWatchers', {
+    'watchers': fields.List(fields.Nested(mod_user_list))
+})
+
+
 mod_case_observables = api.model('CaseObservables', {
     'observables': fields.List(fields.Nested(mod_observable_list))
 })
@@ -965,6 +970,55 @@ class RelateCases(Resource):
             return [c for c in cases]
         else:
             return []
+
+
+@api.route('/<uuid>/watch')
+class WatchCase(Resource):
+
+    @api.doc(security="Bearer")
+    @api.response(207, 'Success')
+    @api.response(404, 'Case not found.')
+    @api.marshal_with(mod_case_watchers)
+    @token_required
+    @user_has('view_cases')
+    def post(self, current_user, uuid):
+        ''' Sets a case as watched for the current user '''
+        case = Case.get_by_uuid(uuid=uuid)
+        if case:
+            if case.watchers:
+                if current_user.uuid not in case.watchers:
+                    case.add_watcher(current_user.uuid)
+                    current_user.watch_case(case.uuid)
+            else:
+                case.watchers = [current_user.uuid]
+            case.save()
+            watchers = User.get_by_uuid(uuid=case.watchers)
+            return {'watchers': watchers}
+        else:
+            api.abort(404, 'Case not found.')
+
+@api.route('/<uuid>/unwatch')
+class UnwatchCase(Resource):
+
+    @api.doc(security="Bearer")
+    @api.response(207, 'Success')
+    @api.response(404, 'Case not found.')
+    @api.marshal_with(mod_case_watchers)
+    @token_required
+    @user_has('view_cases')
+    def post(self, current_user, uuid):
+        ''' Removes a case from the watched list for the current user '''
+        case = Case.get_by_uuid(uuid=uuid)
+        if case:
+            if case.watchers:
+                if current_user.uuid in case.watchers:
+                    case.remove_watcher(current_user.uuid)
+                    current_user.unwatch_case(case.uuid)
+            case.save()
+            watchers = User.get_by_uuid(uuid=case.watchers)
+            return {'watchers': watchers}
+        else:
+            api.abort(404, 'Case not found.')
 
 
 case_stats_parser = api.parser()

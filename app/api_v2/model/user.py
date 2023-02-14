@@ -73,6 +73,26 @@ class User(base.BaseDocument):
             'refresh_interval': '1s'
         }
 
+    def watch_case(self, case_uuid):
+        ''' Adds a case to the list of cases the user is watching '''
+
+        if self.watched_cases is None:
+            self.watched_cases = []
+
+        if case_uuid not in self.watched_cases:
+            self.watched_cases.append(case_uuid)
+            self.save()
+
+    def unwatch_case(self, case_uuid):
+        ''' Removes a case from the list of cases the user is watching '''
+
+        if self.watched_cases is None:
+            self.watched_cases = []
+
+        if case_uuid in self.watched_cases:
+            self.watched_cases.remove(case_uuid)
+            self.save()
+
     def set_password(self, password):
         '''
         Encrypts the password for the user. The Document base class
