@@ -26,6 +26,21 @@ from . import (
 
 FLASK_BCRYPT = Bcrypt()
 
+class UserNotificationSettings(InnerDoc):
+    ''' Defines the notification settings for a user '''
+
+    email_notify_on_mention = Boolean() # Notify the user when they are mentioned in a comment
+    email_notify_on_case_comment = Boolean()
+    email_notify_on_case_status_change = Boolean()
+    email_notify_on_case_assignment = Boolean()
+    email_notify_on_case_creation = Boolean()
+    email_notify_on_case_task_completion = Boolean()
+    email_notify_on_case_task_assignment = Boolean()
+    email_notify_on_case_task_creation = Boolean()
+    email_notify_on_case_task_status_change = Boolean()
+    email_notify_on_case_task_comment = Boolean()
+    only_watched_cases = Boolean()
+
 class User(base.BaseDocument):
     '''
     A User of the Reflex system
@@ -48,6 +63,8 @@ class User(base.BaseDocument):
     mfa_enabled = Boolean()
     notification_options = Nested() # When does the user want to be notified
     notification_methods = Keyword() # How does the user want to be notified
+    watched_cases = Keyword() # What cases is the user currently watching
+    notification_settings = Nested(UserNotificationSettings)
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
