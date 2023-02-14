@@ -288,7 +288,7 @@ class Case(base.BaseDocument):
     series of events that were observed in the system
     '''
 
-    title = Keyword()
+    title = Keyword(fields={'text':Text()})
     description = Text(fields={'keyword':Keyword()})
     severity = Integer()
     owner = Object()
