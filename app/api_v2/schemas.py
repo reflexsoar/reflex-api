@@ -273,7 +273,8 @@ mod_user_create = Model('UserCreate', {
     'password': fields.String(required=True),
     'first_name': fields.String(required=True),
     'last_name': fields.String(required=True),
-    'locked': fields.Boolean
+    'locked': fields.Boolean,
+    'role_uuid': fields.String(required=True)
 }, strict=True)
 
 

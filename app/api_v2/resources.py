@@ -401,6 +401,8 @@ class UserList(Resource):
     def post(self, current_user):
         ''' Creates a new user '''
 
+        print(api2.payload)
+
         # Check to see if the user already exists
         user = User.get_by_email(api2.payload['email'])
         if user:
@@ -408,20 +410,28 @@ class UserList(Resource):
         else:
             user_role = api2.payload.pop('role_uuid')
 
+            if api2.payload.get('organization') == None and hasattr(current_user,'default_org') and current_user.default_org:
+                api2.abort(400, "Organization is required.")
+
             # Strip the organization field if the user is not a member of the default
             # organization
             # TODO: replace with @check_org wrapper
             if 'organization' in api2.payload and hasattr(current_user,'default_org') and not current_user.default_org:
-
                 api2.payload.pop('organization')
+
+            role = Role.get_by_uuid(uuid=user_role)
+
+            # Check that the target role is part of the target organization
+            if api2.payload.get('organization'):
+                if role.organization != api2.payload.get('organization'):
+                    ns_user_v2.abort(400, "Role is not part of the target organization.")
 
             user_password = api2.payload.pop('password')
             user = User(**api2.payload)
             user.set_password(user_password)
             user.deleted = False
             user.save()
-
-            role = Role.get_by_uuid(uuid=user_role)
+            
             role.add_user_to_role(user.uuid)
 
             user.role = role
