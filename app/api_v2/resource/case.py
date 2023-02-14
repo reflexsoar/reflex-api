@@ -466,6 +466,17 @@ and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.valu
 
         time.sleep(0.5)
 
+        # TODO - NOTIFICATIONS: Notify the assigned user that they have been assigned a case
+        print(f"Notifying {case.owner} that they have been assigned a case")
+
+        # TODO - NOTIFICATIONS: Notify the users in the tenant that a new case has been created (if enabled)
+        # Find all the users to notify that a new case has been created
+        notification_users = User.get_by_organization(organization=case.organization)
+        for user in notification_users:
+            # Notify the user if they have enabled new case notifications but not if they are the owner of the case
+            if hasattr(user.notification_settings, 'new_case_email') and user.notification_settings.new_case_email and user.uuid != case.owner.uuid:
+                print(f"Notifying {user} that a new case has been created, if enabled {user.notification_settings.new_case_email}")
+
         return {'message': 'Successfully created the case.', 'uuid': str(case.uuid)}
 
 
@@ -501,13 +512,13 @@ class CaseDetails(Resource):
     def put(self, uuid, current_user):
         ''' Updates information for a case '''
         case = Case.get_by_uuid(uuid=uuid)
+        case_watchers = User.get_by_uuid(case.watchers)
         if case:
 
             for f in ['severity', 'tlp', 'status_uuid', 'owner', 'description', 'owner_uuid', 'escalated']:
                 value = ""
                 message = None
 
-                # TODO: handle notifications here, asynchronous of course to not block this processing
                 if f in api.payload:
                     if f == 'status_uuid':
                         status = CaseStatus.get_by_uuid(
@@ -525,8 +536,18 @@ class CaseDetails(Resource):
 
                         if status.closed:
                             case.close(api.payload['close_reason_uuid'])
+                            # TODO - NOTIFICATIONS: Notify the watchers that the case has been closed
+                            if case_watchers:
+                                for watcher in case_watchers:
+                                    print(
+                                        f"Notifying {watcher} that the case has been closed, if their notification settings allow it")
                         else:
                             case.reopen()
+                            # TODO - NOTIFICATIONS: Notify the watchers that the case has been re-opened
+                            if case_watchers:
+                                for watcher in case_watchers:
+                                    print(
+                                        f"Notifying {watcher} that the case has been re-opened, if their notification settings allow it")
 
                     elif f == 'severity':
 
@@ -538,6 +559,12 @@ class CaseDetails(Resource):
 
                         value = {1: 'Low', 2: 'Medium', 3: 'High',
                                  4: 'Critical'}[api.payload[f]]
+
+                        # TODO - NOTIFICATIONS: Notify the watchers that the severity has changed
+                        if case_watchers:
+                            for watcher in case_watchers:
+                                print(
+                                    f"Notifying {watcher} that the severity has changed, if their notification settings allow it")
 
                     elif f == 'description':
                         message = '**Description** updated'

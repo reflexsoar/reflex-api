@@ -21,7 +21,8 @@ from . import (
     Nested,
     InnerDoc,
     base,
-    utils
+    utils,
+    Object
 )
 
 FLASK_BCRYPT = Bcrypt()
@@ -29,16 +30,15 @@ FLASK_BCRYPT = Bcrypt()
 class UserNotificationSettings(InnerDoc):
     ''' Defines the notification settings for a user '''
 
-    email_notify_on_mention = Boolean() # Notify the user when they are mentioned in a comment
-    email_notify_on_case_comment = Boolean()
-    email_notify_on_case_status_change = Boolean()
-    email_notify_on_case_assignment = Boolean()
-    email_notify_on_case_creation = Boolean()
-    email_notify_on_case_task_completion = Boolean()
-    email_notify_on_case_task_assignment = Boolean()
-    email_notify_on_case_task_creation = Boolean()
-    email_notify_on_case_task_status_change = Boolean()
-    email_notify_on_case_task_comment = Boolean()
+    email_mention = Boolean() # Notify the user when they are mentioned in a comment
+    email_case_comment = Boolean()
+    email_case_status = Boolean()
+    email_case_assign = Boolean()
+    email_new_case = Boolean()
+    email_case_task_status = Boolean()
+    email_case_task_assign = Boolean()
+    email_case_task_create = Boolean()
+    email_case_task_status = Boolean()
     only_watched_cases = Boolean()
 
 class User(base.BaseDocument):
@@ -61,10 +61,8 @@ class User(base.BaseDocument):
     auth_realm = Keyword() # Which authentication realm to log in to
     otp_secret = Keyword()
     mfa_enabled = Boolean()
-    notification_options = Nested() # When does the user want to be notified
-    notification_methods = Keyword() # How does the user want to be notified
     watched_cases = Keyword() # What cases is the user currently watching
-    notification_settings = Nested(UserNotificationSettings)
+    notification_settings = Object(UserNotificationSettings)
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -256,6 +254,12 @@ class User(base.BaseDocument):
         if hasattr(role.permissions, permission) and getattr(role.permissions, permission):
             return True
         return False
+
+    @classmethod
+    def get_by_organization(self, organization):
+        response = self.search().query(
+            'term', organization=organization).execute()
+        return response
 
     @classmethod
     def get_by_username(self, username):

@@ -1,5 +1,5 @@
 import math
-from ..model import Agent, Detection
+from ..model import Agent, Detection, Tag
 
 def save_tags(tags):
     '''
