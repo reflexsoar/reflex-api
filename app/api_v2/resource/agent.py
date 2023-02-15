@@ -3,6 +3,7 @@ from flask import request
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import (
     Agent,
+    AgentLogMessage,
     Settings,
     Role,
     AgentGroup,
@@ -62,6 +63,10 @@ mod_agent_create = api.model('AgentCreate', {
     'groups': fields.List(fields.String),
     'ip_address': fields.String,
     'inputs': fields.List(fields.String)
+})
+
+mod_create_log_message = api.model('AgentLogMessage', {
+    'message': fields.String,
 })
 
 
@@ -321,3 +326,25 @@ class AgentDetails(Resource):
         else:
 
             api.abort(404, 'Agent not found.')
+
+
+@api.route("/log")
+class AgentLog(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_create_log_message)
+    @token_required
+    @user_has('create_agent_log')
+    def post(self, current_user):
+        ''' Creates a log message for an Agent '''
+        print(current_user.to_dict())
+        agent = Agent.get_by_uuid(uuid=current_user.uuid)
+        if agent:
+            log = AgentLogMessage(agent_uuid=current_user.uuid,
+                message=api.payload['message'])
+            log.save()
+            return {'message': 'Log message successfully created.'}
+        else:
+
+            api.abort(404, 'Agent not found.')
+

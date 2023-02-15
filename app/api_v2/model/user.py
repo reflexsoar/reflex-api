@@ -576,6 +576,8 @@ class Permission(InnerDoc):
     view_agent_policies = Boolean()
     update_agent_policy = Boolean()
     delete_agent_policy = Boolean()
+    create_agent_log_message = Boolean()
+    view_agent_logs = Boolean()
 
 
 class Role(base.BaseDocument):
