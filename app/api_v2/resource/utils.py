@@ -1,5 +1,19 @@
 import math
+import datetime
 from ..model import Agent, Detection, Tag
+
+def time_since(start_time, message, format="s"):
+    '''
+    Prints the time since the start_time in the format
+    '''
+    time_diff = datetime.datetime.utcnow() - start_time
+    if format == "s":
+        print(f"{message} - {time_diff.total_seconds()}s")
+    elif format == "ms":
+        print(f"{message} - {time_diff.total_seconds()*1000}ms")
+    elif format == "h":
+        print(f"{message} - {time_diff.total_seconds()/3600}h")
+    return time_diff
 
 def save_tags(tags):
     '''
