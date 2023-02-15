@@ -5,6 +5,43 @@ from app.api_v2.model.case import Case
 from app.api_v2.model.event import Event
 
 
+def create_default_email_templates(cls, org_id, check_for_default=False):
+
+    templates = [{
+        'name': 'Default Case Created Template',
+        'description': 'The default template for a new case being created',
+        'subject': 'A New Case Has Been Created (ref: {{ case.uuid }})',
+        'template': '''
+            <p>A new case has been created in Reflex.</p>
+
+            <p>Case Title: {{ case.title }}</p>
+            <p>Case Description: {{ case.description }}</p>
+            <p>Case Severity: {{ case.severity }}</p>
+            <p>Total Events: {{ case.total_events }}</p>
+        ''',
+        'internal_id': 'default_case_created',
+        'enabled': True
+    }]
+
+    # If this is the first setup of the system, we need to create the default closure reasons
+    # else we will just update the existing ones and replace those that are missing
+    if check_for_default == False:
+        for template in templates:
+            new_template = cls(**template, organization=org_id)
+            new_template.save()
+    else:
+        orgs = Organization.search().scan()
+        for org in orgs:
+            existing_templates = cls.search().filter('term', organization=org.uuid).execute()
+            for template in templates:
+                if template['internal_id'] not in [x.internal_id for x in existing_templates]:
+                    new_template = cls(**template, organization=org.uuid)
+                    new_template.save()
+                    print(f"{template['internal_id']} missing from {org.name} - {new_template}")
+
+    return
+
+
 def create_default_organization(cls):
 
     data = {
@@ -147,6 +184,8 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         "view_agent_policies": True,
         "update_agent_policy": True,
         "delete_agent_policy": True,
+        "create_agent_log_message": False,
+        "view_agent_logs": True
     }
 
     role_contents = {
@@ -259,6 +298,8 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         "view_agent_policies": True,
         "update_agent_policy": False,
         "delete_agent_policy": False,
+        "create_agent_log_message": False,
+        "view_agent_logs": False
     }
 
     role_contents = {
@@ -313,6 +354,8 @@ def create_agent_role(cls, org_id, check_for_default=False):
         'update_input': True,
         'update_detection': True,
         "view_agent_policies": True,
+        "create_agent_log_message": True,
+        "view_agent_logs": True
     }
 
     role_contents = {
