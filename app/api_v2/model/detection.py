@@ -158,8 +158,8 @@ class Detection(base.BaseDocument):
     description = Text()
     guide = Text() # A descriptive process for how to triage/investigate this detection
     tags = Keyword() # A list of tags used to categorize this repository
-    tactics = Nested(MITRETacticTechnique)#Keyword()  # T1085.1
-    techniques = Nested(MITRETacticTechnique)#Keyword() # T1085
+    tactics = Nested(MITRETacticTechnique) # T1085.1
+    techniques = Nested(MITRETacticTechnique) # T1085
     references = Keyword() # A list of URLs that detail in greater depth why this detection exists
     false_positives = Keyword() # A list of false positives
     kill_chain_phase = Keyword() # Singular text based phase definition
@@ -192,13 +192,13 @@ class Detection(base.BaseDocument):
     field_mismatch_config = Object(FieldMismatchConfig)
     new_terms_config = Object(NewTermsConfig)
     assigned_agent = Keyword() # The UUID of the agent that should run this alarm
+    include_source_meta_data = Boolean() # If true the detection will include the meta data from the source event in the alert
 
     class Index:
         name = "reflex-detections"
         settings = {
             "refresh_interval": "1s"
         }
-
 
     @classmethod
     def get_by_name(cls, name, organization=None):

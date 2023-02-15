@@ -273,7 +273,8 @@ mod_user_create = Model('UserCreate', {
     'password': fields.String(required=True),
     'first_name': fields.String(required=True),
     'last_name': fields.String(required=True),
-    'locked': fields.Boolean
+    'locked': fields.Boolean,
+    'role_uuid': fields.String(required=True)
 }, strict=True)
 
 
@@ -796,7 +797,7 @@ mod_event_rule_test = Model('TestEventRuleQuery', {
     'end_date': fields.String,
 })
 
-mod_event_rule_create = Model('CreateEventRule', {
+mod_event_rule_create = Model('CreateEventRule22', {
     'name': fields.String,
     'organization': fields.String,
     'description': fields.String,
@@ -1140,7 +1141,7 @@ mod_observable_brief, mod_observable_create, mod_observable_update, mod_raw_log,
 mod_api_key,mod_user_create, mod_user_update, mod_user_create_success, mod_settings, mod_persistent_pairing_token,
 mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list,
 mod_credential_return, mod_input_create, mod_input_list, mod_agent_list, mod_agent_create,
-mod_list_list, mod_list_create, mod_event_rule_create, mod_event_rule_list, mod_data_type_list,
+mod_list_list, mod_list_create, mod_data_type_list,
 mod_data_type_create, mod_user_role_no_perms, mod_user_brief, mod_role_list, mod_role_create,
 mod_case_history, mod_comment, mod_comment_create, mod_case_close_reason, mod_case_template_create,
 mod_case_template_task_create, mod_case_task_create, mod_case_template_task_full,
@@ -1154,7 +1155,7 @@ mod_agent_group_list, mod_paged_agent_group_list, mod_agent_group_create, mod_ca
 mod_case_task_note_create, mod_case_task_note_details, mod_audit_log, mod_audit_log_paged_list,
 mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_events_response,
 mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plugin_manifest_action,
-mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql,
-mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_event_rule_list_paged, mod_bulk_event_uuids,
+mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rql,
+mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_bulk_event_uuids,
 mod_list_values, mod_input_list_paged, mod_agent_group_list_paged, mod_credential_list_paged, mod_agent_list_paged,
 mod_user_list_paged, mod_password_update, mod_input_index_fields, mod_agent_heartbeat]

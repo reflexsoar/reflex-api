@@ -1,6 +1,31 @@
 import math
-from ..model import Agent, Detection
+import datetime
+from ..model import Agent, Detection, Tag
 
+def time_since(start_time, message, format="s"):
+    '''
+    Prints the time since the start_time in the format
+    '''
+    time_diff = datetime.datetime.utcnow() - start_time
+    if format == "s":
+        print(f"{message} - {time_diff.total_seconds()}s")
+    elif format == "ms":
+        print(f"{message} - {time_diff.total_seconds()*1000}ms")
+    elif format == "h":
+        print(f"{message} - {time_diff.total_seconds()/3600}h")
+    return time_diff
+
+def save_tags(tags):
+    '''
+    Adds tags to a reference index that the UI uses for 
+    suggesting reasonable tags to the user
+    '''
+
+    for tag in tags:
+        _tag = Tag.get_by_name(name=tag)
+        if not _tag:
+            tag = Tag(name=tag)
+            tag.save()
 
 def chunks(l, n):
     for i in range(0, len(l), n):

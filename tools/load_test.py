@@ -8,6 +8,7 @@ import random
 import socket
 import struct
 import sys
+import uuid
 
 host = 'http://localhost'
 
@@ -48,9 +49,7 @@ def bulk(events):
         return events
     
 def reference():
-    hasher = hashlib.md5()
-    hasher.update(str(random.randint(0,1000)+datetime.datetime.utcnow().timestamp()).encode())
-    return base64.b64encode(hasher.digest()).decode()
+    return str(uuid.uuid4())
 
 
 def case_templates():

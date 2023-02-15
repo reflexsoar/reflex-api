@@ -1,3 +1,4 @@
+import re
 import base64
 import math
 import datetime
@@ -85,7 +86,9 @@ from .resource import (
     ns_agent_v2,
     ns_agent_group_v2,
     ns_field_mapping_v2,
-    ns_agent_policy_v2
+    ns_agent_policy_v2,
+    ns_case_v2,
+    ns_user_v2
 )
 
 from .. import ep
@@ -97,8 +100,8 @@ api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
 api2 = Api(api_v2) if show_swagger_docs else Api(api_v2, doc=False)
 
 # All the API namespaces
-ns_user_v2 = api2.namespace(
-    'User', description='User operations', path='/user')
+#ns_user_v2 = api2.namespace(
+#    'User', description='User operations', path='/user')
 #ns_role_v2 = api2.namespace(
  #   'Role', description='Role operations', path='/role')
 ns_settings_v2 = api2.namespace(
@@ -113,8 +116,8 @@ ns_input_v2 = api2.namespace(
     #'AgentGroup', description='Agent Group operations', path='/agent_group')
 ns_data_type_v2 = api2.namespace(
     'DataType', description='DataType operations', path='/data_type')
-ns_case_v2 = api2.namespace(
-    'Case', description='Case operations', path='/case')
+#ns_case_v2 = api2.namespace(
+#    'Case', description='Case operations', path='/case')
 ns_case_status_v2 = api2.namespace(
     'CaseStatus', description='Case Status operations', path='/case_status')
 ns_case_comment_v2 = api2.namespace(
@@ -149,6 +152,8 @@ api2.add_namespace(ns_agent_v2)
 api2.add_namespace(ns_agent_group_v2)
 api2.add_namespace(ns_field_mapping_v2)
 api2.add_namespace(ns_agent_policy_v2)
+api2.add_namespace(ns_case_v2)
+api2.add_namespace(ns_user_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -179,6 +184,7 @@ def save_tags(tags):
             tag = Tag(name=tag)
             tag.save()
 
+""" DEPRECATED USER CODE
 
 @ns_user_v2.route("/me")
 class UserInfo(Resource):
@@ -401,6 +407,8 @@ class UserList(Resource):
     def post(self, current_user):
         ''' Creates a new user '''
 
+        print(api2.payload)
+
         # Check to see if the user already exists
         user = User.get_by_email(api2.payload['email'])
         if user:
@@ -408,20 +416,28 @@ class UserList(Resource):
         else:
             user_role = api2.payload.pop('role_uuid')
 
+            if api2.payload.get('organization') == None and hasattr(current_user,'default_org') and current_user.default_org:
+                api2.abort(400, "Organization is required.")
+
             # Strip the organization field if the user is not a member of the default
             # organization
             # TODO: replace with @check_org wrapper
             if 'organization' in api2.payload and hasattr(current_user,'default_org') and not current_user.default_org:
-
                 api2.payload.pop('organization')
+
+            role = Role.get_by_uuid(uuid=user_role)
+
+            # Check that the target role is part of the target organization
+            if api2.payload.get('organization'):
+                if role.organization != api2.payload.get('organization'):
+                    ns_user_v2.abort(400, "Role is not part of the target organization.")
 
             user_password = api2.payload.pop('password')
             user = User(**api2.payload)
             user.set_password(user_password)
             user.deleted = False
             user.save()
-
-            role = Role.get_by_uuid(uuid=user_role)
+            
             role.add_user_to_role(user.uuid)
 
             user.role = role
@@ -557,7 +573,7 @@ class UserDetails(Resource):
         else:
             ns_user_v2.abort(404, 'User not found.')
 
-
+"""
 
 data_type_parser = api2.parser()
 data_type_parser.add_argument('organization', location='args', required=False)
@@ -893,7 +909,7 @@ class CloseReasonDetails(Resource):
             close_reason.update(enabled = False)
             return {'message': 'Sucessfully deleted Close Reason.'}
 
-
+""" DEPRECATED CASE CODE
 case_parser = pager_parser.copy()
 case_parser.add_argument('title', location='args', required=False, type=str)
 case_parser.add_argument('title__like', location='args', required=False, type=str)
@@ -976,10 +992,10 @@ class CaseList(Resource):
             cases = cases.filter('terms', uuid=case_uuids)
 
         if 'title__like' in args and args['title__like']:
-            cases = cases.filter('wildcard', title=args['title__like']+"*")
+            cases = cases.filter('match', title__text=args['title__like'])
 
         if 'title' in args and args['title']:
-            cases = cases.filter('wildcard', title=args['title']+"*")
+            cases = cases.filter('match', title__text=args['title'])
 
         if 'description__like' in args and args['description__like']:
             cases = cases.filter('wildcard', description__keyword="*"+args['description__like']+"*")
@@ -1870,6 +1886,7 @@ class CaseStats(Resource):
             metrics['escalated'] = {v['key']: v['doc_count'] for v in cases.aggs.range.escalated.buckets}
 
         return metrics
+"""
 
 case_history_parser = api2.parser()
 case_history_parser.add_argument(
@@ -1954,6 +1971,13 @@ class CaseCommentList(Resource):
             if current_user.organization != case.organization:
                 api2.payload['cross_organization'] = True
                 api2.payload['other_organization'] = current_user.organization
+
+            # Determine if the comment has any user mentions in it and 
+            # notify any users that are mentioned if they have notifications enabled
+            matches = re.findall(r'\B@(\w+)', api2.payload['message'])
+            matches = list(set([m.lower() for m in matches]))
+            mentioned_users = User.get_by_username(matches, as_text=True)
+            # TODO - NOTIFICATIONS: Add notification for mentioned users if they have notifications enabled
 
             case_comment = CaseComment(**api2.payload)
             case_comment.save()
@@ -2539,7 +2563,7 @@ class InputIndexFields(Resource):
         else:
             ns_input_v2.abort(404, 'Input not found.')
 
-"""
+""" DEPRECATED AGENT CODE
 @ns_agent_v2.route("/pair_token")
 class AgentPairToken(Resource):
 

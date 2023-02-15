@@ -11,7 +11,7 @@ from flask_restx import Resource, Namespace, fields, marshal
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 from ..rql.parser import QueryParser
-from ..model import EventRule, Event, Task, CloseReason
+from ..model import EventRule, Event, Task, CloseReason, Organization
 from ..model.exceptions import EventRuleFailure
 from ..utils import random_ending, token_required, user_has, check_org, log_event, default_org
 from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict, mod_user_list
@@ -44,8 +44,12 @@ mod_event_rule_create = api.model('CreateEventRule', {
     'merge_into_case': fields.Boolean,
     'create_new_case': fields.Boolean,
     'target_case_uuid': fields.String,
+    'set_organization': fields.Boolean,
+    'target_organization': fields.String,
     'add_tags': fields.Boolean,
     'tags_to_add': fields.List(fields.String),
+    'remove_tags': fields.Boolean,
+    'tags_to_remove': fields.List(fields.String),
     'update_severity': fields.Boolean,
     'target_severity': fields.Integer,
     'mute_event': fields.Boolean,
@@ -76,8 +80,12 @@ mod_event_rule_list = api.model('EventRuleList', {
     'merge_into_case': fields.Boolean,
     'create_new_case': fields.Boolean,
     'target_case_uuid': fields.String,
+    'set_organization': fields.Boolean,
+    'target_organization': fields.String,
     'add_tags': fields.Boolean,
     'tags_to_add': FormatTags(attribute='tags_to_add'),
+    'remove_tags': fields.Boolean,
+    'tags_to_remove': FormatTags(attribute='tags_to_remove'),
     'update_severity': fields.Boolean,
     'target_severity': fields.Integer,
     'mute_event': fields.Boolean,
@@ -179,9 +187,10 @@ class EventRuleList(Resource):
     @api.marshal_with(mod_event_rule_list)
     @api.response('200', 'Successfully created event rule.')
     @token_required
+    @default_org
     @user_has('create_event_rule')
     @check_org
-    def post(self, current_user):
+    def post(self, user_in_default_org, current_user):
         ''' Creates a new event_rule '''
 
         if 'organization' in api.payload:
@@ -228,6 +237,17 @@ class EventRuleList(Resource):
 
         if 'priority' in api.payload and api.payload['priority'] is not None and (api.payload['priority'] > 65535 or api.payload['priority'] < 1):
             api.abort(400, 'Priority must be between 0 and 65535.')
+
+        # Allows a user to set the organization of events that match this rule
+        # This action is restricted to the default organization
+        if api.payload.get('set_organization'):
+            if user_in_default_org:
+                if api.payload.get('target_organization'):
+                    target_organization = Organization.get_by_uuid(api.payload.get('target_organization'))
+                    if not target_organization:
+                        api.abort(404, 'Target organization not found')
+            else:
+                api.abort(400, 'Must be a member of the parent organization')
 
         if not event_rule:
 

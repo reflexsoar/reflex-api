@@ -29,11 +29,12 @@ from app.api_v2.model import (
         CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,AgentPolicy,
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
         Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,
-        MITRETechnique, EventView, NotificationChannel, Notification, FieldMappingTemplate
+        MITRETechnique, EventView, NotificationChannel, Notification, FieldMappingTemplate,
+        AgentLogMessage, EmailNotificationTemplate
 )
 
 from .defaults import (
-    create_default_case_status, create_admin_role, create_default_organization, initial_settings, create_agent_role,
+    create_default_case_status, create_admin_role, create_default_email_templates, create_default_organization, initial_settings, create_agent_role,
     create_default_closure_reasons, create_default_case_templates, create_default_data_types,
     create_default_event_status, create_analyst_role,create_admin_user, set_install_uuid, send_telemetry
 )
@@ -110,10 +111,11 @@ def upgrade_indices(app):
    
     models = [
         Event,Tag,ExpiredToken,Credential,Agent,ThreatList,ThreatValue,EventStatus,EventRule,
-        CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,AgentPolicy,
+        CaseComment,CaseHistory,Case,CaseTask,CaseTemplate,Observable,AgentGroup,AgentPolicy, 
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
         Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,MITRETechnique,
-        EventView, NotificationChannel, Notification, FieldMappingTemplate
+        EventView, NotificationChannel, Notification, FieldMappingTemplate, AgentLogMessage,
+        EmailNotificationTemplate
         ]
 
     for model in models:
@@ -166,13 +168,16 @@ def setup(app, check_for_default=False):
         create_default_event_status(EventStatus,org_id)
         app.logger.info("Creating default case templates")
         create_default_case_templates(CaseTemplate, org_id)
-        app.logger.info("Creating default settings for default organization")
+        app.logger.info("Creating default email templates")
+        create_default_email_templates(EmailNotificationTemplate, org_id)      
+        app.logger.info("Creating default settings for default organization")        
         initial_settings(Settings, org_id)
     else:
         create_default_closure_reasons(CloseReason, org_id=None, check_for_default=check_for_default)
         create_agent_role(Role, org_id=None, check_for_default=check_for_default)
         create_admin_role(Role, admin_id=None, org_id=None, org_perms=True, check_for_default=check_for_default)
         create_analyst_role(Role, org_id=None, org_perms=True, check_for_default=check_for_default)
+        create_default_email_templates(EmailNotificationTemplate, org_id=None, check_for_default=check_for_default)
 
     return 
 
@@ -233,9 +238,8 @@ def create_app(environment='development'):
             if not recovery_mode:
                 setup(app)
         else:
-            setup(app, check_for_default=True)
-            app.logger.info("Setup already complete, upgrading indices if required")
             upgrade_indices(app)
+            setup(app, check_for_default=True)
 
     if not app.config['DISABLE_TELEMETRY']:
         set_install_uuid()

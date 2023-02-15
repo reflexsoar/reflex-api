@@ -16,6 +16,8 @@ from .agent import api as ns_agent_v2
 from .agent_group import api as ns_agent_group_v2
 from .field_mapping import api as ns_field_mapping_v2
 from .agent_policy import api as ns_agent_policy_v2
+from .case import api as ns_case_v2
+from .user import api as ns_user_v2
 
 __all__ = [
     'ns_playbook_v2',
@@ -35,6 +37,8 @@ __all__ = [
     'ns_agent_group_v2',
     'ns_field_mapping_v2',
     'ns_agent_policy_v2',
+    'ns_case_v2',
+    'ns_user_v2',
     'mod_pagination',
     'ISO8601'
 ]

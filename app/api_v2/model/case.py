@@ -288,7 +288,7 @@ class Case(base.BaseDocument):
     series of events that were observed in the system
     '''
 
-    title = Keyword()
+    title = Keyword(fields={'text':Text()})
     description = Text(fields={'keyword':Keyword()})
     severity = Integer()
     owner = Object()
@@ -309,6 +309,7 @@ class Case(base.BaseDocument):
     escalated = Boolean()
     _open_tasks = 0
     _total_tasks = 0
+    watchers = Keyword() # A list of UUIDs of users watching this case
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -316,6 +317,28 @@ class Case(base.BaseDocument):
         settings = {
             'refresh_interval': '1s'
         }
+
+    def add_watcher(self, watcher_uuid):
+        '''
+        Adds a watcher to the case
+        '''
+        if watcher_uuid:
+            if self.watchers:
+                if watcher_uuid not in self.watchers:
+                    self.watchers.append(watcher_uuid)
+            else:
+                self.watchers = [watcher_uuid]
+            self.save()
+
+    def remove_watcher(self, watcher_uuid):
+        '''
+        Removes a watcher from the case
+        '''
+        if watcher_uuid:
+            if self.watchers:
+                if watcher_uuid in self.watchers:
+                    self.watchers.remove(watcher_uuid)
+            self.save()
 
     @property
     def observables(self):

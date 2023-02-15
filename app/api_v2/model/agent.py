@@ -126,6 +126,22 @@ class AgentPolicy(base.BaseDocument):
         return response
 
 
+class AgentLogMessage(base.BaseDocument):
+    '''
+    A Reflex Agent log message
+    '''
+
+    class Index:
+        ''' Defines the index to use '''
+        name = 'reflex-agent-logs'
+        settings = {
+            'refresh_interval': '1s'
+        }
+
+    agent_uuid = Keyword()  # The UUID of the agent that generated this log message
+    message = Text(fields={'keyword': Keyword()})  # The log message
+
+
 class Agent(base.BaseDocument):
     '''
     A Reflex agent performs plugin actions, polls external sources

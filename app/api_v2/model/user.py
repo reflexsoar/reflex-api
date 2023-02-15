@@ -21,10 +21,25 @@ from . import (
     Nested,
     InnerDoc,
     base,
-    utils
+    utils,
+    Object
 )
 
 FLASK_BCRYPT = Bcrypt()
+
+class UserNotificationSettings(InnerDoc):
+    ''' Defines the notification settings for a user '''
+
+    email_mention = Boolean() # Notify the user when they are mentioned in a comment
+    email_case_comment = Boolean()
+    email_case_status = Boolean()
+    email_case_assign = Boolean()
+    email_new_case = Boolean()
+    email_case_task_status = Boolean()
+    email_case_task_assign = Boolean()
+    email_case_task_create = Boolean()
+    email_case_task_status = Boolean()
+    only_watched_cases = Boolean()
 
 class User(base.BaseDocument):
     '''
@@ -46,8 +61,8 @@ class User(base.BaseDocument):
     auth_realm = Keyword() # Which authentication realm to log in to
     otp_secret = Keyword()
     mfa_enabled = Boolean()
-    notification_options = Nested() # When does the user want to be notified
-    notification_methods = Keyword() # How does the user want to be notified
+    watched_cases = Keyword() # What cases is the user currently watching
+    notification_settings = Object(UserNotificationSettings)
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -55,6 +70,26 @@ class User(base.BaseDocument):
         settings = {
             'refresh_interval': '1s'
         }
+
+    def watch_case(self, case_uuid):
+        ''' Adds a case to the list of cases the user is watching '''
+
+        if self.watched_cases is None:
+            self.watched_cases = []
+
+        if case_uuid not in self.watched_cases:
+            self.watched_cases.append(case_uuid)
+            self.save()
+
+    def unwatch_case(self, case_uuid):
+        ''' Removes a case from the list of cases the user is watching '''
+
+        if self.watched_cases is None:
+            self.watched_cases = []
+
+        if case_uuid in self.watched_cases:
+            self.watched_cases.remove(case_uuid)
+            self.save()
 
     def set_password(self, password):
         '''
@@ -221,12 +256,25 @@ class User(base.BaseDocument):
         return False
 
     @classmethod
-    def get_by_username(self, username):
+    def get_by_organization(self, organization):
         response = self.search().query(
-            'term', username__keyword=username).execute()
-        if response:
-            user = response[0]
-            return user
+            'term', organization=organization).execute()
+        return response
+
+    @classmethod
+    def get_by_username(self, username, as_text=False):
+
+        field = 'username' if as_text else 'username__keyword'
+        
+        if isinstance(username, str):
+            response = self.search().query(
+                'term', **{field: username}).execute()
+            if response:
+                response = response[0]
+
+        if isinstance(username, list):
+            response = self.search().query(
+                'terms', **{field: username}).execute()
         return response
 
     @classmethod
@@ -528,6 +576,8 @@ class Permission(InnerDoc):
     view_agent_policies = Boolean()
     update_agent_policy = Boolean()
     delete_agent_policy = Boolean()
+    create_agent_log_message = Boolean()
+    view_agent_logs = Boolean()
 
 
 class Role(base.BaseDocument):

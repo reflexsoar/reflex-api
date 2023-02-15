@@ -93,6 +93,9 @@ class EventObservable(InnerDoc):
     source_field = Keyword() # The source field or alias being used
     original_source_field = Keyword() # The source field where the observable was extracted from
 
+    def __hash__(self):
+        return hash(tuple(self))
+
 
 class Event(base.BaseDocument):
     '''
@@ -380,7 +383,10 @@ class Event(base.BaseDocument):
         Fetches an event by its calculated signature and status
         '''
         response = self.search()
-        response = response.filter('match', signature=signature)
+        if isinstance(signature, list):
+            response = response.filter('terms', signature=signature)
+        else:
+            response = response.filter('match', signature=signature)
         response = response.filter('match', **{'status.name':status})
         if all_events:
             response = response[0:response.count()]
@@ -454,6 +460,8 @@ class EventRule(base.BaseDocument):
     target_case_uuid = Keyword() # The target case to merge this into if merge into case is selected
     merge_into_case = Boolean()
     create_new_case = Boolean() # If true, a new case will be created for the matching events
+    set_organization = Boolean() # If true, the Event Rule will change the organization of the matching events
+    target_organization = Keyword()
     case_template = Keyword() # The template to use when creating a new case
     query = Text(fields={'keyword':Keyword()}) # The RQL query to run against events
     deleted = Boolean() # A soft delete flag
@@ -467,6 +475,8 @@ class EventRule(base.BaseDocument):
     active = Boolean()  # Users can override the alarm and disable it out-right
     add_tags = Boolean() # When the event rule matches should it add tags
     tags_to_add = Keyword() # What tags to add when add_tags is True
+    remove_tags = Boolean() # When the event rule matches should it remove tags
+    tags_to_remove = Keyword() # What tags to remove when remove_tags is True
     update_severity = Boolean() # When the event rule matches update the severity
     target_severity = Keyword() # What severity to use when update_severity is True
     mute_event = Boolean() # If True, any new events with a signature matching won't get into the system
@@ -555,7 +565,9 @@ class EventRule(base.BaseDocument):
         matches the rule, apply the rules conditions to the event
         '''
 
+        print(f"DEBUG: Expire: {self.expire} - Expire At: {self.expire_at} - Active: {self.active}")
         if self.expire and self.expire_at < datetime.datetime.utcnow():
+            
             self.active = False
             self.save()
         else:
