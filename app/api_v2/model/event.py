@@ -383,7 +383,10 @@ class Event(base.BaseDocument):
         Fetches an event by its calculated signature and status
         '''
         response = self.search()
-        response = response.filter('match', signature=signature)
+        if isinstance(signature, list):
+            response = response.filter('terms', signature=signature)
+        else:
+            response = response.filter('match', signature=signature)
         response = response.filter('match', **{'status.name':status})
         if all_events:
             response = response[0:response.count()]
