@@ -10,7 +10,7 @@ from flask_restx import inputs as xinputs
 from ... import ep
 from ..model import (Case, CaseComment, CaseHistory, CaseStatus, CaseTask,
                      Event, EventRule, EventStatus, Observable,
-                     ObservableHistory, Q, Settings, User)
+                     ObservableHistory, Q, Settings, User, UpdateByQuery)
 from ..utils import (check_org, escape_special_characters_rql, token_required,
                      user_has)
 from .observable import (mod_bulk_add_observables, mod_observable_list,
@@ -672,7 +672,7 @@ class AddEventsToCase(Resource):
 
         case = Case.get_by_uuid(uuid=uuid)
         if case:
-            events = Event.get_by_uuid(uuid=api.payload['events'])
+            events = Event.get_by_uuid(uuid=api.payload['events'], all_results=True)
 
             if events:
                 events_to_update = []
@@ -703,18 +703,33 @@ class AddEventsToCase(Resource):
                                     events_to_update.append(related_dict)
                                     uuids.append(related_event.uuid)
 
+                status = EventStatus.get_by_name('Open', organization=case.organization)
+                event_update_query = UpdateByQuery(index='reflex-events')
+                event_update_query = event_update_query.query('terms', uuid=uuids)
+                event_update_query = event_update_query.script(
+                    source="ctx._source.case = params.case; ctx._source.status = params.status",
+                    params={'case': case.uuid,
+                            'status': {
+                                'name': status.name,
+                                'description': status.description,
+                                'uuid': status.uuid},
+                            'updated_at': datetime.datetime.utcnow().isoformat()
+                    })
+                event_update_query.params(slices='auto', refresh=True, max_docs=len(uuids))
+                event_update_query.execute()
+
                 if case.events:
                     [case.events.append(uuid) for uuid in uuids]
                 else:
                     case.events = uuids
 
-                if len(events_to_update) > 0:
+                #if len(events_to_update) > 0:
 
-                    if ep.dedicated_workers:
-                        [ep.to_kafka_topic(event)
-                         for event in events_to_update]
-                    else:
-                        [ep.enqueue(event) for event in events_to_update]
+                #    if ep.dedicated_workers:
+                #        [ep.to_kafka_topic(event)
+                #         for event in events_to_update]
+                #    else:
+                #        [ep.enqueue(event) for event in events_to_update]
 
                 case.add_history(
                     message=f'{len(events_to_update)} events added')
