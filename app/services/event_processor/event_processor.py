@@ -584,11 +584,13 @@ class EventWorker(Process):
         while True:
 
             _events = []
+            queue_empty = False
 
             if self.config['DEDICATED_WORKERS']:
-                message = self.kf_consumer.poll(10)
+                message = self.kf_consumer.poll(self.config['ES_BULK_SIZE'])
 
                 if not message:
+                    queue_empty = True
                     if self.should_restart.is_set():
                         self.reload_meta_info(clear_reload_flag=True)
 
@@ -602,7 +604,7 @@ class EventWorker(Process):
                             _events.append(msg.value)
             else:
                 if self.event_queue.empty():
-
+                    queue_empty = True
                     if self.should_restart.is_set():
                         self.reload_meta_info(clear_reload_flag=True)
 
@@ -633,55 +635,53 @@ class EventWorker(Process):
                     if event:
                         self.events.append(event)
 
-                    if len(self.events) >= self.config["ES_BULK_SIZE"] or self.event_queue.empty():
+            if len(self.events) >= self.config["ES_BULK_SIZE"] or queue_empty:
 
-                        # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
-                        bulk_dismiss = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'dismiss']
-                        add_to_case = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'add_to_case']
-                        retro_apply_event_rule = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'retro_apply_event_rule']
+                # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
+                bulk_dismiss = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'dismiss']
+                add_to_case = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'add_to_case']
+                retro_apply_event_rule = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'retro_apply_event_rule']
+                
+                task_end = self.pop_events_by_action(self.events, 'task_end')
+
+                try:
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case)):
+                        pass
+
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss)):
+                        pass
+
+                    for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule)):
+                        pass
+
+                    self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
+
+                    # Send Events
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events)):
+                        pass
+
+                    # Update Cases
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(self.events)):
+                        pass
+                except EXC_BULK_INDEX_ERROR as e:
+                    self.logger.error(f"Bulk index error: {e}")
+
+                if task_end:
+                    for item in task_end:
                         
-                        task_end = self.pop_events_by_action(self.events, 'task_end')
+                        task = Task.get_by_uuid(uuid=item['_meta']['task_id'])
+
+                        # If the task_type is one that should be broadcast
+                        # set the broadcast flag
+                        if task.task_type in ['bulk_dismiss_events']:
+                            task.broadcast = True
 
                         try:
-                            for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case)):
-                                pass
+                            task.finish()
+                        except EXC_CONNECTION_TIMEOUT as e:
+                            self.logger.error(f"Unable to mark task {task.uuid} as finished. Reason: {e}")
 
-                            for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss)):
-                                pass
-
-                            for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule)):
-                                pass
-
-                            self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
-
-                            self.prepare_case_updates(self.events)
-
-                            # Send Events
-                            for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events)):
-                                pass
-
-                            # Update Cases
-                            for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(self.events)):
-                                pass
-                        except EXC_BULK_INDEX_ERROR as e:
-                            self.logger.error(f"Bulk index error: {e}")
-
-                        if task_end:
-                            for item in task_end:
-                                
-                                task = Task.get_by_uuid(uuid=item['_meta']['task_id'])
-
-                                # If the task_type is one that should be broadcast
-                                # set the broadcast flag
-                                if task.task_type in ['bulk_dismiss_events']:
-                                    task.broadcast = True
-
-                                try:
-                                    task.finish()
-                                except EXC_CONNECTION_TIMEOUT as e:
-                                    self.logger.error(f"Unable to mark task {task.uuid} as finished. Reason: {e}")
-
-                        self.events = []
+                self.events = []
 
 
     def check_threat_list(self, observable, organization, MEMCACHED_CONFIG=None):
@@ -860,7 +860,7 @@ class EventWorker(Process):
                 "upsert": {},
                 "scripted_upsert": True,
                 "script": {
-                    "source": "if(ctx._source.events == null) { ctx._source.events = []; } ctx._source.events.add(params.events)",
+                    "source": "if(ctx._source.events == null) { ctx._source.events = []; } ctx._source.events.addAll(params.events)",
                     "params": {
                         "events": case_events
                     }
