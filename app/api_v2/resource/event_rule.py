@@ -240,13 +240,14 @@ class EventRuleList(Resource):
 
         # Allows a user to set the organization of events that match this rule
         # This action is restricted to the default organization
-        if api.payload.get('set_organization') and user_in_default_org:
-            if api.payload.get('target_organization'):
-                target_organization = Organization.get_by_uuid(api.payload.get('target_organization'))
-                if not target_organization:
-                    api.abort(404, 'Target organization not found')
-        else:
-            api.abort(400, 'Must be a member of the parent organization')
+        if api.payload.get('set_organization'):
+            if user_in_default_org:
+                if api.payload.get('target_organization'):
+                    target_organization = Organization.get_by_uuid(api.payload.get('target_organization'))
+                    if not target_organization:
+                        api.abort(404, 'Target organization not found')
+            else:
+                api.abort(400, 'Must be a member of the parent organization')
 
         if not event_rule:
 
