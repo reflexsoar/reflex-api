@@ -115,7 +115,7 @@ class Config(object):
 
     MITRE_CONFIG = {
         'JSON_URL': os.getenv('REFLEX_MITRE_ATTACK_JSON_URL') if os.getenv('REFLEX_MITRE_ATTACK_JSON_URL') else 'https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json',
-        'POLL_INTERVAL': os.getenv('REFLEX_MITRE_ATTACK_POLL_INTERVAL') if os.getenv('REFLEX_MITRE_ATTACK_POLL_INTERVAL') else 86400 # Once a day
+        'POLL_INTERVAL': int(os.getenv('REFLEX_MITRE_ATTACK_POLL_INTERVAL')) if os.getenv('REFLEX_MITRE_ATTACK_POLL_INTERVAL') else 86400 # Once a day
     }
 
     DISABLE_TELEMETRY = as_bool(os.getenv('REFLEX_DISABLE_TELEMETRY')) if os.getenv('REFLEX_DISABLE_TELEMETRY') else False
