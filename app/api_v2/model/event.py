@@ -93,6 +93,9 @@ class EventObservable(InnerDoc):
     source_field = Keyword() # The source field or alias being used
     original_source_field = Keyword() # The source field where the observable was extracted from
 
+    def __hash__(self):
+        return hash(tuple(self))
+
 
 class Event(base.BaseDocument):
     '''

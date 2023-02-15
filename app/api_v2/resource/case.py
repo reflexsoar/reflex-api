@@ -383,58 +383,58 @@ class CaseList(Resource):
         case.status = CaseStatus.get_by_name(name="New")
         case.set_owner(owner_uuid)
 
-        events_to_update = []
+        event_update_query = UpdateByQuery(index='reflex-events')
+
         if isinstance(events, list) and len(events) > 0:
             uuids = []
 
-            for event in events:
-                e = Event.get_by_uuid(event)
-                event_dict = e.to_dict()
-                event_dict['_meta'] = {
-                    'action': 'add_to_case',
-                    'case': case.uuid,
-                    '_id': e.meta.id
-                }
-                events_to_update.append(event_dict)
-                # e.set_open()
-                # e.set_case(uuid=case.uuid)
-                uuids.append(e.uuid)
+            # Fetch all the events that are being added to the case
+            events_to_add = Event.get_by_uuid(uuid=events, all_results=True)
 
-                if 'include_related_events' in api.payload and api.payload['include_related_events']:
+            observables = []
+            titles = []
+            # If they exist
+            if events_to_add:
 
-                    related_events = Event.get_by_signature_and_status(
-                        signature=e.signature, status='New', all_events=True)
-                    for related_event in related_events:
-                        related_dict = related_event.to_dict()
-                        related_dict['_meta'] = {
-                            'action': 'add_to_case',
-                            'case': case.uuid,
-                            '_id': related_event.meta.id
-                        }
-                        events_to_update.append(related_dict)
-                        # related_event.set_open()
-                        # related_event.set_case(uuid=case.uuid)
+                # Add the event uuids to the case
+                uuids += events
 
-                        # PERFORMANCE ISSUE FIX ME
-                        # case_observables += related_event.observables #Observable.get_by_event_uuid(related_event.uuid)
-                        uuids.append(related_event.uuid)
+                for event in events_to_add:
+                    observables += event.observables
+                    if event.title not in titles:
+                        titles.append(event.title)
+                    
+                    # Also include details from the related events if they
+                    # are not already accounted for in the supplied event UUIDs
+                    if 'include_related_events' in api.payload and api.payload['include_related_events']:
+                        related_events = Event.get_by_signature_and_status(signature=event.signature,
+                                                                           status='New',
+                                                                           all_events=True)
+                        if related_events:
+                            for related_event in related_events:
+                                if related_event.uuid not in uuids:
+                                    uuids.append(related_event.uuid)
+                                    if related_event.title not in titles:
+                                        titles.append(related_event.title)
+                                    observables += related_event.observables
 
-                observables = e.observables
+                # Dedupe observables and titles
+                observables = list(set(observables))
+                titles = list(set(titles))
 
                 # Automatically generates an event rule for the event associated with this case
                 if 'generate_event_rule' in api.payload and api.payload['generate_event_rule']:
                     rule_text = f'''# System generated base query
 # Pin this rule to this event by it's title
-title = "{e.title}"
+title in ["{'","'.join([escape_special_characters_rql(t) for t in titles])}"]
 
 # Default matching on all present observables
 # Consider fine tuning this with expands function
-and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.value) for o in observables])}"]'''
+and observables.value|any In ["{'","'.join([escape_special_characters_rql(o.value) for o in observables if isinstance(o.value, str)])}"]'''
 
                     event_rule = EventRule(
                         name=f"Automatic Rule for Case {case.title}",
                         description=f"Automatic Rule for Case {case.title}",
-                        event_signature=f"{e.title}",
                         expire=False,
                         expire_days=0,
                         merge_into_case=True,
@@ -444,20 +444,30 @@ and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.valu
                     event_rule.active = True
                     event_rule.save()
 
-            case.events = list(set(uuids))
+            status = EventStatus.get_by_name('Open', organization=case.organization)
+            
+            event_update_query = event_update_query.query('terms', uuid=uuids)
+            event_update_query = event_update_query.script(
+                source="ctx._source.case = params.case; ctx._source.status = params.status",
+                params={'case': case.uuid,
+                        'status': {
+                            'name': status.name,
+                            'description': status.description,
+                            'uuid': status.uuid},
+                        'updated_at': datetime.datetime.utcnow().isoformat()
+                })
+            event_update_query.params(slices='auto', refresh=True, max_docs=len(uuids))
 
-        if len(events_to_update) > 0:
-            if ep.dedicated_workers:
-                [ep.to_kafka_topic(event) for event in events_to_update]
-            else:
-                [ep.enqueue(event) for event in events_to_update]
+            case.events = list(set(uuids))
 
         # If the user selected a case template, take the template items
         # and copy them over to the case
         if 'case_template_uuid' in api.payload:
             case.apply_template(api.payload['case_template_uuid'])
 
-        case.save(refresh=True)
+        x = case.save(refresh=True)
+        if len(uuids) > 0 and x == 'updated':
+            event_update_query.execute()
 
         # Save the tags so they can be referenced in the future
         save_tags(api.payload['tags'])
