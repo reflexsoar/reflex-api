@@ -58,7 +58,7 @@ else:
     )
 
 from .user import User, Role, ExpiredToken, Organization
-from .agent import Agent, AgentGroup, AgentPolicy
+from .agent import Agent, AgentGroup, AgentPolicy, AgentLogMessage
 from .inout import Input, FieldMappingTemplate
 from .threat import ThreatList, ThreatValue
 from .event import Event, EventRule, EventStatus, EventComment, EventView
@@ -85,7 +85,7 @@ from .detection import (
 )
 from .task import Task
 from .mitre import MITRETactic, MITRETechnique
-from .notification import NotificationChannel, Notification, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE
+from .notification import EmailNotificationTemplate, NotificationChannel, Notification, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE
 
 VERSION = (2, 0, 0)
 __version__ = VERSION
@@ -97,6 +97,7 @@ __all__ = [
     Agent,
     AgentGroup,
     AgentPolicy,
+    AgentLogMessage,
     Input,
     FieldMappingTemplate,
     Tag,
@@ -136,6 +137,7 @@ __all__ = [
     EventView,
     NotificationChannel,
     Notification,
+    EmailNotificationTemplate,
     NOTIFICATION_CHANNEL_TYPES,
     SOURCE_OBJECT_TYPE,
     memcached_client
