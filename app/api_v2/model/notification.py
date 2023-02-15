@@ -43,6 +43,26 @@ class PagerDutyAPI(InnerDoc):
     default_from = Keyword() # The dummy user to send the incident from
 
 
+class EmailNotificationTemplate(base.BaseDocument):
+    '''
+    A Notification Template is a template that can be used to create a notification
+    '''
+
+    class Index:  # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
+        name = 'reflex-email-notification-templates'
+        settings = {
+            'refresh_interval': '1s'
+        }
+
+    name = Keyword(fields={'Text': Text()})
+    description = Keyword(fields={'Text': Text()})
+    subject = Keyword(fields={'Text': Text()})
+    template = Keyword() # The template to use when creating a notification
+    enabled = Boolean() # Whether the template is enabled or not
+    internal_id = Keyword() # The internal ID of the template, system reserved
+
+
 class EmailNotification(InnerDoc):
     '''
     Stores the configuration for an e-mail based notification channel
