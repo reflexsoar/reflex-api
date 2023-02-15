@@ -4,7 +4,7 @@ from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from flask import current_app
 from .shared import mod_pagination, ISO8601, JSONField, mod_user_list
 from app.api_v2.model import (
-    NotificationChannel, Notification, NOTIFICATION_CHANNEL_TYPES, Credential, notification
+    NotificationChannel, Notification, NOTIFICATION_CHANNEL_TYPES, Credential, EmailNotificationTemplate
 )
 
 api = Namespace('Notification', description='Notification Channels and Notifications',
@@ -17,6 +17,10 @@ Permissions:
     - update_notification_channel
     - delete_notification_channel
     - view_notifications
+    - create_email_notification_template
+    - view_email_notification_templates
+    - update_email_notification_template
+    - delete_email_notification_template
 '''
 
 mod_notification = api.model('NotificationDetails', {
