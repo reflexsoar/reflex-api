@@ -17,7 +17,7 @@ from .observable import (mod_bulk_add_observables, mod_observable_list,
                          mod_observable_list_paged, mod_observable_update)
 from .shared import (ISO8601, FormatTags, ObservableCount, ValueCount,
                      mod_pagination, mod_user_list, pager_parser)
-from .utils import save_tags
+from .utils import save_tags, time_since
 
 api = Namespace('Case', description='Reflex cases', path='/case')
 
@@ -339,11 +339,7 @@ class CaseList(Resource):
     def post(self, current_user):
         ''' Creates a new case '''
 
-        _tags = []
-        event_observables = []
-        case_observables = []
         owner_uuid = None
-        case_template = None
 
         organization = None
         if 'organization' in api.payload:
@@ -385,38 +381,40 @@ class CaseList(Resource):
 
         event_update_query = UpdateByQuery(index='reflex-events')
 
+        uuids = []
+
         if isinstance(events, list) and len(events) > 0:
-            uuids = []
+            
 
             # Fetch all the events that are being added to the case
             events_to_add = Event.get_by_uuid(uuid=events, all_results=True)
 
             observables = []
             titles = []
+            signatures = []
             # If they exist
             if events_to_add:
 
                 # Add the event uuids to the case
                 uuids += events
 
-                for event in events_to_add:
-                    observables += event.observables
-                    if event.title not in titles:
-                        titles.append(event.title)
-                    
-                    # Also include details from the related events if they
-                    # are not already accounted for in the supplied event UUIDs
-                    if 'include_related_events' in api.payload and api.payload['include_related_events']:
-                        related_events = Event.get_by_signature_and_status(signature=event.signature,
-                                                                           status='New',
-                                                                           all_events=True)
-                        if related_events:
-                            for related_event in related_events:
-                                if related_event.uuid not in uuids:
-                                    uuids.append(related_event.uuid)
-                                    if related_event.title not in titles:
-                                        titles.append(related_event.title)
-                                    observables += related_event.observables
+                start_time = datetime.datetime.utcnow()
+
+                signatures += [event.signature for event in events_to_add if event.signature not in signatures]
+                titles += [event.title for event in events_to_add if event.title not in titles]
+                observables += [observable for event in events_to_add for observable in event.observables]
+                if 'include_related_events' in api.payload and api.payload['include_related_events']:
+                    related_events = Event.get_by_signature_and_status(signature=signatures,
+                                                                       status='New',
+                                                                       all_events=True)
+                    if related_events:
+                        start_related_events = datetime.datetime.utcnow()
+                        titles += [event.title for event in related_events if event.title not in titles]
+                        uuids += [event.uuid for event in related_events if event.uuid not in uuids]
+                        observables += [observable for event in related_events for observable in event.observables]
+                        time_since(start_related_events, "Related Events")                    
+                
+                time_since(start_time, "Event Loop")
 
                 # Dedupe observables and titles
                 observables = list(set(observables))
@@ -684,34 +682,18 @@ class AddEventsToCase(Resource):
         if case:
             events = Event.get_by_uuid(uuid=api.payload['events'], all_results=True)
 
-            if events:
-                events_to_update = []
-                uuids = []
-                for event in events:
-                    event_dict = event.to_dict()
-                    event_dict['_meta'] = {
-                        'action': 'add_to_case',
-                        'case': case.uuid,
-                        '_id': event.meta.id
-                    }
-                    events_to_update.append(event_dict)
-                    uuids.append(event.uuid)
+            signatures = []
 
-                    if 'include_related_events' in api.payload and api.payload['include_related_events'] == True:
-                        related_events = Event.get_by_signature_and_status(signature=event.signature,
-                                                                           status='New',
-                                                                           all_events=True)
-                        if related_events:
-                            for related_event in related_events:
-                                if related_event.uuid != event.uuid:
-                                    related_dict = related_event.to_dict()
-                                    related_dict['_meta'] = {
-                                        'action': 'add_to_case',
-                                        'case': case.uuid,
-                                        '_id': related_event.meta.id
-                                    }
-                                    events_to_update.append(related_dict)
-                                    uuids.append(related_event.uuid)
+            if events:
+                uuids = [event.uuid for event in events]
+                signatures = [event.signature for event in events if event.signature not in signatures]
+                
+                if 'include_related_events' in api.payload and api.payload['include_related_events'] == True:
+                    related_events = Event.get_by_signature_and_status(signature=signatures,
+                                                                        status='New',
+                                                                        all_events=True)
+                    if related_events:
+                        uuids.extend([event.uuid for event in related_events if event.uuid not in uuids])
 
                 status = EventStatus.get_by_name('Open', organization=case.organization)
                 event_update_query = UpdateByQuery(index='reflex-events')
@@ -729,20 +711,12 @@ class AddEventsToCase(Resource):
                 event_update_query.execute()
 
                 if case.events:
-                    [case.events.append(uuid) for uuid in uuids]
+                    case.events.extend(uuids)
                 else:
                     case.events = uuids
 
-                #if len(events_to_update) > 0:
-
-                #    if ep.dedicated_workers:
-                #        [ep.to_kafka_topic(event)
-                #         for event in events_to_update]
-                #    else:
-                #        [ep.enqueue(event) for event in events_to_update]
-
                 case.add_history(
-                    message=f'{len(events_to_update)} events added')
+                    message=f'{len(uuids)} events added')
                 case.save()
                 return "YARP"
             else:
