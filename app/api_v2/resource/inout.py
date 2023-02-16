@@ -31,7 +31,8 @@ mod_input_list = api.model('InputList', {
     'index_fields_last_updated': ISO8601(attribute='index_fields_last_updated'),
     'sigma_backend': fields.String,
     'sigma_pipeline': fields.String,
-    'sigma_field_mapping': fields.String
+    'sigma_field_mapping': fields.String,
+    'mitre_data_sources': fields.List(fields.String)
 })
 
 mod_input_list_paged = api.model('InputListPaged', {
@@ -52,7 +53,8 @@ mod_input_create = api.model('CreateInput', {
     'field_mapping_templates': fields.List(fields.String),
     'sigma_backend': fields.String,
     'sigma_pipeline': fields.String,
-    'sigma_field_mapping': fields.String
+    'sigma_field_mapping': fields.String,
+    'mitre_data_sources': fields.List(fields.String)
 })
 mod_input_list_brief = api.model('InputBrief', {
     'uuid': fields.String,
@@ -76,6 +78,9 @@ input_list_parser.add_argument(
 )
 input_list_parser.add_argument(
     'sort_direction', type=str, location='args', default='desc', required=False
+)
+input_list_parser.add_argument(
+    'mitre_data_sources', type=str, location='args', required=False, action='split'
 )
 
 
@@ -101,6 +106,9 @@ class InputList(Resource):
 
         if args.name:
             inputs = inputs.filter('wildcard', name=args.name+'*')
+
+        if args.mitre_data_sources:
+            inputs = inputs.filter('terms', mitre_data_sources=args.mitre_data_sources)
 
         inputs, total_results, pages = page_results(
             inputs, args.page, args.page_size)
