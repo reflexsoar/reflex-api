@@ -84,6 +84,7 @@ class Input(base.BaseDocument):
     sigma_backend = Keyword() # What sigma backend pysigma should convert to when this input is used
     sigma_pipeline = Keyword() # What sigma pipeline pysigma should use when this input is used
     sigma_field_mapping = Keyword() # What sigma field mapping pysigma should use when this input is used
+    mitre_data_sources = Keyword() # What MITRE data sources does this input cover?
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
