@@ -707,15 +707,17 @@ class EventWorker(Process):
 
             # If there were matches and the list calls for tagging the observable
             if matched and l.tag_on_match:
+                list_name = l.name.lower().replace(' ', '-')
                 if 'tags' in observable:
-                    observable['tags'].append(f"list: {l.name}")
+                    observable['tags'].append(f"list: {list_name}")
                 else:
-                    observable['tags'] = [f"list: {l.name}"]
+                    observable['tags'] = [f"list: {list_name}"]
 
             if matched:
                 observable['ioc'] = l.flag_ioc if hasattr(l, 'flag_ioc') else False
                 observable['safe'] = l.flag_safe if hasattr(l, 'flag_safe') else False
                 observable['spotted'] = l.flag_spotted if hasattr(l, 'flag_spotted') else False
+                observable['list_matched'] = True
 
                 observable_history = ObservableHistory(**observable)
                 observable_history.save()
@@ -1022,6 +1024,17 @@ class EventWorker(Process):
                                               organization,
                                               MEMCACHED_CONFIG=MEMCACHED_CONFIG
                                             ) for observable in raw_event['observables']]
+
+                # If any of the observables matched a threat list, add the threat list tags to the event
+                if any([o['list_matched'] for o in obs if o.get('list_matched')]):
+                    for o in obs:
+                        if o.get('list_matched'):
+                            if 'tags' in raw_event:
+                                raw_event['tags'].extend([tag for tag in o['tags'] if tag.startswith('list: ')])
+                            else:
+                                raw_event['tags'] = [tag for tag in o['tags'] if tag.startswith('list: ')]
+                            del o['list_matched']
+
                 raw_event['observables'] = obs
 
             if 'tags' in raw_event:
