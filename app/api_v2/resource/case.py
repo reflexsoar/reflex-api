@@ -720,6 +720,7 @@ class AddEventsToCase(Resource):
                     message=f'{len(uuids)} events added')
 
                 if case.closed and settings.reopen_case_on_event_merge:
+                    # TODO - NOTIFICATIONS: Notify case owner that case has been reopened
                     case.reopen(skip_save=True)
 
                 case.save()
