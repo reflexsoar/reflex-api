@@ -680,6 +680,7 @@ class AddEventsToCase(Resource):
 
         case = Case.get_by_uuid(uuid=uuid)
         if case:
+            settings = Settings.load(organization=case.organization)
             events = Event.get_by_uuid(uuid=api.payload['events'], all_results=True)
 
             signatures = []
@@ -718,7 +719,7 @@ class AddEventsToCase(Resource):
                 case.add_history(
                     message=f'{len(uuids)} events added')
 
-                if case.closed:
+                if case.closed and settings.reopen_case_on_event_merge:
                     case.reopen(skip_save=True)
 
                 case.save()
