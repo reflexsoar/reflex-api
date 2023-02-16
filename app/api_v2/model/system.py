@@ -145,6 +145,7 @@ class Settings(base.BaseDocument):
     require_case_close_comment = Boolean()  # Default False
     assign_case_on_create = Boolean()  # Default True
     assign_task_on_start = Boolean()  # Default True
+    reopen_case_on_event_merge = Boolean() # Default False
     allow_comment_editing = Boolean()  # Default False
     events_page_refresh = Integer()  # Default 60
     events_per_page = Integer()  # Default 10

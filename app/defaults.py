@@ -545,7 +545,7 @@ def send_telemetry():
     print(telemetry_body)
 
 
-def initial_settings(cls, org_id):
+def initial_settings(cls, org_id, check_for_default=False):
 
     settings_content = {
         'base_url': 'localhost',
@@ -562,6 +562,7 @@ def initial_settings(cls, org_id):
         'require_case_close_comment': False,
         'assign_case_on_create': True,
         'assign_task_on_start': True,
+        'reopen_case_on_event_merge': False,
         'allow_comment_editing': False,
         'events_page_refresh': 60,
         'events_per_page': 10,
@@ -572,5 +573,20 @@ def initial_settings(cls, org_id):
         'event_sla_minutes': 5
     }
 
-    settings = cls(**settings_content)
-    settings.save()
+    if check_for_default == False:
+        settings = cls(**settings_content)
+        settings.save()
+    else:
+        orgs = Organization.search().scan()
+        for org in orgs:
+            existing_settings = cls.search().filter('term', organization=org.uuid).execute()[0]
+            for setting in settings_content:
+                if setting == 'peristent_pairing_token':
+                    continue
+                if getattr(existing_settings, setting) == None:
+                    print(f"{setting} missing from {org.name}")
+                    setattr(existing_settings, setting, settings_content[setting])
+            existing_settings.save()
+
+    #settings = cls(**settings_content)
+    #settings.save()

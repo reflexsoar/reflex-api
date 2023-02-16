@@ -717,6 +717,10 @@ class AddEventsToCase(Resource):
 
                 case.add_history(
                     message=f'{len(uuids)} events added')
+
+                if case.closed:
+                    case.reopen(skip_save=True)
+
                 case.save()
                 return "YARP"
             else:

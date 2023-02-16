@@ -506,12 +506,15 @@ class Case(base.BaseDocument):
 
         self.save()
 
-    def reopen(self):
+    def reopen(self, skip_save=False):
         '''
         Reopens a case
         '''
         self.closed = False
         self.closed_at = None
+        case_status = CaseStatus.get_by_name(name="In Progress")
+        if case_status:
+            self.status = case_status
 
         # Reopen all the related events
         if self.events:
@@ -519,7 +522,14 @@ class Case(base.BaseDocument):
                 evt = event.Event.get_by_uuid(_)
                 evt.set_open()
 
-        self.save()
+        if not skip_save:
+            self.save()
+
+    def is_closed(self):
+        '''
+        Returns True if the case is closed, False if it is not
+        '''
+        return self.closed
 
     @classmethod
     def get_related_cases(self, uuid):
