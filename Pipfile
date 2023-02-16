@@ -13,7 +13,7 @@ pylint = "*"
 
 [packages]
 flask = "==2.1.2"
-werkzeug = "==2.1.2"
+werkzeug = "==2.2.3"
 flask-cors = "*"
 flask-bcrypt = "*"
 flask-restx = "*"
