@@ -24,6 +24,7 @@ from kafka.admin.new_partitions import NewPartitions
 from kafka.errors import KafkaError, InvalidPartitionsError, UnknownTopicOrPartitionError
 #from queue import Queue
 from multiprocessing import Process, get_context, Event as mpEvent
+from concurrent.futures import ThreadPoolExecutor
 from app.api_v2.model import (
     Case,
     EventRule,
@@ -595,9 +596,11 @@ class EventWorker(Process):
 
         self.reload_meta_info()
 
+        _events = []
+
         while True:
 
-            _events = []
+            
             queue_empty = False
             self.status.value = 'POLLING'
 
@@ -648,25 +651,26 @@ class EventWorker(Process):
                             }
                         _events.append(_event)
 
-            if len(_events) > 0:
+            if len(_events) >= self.config["ES_BULK_SIZE"] or queue_empty:
                 self.status.value = 'PROCESSING'
                 self.events_in_processing.value = len(_events)
-                for event in _events:
 
-                    # Process the event
+                def _process_event(event):
                     event['_metrics']['event_processing_start'] = datetime.datetime.utcnow()
                     event = self.process_event(event)
                     event['_metrics']['event_processing_end'] = datetime.datetime.utcnow()
                     event['_metrics']['event_processing_duration'] = (event['_metrics']['event_processing_end'] - event['_metrics']['event_processing_start']).total_seconds()
+                    return event
 
-                    # If returned value is not None add the event to the list of events to be pushed
-                    # via _bulk
-                    if event:
-                        self.events.append(event)
+                with ThreadPoolExecutor(max_workers=10) as executor:
+                    results = executor.map(_process_event, _events)
+                    self.events.extend([r for r in results if r is not None])
 
                 self.events_in_processing.value = 0
 
             if (len(self.events) >= self.config["ES_BULK_SIZE"] or queue_empty) and len(self.events) != 0:
+
+                _events = []
 
                 self.status.value = 'PUSHING'
 
@@ -754,8 +758,8 @@ class EventWorker(Process):
                 observable['spotted'] = l.flag_spotted if hasattr(l, 'flag_spotted') else False
                 observable['list_matched'] = True
 
-                observable_history = ObservableHistory(**observable)
-                observable_history.save()
+                #observable_history = ObservableHistory(**observable)
+                #observable_history.save()
 
 
         return observable
