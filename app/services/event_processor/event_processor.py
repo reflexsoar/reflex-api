@@ -615,7 +615,9 @@ class EventWorker(Process):
                     if self.should_exit.is_set():
                         exit()
 
-                    time.sleep(1)
+                    # Only sleep if not holding on to events
+                    if not len(_events) > 0:
+                        time.sleep(1)
                 else:
                     for topic_data, consumer_records in message.items():
                         for msg in consumer_records:
@@ -633,7 +635,9 @@ class EventWorker(Process):
                     if self.should_exit.is_set():
                         exit()
 
-                    time.sleep(1)
+                    # Only sleep if not holding on to events
+                    if not len(_events) > 0:
+                        time.sleep(1)
                 else:
                     # Reload all the event rules and other meta information if the refresh timer
                     # has expired
@@ -758,8 +762,8 @@ class EventWorker(Process):
                 observable['spotted'] = l.flag_spotted if hasattr(l, 'flag_spotted') else False
                 observable['list_matched'] = True
 
-                #observable_history = ObservableHistory(**observable)
-                #observable_history.save()
+                observable_history = ObservableHistory(**observable)
+                observable_history.save()
 
 
         return observable
