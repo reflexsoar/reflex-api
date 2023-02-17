@@ -39,6 +39,7 @@ class UserNotificationSettings(InnerDoc):
     email_case_task_assign = Boolean()
     email_case_task_create = Boolean()
     email_case_task_status = Boolean()
+    product_updates = Boolean()
     only_watched_cases = Boolean()
 
 class User(base.BaseDocument):
@@ -63,6 +64,7 @@ class User(base.BaseDocument):
     mfa_enabled = Boolean()
     watched_cases = Keyword() # What cases is the user currently watching
     notification_settings = Object(UserNotificationSettings)
+    hide_product_updates = Boolean()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
