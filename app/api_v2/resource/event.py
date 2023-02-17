@@ -719,7 +719,7 @@ def check_cache(reference, client):
 
     if memcached_enabled:
 
-        # Check memcached first        
+        # Check memcached first
         if not found:
             try:
                 result = client.get(memcached_key)
@@ -882,6 +882,7 @@ class CreateBulkEvents(Resource):
             #client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
             client = memcached_client.client
 
+            # TODO: MAKE THIS FASTER SOMEHOW
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
                 if not check_cache(event['reference'], client=client):

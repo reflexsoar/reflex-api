@@ -322,21 +322,22 @@ def random_event():
   return alerts[random.randint(0, len(alerts)-1)]
 
 
-while True:
-  events = []
-  for i in range(0,EVENT_COUNT):
-    headers = {
-      'Content-Type': 'application/json'
-    }
-    event = random_event()
-   
-    events.append(event)
-                                  
-    #if i % 2 == 0 :
-    #  event['reference'] = reference()
-    #  events.append(event)
 
-  print("Sending {} events...".format(len(events)))
-  bulk(events)
-  time.sleep(1)
-  break
+events = []
+for i in range(0,EVENT_COUNT):
+  headers = {
+    'Content-Type': 'application/json'
+  }
+  event = random_event()
+  
+  events.append(event)
+                                
+  #if i % 2 == 0 :
+  #  event['reference'] = reference()
+  #  events.append(event)
+
+  if len(events) >= 50 or len(events) == EVENT_COUNT:
+    print("Sending {} events...".format(len(events)))
+    bulk(events)
+    events = []
+    time.sleep(1)
