@@ -360,6 +360,16 @@ class Case(base.BaseDocument):
     def open_tasks(self, value):
         self._open_tasks = value
 
+    @property
+    def event_count(self):
+        '''
+        Returns the total number of events assigned to this case 
+        by looking at the Events index and finding all events with this
+        cases UUID in their case field
+        '''
+        response = event.Event.search().query('term', case=self.uuid).count()
+        return response
+
     def add_observables(self, observable, case_uuid=None, organization=None):
         '''
         Adds an observable to the case by adding it to the observables index

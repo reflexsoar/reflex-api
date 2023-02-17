@@ -44,7 +44,6 @@ python-geoip-geolite2 = "*"
 maxminddb-geolite2 = "*"
 ndjson = "*"
 elastic-apm = {extras = ["flask"], version = "*"}
-psutil = "*"
 python-dateutil = "*"
 flask-saml2 = "*"
 kafka-python = "*"
