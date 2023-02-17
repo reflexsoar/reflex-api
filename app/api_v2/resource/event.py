@@ -1035,7 +1035,7 @@ class EventBulkDismiss(Resource):
             }
         )
         
-        ubq = ubq.params(slices='auto', refresh=True)
+        ubq = ubq.params(slices='auto', wait_for_completion=False)
 
         events = list(search.scan())
         
@@ -1109,7 +1109,7 @@ class EventBulkDismiss(Resource):
                     'tuning_advice': api.payload['tuning_advice'] if 'tuning_advice' in api.payload else None
                 }
             )
-            rubq = rubq.params(slices='auto', refresh=True)
+            rubq = rubq.params(slices='auto', wait_for_completion=False)
 
             x = rubq.execute()
 
