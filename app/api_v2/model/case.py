@@ -11,8 +11,10 @@ from . import (
     InnerDoc,
     system,
     user,
-    event
+    event,
+    UpdateByQuery
 )
+from .utils import _current_user_id_or_none
 
 class CaseHistory(base.BaseDocument):
     '''
@@ -302,6 +304,7 @@ class Case(base.BaseDocument):
     related_cases = Keyword()  # A list of UUIDs related to this case
     closed = Boolean()
     closed_at = Date()
+    closed_by = Nested()
     close_reason = Object()
     case_template = Object()
     case_template_uuid = Keyword()
@@ -510,14 +513,43 @@ class Case(base.BaseDocument):
         self.close_reason = CloseReason.get_by_uuid(uuid=uuid)
         self.closed_at = datetime.datetime.utcnow()
         self.closed = True
+        self.closed_by = _current_user_id_or_none()
 
         # Close all the related events
-        if self.events:
-            for _ in self.events:
-                evt = event.Event.get_by_uuid(_)
-                evt.set_closed()
+        # DEPRECATED 2023-02-17 - self.events not longer is populated
+        #if self.events:
+        #    for _ in self.events:
+        #        evt = event.Event.get_by_uuid(_)
+        #        evt.set_closed()
+
+        status = event.EventStatus.get_by_name('Closed', organization=self.organization)
+
+        if event.Event.count_by_case(self.uuid) > 0:
+            event_bulk_close = UpdateByQuery(index='reflex-events')
+            event_bulk_close = event_bulk_close.query('term', case=self.uuid)
+            event_bulk_close = event_bulk_close.script(
+                source="""
+                    ctx._source.status = params.status;
+                    ctx._source.closed_at = params.closed_at;
+                    ctx._source.closed_by = params.closed_by;
+                    DateTimeFormatter dtf = DateTimeFormatter.ofPattern(\"yyyy-MM-dd'T'HH:mm:ss.SSSSSS\").withZone(ZoneId.of('UTC'));
+                    ZonedDateTime zdt = ZonedDateTime.parse(params.closed_at, dtf);
+                    ZonedDateTime zdt2 = ZonedDateTime.parse(ctx._source.created_at, dtf);
+                    Instant Currentdate = Instant.ofEpochMilli(zdt.getMillis());
+                    Instant Startdate = Instant.ofEpochMilli(zdt2.getMillis());
+                    ctx._source.time_to_close = ChronoUnit.SECONDS.between(Startdate, Currentdate);
+                """,
+                params={
+                    'status': status,
+                    'closed_at': datetime.datetime.utcnow().isoformat(),
+                    'closed_by': self.closed_by
+                }
+            )
+            event_bulk_close.params(slices='auto', wait_for_completion=False)
+            event_bulk_close.execute()
 
         self.save()
+
 
     def reopen(self, skip_save=False):
         '''
@@ -525,15 +557,39 @@ class Case(base.BaseDocument):
         '''
         self.closed = False
         self.closed_at = None
+        self.closed_by = None
         case_status = CaseStatus.get_by_name(name="In Progress")
         if case_status:
             self.status = case_status
 
         # Reopen all the related events
-        if self.events:
-            for _ in self.events:
-                evt = event.Event.get_by_uuid(_)
-                evt.set_open()
+        # DEPRECATED 2023-02-17 - self.events not longer is populated
+        #if self.events:
+        #    for _ in self.events:
+        #        evt = event.Event.get_by_uuid(_)
+        #        evt.set_open()
+
+        status = event.EventStatus.get_by_name('Open', organization=self.organization)
+
+        if event.Event.count_by_case(self.uuid) > 0:
+            event_bulk_close = UpdateByQuery(index='reflex-events')
+            event_bulk_close = event_bulk_close.query('term', case=self.uuid)
+            event_bulk_close = event_bulk_close.script(
+                source="""
+                    ctx._source.status = params.status;
+                    ctx._source.closed_at = params.closed_at;
+                    ctx._source.time_to_close = params.time_to_close;
+                    ctx._source.closed_by = params.closed_by;
+                """,
+                params={
+                    'status': status,
+                    'closed_at': None,
+                    'time_to_close': None,
+                    'closed_by': self.closed_by
+                }
+            )
+            event_bulk_close.params(slices='auto', wait_for_completion=False)
+            event_bulk_close.execute()
 
         if not skip_save:
             self.save()
