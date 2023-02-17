@@ -315,7 +315,7 @@ def random_event():
         }
       ],
       #"raw_log": json.dumps({"destination":{"ip": ip}})
-      "raw_log": json.dumps({'raw_log': {'match_body': {'event_data': {'TargetUserName': 'svc_justin'}}}})
+      "raw_log": json.dumps({'match_body': {'event_data': {'TargetUserName': 'svc_justin'}}})
     }
   ]
 
