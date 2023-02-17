@@ -454,7 +454,7 @@ and observables.value|any In ["{'","'.join([escape_special_characters_rql(o.valu
                             'uuid': status.uuid},
                         'updated_at': datetime.datetime.utcnow().isoformat()
                 })
-            event_update_query.params(slices='auto', refresh=True, max_docs=len(uuids))
+            event_update_query.params(slices='auto', wait_for_completion=False, max_docs=len(uuids))
 
             case.events = list(set(uuids))
 
@@ -708,7 +708,7 @@ class AddEventsToCase(Resource):
                                 'uuid': status.uuid},
                             'updated_at': datetime.datetime.utcnow().isoformat()
                     })
-                event_update_query.params(slices='auto', refresh=True, max_docs=len(uuids))
+                event_update_query.params(slices='auto', wait_for_completion=False, max_docs=len(uuids))
                 event_update_query.execute()
 
                 if case.events:

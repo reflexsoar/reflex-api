@@ -99,6 +99,28 @@ class EventObservable(InnerDoc):
         return hash(tuple(self))
 
 
+class EventMetrics(InnerDoc):
+    '''
+    Meta information about an event
+    '''
+
+    agent_uuid = Keyword()
+    t_agent_pickup = Date()
+    t_agent_bulk = Date()
+    t_event_processing_dequeue = Date()
+    t_event_processed = Date()
+    t_event_bulked = Date()
+    t_event_rule_start = Date()
+    t_event_rule_end = Date()
+    t_enrichment_start = Date()
+    t_enrichment_end = Date()
+    total_time_in_seconds = Float()
+    total_event_processing_time_in_seconds = Float()
+    total_agent_time_in_seconds = Float()
+    total_enrichment_time_in_seconds = Float()
+    total_event_rule_time_in_seconds = Float()
+
+
 class Event(base.BaseDocument):
     '''
     An event in reflex is anything sourced by an agent input that
@@ -131,12 +153,13 @@ class Event(base.BaseDocument):
     time_to_dismiss = Float()
     event_rules = Keyword()
     raw_log = Text()
-    sla_breach_time = Date()
-    sla_violated = Boolean()
+    sla_breach_time = Date() # The time the SLA was breached
+    sla_violated = Boolean() # Has the SLA been violated
     detection_id = Keyword() # The UUID of the Detection rule that generated this event
     risk_score = Integer() # The risk score if this originated from a detection rule
     original_date = Date() # The date the original log was generated (not when it was created in Reflex)
     comments = Nested()
+    _metrics = Object(EventMetrics)
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -334,6 +357,18 @@ class Event(base.BaseDocument):
             return True
         return False
 
+    @classmethod
+    def count_by_case(self, case, organization=None):
+        '''
+        Fetches the count of events by the case
+        '''
+
+        response = self.search()
+        if organization:
+            response = response.filter('term', organization=organization)
+        response = response.filter('term', case=case).count()
+        return response
+    
     @classmethod
     def get_by_reference(self, reference, organization=None):
         '''

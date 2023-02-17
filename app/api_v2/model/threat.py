@@ -48,7 +48,9 @@ class ThreatValue(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-threat-values'
-        refresh_interval = '1s'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     @classmethod
     def prepare_value(self, values, case_insensitive=False):
@@ -170,6 +172,9 @@ class ThreatList(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-threat-lists'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     @property
     def data_type(self):

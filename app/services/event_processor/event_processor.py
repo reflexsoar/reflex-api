@@ -666,19 +666,19 @@ class EventWorker(Process):
                 task_end = self.pop_events_by_action(self.events, 'task_end')
 
                 try:
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case)):
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case), refresh=True):
                         pass
 
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss)):
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss), refresh=True):
                         pass
 
-                    for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule)):
+                    for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule), refresh=True):
                         pass
 
                     self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
 
                     # Send Events
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events)):
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events), refresh=True):
                         pass
 
                     # Update Cases
