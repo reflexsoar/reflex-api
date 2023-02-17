@@ -8,7 +8,6 @@ Pusher queue of the EventPusher service.
 
 import re
 import os
-import psutil
 import uuid
 import json
 import time
