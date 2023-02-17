@@ -23,6 +23,8 @@ from . import (
     InnerDoc
 )
 
+from .utils import IndexedDict
+
 class EventComment(base.BaseInnerDoc):
     '''
     A comment that can be applied to an Event
@@ -444,6 +446,19 @@ class Event(base.BaseDocument):
             self.__dict__['related_event_filters'] = filters
         else:
             self.related_event_filters = filters
+
+    def as_indexed_dict(self):
+        '''
+        Returns the event as an IndexedDict object
+        '''
+        event_as_dict = self.to_dict()
+        observables = event_as_dict.pop('event_observables')
+        event_as_dict['observables'] = {}
+        for i in range(0, len(observables)):
+            event_as_dict['observables'][i] = observables[i]
+        event_as_dict['raw_log'] = json.loads(event_as_dict['raw_log'])['raw_log']
+        indexed_event = IndexedDict(event_as_dict)
+        return indexed_event
 
 
 class EventRule(base.BaseDocument):

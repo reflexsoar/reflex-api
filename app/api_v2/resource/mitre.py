@@ -8,6 +8,9 @@ from ..utils import page_results, token_required
 api = Namespace(
     'MITRE', description='MITRE ATT&CK related information', path='/mitre')
 
+mod_data_sources = api.model('MITREDataSources', {
+    'data_sources': fields.List(fields.String)
+})
 
 mod_external_reference = api.model('MITREExternalReference', {
     'external_id': fields.String,
@@ -175,3 +178,21 @@ class TechniqueList(Resource):
                 'page_size': args.page_size
             }
         }
+
+@api.route("/data_sources")
+class DataSourceList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_data_sources)
+    @token_required
+    def get(self, current_user):
+        '''
+        Returns a list of MITRE ATT&CK Data Sources
+        '''
+        
+        search = MITRETechnique.search()
+        search = search[0:]
+        search.aggs.bucket('data_sources', 'terms', field='data_sources', size=1000)
+
+        results = search.execute()
+        return {'data_sources': [bucket.key for bucket in results.aggregations.data_sources.buckets]}

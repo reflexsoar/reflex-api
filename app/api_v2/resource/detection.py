@@ -254,9 +254,9 @@ detection_list_parser.add_argument(
 detection_list_parser.add_argument(
     'page_size', type=int, location='args', default=10, required=False)
 detection_list_parser.add_argument(
-    'techniques', location='args',  action='append', type=str, required=False)
+    'techniques', location='args',  action='split', type=str, required=False)
 detection_list_parser.add_argument(
-    'tactics', location='args', action='append', type=str, required=False)
+    'tactics', location='args', action='split', type=str, required=False)
 detection_list_parser.add_argument(
     'organization', location='args', type=str, required=False)
 

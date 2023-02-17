@@ -17,7 +17,7 @@ import datetime
 import logging
 import threading
 from itertools import chain
-from multiprocessing import Queue
+from multiprocessing import Queue, Manager
 from kafka import KafkaProducer, KafkaConsumer, KafkaAdminClient
 from kafka.admin import ConfigResource
 from kafka.admin.new_partitions import NewPartitions
@@ -299,7 +299,12 @@ class EventProcessor:
                     'pid': worker.pid,
                     'organization': worker.organization,
                     'name': worker.name,
-                    'alive': worker.alive()
+                    'alive': worker.alive(),
+                    'events_in_processing': worker.events_in_processing.value,
+                    'status': worker.status.value,
+                    'processed_events': worker.processed_events.value,
+                    'last_event': worker.last_event.value,
+                    'last_meta_refresh': worker.last_refresh.value
                 }
             )
         return worker_info
@@ -340,6 +345,8 @@ class EventWorker(Process):
             'INFO': logging.INFO
         }
 
+        mgmr = Manager()
+
         log_handler = logging.StreamHandler()
         log_handler.setFormatter(logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
@@ -365,6 +372,11 @@ class EventWorker(Process):
         self.should_exit = mpEvent()
         self.kf_consumer = None
         self.dedicated_worker = self.config['DEDICATED_WORKERS']
+        self.status = mgmr.Value('s', 'STARTING')
+        self.processed_events = mgmr.Value('i', 0)
+        self.last_event = mgmr.Value('s', '')
+        self.events_in_processing = mgmr.Value('i', 0)
+        self.last_refresh = mgmr.Value('s', '')
            
     def alive(self):
         return psutil.pid_exists(self.pid)
@@ -557,10 +569,12 @@ class EventWorker(Process):
         self.load_statuses()
         self.load_data_types()
         self.load_intel_lists()
-        self.last_meta_refresh = datetime.datetime.utcnow()
+        self.last_meta_refresh= datetime.datetime.utcnow()
         
         if clear_reload_flag:
             self.should_restart.clear()
+
+        self.last_refresh.value = datetime.datetime.utcnow().isoformat()
 
 
     def pop_events_by_action(self, events, action):
@@ -585,6 +599,7 @@ class EventWorker(Process):
 
             _events = []
             queue_empty = False
+            self.status.value = 'POLLING'
 
             if self.config['DEDICATED_WORKERS']:
                 message = self.kf_consumer.poll(self.config['ES_BULK_SIZE'])
@@ -622,9 +637,12 @@ class EventWorker(Process):
                     if self.should_restart.is_set():
                         self.reload_meta_info(clear_reload_flag=True)
 
-                    _events.append(self.event_queue.get())
+                    while not self.event_queue.empty() or len(_events) >= self.config["ES_BULK_SIZE"]:
+                        _events.append(self.event_queue.get())
 
             if len(_events) > 0:
+                self.status.value = 'PROCESSING'
+                self.events_in_processing.value = len(_events)
                 for event in _events:
 
                     # Process the event
@@ -634,8 +652,11 @@ class EventWorker(Process):
                     # via _bulk
                     if event:
                         self.events.append(event)
+                self.events_in_processing.value = 0
 
-            if len(self.events) >= self.config["ES_BULK_SIZE"] or queue_empty:
+            if (len(self.events) >= self.config["ES_BULK_SIZE"] or queue_empty) and len(self.events) != 0:
+
+                self.status.value = 'PUSHING'
 
                 # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
                 bulk_dismiss = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'dismiss']
@@ -661,8 +682,8 @@ class EventWorker(Process):
                         pass
 
                     # Update Cases
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(self.events)):
-                        pass
+                    #for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(self.events)):
+                    #    pass
                 except EXC_BULK_INDEX_ERROR as e:
                     self.logger.error(f"Bulk index error: {e}")
 
@@ -681,6 +702,8 @@ class EventWorker(Process):
                         except EXC_CONNECTION_TIMEOUT as e:
                             self.logger.error(f"Unable to mark task {task.uuid} as finished. Reason: {e}")
 
+                self.processed_events.value += len(self.events)
+                self.last_event.value = datetime.datetime.utcnow().isoformat()
                 self.events = []
 
 
@@ -707,15 +730,17 @@ class EventWorker(Process):
 
             # If there were matches and the list calls for tagging the observable
             if matched and l.tag_on_match:
+                list_name = l.name.lower().replace(' ', '-')
                 if 'tags' in observable:
-                    observable['tags'].append(f"list: {l.name}")
+                    observable['tags'].append(f"list: {list_name}")
                 else:
-                    observable['tags'] = [f"list: {l.name}"]
+                    observable['tags'] = [f"list: {list_name}"]
 
             if matched:
                 observable['ioc'] = l.flag_ioc if hasattr(l, 'flag_ioc') else False
                 observable['safe'] = l.flag_safe if hasattr(l, 'flag_safe') else False
                 observable['spotted'] = l.flag_spotted if hasattr(l, 'flag_spotted') else False
+                observable['list_matched'] = True
 
                 observable_history = ObservableHistory(**observable)
                 observable_history.save()
@@ -1022,6 +1047,17 @@ class EventWorker(Process):
                                               organization,
                                               MEMCACHED_CONFIG=MEMCACHED_CONFIG
                                             ) for observable in raw_event['observables']]
+
+                # If any of the observables matched a threat list, add the threat list tags to the event
+                if any([o['list_matched'] for o in obs if o.get('list_matched')]):
+                    for o in obs:
+                        if o.get('list_matched'):
+                            if 'tags' in raw_event:
+                                raw_event['tags'].extend([tag for tag in o['tags'] if tag.startswith('list: ')])
+                            else:
+                                raw_event['tags'] = [tag for tag in o['tags'] if tag.startswith('list: ')]
+                            del o['list_matched']
+
                 raw_event['observables'] = obs
 
             if 'tags' in raw_event:

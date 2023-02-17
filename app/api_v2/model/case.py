@@ -360,6 +360,16 @@ class Case(base.BaseDocument):
     def open_tasks(self, value):
         self._open_tasks = value
 
+    @property
+    def event_count(self):
+        '''
+        Returns the total number of events assigned to this case 
+        by looking at the Events index and finding all events with this
+        cases UUID in their case field
+        '''
+        response = event.Event.search().query('term', case=self.uuid).count()
+        return response
+
     def add_observables(self, observable, case_uuid=None, organization=None):
         '''
         Adds an observable to the case by adding it to the observables index
@@ -506,12 +516,15 @@ class Case(base.BaseDocument):
 
         self.save()
 
-    def reopen(self):
+    def reopen(self, skip_save=False):
         '''
         Reopens a case
         '''
         self.closed = False
         self.closed_at = None
+        case_status = CaseStatus.get_by_name(name="In Progress")
+        if case_status:
+            self.status = case_status
 
         # Reopen all the related events
         if self.events:
@@ -519,7 +532,14 @@ class Case(base.BaseDocument):
                 evt = event.Event.get_by_uuid(_)
                 evt.set_open()
 
-        self.save()
+        if not skip_save:
+            self.save()
+
+    def is_closed(self):
+        '''
+        Returns True if the case is closed, False if it is not
+        '''
+        return self.closed
 
     @classmethod
     def get_related_cases(self, uuid):

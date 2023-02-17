@@ -178,6 +178,7 @@ def setup(app, check_for_default=False):
         create_admin_role(Role, admin_id=None, org_id=None, org_perms=True, check_for_default=check_for_default)
         create_analyst_role(Role, org_id=None, org_perms=True, check_for_default=check_for_default)
         create_default_email_templates(EmailNotificationTemplate, org_id=None, check_for_default=check_for_default)
+        initial_settings(Settings, org_id=None, check_for_default=check_for_default)
 
     return 
 

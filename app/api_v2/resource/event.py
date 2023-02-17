@@ -1298,6 +1298,23 @@ class EventCommentDelete(Resource):
         event.save()
 
 
+@api.route("/<uuid>/indexed")
+class EventIndexed(Resource):
+
+    @api.doc(security="Bearer")
+    #@api.marshal_with(mod_event_details_as_indexed_dict)
+    @token_required
+    @user_has('view_events')
+    def get(self, uuid, current_user):
+
+        event = Event.get_by_uuid(uuid)
+        if event:
+            event.event_observables = fetch_observables_from_history(event.event_observables)
+            return json.loads(json.dumps(event.as_indexed_dict(), default=str))
+        else:
+            api.abort(404, 'Event not found.')
+
+
 @api.route("/<uuid>")
 class EventDetails(Resource):
 

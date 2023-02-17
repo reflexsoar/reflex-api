@@ -552,6 +552,7 @@ mod_settings = Model('SettingsList', {
     'persistent_pairing_token': fields.String,
     'require_event_dismiss_comment': fields.Boolean,
     'require_case_close_comment': fields.Boolean,
+    'reopen_case_on_event_merge': fields.Boolean,
     'allow_event_deletion': fields.Boolean,
     'assign_case_on_create': fields.Boolean,
     'assign_task_on_start': fields.Boolean,

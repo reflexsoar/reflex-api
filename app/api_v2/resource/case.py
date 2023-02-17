@@ -89,7 +89,7 @@ mod_case_list = api.model('CaseList', {
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'status': fields.Nested(mod_case_status),
-    'event_count': ValueCount(attribute='events'),
+    'event_count': fields.Integer,
     # 'open_tasks': fields.Integer,
     # 'total_tasks': ValueCount(attribute='tasks'),
     'created_at': ISO8601(attribute='created_at'),
@@ -115,7 +115,7 @@ mod_case_details = api.model('CaseDetails', {
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'status': fields.Nested(mod_case_status),
-    'event_count': ValueCount(attribute='events'),
+    'event_count': fields.Integer,
     'related_cases': ValueCount(attribute='related_cases'),
     'open_tasks': fields.Integer,
     # 'total_tasks': ValueCount(attribute='tasks'),
@@ -680,6 +680,7 @@ class AddEventsToCase(Resource):
 
         case = Case.get_by_uuid(uuid=uuid)
         if case:
+            settings = Settings.load(organization=case.organization)
             events = Event.get_by_uuid(uuid=api.payload['events'], all_results=True)
 
             signatures = []
@@ -717,6 +718,11 @@ class AddEventsToCase(Resource):
 
                 case.add_history(
                     message=f'{len(uuids)} events added')
+
+                if case.closed and settings.reopen_case_on_event_merge:
+                    # TODO - NOTIFICATIONS: Notify case owner that case has been reopened
+                    case.reopen(skip_save=True)
+
                 case.save()
                 return "YARP"
             else:
