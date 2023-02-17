@@ -456,7 +456,7 @@ class Event(base.BaseDocument):
         event_as_dict['observables'] = {}
         for i in range(0, len(observables)):
             event_as_dict['observables'][i] = observables[i]
-        event_as_dict['raw_log'] = json.loads(event_as_dict['raw_log'])['raw_log']
+        event_as_dict['raw_log'] = json.loads(event_as_dict['raw_log'])
         indexed_event = IndexedDict(event_as_dict)
         return indexed_event
 
