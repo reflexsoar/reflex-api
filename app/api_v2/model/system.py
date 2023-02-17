@@ -35,6 +35,9 @@ class EventLog(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-audit-logs'
+        settings = {
+            'refresh_interval': '5s',
+        }
 
 
 class Tag(base.BaseDocument):
