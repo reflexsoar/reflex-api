@@ -27,6 +27,9 @@ class CaseHistory(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-case-history'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     @classmethod
     def get_by_case(self, uuid, sort_by="-created_at"):
