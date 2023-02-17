@@ -57,6 +57,7 @@ pysigma-pipeline-sysmon = "*"
 pysigma-pipeline-windows = "*"
 pysigma-backend-opensearch = "*"
 urllib3 = "*"
+psutil = "*"
 
 [requires]
 python_version = "3.8"
