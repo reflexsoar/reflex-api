@@ -1032,6 +1032,7 @@ class EventBulkDismiss(Resource):
                 'dismissed_by_username': current_user.username,
                 'dismissed_by_organization': current_user.organization,
                 'dismissed_by_uuid': current_user.uuid,
+                'dismissed_by_rule': False,
                 'tuning_advice': api.payload['tuning_advice'] if 'tuning_advice' in api.payload else None
             }
         )
@@ -1107,6 +1108,7 @@ class EventBulkDismiss(Resource):
                     'dismissed_by_username': current_user.username,
                     'dismissed_by_organization': current_user.organization,
                     'dismissed_by_uuid': current_user.uuid,
+                    'dismissed_by_rule': False,
                     'tuning_advice': api.payload['tuning_advice'] if 'tuning_advice' in api.payload else None
                 }
             )
