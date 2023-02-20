@@ -251,10 +251,13 @@ class CaseList(Resource):
             cases = cases.filter('terms', uuid=case_uuids)
 
         if 'title__like' in args and args['title__like']:
-            cases = cases.filter('match', title__text=args['title__like'])
+            cases = cases.filter('wildcard', title="*"+args['title__like']+"*")
+
+        import json
+        print(json.dumps(cases.to_dict(), indent=2))
 
         if 'title' in args and args['title']:
-            cases = cases.filter('match', title__text=args['title'])
+            cases = cases.filter('match', title=args['title'])
 
         if 'description__like' in args and args['description__like']:
             cases = cases.filter(
@@ -686,6 +689,10 @@ class AddEventsToCase(Resource):
             signatures = []
 
             if events:
+
+                if any([event.organization != case.organization for event in events]):
+                    api.abort(400, 'One or more events are not associated with this cases organization.')
+
                 uuids = [event.uuid for event in events]
                 signatures = [event.signature for event in events if event.signature not in signatures]
                 
