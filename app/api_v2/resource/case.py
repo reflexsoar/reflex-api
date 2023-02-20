@@ -251,10 +251,10 @@ class CaseList(Resource):
             cases = cases.filter('terms', uuid=case_uuids)
 
         if 'title__like' in args and args['title__like']:
-            cases = cases.filter('match', title__text=args['title__like'])
+            cases = cases.filter('wildcard', title__keyword="*"+args['title__like']+"*")
 
         if 'title' in args and args['title']:
-            cases = cases.filter('match', title__text=args['title'])
+            cases = cases.filter('match', title=args['title'])
 
         if 'description__like' in args and args['description__like']:
             cases = cases.filter(
