@@ -677,10 +677,16 @@ class TestEventRQL(Resource):
                 api.abort(400, f"Invalid RQL Query. {e}")
             hits = len(result)
 
+            response = {"message": f"Query matched {hits} Events", "success": True, "hits": result}
+            print(hits/len(event_data))
+            if hits/len(event_data) > 0.3:
+                response['message'] = f"Query matched {hits} Events.  This is more than 30% of the events queried.  Please consider refining your query."
+                response['danger'] = True
+
             if hits > 0:
                 if 'return_results' in api.payload and api.payload['return_results']:
-                    return {"message": f"Query matched {hits} Events", "success": True, "hits": [result]}, 200
-                return {"message": f"Query matched {hits} Events", "success": True}, 200
+                    response['hits'] = [result]
+                return response, 200
             else:
                 return {"message": "Query did not match target Event", "success": False}, 200
         except ValueError as e:
