@@ -168,7 +168,7 @@ class Event(base.BaseDocument):
     risk_score = Integer() # The risk score if this originated from a detection rule
     original_date = Date() # The date the original log was generated (not when it was created in Reflex)
     comments = Nested()
-    _metrics = Object(EventMetrics)
+    metrics = Object(EventMetrics)
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
