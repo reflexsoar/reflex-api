@@ -30,7 +30,7 @@ from app.api_v2.model import (
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,
         Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,
         MITRETechnique, EventView, NotificationChannel, Notification, FieldMappingTemplate,
-        AgentLogMessage, EmailNotificationTemplate
+        AgentLogMessage, EmailNotificationTemplate, ServiceAccount
 )
 
 from .defaults import (
@@ -115,7 +115,7 @@ def upgrade_indices(app):
         TaskNote,Plugin,PluginConfig,EventLog,User,Role,DataType,CaseStatus,CloseReason,Settings,
         Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,MITRETechnique,
         EventView, NotificationChannel, Notification, FieldMappingTemplate, AgentLogMessage,
-        EmailNotificationTemplate
+        EmailNotificationTemplate, ServiceAccount
         ]
 
     for model in models:

@@ -1,7 +1,8 @@
+from app.api_v2.model.user import Organization
 from ..utils import page_results, token_required, user_has, ip_approved, default_org, check_org
 from flask_restx import Resource, Namespace, fields
 from ..model import Role
-from .shared import mod_pagination, mod_permissions, mod_user_list, ISO8601
+from .shared import mod_pagination, mod_permissions, mod_user_list, ISO8601, DEFAULT_ORG_ONLY_PERMISSIONS
 
 api = Namespace('Roles',
                 description="Role operations", path="/role")
@@ -112,6 +113,20 @@ class RoleList(Resource):
         role = Role.get_by_name(name=api.payload['name'], organization=organization)
        
         if not role:
+
+            org = None
+
+            # TODO - Move this to a method decorator
+            if 'organization' in api.payload and api.payload['organization'] != None:
+                org = Organization.get_by_uuid(uuid=api.payload['organization'])
+                if not org:
+                    api.abort(400, 'Organization does not exist.')
+            
+            # Check to see if the user is trying to set forbidden permissions
+            if any([permission in DEFAULT_ORG_ONLY_PERMISSIONS for permission in api.payload['permissions']]):
+                if org and org.default_org == False:
+                    api.abort(400, 'Only the default Organization can have these permissions.')
+
             role = Role(name=api.payload['name'],
                         description=api.payload['description'],
                         permissions=api.payload['permissions'],
@@ -139,6 +154,20 @@ class RoleDetails(Resource):
         role = Role.get_by_uuid(uuid=uuid)
 
         if role:
+            org = None
+            # TODO - Move this to a method decorator
+            if 'organization' in api.payload and api.payload['organization'] != None:
+                org = Organization.get_by_uuid(uuid=api.payload['organization'])
+                if not org:
+                    api.abort(400, 'Organization does not exist.')
+            else:
+                org = Organization.get_by_uuid(uuid=role.organization)
+            
+            # Check to see if the user is trying to set forbidden permissions
+            if any([permission in DEFAULT_ORG_ONLY_PERMISSIONS for permission in api.payload['permissions']]):
+                if org and org.default_org == False:
+                    api.abort(400, 'Only the default Organization can have these permissions.')
+
             if 'organization' in api.payload and user_in_default_org:
                 exists = Role.get_by_name(name=api.payload['name'], organization=api.payload['organization'])
             else:

@@ -57,7 +57,7 @@ else:
         UpdateByQuery
     )
 
-from .user import User, Role, ExpiredToken, Organization
+from .user import User, Role, ExpiredToken, Organization, ServiceAccount
 from .agent import Agent, AgentGroup, AgentPolicy, AgentLogMessage
 from .inout import Input, FieldMappingTemplate
 from .threat import ThreatList, ThreatValue
@@ -138,6 +138,7 @@ __all__ = [
     NotificationChannel,
     Notification,
     EmailNotificationTemplate,
+    ServiceAccount,
     NOTIFICATION_CHANNEL_TYPES,
     SOURCE_OBJECT_TYPE,
     memcached_client

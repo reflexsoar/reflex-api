@@ -210,15 +210,21 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                 if org.default_org:
                     perms['view_organizations'] = True
                     perms['add_organization'] = True
-                    perms['view_organizations'] = True
                     perms['update_organization'] = True
                     perms['delete_organization'] = True
+                    perms['create_service_account'] = True
+                    perms['view_service_accounts'] = True
+                    perms['update_service_account'] = True
+                    perms['delete_service_account'] = True
                 else:
                     perms['view_organizations'] = False
                     perms['add_organization'] = False
-                    perms['view_organizations'] = False
                     perms['update_organization'] = False
                     perms['delete_organization'] = False
+                    perms['create_service_account'] = False
+                    perms['view_service_accounts'] = False
+                    perms['update_service_account'] = False
+                    perms['delete_service_account'] = False
                 role = role[0]
                 role.permissions = perms
                 role.save()
@@ -299,7 +305,11 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         "update_agent_policy": False,
         "delete_agent_policy": False,
         "create_agent_log_message": False,
-        "view_agent_logs": False
+        "view_agent_logs": False,
+        "create_service_account": False,
+        "view_service_accounts": False,
+        "update_service_account": False,
+        "delete_service_account": False
     }
 
     role_contents = {
@@ -355,7 +365,11 @@ def create_agent_role(cls, org_id, check_for_default=False):
         'update_detection': True,
         "view_agent_policies": True,
         "create_agent_log_message": True,
-        "view_agent_logs": True
+        "view_agent_logs": True,
+        "create_service_account": False,
+        "view_service_accounts": False,
+        "update_service_account": False,
+        "delete_service_account": False
     }
 
     role_contents = {

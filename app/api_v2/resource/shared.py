@@ -218,7 +218,10 @@ mod_permissions = Model('Permissions', {
     'delete_notification_channel': fields.Boolean,
     'view_notifications': fields.Boolean,
     'create_persistent_pairing_token': fields.Boolean,
-    'use_api': fields.Boolean(optional=True)
+    'use_api': fields.Boolean(optional=True),
+    'create_service_account': fields.Boolean,
+    'view_service_accounts': fields.Boolean,
+    'delete_service_account': fields.Boolean
 }, strict=True)
 
 mod_user_list = Model('UserList', {
@@ -226,6 +229,13 @@ mod_user_list = Model('UserList', {
     'uuid': fields.String,
     'organization': fields.String
 })
+
+DEFAULT_ORG_ONLY_PERMISSIONS = [
+    'create_service_account',
+    'view_service_accounts',
+    'delete_service_account'
+    'update_service_account'
+]
 
 pager_parser = reqparse.RequestParser()
 pager_parser.add_argument('page_size', location='args',
