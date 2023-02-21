@@ -193,6 +193,7 @@ class Detection(base.BaseDocument):
     new_terms_config = Object(NewTermsConfig)
     assigned_agent = Keyword() # The UUID of the agent that should run this alarm
     include_source_meta_data = Boolean() # If true the detection will include the meta data from the source event in the alert
+    status = Keyword() # Experimental, Beta, Stable, Test, Deprecated, Production
 
     class Index:
         name = "reflex-detections"

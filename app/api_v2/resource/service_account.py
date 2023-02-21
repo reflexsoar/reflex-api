@@ -14,6 +14,7 @@ mod_create_service_account = api.model('CreateServiceAccount', {
     'organization_scope': fields.List(fields.String, required=False, description="List of organization IDs that the service account can access"),
     'active': fields.Boolean(required=False, description="Is the service account active"),
     'permissions': fields.Nested(mod_permissions, required=True, description="Permissions for the service account"),
+    'tags': fields.List(fields.String, required=False, description="List of tags for the service account"),
 }, strict=True)
 
 mod_service_account_created = api.model('ServiceAccountCreated', {
@@ -23,15 +24,25 @@ mod_service_account_created = api.model('ServiceAccountCreated', {
 
 mod_service_account_list = api.model('ServiceAccountList', {
     'uuid': fields.String(required=True, description="UUID of the service account"),
+    'organization': fields.String(required=True, description="Organization ID of the service account"),
     'name': fields.String(required=True, description="Name of the service account"),
     'description': fields.String(required=False, description="Description of the service account"),
     'organization_scope': fields.List(fields.String, required=False, description="List of organization IDs that the service account can access"),
     'active': fields.Boolean(required=False, description="Is the service account active"),
     'permissions': fields.Nested(mod_permissions, required=True, description="Permissions for the service account"),
     'last_used': fields.DateTime(required=False, description="Last time the service account was used"),
+    'created_by': fields.String(required=True, description="User ID of the user who created the service account"),
+    'created_at': fields.DateTime(required=True, description="Time the service account was created"),
+    'updated_by': fields.String(required=True, description="User ID of the user who last updated the service account"),
+    'updated_at': fields.DateTime(required=True, description="Time the service account was last updated"),
+    'tags': fields.List(fields.String, required=False, description="List of tags for the service account"),
 }, strict=True)
 
-@api.route('/')
+mod_service_account_list_with_key = mod_service_account_list.clone('ServiceAccountListWithKey', {
+    'access_token': fields.String(required=True, description="Access token for the service account")
+})
+
+@api.route('')
 class ServiceAccountList(Resource):
     @api.doc(security='Bearer')
     @api.marshal_with(mod_service_account_list, as_list=True, envelope='service_accounts')
@@ -45,7 +56,7 @@ class ServiceAccountList(Resource):
 
     @api.doc(security='Bearer')
     @api.expect(mod_create_service_account)
-    @api.marshal_with(mod_service_account_created)
+    @api.marshal_with(mod_service_account_list_with_key)
     @token_required
     @user_has('create_service_account')
     def post(self, current_user):
@@ -77,6 +88,7 @@ class ServiceAccountList(Resource):
         except ValidationError as e:
             api.abort(400, e)
         access_token = service_account.create_access_token()
-        return {'uuid': str(service_account.uuid), 'access_token': access_token}, 201
+        service_account.__dict__['access_token'] = access_token
+        return service_account, 201
             
     

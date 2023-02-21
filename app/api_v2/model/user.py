@@ -618,6 +618,7 @@ class ServiceAccount(base.BaseDocument):
     active = Boolean() # Whether or not this service account is active, if not it cannot be used
     last_used = Date() # The last time this service account was used
     organization_scope = Keyword() # The organizations that this service account can access
+    tags = Keyword() # The tags that this service account can access
 
     def get_by_name(self, name, organization=None):
         '''
@@ -646,7 +647,7 @@ class ServiceAccount(base.BaseDocument):
         jwt_exp = settings.api_key_expire if hasattr(settings,'api_key_expire') and settings.api_key_expire else 365
 
         _access_token = jwt.encode({
-            'uuid': self.uuid,
+            'uuid': str(self.uuid),
             'organization': self.organization,
             'default_org': organization.default_org if organization else False,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=jwt_exp),
