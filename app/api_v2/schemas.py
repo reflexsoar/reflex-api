@@ -191,7 +191,10 @@ mod_permissions = Model('Permissions', {
     'delete_notification_channel': fields.Boolean,
     'view_notifications': fields.Boolean,
     'create_persistent_pairing_token': fields.Boolean,
-    'use_api': fields.Boolean
+    'use_api': fields.Boolean,
+    'create_service_account': fields.Boolean,
+    'view_service_accounts': fields.Boolean,
+    'delete_service_account': fields.Boolean
 })
 
 mod_role_create = Model('RoleCreate', {

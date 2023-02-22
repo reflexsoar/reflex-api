@@ -380,7 +380,8 @@ class EventWorker(Process):
         self.last_refresh = mgmr.Value('s', '')
            
     def alive(self):
-        return psutil.pid_exists(self.pid)
+        return False
+        #return psutil.pid_exists(self.pid)
     
     def force_reload(self):
         self.logger.debug(f'Reload triggered by EventProcessor - {self.name} - {self.organization}')
@@ -622,7 +623,7 @@ class EventWorker(Process):
                     for topic_data, consumer_records in message.items():
                         for msg in consumer_records:
                             _event = msg.value
-                            _event['_metrics'] = {
+                            _event['metrics'] = {
                                 'event_processing_dequeue': datetime.datetime.utcnow()
                             }
                             _events.append(_event)
@@ -650,7 +651,7 @@ class EventWorker(Process):
 
                     while not self.event_queue.empty() or len(_events) >= self.config["ES_BULK_SIZE"]:
                         _event = self.event_queue.get()
-                        _event['_metrics'] = {
+                        _event['metrics'] = {
                                 'event_processing_dequeue': datetime.datetime.utcnow()
                             }
                         _events.append(_event)
@@ -660,10 +661,10 @@ class EventWorker(Process):
                 self.events_in_processing.value = len(_events)
 
                 def _process_event(event):
-                    event['_metrics']['event_processing_start'] = datetime.datetime.utcnow()
+                    event['metrics']['event_processing_start'] = datetime.datetime.utcnow()
                     event = self.process_event(event)
-                    event['_metrics']['event_processing_end'] = datetime.datetime.utcnow()
-                    event['_metrics']['event_processing_duration'] = (event['_metrics']['event_processing_end'] - event['_metrics']['event_processing_start']).total_seconds()
+                    event['metrics']['event_processing_end'] = datetime.datetime.utcnow()
+                    event['metrics']['event_processing_duration'] = (event['metrics']['event_processing_end'] - event['metrics']['event_processing_start']).total_seconds()
                     return event
 
                 with ThreadPoolExecutor(max_workers=10) as executor:
@@ -784,10 +785,10 @@ class EventWorker(Process):
                 event['event_observables'] = []
 
             event['created_at'] = datetime.datetime.utcnow()
-            event['_metrics']['event_bulk_start'] = datetime.datetime.utcnow()
-            event['_metrics']['total_duration'] = (event['_metrics']['event_bulk_start'] - event['_metrics']['event_processing_dequeue']).total_seconds()
-            if 'agent_pickup_time' in event['_metrics']:
-                event['_metrics']['total_duration_with_agent'] = (event['_metrics']['event_bulk_start'] - event['_metrics']['agent_pickup_time']).total_seconds()
+            event['metrics']['event_bulk_start'] = datetime.datetime.utcnow()
+            event['metrics']['total_duration'] = (event['metrics']['event_bulk_start'] - event['metrics']['event_processing_dequeue']).total_seconds()
+            if 'agent_pickup_time' in event['metrics']:
+                event['metrics']['total_duration_with_agent'] = (event['metrics']['event_bulk_start'] - event['metrics']['agent_pickup_time']).total_seconds()
 
             yield {
                 '_source': event,
@@ -1043,9 +1044,9 @@ class EventWorker(Process):
 
             for observable in raw_event['observables']:
                 if observable['data_type'] == "auto":
-                    raw_event['_metrics']['auto_data_type_extraction'] = True
+                    raw_event['metrics']['auto_data_type_extraction'] = True
                     matched = False
-                    raw_event['_metrics']['auto_data_type_start'] = datetime.datetime.utcnow()
+                    raw_event['metrics']['auto_data_type_start'] = datetime.datetime.utcnow()
                     for dt in [data_type for data_type in self.data_types if data_type.organization == raw_event['organization']]:
                         if dt.regex:
                             if dt.regex.startswith('/') and dt.regex.endswith('/'):
@@ -1060,12 +1061,12 @@ class EventWorker(Process):
                             if len(matches) > 0:
                                 observable['data_type'] = dt.name
                                 matched = True
-                    raw_event['_metrics']['auto_data_type_end'] = datetime.datetime.utcnow()
-                    raw_event['_metrics']['auto_data_type_duration'] = (raw_event['_metrics']['auto_data_type_end'] - raw_event['_metrics']['auto_data_type_start']).total_seconds()
+                    raw_event['metrics']['auto_data_type_end'] = datetime.datetime.utcnow()
+                    raw_event['metrics']['auto_data_type_duration'] = (raw_event['metrics']['auto_data_type_end'] - raw_event['metrics']['auto_data_type_start']).total_seconds()
 
             if 'observables' in raw_event:
                 
-                raw_event['_metrics']['threat_list_check_start'] = datetime.datetime.utcnow()
+                raw_event['metrics']['threat_list_check_start'] = datetime.datetime.utcnow()
                 if self.app_config['THREAT_POLLER_MEMCACHED_ENABLED']:
                     MEMCACHED_CONFIG = (
                         self.app_config['THREAT_POLLER_MEMCACHED_HOST'],
@@ -1091,8 +1092,8 @@ class EventWorker(Process):
 
                 raw_event['observables'] = obs
 
-                raw_event['_metrics']['threat_list_check_end'] = datetime.datetime.utcnow()
-                raw_event['_metrics']['threat_list_check_duration'] = (raw_event['_metrics']['threat_list_check_end'] - raw_event['_metrics']['threat_list_check_start']).total_seconds()
+                raw_event['metrics']['threat_list_check_end'] = datetime.datetime.utcnow()
+                raw_event['metrics']['threat_list_check_duration'] = (raw_event['metrics']['threat_list_check_end'] - raw_event['metrics']['threat_list_check_start']).total_seconds()
 
             if 'tags' in raw_event:
                 raw_event['tags'] = [t for t in raw_event['tags'] if not t.endswith(': None')]
@@ -1106,7 +1107,7 @@ class EventWorker(Process):
                 (s for s in self.statuses if s.organization == raw_event['organization'] and s.name == 'New'), None)
 
             # Process Global Event Rules
-            raw_event['_metrics']['event_rule_start'] = datetime.datetime.utcnow()
+            raw_event['metrics']['event_rule_start'] = datetime.datetime.utcnow()
             for rule in self.rules:
                 
                 try:
@@ -1125,8 +1126,8 @@ class EventWorker(Process):
                             rule.create_notification(organization=raw_event['organization'], source_object_type='event', source_object_uuid=raw_event['uuid'])
                 except Exception as e:
                     self.logger.error(f"Failed to process rule {rule.uuid} ({rule.name}). Reason: {e}")
-            raw_event['_metrics']['event_rule_end'] = datetime.datetime.utcnow()
-            raw_event['_metrics']['event_rule_duration'] = (raw_event['_metrics']['event_rule_end'] - raw_event['_metrics']['event_rule_start']).total_seconds()
+            raw_event['metrics']['event_rule_end'] = datetime.datetime.utcnow()
+            raw_event['metrics']['event_rule_duration'] = (raw_event['metrics']['event_rule_end'] - raw_event['metrics']['event_rule_start']).total_seconds()
 
         else:
             if 'action' in raw_event['_meta'] and raw_event['_meta']['action'] == 'retro_apply_event_rule':

@@ -253,9 +253,6 @@ class CaseList(Resource):
         if 'title__like' in args and args['title__like']:
             cases = cases.filter('wildcard', title="*"+args['title__like']+"*")
 
-        import json
-        print(json.dumps(cases.to_dict(), indent=2))
-
         if 'title' in args and args['title']:
             cases = cases.filter('match', title=args['title'])
 

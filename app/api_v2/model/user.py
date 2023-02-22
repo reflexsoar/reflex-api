@@ -4,12 +4,14 @@ Contains all the models related to users of the system
 '''
 
 import datetime
-from app.api_v2.model.system import Settings
+
+from flask_restx import ValidationError
+from app.api_v2.model.system import EventLog, Settings
 import jwt
 import onetimepass
 import base64
 import os
-from flask import current_app
+from flask import current_app, request
 from flask_bcrypt import Bcrypt
 
 from . import (
@@ -350,6 +352,17 @@ class User(base.BaseDocument):
         return onetimepass.valid_totp(token, self.otp_secret)
 
 
+class OrganizationSLASettings(InnerDoc):
+    '''
+    Defines all the organizational SLA settings
+    '''
+    sla_enabled = Boolean()
+    holidays = Keyword() # A list of dates that are holidays stored as YYYY-MM-DD
+    work_hours = Keyword() # A list of work hours stored as HH:MM-HH:MM
+    work_hours_override_default = Boolean() # If true the work hours will override the default work hours
+    holidays_override_default = Boolean() # If true the holidays will override the default holidays
+
+
 class Organization(base.BaseDocument):
     '''
     Defines an Organization/Tenant that users and other objects belong to
@@ -580,6 +593,95 @@ class Permission(InnerDoc):
     delete_agent_policy = Boolean()
     create_agent_log_message = Boolean()
     view_agent_logs = Boolean()
+
+    # Service Account Permissions
+    create_service_account = Boolean()
+    view_service_accounts = Boolean()
+    update_service_account = Boolean()
+    delete_service_account = Boolean()
+
+
+class ServiceAccount(base.BaseDocument):
+    '''
+    Defines an API key that is used by a service to interact with the API
+    '''
+
+    class Index():
+        name = 'reflex-service-accounts'
+        settings = {
+            'refresh_interval': '1s'
+        }
+
+    name = Keyword() # The name of the service account, must be unique
+    description = Text(fields={'keyword':Keyword()}) # A description of the service account
+    permissions = Object(Permission) # The permissions that this service account has
+    active = Boolean() # Whether or not this service account is active, if not it cannot be used
+    last_used = Date() # The last time this service account was used
+    organization_scope = Keyword() # The organizations that this service account can access
+    tags = Keyword() # The tags that this service account can access
+
+    def get_by_name(self, name, organization=None):
+        '''
+        Returns a service account by name
+        '''
+        search = ServiceAccount.search()
+        if isinstance(name, list):
+            search = search.filter('terms', name=name)
+        else:
+            search = search.filter('term', name=name)
+
+        if organization:
+            search = search.filter('term', organization=organization)
+
+        return [o for o in search.scan()]
+
+    def create_access_token(self):
+        '''
+        Generates an access_token that is presented each time the
+        user calls the API, valid for 6 hours by default
+        '''
+
+        organization = Organization.get_by_uuid(self.organization)
+        settings = Settings.load(organization=self.organization)
+
+        jwt_exp = settings.api_key_expire if hasattr(settings,'api_key_expire') and settings.api_key_expire else 365
+
+        _access_token = jwt.encode({
+            'uuid': str(self.uuid),
+            'organization': self.organization,
+            'default_org': organization.default_org if organization else False,
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=jwt_exp),
+            'iat': datetime.datetime.utcnow(),
+            'type': 'service_account'
+        }, current_app.config['SECRET_KEY'])
+
+        return _access_token
+
+    def save(self, *args, **kwargs):
+        '''
+        Saves the service account
+        '''
+        exists = self.get_by_name(name=self.name)
+        success = True
+        if exists:
+            success = False
+            log = EventLog(
+                source_user = utils._current_user_id_or_none()['username'],
+                source_ip = request.remote_addr,
+                status = 'failure',
+                message = f'Attempt to create a service account with the name {self.name} failed because a service account with that name already exists'
+            )
+            log.save()
+            raise ValidationError('A service account with that name already exists')
+            
+        super(ServiceAccount, self).save(*args, **kwargs)
+
+        log = EventLog(
+            source_user = utils._current_user_id_or_none(),
+            source_ip = request.remote_addr,
+            status = 'success',
+            message = f'Service account {self.name} created'
+        )
 
 
 class Role(base.BaseDocument):

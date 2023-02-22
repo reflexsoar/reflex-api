@@ -12,7 +12,8 @@ from . import (
     system,
     user,
     event,
-    UpdateByQuery
+    UpdateByQuery,
+    Float
 )
 from .utils import _current_user_id_or_none
 
@@ -287,6 +288,17 @@ class CloseReason(base.BaseDocument):
         return response
 
 
+class CaseMetrics(InnerDoc):
+    '''
+    Meta information about an event
+    '''
+    time_to_close = Float()
+    sla_breach_time = Date()
+    sla_breach_count = Integer()
+    sla_breach_clear = Date()
+    time_in_sla_breach = Float()
+
+
 class Case(base.BaseDocument):
     '''
     A case contains all the investigative work related to a
@@ -316,6 +328,7 @@ class Case(base.BaseDocument):
     _open_tasks = 0
     _total_tasks = 0
     watchers = Keyword() # A list of UUIDs of users watching this case
+    metrics = Object(CaseMetrics)
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
