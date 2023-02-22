@@ -380,7 +380,8 @@ class EventWorker(Process):
         self.last_refresh = mgmr.Value('s', '')
            
     def alive(self):
-        return psutil.pid_exists(self.pid)
+        return False
+        #return psutil.pid_exists(self.pid)
     
     def force_reload(self):
         self.logger.debug(f'Reload triggered by EventProcessor - {self.name} - {self.organization}')
