@@ -1,5 +1,8 @@
 from pymemcache.client.base import PooledClient
 
+class ConnectionError(Exception):
+    pass
+
 class MemcachedClient:
 
     def __init__(self, *args, **kwargs):
@@ -26,4 +29,10 @@ class MemcachedClient:
         if app:
             self.client = PooledClient(
                 f"{app.config['THREAT_POLLER_MEMCACHED_HOST']}:{app.config['THREAT_POLLER_MEMCACHED_PORT']}",
-                max_pool_size=app.config['MEMCACHED_POOL_SIZE'])
+                max_pool_size=app.config['MEMCACHED_POOL_SIZE'], timeout=app.config['MEMCACHED_TIMEOUT'])
+            try:
+                self.client.set('reflex-api-memcached-test', True, expire=1)
+            except Exception as e:
+                self.client = None
+                print(e)
+                raise ConnectionError(f"Could not connect to Memcached: {e}")

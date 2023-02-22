@@ -5,6 +5,7 @@ import logging
 import datetime
 
 from app.api_v2.model.system import Settings
+from app.services.event_processor.errors import KafkaConnectionFailure
 from app.services.sla_monitor.base import SLAMonitor
 from app.utils.memcached import MemcachedClient
 from flask import Flask
@@ -222,7 +223,11 @@ def create_app(environment='development'):
     cors.init_app(app)
     mail.init_app(app)
     cache.init_app(app)
-    memcached_client.init_app(app)
+    try:
+        memcached_client.init_app(app)
+    except Exception as e:
+        app.logger.error(f"Memcached client failed to initialize. {e}")
+        exit()
 
     authorizations = {"Bearer": {"type": "apiKey", "in": "header", "name":"Authorization"}}
 
@@ -305,7 +310,11 @@ def create_app(environment='development'):
         scheduler.add_job(func=notifier.check_notifications, trigger="interval", seconds=app.config['NOTIFIER']['POLL_INTERVAL'])
 
     if not app.config['EVENT_PROCESSOR']['DISABLED']:
-        ep.init_app(app)
+        try:
+            ep.init_app(app)
+        except KafkaConnectionFailure as e:
+            app.logger.error(f"Kafka connection failed. {e}")
+            exit()
         ep.set_log_level(app.config['EVENT_PROCESSOR']['LOG_LEVEL'])
         ep.spawn_workers()
 
