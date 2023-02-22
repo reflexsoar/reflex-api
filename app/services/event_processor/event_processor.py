@@ -104,6 +104,7 @@ class EventProcessor:
         self.event_cache = []
         self.max_workers_per_organization = 5
         self.worker_processing_metrics = {}
+        self.tracked_workers = 0
 
 
     def set_log_level(self, log_level):
@@ -272,7 +273,7 @@ class EventProcessor:
         while True:            
             self.logger.info('Checking Event Worker health')
             for worker in list(self.workers):
-                if worker.alive() == False:
+                if worker.is_alive() == False:
                     self.logger.error(f"Event Worker {worker.pid} died, starting new worker")
                     self.workers.remove(worker)
                     w = EventWorker(app_config=self.app.config,
@@ -295,19 +296,23 @@ class EventProcessor:
         '''
         worker_info = []
         for worker in self.workers:
-            worker_info.append(
-                {
-                    'pid': worker.pid,
-                    'organization': worker.organization,
-                    'name': worker.name,
-                    'alive': worker.alive(),
-                    'events_in_processing': worker.events_in_processing.value,
-                    'status': worker.status.value,
-                    'processed_events': worker.processed_events.value,
-                    'last_event': worker.last_event.value,
-                    'last_meta_refresh': worker.last_refresh.value
-                }
-            )
+            try:
+                worker_info.append(
+                    {
+                        'pid': worker.pid,
+                        'organization': worker.organization,
+                        'name': worker.name,
+                        'alive': worker.is_alive(),
+                        'events_in_processing': worker.events_in_processing.value,
+                        'status': worker.status.value,
+                        'processed_events': worker.processed_events.value,
+                        'last_event': worker.last_event.value,
+                        'last_meta_refresh': worker.last_refresh.value
+                    }
+                )
+            except FileNotFoundError as e:
+                self.logger.error(f"Error getting worker info: {e}")
+        self.tracked_workers = len(worker_info)
         return worker_info
 
     def restart_workers(self, organization=None):
