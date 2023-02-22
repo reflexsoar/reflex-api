@@ -1984,8 +1984,7 @@ class EventQueueStats(Resource):
     @api.doc(security="Bearer")
     @api.marshal_with(mod_queue_stats)
     def get(self):
-        worker_info = []
-        worker_info = ep.worker_info()
+        worker_info = ep.get_worker_info()
         response = {
             "size": ep.qsize(),
             "workers": worker_info,
