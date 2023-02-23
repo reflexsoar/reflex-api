@@ -50,7 +50,7 @@ class HouseKeeper(object):
         '''
         self.logger.info('Checking for unhealthy agents')
 
-        days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=self.agent_health_lifetime)
+        days_ago = datetime.datetime.utcnow() - datetime.timedelta(minutes=self.agent_health_lifetime)
 
         search = Agent.search()
         search = search[0:search.count()]
@@ -63,7 +63,8 @@ class HouseKeeper(object):
                     agent.health_issues.append("Heartbeat TTL Expired")
                 else:
                     agent.health_issues = ["Heartbeat TTL Expired"]
-            agent.save()
+        
+        agent.save()
 
 
     def prune_old_agents(self):
