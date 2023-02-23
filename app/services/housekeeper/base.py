@@ -139,7 +139,8 @@ class HouseKeeper(object):
                     agent.health_issues = [issue_label]
             else:
                 if hasattr(agent, 'health_issues'):
-                    agent.health_issues.remove(issue_label)
+                    if issue_label in agent.health_issues:
+                        agent.health_issues.remove(issue_label)
                     if len(agent.health_issues) == 0:
                         agent.healthy = True
             agent.save(refresh=True)
