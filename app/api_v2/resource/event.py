@@ -906,6 +906,10 @@ class CreateBulkEvents(Resource):
             # TODO: MAKE THIS FASTER SOMEHOW
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
+                event['agent_uuid'] = current_user.uuid
+                current_user_class_str = type(current_user).__name__.lower()
+                event['agent_type'] = "unknown" if current_user_class_str not in ['agent','user'] else current_user_class_str
+
                 if not check_cache(event['reference'], client=client):
                     if hasattr(ep, 'dedicated_workers') and ep.dedicated_workers:
                         ep.to_kafka_topic(event)
