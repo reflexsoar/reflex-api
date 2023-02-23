@@ -591,7 +591,18 @@ class EventRule(base.BaseDocument):
         '''
         qp = QueryParser(organization=self.organization)
         self.parsed_rule = qp.parser.parse(self.query)
-       
+    
+    def expired(self):
+        '''
+        Checks to see if the rule has expired and disables it if it has expired
+        return True if expired
+        return False if not expired
+        '''
+        if hasattr(self, 'expire_at') and hasattr(self, 'expire'):
+            if self.expire and self.expire_at < datetime.datetime.utcnow():
+                self.active = False
+                return True
+        return False
 
     def check_rule(self, event):
         '''
