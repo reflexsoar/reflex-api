@@ -387,6 +387,7 @@ class EventWorker(Process):
         self.last_event = mgmr.Value('s', '')
         self.events_in_processing = mgmr.Value('i', 0)
         self.last_refresh = mgmr.Value('s', '')
+        self.time_to_refresh = mgmr.Value('i', 0)
            
     def alive(self):
         return psutil.pid_exists(self.pid)
@@ -571,7 +572,7 @@ class EventWorker(Process):
         during Event processing.  This lowers the number of calls
         that need to be sent to Elasticsearch
         '''
-        #time.sleep(5)
+        start_refresh = datetime.datetime.utcnow()
         self.logger.debug('Reloading configuration information')
         self.load_rules()
         self.load_cases()
@@ -580,11 +581,13 @@ class EventWorker(Process):
         self.load_data_types()
         self.load_intel_lists()
         self.last_meta_refresh= datetime.datetime.utcnow()
+        end_refresh = datetime.datetime.utcnow()
         
         if clear_reload_flag:
             self.should_restart.clear()
 
         self.last_refresh.value = datetime.datetime.utcnow().isoformat()
+        self.time_to_refresh.value = (end_refresh - start_refresh).total_seconds()
 
 
     def pop_events_by_action(self, events, action):
@@ -731,7 +734,7 @@ class EventWorker(Process):
                         except EXC_CONNECTION_TIMEOUT as e:
                             self.logger.error(f"Unable to mark task {task.uuid} as finished. Reason: {e}")
 
-                #self.processed_events.value += len(self.events)
+                self.processed_events.value += len(self.events)
                 self.last_event.value = datetime.datetime.utcnow().isoformat()
                 self.events = []
 
