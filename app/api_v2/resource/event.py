@@ -180,6 +180,7 @@ mod_worker_stats = api.model('WorkerStats', {
     'processed_events': fields.Integer,
     'last_event': fields.String,
     'last_meta_refresh': fields.String,
+    'time_to_refresh': fields.Integer,
 })
 
 mod_queue_stats = api.model('QueueStats', {
