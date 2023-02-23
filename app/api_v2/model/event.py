@@ -566,7 +566,7 @@ class EventRule(base.BaseDocument):
             for channel in self.notification_channels:
                 notification = Notification(
                     sent=False,
-                    channel=channel.uuid,
+                    channel=channel,
                     source_object_type=source_object_type,
                     source_object_uuid=source_object_uuid,
                     organization=organization
