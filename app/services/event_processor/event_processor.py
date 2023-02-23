@@ -359,7 +359,7 @@ class EventWorker(Process):
 
         log_handler = logging.StreamHandler()
         log_handler.setFormatter(logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+            '%(asctime)s - %(name)s (%(process)d) - %(levelname)s - %(message)s'))
 
         self.logger = logging.getLogger('EventWorker')
         self.logger.addHandler(log_handler)
@@ -605,15 +605,13 @@ class EventWorker(Process):
 
         self.reload_meta_info()
 
-        print(f"{self.name} - WORKER RUN CALLED")
-
         _events = []
 
         while True:
 
             
             queue_empty = False
-            #self.status.value = 'POLLING'
+            self.status.value = 'POLLING'
 
             if self.config['DEDICATED_WORKERS']:
                 message = self.kf_consumer.poll(self.config['ES_BULK_SIZE'])
