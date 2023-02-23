@@ -319,12 +319,14 @@ class Notifier(object):
             if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
                 channel_config.body = self.use_template(channel_config.body, notification.source_object_type, notification.source_object_uuid)
 
-        response = session.post(channel_config.api_url, data=channel_config.body)
-
-        if response.status_code == 200:
-            notification.send_success()
-        else:
-            notification.send_failed(message=[f'Could not send notification to REST API. {response.status_code} - {response.text}'])
+        try:
+            response = session.post(channel_config.api_url, data=channel_config.body)
+            if response.status_code == 200:
+                notification.send_success()
+            else:
+                notification.send_failed(message=[f'Could not send notification to REST API. {response.status_code} - {response.text}'])
+        except ConnectionError as e:
+            notification.send_failed(message=[f'Could not connect to REST API. {e}'])       
          
 
     def send_reflex(self):
