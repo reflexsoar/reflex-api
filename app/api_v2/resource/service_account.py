@@ -3,7 +3,7 @@ from flask_restx import Resource, Namespace, ValidationError, fields, inputs as 
 from app.api_v2.model.user import Organization
 
 from ..model import ServiceAccount
-from .shared import mod_permissions, DEFAULT_ORG_ONLY_PERMISSIONS
+from .shared import ISO8601, mod_permissions, DEFAULT_ORG_ONLY_PERMISSIONS
 from ..utils import token_required, user_has
 
 api = Namespace('ServiceAccount', description="Service Account operations", path="/service_account")
@@ -30,11 +30,12 @@ mod_service_account_list = api.model('ServiceAccountList', {
     'organization_scope': fields.List(fields.String, required=False, description="List of organization IDs that the service account can access"),
     'active': fields.Boolean(required=False, description="Is the service account active"),
     'permissions': fields.Nested(mod_permissions, required=True, description="Permissions for the service account"),
-    'last_used': fields.DateTime(required=False, description="Last time the service account was used"),
+    'last_used': ISO8601(required=False, description="Last time the service account was used"),
     'created_by': fields.String(required=True, description="User ID of the user who created the service account"),
-    'created_at': fields.DateTime(required=True, description="Time the service account was created"),
+    'created_at': ISO8601(required=True, description="Time the service account was created"),
     'updated_by': fields.String(required=True, description="User ID of the user who last updated the service account"),
-    'updated_at': fields.DateTime(required=True, description="Time the service account was last updated"),
+    'updated_at': ISO8601(required=True, description="Time the service account was last updated"),
+    'expires_at': ISO8601(required=False, description="Time the service account will expire"),
     'tags': fields.List(fields.String, required=False, description="List of tags for the service account"),
 }, strict=True)
 
