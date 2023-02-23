@@ -21,7 +21,7 @@ mod_input_list = api.model('InputList', {
     'description': fields.String,
     'enabled': fields.Boolean,
     'credential': fields.String,
-    'tags': fields.List(fields.String),
+    'tags': fields.List(fields.String, default=[]),
     'config': JSONField(attribute="_config"),
     'field_mapping': JSONField(attribute="_field_mapping"),
     'field_mapping_templates': fields.List(fields.String),
@@ -32,7 +32,9 @@ mod_input_list = api.model('InputList', {
     'sigma_backend': fields.String,
     'sigma_pipeline': fields.String,
     'sigma_field_mapping': fields.String,
-    'mitre_data_sources': fields.List(fields.String)
+    'mitre_data_sources': fields.List(fields.String),
+    'updated_by': fields.String(attribute='updated_by'),
+    'created_by': fields.String(attribute='created_by')
 })
 
 mod_input_list_paged = api.model('InputListPaged', {
