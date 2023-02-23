@@ -94,12 +94,17 @@ class CaseStatus(base.BaseDocument):
         name = 'reflex-case-statuses'
 
     @classmethod
-    def get_by_name(self, name):
+    def get_by_name(self, name, organization=None):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = self.search().query('term', name=name).execute()
+        search = self.search().query('term', name=name)
+        if organization:
+            search = search.query('term', organization=organization)
+
+        response = search.execute()
+
         if response:
             usr = response[0]
             return usr
