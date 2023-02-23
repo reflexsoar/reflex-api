@@ -107,6 +107,7 @@ class EventProcessor:
         self.worker_processing_metrics = {}
         self.tracked_workers = 0
         self.kf_admin = None
+        self.dedicated_workers = False
 
 
     def set_log_level(self, log_level):
