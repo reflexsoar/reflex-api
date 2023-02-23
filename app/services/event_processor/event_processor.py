@@ -48,7 +48,7 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
     from opensearchpy.helpers.errors import BulkIndexError as EXC_BULK_INDEX_ERROR
 else:
     from elasticsearch_dsl import connections
-    from elasticsearch.helpers import async_streaming_bulk
+    from elasticsearch.helpers import streaming_bulk
     from elasticsearch.exceptions import ConnectionTimeout as EXC_CONNECTION_TIMEOUT
     from elasticsearch.helpers.errors import BulkIndexError as EXC_BULK_INDEX_ERROR
 
