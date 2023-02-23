@@ -605,13 +605,15 @@ class EventWorker(Process):
 
         self.reload_meta_info()
 
+        print(f"{self.name} - WORKER RUN CALLED")
+
         _events = []
 
         while True:
 
             
             queue_empty = False
-            self.status.value = 'POLLING'
+            #self.status.value = 'POLLING'
 
             if self.config['DEDICATED_WORKERS']:
                 message = self.kf_consumer.poll(self.config['ES_BULK_SIZE'])
@@ -665,7 +667,7 @@ class EventWorker(Process):
                         _events.append(_event)
 
             if len(_events) >= self.config["ES_BULK_SIZE"] or queue_empty:
-                self.status.value = 'PROCESSING'
+                #self.status.value = 'PROCESSING'
                 self.events_in_processing.value = len(_events)
 
                 def _process_event(event):
@@ -679,13 +681,13 @@ class EventWorker(Process):
                     results = executor.map(_process_event, _events)
                     self.events.extend([r for r in results if r is not None])
 
-                self.events_in_processing.value = 0
+                #self.events_in_processing.value = 0
 
             if (len(self.events) >= self.config["ES_BULK_SIZE"] or queue_empty) and len(self.events) != 0:
 
                 _events = []
 
-                self.status.value = 'PUSHING'
+                #self.status.value = 'PUSHING'
 
                 # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
                 bulk_dismiss = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'dismiss']
@@ -731,8 +733,8 @@ class EventWorker(Process):
                         except EXC_CONNECTION_TIMEOUT as e:
                             self.logger.error(f"Unable to mark task {task.uuid} as finished. Reason: {e}")
 
-                self.processed_events.value += len(self.events)
-                self.last_event.value = datetime.datetime.utcnow().isoformat()
+                #self.processed_events.value += len(self.events)
+                #self.last_event.value = datetime.datetime.utcnow().isoformat()
                 self.events = []
 
 
