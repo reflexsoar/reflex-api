@@ -178,8 +178,9 @@ class EventProcessor:
                 self.logger.info("EventProcessor running in shared worked mode")
             
 
-        self.worker_monitor = threading.Thread(target=self.monitor_workers, args=(), daemon=True)
-        self.worker_monitor.start()
+        if self.config['MONITOR_WORKERS']:
+            self.worker_monitor = threading.Thread(target=self.monitor_workers, args=(), daemon=True)
+            self.worker_monitor.start()
 
     def to_kafka_topic(self, item):
         '''
