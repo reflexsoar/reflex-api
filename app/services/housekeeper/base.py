@@ -85,12 +85,11 @@ class HouseKeeper(object):
         agents = search.scan()
         for agent in agents:
             agent.healthy = False
-                print('HB BEFORE',agent.health_issues)
+            if hasattr(agent, 'health_issues'):
                 if len(agent.health_issues) > 0:
                     if issue_label in agent.health_issues:
                         continue
-                    else:
-                        agent.health_issues.append(issue_label)
+                    agent.health_issues.append(issue_label)
                 else:
                     agent.health_issues = [issue_label]
             else:
