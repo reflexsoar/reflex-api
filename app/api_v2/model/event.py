@@ -549,6 +549,8 @@ class EventRule(base.BaseDocument):
     disable_reason = Keyword() # The reason why a rule was disabled (internally set by the system)
     priority = Integer() # The priority of the event rule, lower is more important
     notification_channels = Keyword() # The channels to send notifications to
+    agent_uuid = Keyword() # The agent that created this event rule
+    agent_type = Keyword() # The type of agent that created this event rule
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
