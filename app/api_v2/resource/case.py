@@ -105,7 +105,7 @@ mod_case_list = api.model('CaseList', {
 })
 
 mod_case_details = api.model('CaseDetails', {
-    # 'id': fields.String,
+    
     'uuid': fields.String,
     'organization': fields.String,
     'title': fields.String,
@@ -118,7 +118,6 @@ mod_case_details = api.model('CaseDetails', {
     'event_count': fields.Integer,
     'related_cases': ValueCount(attribute='related_cases'),
     'open_tasks': fields.Integer,
-    # 'total_tasks': ValueCount(attribute='tasks'),
     'total_tasks': fields.Integer,
     'case_template_uuid': fields.String,
     'created_at': ISO8601(attribute='created_at'),
@@ -127,8 +126,6 @@ mod_case_details = api.model('CaseDetails', {
     'updated_by': fields.Nested(mod_user_list),
     'observable_count': ValueCount(attribute='observables'),
     'escalated': fields.Boolean
-    # 'close_reason': fields.Nested(mod_close_reason_list),
-    # 'case_template': fields.Nested(mod_case_template_brief)
 })
 
 mod_case_paged_list = api.model('PagedCaseList', {
@@ -376,7 +373,7 @@ class CaseList(Resource):
         case = Case(**api.payload)
 
         # Set the default status to New
-        case.status = CaseStatus.get_by_name(name="New")
+        case.status = CaseStatus.get_by_name(name="New", organization=organization)
         case.set_owner(owner_uuid)
 
         event_update_query = UpdateByQuery(index='reflex-events')
@@ -508,6 +505,7 @@ class CaseDetails(Resource):
                 case.open_tasks = len([t for t in tasks if t.status == 0])
             else:
                 case.total_tasks = 0
+
             return case
         else:
             api.abort(404, 'Case not found.')
@@ -526,6 +524,8 @@ class CaseDetails(Resource):
             for f in ['severity', 'tlp', 'status_uuid', 'owner', 'description', 'owner_uuid', 'escalated']:
                 value = ""
                 message = None
+
+                import json
 
                 if f in api.payload:
                     if f == 'status_uuid':
@@ -550,12 +550,13 @@ class CaseDetails(Resource):
                                     print(
                                         f"Notifying {watcher} that the case has been closed, if their notification settings allow it")
                         else:
-                            case.reopen()
-                            # TODO - NOTIFICATIONS: Notify the watchers that the case has been re-opened
-                            if case_watchers:
-                                for watcher in case_watchers:
-                                    print(
-                                        f"Notifying {watcher} that the case has been re-opened, if their notification settings allow it")
+                            if hasattr(case, 'closed') and case.closed:
+                                case.reopen()
+                                # TODO - NOTIFICATIONS: Notify the watchers that the case has been re-opened
+                                if case_watchers:
+                                    for watcher in case_watchers:
+                                        print(
+                                            f"Notifying {watcher} that the case has been re-opened, if their notification settings allow it")
 
                     elif f == 'severity':
 
@@ -615,6 +616,13 @@ class CaseDetails(Resource):
                     case.apply_template(api.payload['case_template_uuid'])
 
             case.update(**api.payload, refresh=True)
+
+            tasks = CaseTask.get_by_case(uuid=uuid)
+            if tasks:
+                case.total_tasks = len(tasks)
+                case.open_tasks = len([t for t in tasks if t.status == 0])
+            else:
+                case.total_tasks = 0
 
             return case
         else:

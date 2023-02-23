@@ -554,8 +554,6 @@ class DetectionDetails(Resource):
             if should_redistribute:
                 redistribute_detections(detection.organization)
 
-            print(detection.updated_at)
-
             return detection
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')

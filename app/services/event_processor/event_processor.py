@@ -38,6 +38,7 @@ from app.api_v2.model import (
     ObservableHistory
 )
 from app.api_v2.model.user import Organization
+from .errors import KafkaConnectionFailure
 
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
@@ -47,7 +48,7 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
     from opensearchpy.helpers.errors import BulkIndexError as EXC_BULK_INDEX_ERROR
 else:
     from elasticsearch_dsl import connections
-    from elasticsearch.helpers import async_streaming_bulk
+    from elasticsearch.helpers import streaming_bulk
     from elasticsearch.exceptions import ConnectionTimeout as EXC_CONNECTION_TIMEOUT
     from elasticsearch.helpers.errors import BulkIndexError as EXC_BULK_INDEX_ERROR
 
@@ -104,6 +105,8 @@ class EventProcessor:
         self.event_cache = []
         self.max_workers_per_organization = 5
         self.worker_processing_metrics = {}
+        self.tracked_workers = 0
+        self.kf_admin = None
 
 
     def set_log_level(self, log_level):
@@ -145,8 +148,6 @@ class EventProcessor:
             if self.dedicated_workers:
                 try:
                     self.logger.info("EventProcessor running in dedicated worker mode")
-                    self.kf_producer = KafkaProducer(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'],
-                                             value_serializer=lambda m: json.dumps(m, default=str).encode('ascii'))
 
                     # Set the partition count on each event topic so that the workers can all consume
                     # from the message topic
@@ -167,10 +168,12 @@ class EventProcessor:
                                 pass
                             except UnknownTopicOrPartitionError:
                                 pass
-                        # Update the retention.ms on all topics
-                        #self.kf_client.alter_configs(topic_list)
+
+                    self.kf_producer = KafkaProducer(bootstrap_servers=self.config['KAFKA_BOOTSTRAP_SERVERS'],
+                                            value_serializer=lambda m: json.dumps(m, default=str).encode('ascii'))
                 except Exception as e:
                     self.logger.error(f"Error connecting to Kafka: {e}")
+                    raise KafkaConnectionFailure(f"Error connecting to Kafka: {e}")
             else:
                 self.logger.info("EventProcessor running in shared worked mode")
             
@@ -272,7 +275,7 @@ class EventProcessor:
         while True:            
             self.logger.info('Checking Event Worker health')
             for worker in list(self.workers):
-                if worker.alive() == False:
+                if worker.is_alive() == False:
                     self.logger.error(f"Event Worker {worker.pid} died, starting new worker")
                     self.workers.remove(worker)
                     w = EventWorker(app_config=self.app.config,
@@ -288,26 +291,30 @@ class EventProcessor:
             time.sleep(self.config['WORKER_CHECK_INTERVAL'])
 
     
-    def worker_info(self):
+    def get_worker_info(self):
         '''
         Returns information about all the Event Workers so that the API can 
         be used to monitor them
         '''
         worker_info = []
         for worker in self.workers:
-            worker_info.append(
-                {
-                    'pid': worker.pid,
-                    'organization': worker.organization,
-                    'name': worker.name,
-                    'alive': worker.alive(),
-                    'events_in_processing': worker.events_in_processing.value,
-                    'status': worker.status.value,
-                    'processed_events': worker.processed_events.value,
-                    'last_event': worker.last_event.value,
-                    'last_meta_refresh': worker.last_refresh.value
-                }
-            )
+            try:
+                worker_info.append(
+                    {
+                        'pid': worker.pid,
+                        'organization': worker.organization,
+                        'name': worker.name,
+                        'alive': psutil.pid_exists(worker.pid),
+                        'events_in_processing': worker.events_in_processing.value,
+                        'status': worker.status.value,
+                        'processed_events': worker.processed_events.value,
+                        'last_event': worker.last_event.value,
+                        'last_meta_refresh': worker.last_refresh.value
+                    }
+                )
+            except FileNotFoundError as e:
+                self.logger.error(f"Error getting worker info: {e}")
+        self.tracked_workers = len(worker_info)
         return worker_info
 
     def restart_workers(self, organization=None):
@@ -380,8 +387,7 @@ class EventWorker(Process):
         self.last_refresh = mgmr.Value('s', '')
            
     def alive(self):
-        return False
-        #return psutil.pid_exists(self.pid)
+        return psutil.pid_exists(self.pid)
     
     def force_reload(self):
         self.logger.debug(f'Reload triggered by EventProcessor - {self.name} - {self.organization}')

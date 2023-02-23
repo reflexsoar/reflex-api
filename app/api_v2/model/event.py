@@ -496,7 +496,7 @@ class Event(base.BaseDocument):
         Returns the event as an IndexedDict object
         '''
         event_as_dict = self.to_dict()
-        if 'event_observables' in event_dict:
+        if 'event_observables' in event_as_dict:
             observables = event_as_dict.pop('event_observables')
             event_as_dict['observables'] = {}
             for i in range(0, len(observables)):

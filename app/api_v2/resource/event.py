@@ -170,6 +170,26 @@ mod_observable_update = api.model('ObservableUpdate', {
     'data_type': fields.String
 })
 
+mod_worker_stats = api.model('WorkerStats', {
+    'pid': fields.Integer,
+    'organization': fields.String,
+    'name': fields.String,
+    'alive': fields.Boolean,
+    'events_in_processing': fields.Integer,
+    'status': fields.String,
+    'processed_events': fields.Integer,
+    'last_event': fields.String,
+    'last_meta_refresh': fields.String,
+})
+
+mod_queue_stats = api.model('QueueStats', {
+    'size': fields.Integer,
+    'workers': fields.List(fields.Nested(mod_worker_stats)),
+    'respawns': fields.Integer,
+    'worker_count': fields.Integer,
+    'dead_workers': fields.Integer
+})
+
 event_list_parser = api.parser()
 event_list_parser.add_argument('status', location='args', default=[
 ], type=str, action='split', required=False)
@@ -1962,7 +1982,14 @@ class EventNewRelatedEvents(Resource):
 class EventQueueStats(Resource):
 
     @api.doc(security="Bearer")
+    @api.marshal_with(mod_queue_stats)
     def get(self):
-        worker_info = []
-        worker_info = ep.worker_info()
-        return {"size": ep.qsize(), "workers": worker_info, "respawns": ep.worker_respawns}
+        worker_info = ep.get_worker_info()
+        response = {
+            "size": ep.qsize(),
+            "workers": worker_info,
+            "respawns": ep.worker_respawns,
+            "worker_count": ep.tracked_workers,
+            "dead_workers": len([w for w in worker_info if w.get('alive', False) == False])
+        }
+        return response

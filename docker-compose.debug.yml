@@ -2,6 +2,9 @@ version: '2.2'
 services:
   reflex-api:
     image: reflex-api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     env_file:
       - ./local.env
     environment:
@@ -11,8 +14,16 @@ services:
       - ./instance/application.conf:/instance/application.conf
     ports:
       - "80:80"
+      - "5678:5678"
     networks:
       - elastictest
+    command:
+      [
+        "sh",
+        "-c",
+        "pipenv install debugpy && pipenv run python -m debugpy --wait-for-client --listen 0.0.0.0:5678 -m app runserver --host 0.0.0.0 --port 80",
+        
+      ]
 
 networks:
   elastictest:

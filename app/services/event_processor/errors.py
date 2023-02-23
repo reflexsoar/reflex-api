@@ -9,4 +9,13 @@ class InvalidEvent(Exception):
         self.message = message
         super().__init__(self.message)
     
-
+class KafkaConnectionFailure(Exception):
+    """
+    Exception raised when the Kafka connection fails
+    
+    Attributes:
+    message: Explanation of the error
+    """
+    def __init__(self, message="Kafka connection failure"):
+        self.message = message
+        super().__init__(self.message)

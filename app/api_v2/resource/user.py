@@ -466,6 +466,8 @@ class UserDetails(Resource):
         user = User.get_by_uuid(uuid)
         if user:
 
+            modified = False
+
             if 'username' in api.payload:
                 target_user = User.get_by_username(api.payload['username'])
                 if target_user:
@@ -493,7 +495,7 @@ class UserDetails(Resource):
             if 'password' in api.payload and user.uuid == current_user.uuid:
                 pw = api.payload.pop('password')
                 user.set_password(pw)
-                user.save()
+                modified = True
 
             if 'password' in api.payload and not current_user.has_right('reset_user_password'):
                 api.payload.pop('password')
@@ -501,7 +503,7 @@ class UserDetails(Resource):
             if 'password' in api.payload and current_user.has_right('reset_user_password'):
                 pw = api.payload.pop('password')
                 user.set_password(pw)
-                user.save()
+                modified = True
 
             # Update the users role if a role update is triggered
             if 'role_uuid' in api.payload and api.payload['role_uuid'] is not None:
@@ -512,11 +514,16 @@ class UserDetails(Resource):
                 if old_role != new_role:
                     new_role.add_user_to_role(user_id=user.uuid)
                     old_role.remove_user_from_role(user_id=user.uuid)
+                    user.load_role()
                     return user
+
+            if modified:
+                user.save()
 
             if len(api.payload) > 0:
                 user.update(**api.payload)
 
+            user.load_role()
             return user
         else:
             api.abort(404, 'User not found.')
