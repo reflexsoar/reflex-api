@@ -311,7 +311,8 @@ class EventProcessor:
                         'status': worker.status.value,
                         'processed_events': worker.processed_events.value,
                         'last_event': worker.last_event.value,
-                        'last_meta_refresh': worker.last_refresh.value
+                        'last_meta_refresh': worker.last_refresh.value,
+                        'time_to_refresh': worker.time_to_refresh.value
                     }
                 )
             except FileNotFoundError as e:
