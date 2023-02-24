@@ -133,10 +133,12 @@ class UserInfo(Resource):
     @ip_approved
     def get(self, current_user):
         ''' Returns information about the currently logged in user '''
-        role = Role.get_by_member(current_user.uuid)
-        organization = Organization.get_by_uuid(current_user.organization)
-        current_user.role = role
-        current_user.default_org = organization.default_org
+        if isinstance(current_user, User):
+            role = Role.get_by_member(current_user.uuid)
+            organization = Organization.get_by_uuid(current_user.organization)
+            current_user.role = role
+            current_user.default_org = organization.default_org
+
         return current_user
 
 

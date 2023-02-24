@@ -621,6 +621,16 @@ class ServiceAccount(base.BaseDocument):
     tags = Keyword() # The tags that this service account can access
     expires_at = Date() # The date that this service account expires
 
+    @property
+    def username(self):
+        return self.name
+    
+    def has_right(self, permission):
+        '''
+        Returns true if the service account has the specified permission
+        '''
+        return getattr(self.permissions, permission)
+
     def get_by_name(self, name, organization=None):
         '''
         Returns a service account by name

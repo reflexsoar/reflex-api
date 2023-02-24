@@ -43,6 +43,8 @@ mod_service_account_list_with_key = mod_service_account_list.clone('ServiceAccou
     'access_token': fields.String(required=True, description="Access token for the service account")
 })
 
+api.models[mod_service_account_list_with_key.name] = mod_service_account_list_with_key
+
 @api.route('')
 class ServiceAccountList(Resource):
     @api.doc(security='Bearer')

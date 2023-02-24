@@ -135,6 +135,7 @@ def _current_user_id_or_none(organization_only=False):
         auth_header = request.headers.get('Authorization')
 
         current_user = None
+        user_type = 'user'
         if auth_header:
             access_token = auth_header.split(' ')[1]
             token = jwt.decode(
@@ -143,6 +144,9 @@ def _current_user_id_or_none(organization_only=False):
                 current_user = None
             elif 'type' in token and token['type'] == 'pairing':
                 current_user = None
+            elif 'type' in token and token['type' == 'service_account']:
+                current_user = token['uuid']
+                user_type = 'service_account'
             else:
                 current_user = token['uuid']
 
@@ -162,7 +166,11 @@ def _current_user_id_or_none(organization_only=False):
                     return None
                     
         if current_user:
-            user = u.User.get_by_uuid(uuid=current_user)
+            if user_type == 'user':
+                user = u.User.get_by_uuid(uuid=current_user)
+            else:
+                user = u.ServiceAccount.get_by_uuid(uuid=current_user)
+                
             current_user = {
                 'username': user.username,
                 'uuid': user.uuid,
