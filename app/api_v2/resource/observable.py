@@ -89,8 +89,10 @@ class ObservableHits(Resource):
         '''
         Get observables that match a value
         '''
+
         search = Event().search()
         search = search.query('nested', path='event_observables', query=Q('match', event_observables__value=value))
+
         total_events = search.count()
 
         search = Event().search()
