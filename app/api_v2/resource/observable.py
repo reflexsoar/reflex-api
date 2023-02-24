@@ -55,9 +55,9 @@ mod_bulk_add_observables = api.model('BulkObservables', {
 })
 
 mod_observable_event_hits = api.model('ObservableEventHits', {
-    'total_events': fields.Integer,
-    'organization_events': fields.Integer,
-    'total_cases': fields.Integer
+    'system_wide_events': fields.Integer,
+    'total_org_events': fields.Integer,
+    'total_org_cases': fields.Integer
 })
 
 
@@ -83,10 +83,10 @@ class ObservableHits(Resource):
         organization_events = search.count()
 
         search = Event().search()
-        search.aggs.bucket('case_observable_metrics', 'filter', nested={
-            'path': 'event_observables', 'query': Q('match', event_observables__value=value)
-        }).bucket('cases', 'cardinality', field='case')
+        search = search.query('bool', must=[Q('nested', path='event_observables', query={'match': {'event_observables.value': value}}), Q('term', organization=current_user.organization)])
+        search.aggs.bucket('cases', 'cardinality', field='case')
+        
         results = search.execute()
-        total_cases = results.aggregations.case_observable_metrics.cases.value
+        total_cases = results.aggregations.cases.value
 
-        return {'total_events': total_events, 'organization_events': organization_events, "total_cases": total_cases}
+        return {'system_wide_events': total_events, 'total_org_events': organization_events, "total_org_cases": total_cases}
