@@ -32,8 +32,8 @@ def auth():
 
 def bulk(events):
 
-    token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1dWlkIjoiMjk2OTYxYjgtZWQ3Mi00ZmI1LWI4ZTMtZTlmMzEyYTFjMzMyIiwib3JnYW5pemF0aW9uIjoiZWY3NjI3Y2YtZTAwNi00ZDhiLThlODMtNmQzNGEyZTQxNDU3IiwiZGVmYXVsdF9vcmciOnRydWUsImV4cCI6MTcwODcxNTgxOSwiaWF0IjoxNjc3MTc5ODE5LCJ0eXBlIjoic2VydmljZV9hY2NvdW50In0.njdj0BTN-M7EleSExRB3nFjHlK7tj57qZnVgOSxZAmw'
-    #token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1dWlkIjoiNDRjMjk2MzEtMGYwNC00MjZiLWExZTQtYmFhYzQwOWIyYzhmIiwib3JnYW5pemF0aW9uIjoiZWY3NjI3Y2YtZTAwNi00ZDhiLThlODMtNmQzNGEyZTQxNDU3IiwiaWF0IjoxNjc3MTY2Mzk2LCJ0eXBlIjoiYWdlbnQiLCJleHAiOjE4MzQ4NDYzOTZ9.GQ8Wz_pyET2oEkdWnClxHLHAZExJQqF21qlm4TOrObA'
+    token = auth()
+    
     if token:
         headers = {
             'Content-Type': 'application/json',
