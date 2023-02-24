@@ -690,8 +690,9 @@ class EventWorker(Process):
                 def _process_event(event):
                     event['metrics']['event_processing_start'] = datetime.datetime.utcnow()
                     event = self.process_event(event)
-                    event['metrics']['event_processing_end'] = datetime.datetime.utcnow()
-                    event['metrics']['event_processing_duration'] = (event['metrics']['event_processing_end'] - event['metrics']['event_processing_start']).total_seconds()
+                    if event:
+                        event['metrics']['event_processing_end'] = datetime.datetime.utcnow()
+                        event['metrics']['event_processing_duration'] = (event['metrics']['event_processing_end'] - event['metrics']['event_processing_start']).total_seconds()
                     return event
 
                 with ThreadPoolExecutor(max_workers=10) as executor:

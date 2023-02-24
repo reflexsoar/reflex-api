@@ -85,7 +85,7 @@ class HouseKeeper(object):
         agents = search.scan()
         for agent in agents:
             agent.healthy = False
-            if hasattr(agent, 'health_issues'):
+            if hasattr(agent, 'health_issues') and agent.health_issues:
                 if len(agent.health_issues) > 0:
                     if issue_label in agent.health_issues:
                         continue
@@ -128,7 +128,7 @@ class HouseKeeper(object):
             uuids_with_events = [b.key for b in results.aggregations.agent_events.agents.buckets]
             if agent.uuid not in uuids_with_events:
                 agent.healthy = False
-                if hasattr(agent, 'health_issues'):
+                if hasattr(agent, 'health_issues') and agent.health_issues:
                     if len(agent.health_issues) > 0:
                         if issue_label in agent.health_issues:
                             continue
@@ -138,7 +138,7 @@ class HouseKeeper(object):
                 else:
                     agent.health_issues = [issue_label]
             else:
-                if hasattr(agent, 'health_issues'):
+                if hasattr(agent, 'health_issues') and agent.health_issues:
                     if issue_label in agent.health_issues:
                         agent.health_issues.remove(issue_label)
                     if len(agent.health_issues) == 0:

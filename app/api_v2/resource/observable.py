@@ -3,7 +3,9 @@ from .shared import mod_pagination
 from ..utils import token_required, user_has
 from ..model import (
     Event,
-    Q
+    Q,
+    ThreatValue,
+    ThreatList
 )
 
 api = Namespace('Observable', description="Observable operations", path="/observable")
@@ -54,13 +56,27 @@ mod_bulk_add_observables = api.model('BulkObservables', {
     'organization': fields.String
 })
 
+mod_threat_list_hits = api.model('ThreatListHits', {
+    'name': fields.String,
+    'uuid': fields.String,
+    'list_type': fields.String,
+    'external_feed': fields.Boolean,
+    'url': fields.String,
+    'hits': fields.Integer
+})
+
+mod_top_events = api.model('TopEvents', {
+    'title': fields.String,
+    'hits': fields.Integer,
+})
+
 mod_observable_event_hits = api.model('ObservableEventHits', {
     'system_wide_events': fields.Integer,
     'total_org_events': fields.Integer,
-    'total_org_cases': fields.Integer
+    'total_org_cases': fields.Integer,
+    'threat_list_hits': fields.List(fields.Nested(mod_threat_list_hits)),
+    'top_events': fields.List(fields.Nested(mod_top_events))
 })
-
-
 
 @api.route('/<string:value>/hits')
 class ObservableHits(Resource):
@@ -80,13 +96,45 @@ class ObservableHits(Resource):
         search = Event().search()
         search = search.filter('term', organization=current_user.organization)
         search = search.query('nested', path='event_observables', query=Q('match', event_observables__value=value))
-        organization_events = search.count()
+
+        search.aggs.bucket('event_titles', 'terms', field='title', size=10)
+        results = search.execute()
+        event_titles = results.aggregations.event_titles.buckets
+        organization_events = results.hits.total.value
+
+        top_events = [{'title': e.key, 'hits': e.doc_count} for e in event_titles]
 
         search = Event().search()
         search = search.query('bool', must=[Q('nested', path='event_observables', query={'match': {'event_observables.value': value}}), Q('term', organization=current_user.organization)])
         search.aggs.bucket('cases', 'cardinality', field='case')
-        
+
         results = search.execute()
         total_cases = results.aggregations.cases.value
 
-        return {'system_wide_events': total_events, 'total_org_events': organization_events, "total_org_cases": total_cases}
+        threat_search = ThreatValue.search()
+        threat_search = threat_search.filter('term', value=value)
+        threat_search = threat_search.filter('term', organization=current_user.organization)
+        threat_search.aggs.bucket('lists', 'terms', field='list_uuid', size=1000)
+        threat_results = threat_search.execute()
+        lists = threat_results.aggregations.lists.buckets
+
+        hits = {l.key: l.doc_count for l in lists}
+
+        list_data = ThreatList.search().filter('terms', uuid=[l.key for l in lists]).filter('term', active=True).scan()
+
+        def is_external_feed(l):
+            return True if hasattr(l, 'url') and l.url else False
+
+        def list_url(l):
+            return l.url if hasattr(l, 'url') and l.url else ''
+
+        list_data = [{'uuid': l.uuid, 'name': l.name, 'list_type': l.list_type, 'hits': hits[l.uuid], 'external_feed': is_external_feed(l), 'url': list_url(l) } for l in list_data]
+
+        response = {'system_wide_events': total_events,
+                    'total_org_events': organization_events,
+                    'total_org_cases': total_cases,
+                    'threat_list_hits': list_data,
+                    'top_events': top_events
+                }
+
+        return response
