@@ -222,7 +222,10 @@ class ThreatList(base.BaseDocument):
 
             if self.list_type != 'patterns':
                 hasher = hashlib.md5()
-                hasher.update(value.encode())
+                if isinstance(value, int):
+                    hasher.update(str(value).encode())
+                else:
+                    hasher.update(value.encode())
                 value = hasher.hexdigest()
 
                 if 'MEMCACHED_CONFIG' in kwargs and kwargs['MEMCACHED_CONFIG']:
