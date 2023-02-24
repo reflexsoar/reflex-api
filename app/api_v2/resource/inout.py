@@ -27,6 +27,25 @@ mod_input_list = api.model('InputList', {
     'field_mapping_templates': fields.List(fields.String),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
+    'mitre_data_sources': fields.List(fields.String),
+    'updated_by': fields.String(attribute='updated_by'),
+    'created_by': fields.String(attribute='created_by')
+})
+
+mod_input_details = api.model('InputList', {
+    'uuid': fields.String,
+    'organization': fields.String,
+    'name': fields.String,
+    'plugin': fields.String,
+    'description': fields.String,
+    'enabled': fields.Boolean,
+    'credential': fields.String,
+    'tags': fields.List(fields.String, default=[]),
+    'config': JSONField(attribute="_config"),
+    'field_mapping': JSONField(attribute="_field_mapping"),
+    'field_mapping_templates': fields.List(fields.String),
+    'created_at': ISO8601(attribute='created_at'),
+    'updated_at': ISO8601(attribute='updated_at'),
     'index_fields': fields.List(fields.String),
     'index_fields_last_updated': ISO8601(attribute='index_fields_last_updated'),
     'sigma_backend': fields.String,
@@ -204,7 +223,7 @@ class InputList(Resource):
 class InputDetails(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_input_list)
+    @api.marshal_with(mod_input_details)
     @token_required
     @user_has('view_inputs')
     def get(self, uuid, current_user):
@@ -217,7 +236,7 @@ class InputDetails(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(mod_input_create)
-    @api.marshal_with(mod_input_list)
+    @api.marshal_with(mod_input_details)
     @token_required
     @user_has('update_input')
     def put(self, uuid, current_user):
