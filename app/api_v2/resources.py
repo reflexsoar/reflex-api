@@ -90,7 +90,8 @@ from .resource import (
     ns_case_v2,
     ns_user_v2,
     ns_input_v2,
-    ns_service_account_v2
+    ns_service_account_v2,
+    ns_observable_v2
 )
 
 from .. import ep
@@ -123,7 +124,7 @@ ns_close_reason_v2 = api2.namespace(
 ns_tag_v2 = api2.namespace('Tag', description='Tag operations', path='/tag')
 ns_dashboard_v2 = api2.namespace('Dashboard', description='API endpoints that drive dashboard display', path='/dashboard')
 ns_plugins_v2 = api2.namespace('Plugin', description='Plugin operations', path='/plugin')
-ns_observable_v2 = api2.namespace('Observable', description="Observable operations", path='/observable')
+#ns_observable_v2 = api2.namespace('Observable', description="Observable operations", path='/observable')
 ns_hunting_v2 = api2.namespace('Hunting', description="Threat hunting operaitons", path="/hunting")
 api2.add_namespace(ns_playbook_v2)
 api2.add_namespace(ns_audit_log_v2)
@@ -146,6 +147,7 @@ api2.add_namespace(ns_case_v2)
 api2.add_namespace(ns_user_v2)
 api2.add_namespace(ns_input_v2)
 api2.add_namespace(ns_service_account_v2)
+api2.add_namespace(ns_observable_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -633,7 +635,7 @@ class DataTypeDetails(Resource):
             ns_data_type_v2.abort(404, 'Data type not found.')
 
 
-
+"""
 @ns_observable_v2.route("/history/<value>")
 class ObservableHistoricalData(Resource):
     '''Provides historical information about an observable so that
@@ -705,7 +707,7 @@ class ObservableHistoricalData(Resource):
                             reverse=True)
 
         return response
-        
+"""
 
 case_status_parser = api2.parser()
 case_status_parser.add_argument(
