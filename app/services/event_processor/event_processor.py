@@ -776,6 +776,10 @@ class EventWorker(Process):
                 if observable['data_type'] == l.data_type.name:
                     matched = l.check_value(
                         observable['value'], MEMCACHED_CONFIG=MEMCACHED_CONFIG)
+                        
+                if l.data_type.name == "generic":
+                    matched = l.check_value(
+                        observable['value'], MEMCACHED_CONFIG=MEMCACHED_CONFIG)
 
             # If there were matches and the list calls for tagging the observable
             if matched and l.tag_on_match:
