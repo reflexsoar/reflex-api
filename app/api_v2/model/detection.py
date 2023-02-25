@@ -33,6 +33,25 @@ class DetectionExceptionIntelList(base.BaseInnerDoc):
 
     name = Keyword(fields={'text': Text()})
 
+
+class GlobalDetectionException(base.BaseDocument):
+    '''
+    Defines a global exclusion that can be used in any Detection Rule
+    '''
+
+    class Index:
+        name = 'reflex-global-detection-exceptions'
+        settings = {
+            "refresh_interval": "1s"
+        }
+
+    description = Text()
+    condition = Keyword()
+    values = Keyword(fields={'text': Text()})
+    field = Keyword()
+    list = Nested(DetectionExceptionIntelList)
+
+
 class DetectionException(base.BaseInnerDoc):
     '''
     A DetectionException tells a detection to filter out specific criteria
