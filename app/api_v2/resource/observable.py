@@ -98,7 +98,7 @@ class ObservableHits(Resource):
         args = observable_parser.parse_args()
 
         search = Event().search()
-        search = search.query('nested', path='event_observables', query=Q('match', event_observables__value__keyword=value))
+        search = search.query('nested', path='event_observables', query=Q('term', event_observables__value__keyword=value))
         total_events = search.count()
 
         search = Event().search()
@@ -106,7 +106,7 @@ class ObservableHits(Resource):
             search = search.filter('term', organization=args['organization'])
         else:
             search = search.filter('term', organization=current_user.organization)
-        search = search.query('nested', path='event_observables', query=Q('match', event_observables__value__keyword=value))
+        search = search.query('nested', path='event_observables', query=Q('term', event_observables__value__keyword=value))
 
         search.aggs.bucket('event_titles', 'terms', field='title', size=100)
         results = search.execute()
@@ -116,7 +116,7 @@ class ObservableHits(Resource):
         top_events = [{'title': e.key, 'hits': e.doc_count} for e in event_titles]
 
         search = Event().search()
-        search = search.query('bool', must=[Q('nested', path='event_observables', query={'match': {'event_observables.value': value}}), Q('term', organization=current_user.organization)])
+        search = search.query('bool', must=[Q('nested', path='event_observables', query={'term': {'event_observables.value.keyword': value}}), Q('term', organization=current_user.organization)])
         search.aggs.bucket('cases', 'cardinality', field='case')
 
         results = search.execute()
