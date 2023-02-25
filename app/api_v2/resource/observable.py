@@ -108,10 +108,11 @@ class ObservableHits(Resource):
             search = search.filter('term', organization=current_user.organization)
         search = search.query('nested', path='event_observables', query=Q('term', event_observables__value__keyword=value))
 
+        organization_events = search.count()
+
         search.aggs.bucket('event_titles', 'terms', field='title', size=100)
         results = search.execute()
         event_titles = results.aggregations.event_titles.buckets
-        organization_events = results.hits.total.value
 
         top_events = [{'title': e.key, 'hits': e.doc_count} for e in event_titles]
 
