@@ -26,6 +26,22 @@ mod_agent_list = api.model('AgentList', {
     'name': fields.String,
     'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
     'roles': fields.List(fields.String),
+    #'groups': fields.List(fields.Nested(mod_agent_group_list), attribute="_groups"),
+    'active': fields.Boolean,
+    'ip_address': fields.String,
+    'healthy': fields.Boolean,
+    'health_issues': fields.List(fields.String),
+    'last_heartbeat': ISO8601(attribute='last_heartbeat'),
+    'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
+    'version': fields.String,
+})
+
+mod_agent_details = api.model('AgentList', {
+    'uuid': fields.String,
+    'organization': fields.String,
+    'name': fields.String,
+    'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
+    'roles': fields.List(fields.String),
     'groups': fields.List(fields.Nested(mod_agent_group_list), attribute="_groups"),
     'active': fields.Boolean,
     'ip_address': fields.String,
@@ -280,7 +296,7 @@ class AgentDetails(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(mod_agent_create)
-    @api.marshal_with(mod_agent_list)
+    @api.marshal_with(mod_agent_details)
     @token_required
     @user_has('update_agent')
     def put(self, uuid, current_user):
@@ -315,7 +331,7 @@ class AgentDetails(Resource):
             api.abort(404, 'Agent not found.')
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_agent_list)
+    @api.marshal_with(mod_agent_details)
     @token_required
     @user_has('view_agents')
     def get(self, uuid, current_user):

@@ -4,7 +4,6 @@ import datetime
 
 from fnmatch import fnmatch
 
-from app.api_v2.model.utils import _current_user_id_or_none
 from . import (
     Document,
     Keyword,
@@ -54,7 +53,7 @@ class BaseDocument(Document):
 
         # Pull the current user so that the search can be filtered by the 
         # users organization ID
-        current_user = _current_user_id_or_none(organization_only=True)
+        current_user = utils._current_user_id_or_none(organization_only=True)
 
         s = Search(using=cls._get_using(using), index=cls._default_index(index), doc_type=[cls])
         if current_user:
@@ -121,7 +120,7 @@ class BaseDocument(Document):
             self.organization = self.uuid
 
         elif not self.organization:
-            current_user = _current_user_id_or_none(organization_only=True)
+            current_user = utils._current_user_id_or_none(organization_only=True)
             if current_user:
                 self.organization = current_user['organization']
 

@@ -181,8 +181,9 @@ class Agent(base.BaseDocument):
     @property
     def _input_count(self):
         inputs = self._inputs
-        [inputs.append(g.inputs) for g in self.groups]
-        return 0
+        if self._groups:
+            [inputs.append(g.inputs) for g in self._groups]
+        return len(inputs)
 
     @property
     def _inputs(self):

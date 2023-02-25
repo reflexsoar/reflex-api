@@ -33,6 +33,7 @@ def auth():
 def bulk(events):
 
     token = auth()
+    
     if token:
         headers = {
             'Content-Type': 'application/json',

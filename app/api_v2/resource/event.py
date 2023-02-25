@@ -225,6 +225,7 @@ event_list_parser.add_argument(
     'sort_direction', type=str, location='args', default="desc", required=False)
 event_list_parser.add_argument('start', location='args', type=str, required=False)
 event_list_parser.add_argument('end', location='args',  type=str, required=False)
+event_list_parser.add_argument('not__tags', location='args', action='split', required=False)
 event_list_parser.add_argument('organization', location='args', action='split', required=False)
 
 
@@ -286,7 +287,7 @@ class EventListAggregated(Resource):
                     'type': 'terms',
                     'field': arg,
                     'value': args[arg]
-                })
+                })        
         
         if args.signature:
             search_filters.append({
@@ -315,6 +316,8 @@ class EventListAggregated(Resource):
         observables = {}
 
         raw_event_count = 0
+
+
         
         # If not filtering by a signature
         if not args.signature:
@@ -329,7 +332,7 @@ class EventListAggregated(Resource):
 
             if args.observables:
                 search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))           
-                
+
             raw_event_count = search.count()
 
             search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
@@ -906,6 +909,10 @@ class CreateBulkEvents(Resource):
             # TODO: MAKE THIS FASTER SOMEHOW
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
+                event['agent_uuid'] = current_user.uuid
+                current_user_class_str = type(current_user).__name__.lower()
+                event['agent_type'] = "unknown" if current_user_class_str not in ['agent','user'] else current_user_class_str
+
                 if not check_cache(event['reference'], client=client):
                     if hasattr(ep, 'dedicated_workers') and ep.dedicated_workers:
                         ep.to_kafka_topic(event)
@@ -1334,7 +1341,12 @@ class EventIndexed(Resource):
         event = Event.get_by_uuid(uuid)
         if event:
             event.event_observables = fetch_observables_from_history(event.event_observables)
-            return json.loads(json.dumps(event.as_indexed_dict(), default=str))
+            event_as_dict = event.as_indexed_dict()
+            event_stripped = {}
+            for k, v in event_as_dict.items():
+                if not k.startswith('metrics.') and not k.startswith('comments.'):
+                    event_stripped[k] = v
+            return json.loads(json.dumps(event_stripped, default=str))
         else:
             api.abort(404, 'Event not found.')
 

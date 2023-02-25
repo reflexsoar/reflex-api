@@ -35,7 +35,8 @@ from app.api_v2.model import (
     Task,
     ThreatList,
     Q,
-    ObservableHistory
+    ObservableHistory,
+    UpdateByQuery
 )
 from app.api_v2.model.user import Organization
 from .errors import KafkaConnectionFailure
@@ -474,21 +475,35 @@ class EventWorker(Process):
         if self.dedicated_worker:
             search = search.filter('bool', should=[
                 Q('term', organization=self.organization),
-                Q('term', global_rule=True)])        
+                Q('term', global_rule=True)])
 
         rules = search.scan()
         rules = list(rules)
 
         # Only load rules that parse correctly
         loaded_rules = []
+        expired_rules = []
 
         for rule in rules:
             try:
+
                 rule.parse_rule()
-                loaded_rules.append(rule)
+                # Check if the rule should expire, if it should don't load it
+
+                if not rule.expired():
+                    loaded_rules.append(rule)
+                else:
+                    expired_rules.append(rule)
+
             except Exception as e:
                 rule.update(active=False, disable_reason=f"Invalid RQL query. {e}", refresh=True)
                 self.logger.error(f"Failed to parse Event Rule {rule.name}, rule has been disabled.  Invalid RQL query. {e}.")
+
+        # Save expired rules
+        ubq = UpdateByQuery(using=EventRule._index._using, index=EventRule._index._name)
+        ubq = ubq.filter('terms', uuid=[r.uuid for r in expired_rules])
+        ubq = ubq.script(source="ctx._source.active = false")
+        ubq.execute()
 
         sorted_rules = [r for r in loaded_rules if r.priority]
         sorted_rules.sort(key=lambda x: x.priority)
@@ -675,8 +690,9 @@ class EventWorker(Process):
                 def _process_event(event):
                     event['metrics']['event_processing_start'] = datetime.datetime.utcnow()
                     event = self.process_event(event)
-                    event['metrics']['event_processing_end'] = datetime.datetime.utcnow()
-                    event['metrics']['event_processing_duration'] = (event['metrics']['event_processing_end'] - event['metrics']['event_processing_start']).total_seconds()
+                    if event:
+                        event['metrics']['event_processing_end'] = datetime.datetime.utcnow()
+                        event['metrics']['event_processing_duration'] = (event['metrics']['event_processing_end'] - event['metrics']['event_processing_start']).total_seconds()
                     return event
 
                 with ThreadPoolExecutor(max_workers=10) as executor:
@@ -758,6 +774,10 @@ class EventWorker(Process):
 
             else:
                 if observable['data_type'] == l.data_type.name:
+                    matched = l.check_value(
+                        observable['value'], MEMCACHED_CONFIG=MEMCACHED_CONFIG)
+                        
+                if l.data_type.name == "generic":
                     matched = l.check_value(
                         observable['value'], MEMCACHED_CONFIG=MEMCACHED_CONFIG)
 

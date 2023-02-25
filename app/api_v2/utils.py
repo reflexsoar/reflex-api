@@ -13,7 +13,7 @@ import elasticapm
 
 from flask import request, current_app, abort
 from flask_restx import fields
-from .model import EventLog, User, ExpiredToken, Settings, Agent
+from .model import EventLog, User, ExpiredToken, Settings, Agent, ServiceAccount
 
 def random_ending(prefix=None, length=10):
     '''
@@ -347,10 +347,16 @@ def _check_token():
                 elif 'type' in token and token['type'] in ['refresh','password_reset']:
                     abort(401, 'Unauthorized')
                     
+                # Service Accounts are for persistent access and have longer than
+                # normal expiration times.  They are not tied to a specific user
+                elif 'type' in token and token['type'] == 'service_account':
+                    current_user = ServiceAccount.get_by_uuid(uuid=token['uuid'])
+                    if not current_user:
+                        abort(401, 'Unknown user error.')
+                
                 # The pairing token can only be used on the add_agent endpoint
                 # and because the token is signed we don't have to worry about 
                 # someone adding a the pairing type to their token
-
                 elif 'type' in token and token['type'] == 'pairing':
                     current_user = token
                 else:

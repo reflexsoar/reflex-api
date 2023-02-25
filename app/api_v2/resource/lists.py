@@ -3,7 +3,7 @@ from app.api_v2.model.threat import ThreatValue
 from ..utils import check_org, default_org, token_required, user_has, ip_approved, page_results
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import ThreatList, DataType
-from .shared import ISO8601, mod_pagination, ValueCount
+from .shared import ISO8601, mod_pagination
 from ... import ep
 
 
@@ -35,6 +35,7 @@ mod_threat_value = api.model('ThreatValue', {
     'data_type': fields.String,
     'list_uuid': fields.String,
     'list_name': fields.String,
+    'event_hits': fields.Integer,
     'created_at': ISO8601
 })
 

@@ -128,11 +128,15 @@ def escape_special_characters(value):
             value = value.replace(character, '\\'+character)
     return value
     
-
+class OutsideRequestContext(Exception):
+    pass
 
 def _current_user_id_or_none(organization_only=False):
     try:
-        auth_header = request.headers.get('Authorization')
+        try:
+            auth_header = request.headers.get('Authorization')
+        except RuntimeError:
+            raise OutsideRequestContext('No request context available.')
 
         current_user = None
         if auth_header:
@@ -171,5 +175,10 @@ def _current_user_id_or_none(organization_only=False):
 
         return current_user
 
-    except Exception:
+    # Siliently fail if we are not in a request context
+    except OutsideRequestContext as e:
         return None
+    except Exception as e:
+        print(e)
+        return None
+    

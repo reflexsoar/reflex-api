@@ -619,6 +619,17 @@ class ServiceAccount(base.BaseDocument):
     last_used = Date() # The last time this service account was used
     organization_scope = Keyword() # The organizations that this service account can access
     tags = Keyword() # The tags that this service account can access
+    expires_at = Date() # The date that this service account expires
+
+    @property
+    def username(self):
+        return self.name
+    
+    def has_right(self, permission):
+        '''
+        Returns true if the service account has the specified permission
+        '''
+        return getattr(self.permissions, permission)
 
     def get_by_name(self, name, organization=None):
         '''
@@ -654,6 +665,9 @@ class ServiceAccount(base.BaseDocument):
             'iat': datetime.datetime.utcnow(),
             'type': 'service_account'
         }, current_app.config['SECRET_KEY'])
+
+        self.expires_at = (datetime.datetime.utcnow() + datetime.timedelta(days=jwt_exp))
+        self.save()
 
         return _access_token
 

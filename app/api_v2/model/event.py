@@ -549,6 +549,8 @@ class EventRule(base.BaseDocument):
     disable_reason = Keyword() # The reason why a rule was disabled (internally set by the system)
     priority = Integer() # The priority of the event rule, lower is more important
     notification_channels = Keyword() # The channels to send notifications to
+    agent_uuid = Keyword() # The agent that created this event rule
+    agent_type = Keyword() # The type of agent that created this event rule
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -566,7 +568,7 @@ class EventRule(base.BaseDocument):
             for channel in self.notification_channels:
                 notification = Notification(
                     sent=False,
-                    channel=channel.uuid,
+                    channel=channel,
                     source_object_type=source_object_type,
                     source_object_uuid=source_object_uuid,
                     organization=organization
@@ -589,7 +591,18 @@ class EventRule(base.BaseDocument):
         '''
         qp = QueryParser(organization=self.organization)
         self.parsed_rule = qp.parser.parse(self.query)
-       
+    
+    def expired(self):
+        '''
+        Checks to see if the rule has expired and disables it if it has expired
+        return True if expired
+        return False if not expired
+        '''
+        if hasattr(self, 'expire_at') and hasattr(self, 'expire'):
+            if self.expire and self.expire_at < datetime.datetime.utcnow():
+                self.active = False
+                return True
+        return False
 
     def check_rule(self, event):
         '''
