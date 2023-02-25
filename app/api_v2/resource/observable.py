@@ -1,3 +1,4 @@
+import urllib
 from flask_restx import fields, Namespace, Resource
 from .shared import mod_pagination
 from ..utils import token_required, user_has, default_org
@@ -94,6 +95,8 @@ class ObservableHits(Resource):
         '''
         Get observables that match a value
         '''
+
+        value = urllib.parse.unquote(value)
 
         args = observable_parser.parse_args()
 
