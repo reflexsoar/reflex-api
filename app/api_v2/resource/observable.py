@@ -1,6 +1,6 @@
 from flask_restx import fields, Namespace, Resource
 from .shared import mod_pagination
-from ..utils import token_required, user_has
+from ..utils import token_required, user_has, default_org
 from ..model import (
     Event,
     Q,
@@ -78,25 +78,34 @@ mod_observable_event_hits = api.model('ObservableEventHits', {
     'top_events': fields.List(fields.Nested(mod_top_events))
 })
 
+observable_parser = api.parser()
+observable_parser.add_argument('organization', location='args', type=str, help='Organization UUID')
+
 @api.route('/<string:value>/hits')
 class ObservableHits(Resource):
 
     @api.doc(security="Bearer")
+    @api.expect(observable_parser)
     @api.marshal_with(mod_observable_event_hits)
     @token_required
+    @default_org
     @user_has('view_events')    
-    def get(self, value, current_user):
+    def get(self, value, user_in_default_org, current_user):
         '''
         Get observables that match a value
         '''
 
+        args = observable_parser.parse_args()
+
         search = Event().search()
         search = search.query('nested', path='event_observables', query=Q('match', event_observables__value=value))
-
         total_events = search.count()
 
         search = Event().search()
-        search = search.filter('term', organization=current_user.organization)
+        if args['organization'] and user_in_default_org:
+            search = search.filter('term', organization=args['organization'])
+        else:
+            search = search.filter('term', organization=current_user.organization)
         search = search.query('nested', path='event_observables', query=Q('match', event_observables__value=value))
 
         search.aggs.bucket('event_titles', 'terms', field='title', size=10)
