@@ -78,7 +78,8 @@ mod_observable_event_hits = api.model('ObservableEventHits', {
     'total_org_events': fields.Integer,
     'total_org_cases': fields.Integer,
     'threat_list_hits': fields.List(fields.Nested(mod_threat_list_hits)),
-    'top_events': fields.List(fields.Nested(mod_top_events))
+    'top_events': fields.List(fields.Nested(mod_top_events)),
+    'base64_decoded_values': fields.List(fields.String)
 })
 
 observable_parser = api.parser()
