@@ -1,3 +1,6 @@
+import re
+import base64
+import urllib
 from flask_restx import fields, Namespace, Resource
 from .shared import mod_pagination
 from ..utils import token_required, user_has, default_org
@@ -95,6 +98,8 @@ class ObservableHits(Resource):
         Get observables that match a value
         '''
 
+        value = urllib.parse.unquote(value)
+
         args = observable_parser.parse_args()
 
         search = Event().search()
@@ -142,11 +147,24 @@ class ObservableHits(Resource):
 
         list_data = [{'uuid': l.uuid, 'name': l.name, 'list_type': l.list_type, 'hits': hits[l.uuid], 'external_feed': is_external_feed(l), 'url': list_url(l) } for l in list_data]
 
+
+        # Attempt to base64 decode any values that are base64 encoded
+        decoded_values = []
+        try:
+            pattern = re.compile(r'\s+([A-Za-z0-9+/]{20}\S+)')
+            matches = pattern.findall(value)
+            if matches:
+                for match in matches:
+                    decoded_values.append(base64.b64decode(match).decode('utf-8'))
+        except Exception as e:
+            pass
+
         response = {'system_wide_events': total_events,
                     'total_org_events': organization_events,
                     'total_org_cases': total_cases,
                     'threat_list_hits': list_data,
-                    'top_events': top_events
+                    'top_events': top_events,
+                    'base64_decoded_values': decoded_values
                 }
 
         return response
