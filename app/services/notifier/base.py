@@ -4,6 +4,7 @@ import time
 import pymsteams
 import chevron
 import requests
+from jinja2 import Environment
 from pdpyras import EventsAPISession
 from requests.exceptions import ConnectionError
 from app.api_v2.model import Notification, NotificationChannel, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE, Event, Case, Settings, Credential
@@ -183,12 +184,15 @@ class Notifier(object):
         }
 
         message = ""
+        environment = Environment()
+        jinja_template = environment.from_string(template)
 
         if source_object_type in SOURCE_OBJECT_TYPE:
             source_object = None
             source_object = OBJECT_MAP[source_object_type].get_by_uuid(uuid=source_object_uuid)
             if source_object:
-                message = chevron.render(template, source_object.to_dict())
+                message = jinja_template.render(source_object.to_dict())
+                #message = chevron.render(template, source_object.to_dict())
                 return message
 
         return template       
