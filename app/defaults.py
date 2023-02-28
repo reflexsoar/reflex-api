@@ -584,7 +584,9 @@ def initial_settings(cls, org_id, check_for_default=False):
         'data_types': ['ip','user','host','fqdn','sha1','md5','sha256','imphash','ssdeep','vthash','network','domain','url','mail','sid','mac'],
         'organization': org_id,
         'case_sla_days': 14,
-        'event_sla_minutes': 5
+        'event_sla_minutes': 5,
+        'allow_user_registration': False,
+        'default_self_registration_role': None
     }
 
     if check_for_default == False:

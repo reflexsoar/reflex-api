@@ -500,10 +500,13 @@ class EventWorker(Process):
                 self.logger.error(f"Failed to parse Event Rule {rule.name}, rule has been disabled.  Invalid RQL query. {e}.")
 
         # Save expired rules
-        ubq = UpdateByQuery(using=EventRule._index._using, index=EventRule._index._name)
-        ubq = ubq.filter('terms', uuid=[r.uuid for r in expired_rules])
-        ubq = ubq.script(source="ctx._source.active = false")
-        ubq.execute()
+        try:
+            ubq = UpdateByQuery(using=EventRule._index._using, index=EventRule._index._name)
+            ubq = ubq.filter('terms', uuid=[r.uuid for r in expired_rules])
+            ubq = ubq.script(source="ctx._source.active = false")
+            ubq.execute()
+        except Exception as e:
+            self.logger.error(f"Failed to disable expired rules. {e}")
 
         sorted_rules = [r for r in loaded_rules if r.priority]
         sorted_rules.sort(key=lambda x: x.priority)

@@ -30,9 +30,9 @@ class EventLog(base.BaseDocument):
     status = Keyword()
     event_reference = Keyword()
     time_taken = Float()
-    message = Text(fields={'keyword':Keyword()})
+    message = Text(fields={'keyword': Keyword()})
 
-    class Index: # pylint: disable=too-few-public-methods
+    class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-audit-logs'
         settings = {
@@ -48,7 +48,7 @@ class Tag(base.BaseDocument):
 
     _name = Keyword()
 
-    class Index: # pylint: disable=too-few-public-methods
+    class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-tags'
 
@@ -81,10 +81,10 @@ class DataType(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text(fields={'keyword':Keyword()})
-    regex = Text(fields={'keyword':Keyword()})
+    description = Text(fields={'keyword': Keyword()})
+    regex = Text(fields={'keyword': Keyword()})
 
-    class Index: # pylint: disable=too-few-public-methods
+    class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-data-types'
 
@@ -95,10 +95,10 @@ class DataType(base.BaseDocument):
         Uses a term search on a keyword field for EXACT matching
         '''
         response = self.search()
-        
+
         if organization:
             response = response.filter('term', organization=organization)
-            
+
         response = response.query('term', name=name).execute()
         if response:
             user = response[0]
@@ -114,7 +114,7 @@ class DataType(base.BaseDocument):
 
         if organization:
             response = response.filter('term', organization=organization)
-        
+
         response = response[0:response.count()]
         response = response.execute()
         if response:
@@ -129,7 +129,7 @@ class Settings(base.BaseDocument):
     the application behave
     '''
 
-    base_url = Text(fields={'keyword':Keyword()})
+    base_url = Text(fields={'keyword': Keyword()})
     require_case_templates = Boolean()  # Default True
     #email_from = Text()
     #email_server = db.Column(db.String(255))
@@ -139,16 +139,16 @@ class Settings(base.BaseDocument):
     playbook_action_timeout = Integer()  # Default 300
     playbook_timeout = Integer()  # Default 3600
     logon_password_attempts = Integer()  # Default 5
-    logon_expire_at = Integer() # Default 6 hours
+    logon_expire_at = Integer()  # Default 6 hours
     api_key_valid_days = Integer()  # Default 366 days
     agent_pairing_token_valid_minutes = Integer()  # Default 15
-    peristent_pairing_token = Text(fields={'keyword':Keyword()})
+    peristent_pairing_token = Text(fields={'keyword': Keyword()})
     require_event_dismiss_comment = Boolean()  # Default False
     allow_event_deletion = Boolean()  # Default False
     require_case_close_comment = Boolean()  # Default False
     assign_case_on_create = Boolean()  # Default True
     assign_task_on_start = Boolean()  # Default True
-    reopen_case_on_event_merge = Boolean() # Default False
+    reopen_case_on_event_merge = Boolean()  # Default False
     allow_comment_editing = Boolean()  # Default False
     events_page_refresh = Integer()  # Default 60
     events_per_page = Integer()  # Default 10
@@ -160,16 +160,20 @@ class Settings(base.BaseDocument):
     minimum_password_length = Integer()
     enforce_password_complexity = Boolean()
     disallowed_password_keywords = Keyword()
-    case_sla_days = Integer() # The number of days a case can stay open before it's in SLA breach
-    event_sla_minutes = Integer() # The number of minutes an event can be New before its SLA breach
+    # The number of days a case can stay open before it's in SLA breach
+    case_sla_days = Integer()
+    # The number of minutes an event can be New before its SLA breach
+    event_sla_minutes = Integer()
+    allow_user_registration = Boolean()  # Allow users to register themselves
+    # The default role to assign to self registered users
+    default_self_registration_role = Keyword()
 
-    class Index: # pylint: disable=too-few-public-methods
+    class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-settings'
         settings = {
             'refresh_interval': '1s'
         }
-
 
     def save(self, **kwargs):
         ''' Overrides the save() function of BaseDocument to provide a method
@@ -183,7 +187,7 @@ class Settings(base.BaseDocument):
 
         if self.minimum_password_length is None:
             self.minimum_password_length = 8
-        
+
         if self.enforce_password_complexity is None:
             self.enforce_password_complexity = False
 
@@ -204,7 +208,7 @@ class Settings(base.BaseDocument):
 
         if organization:
             settings = settings.filter('term', organization=organization)
-           
+
         settings = settings.execute()
         if settings:
             return settings[0]
@@ -233,20 +237,21 @@ class Settings(base.BaseDocument):
 
 class ObservableHistory(base.BaseDocument):
     tags = Keyword()
-    data_type = Text(fields={'keyword':Keyword()})
+    data_type = Text(fields={'keyword': Keyword()})
     value = Keyword()
     spotted = Boolean()
     ioc = Boolean()
     safe = Boolean()
     tlp = Integer()
-    events = Keyword() # A list of event UUIDs this Observable belongs to
-    case = Keyword() # The case the observable belongs to
-    rule = Keyword() # The rule the Observable belongs to
-    source_type = Keyword() # The type of object from the source field (int, str, ip, bool)
-    source_field = Keyword() # The source field or alias being used
-    original_source_field = Keyword() # The source field where the observable was extracted from
+    events = Keyword()  # A list of event UUIDs this Observable belongs to
+    case = Keyword()  # The case the observable belongs to
+    rule = Keyword()  # The rule the Observable belongs to
+    source_type = Keyword()  # The type of object from the source field (int, str, ip, bool)
+    source_field = Keyword()  # The source field or alias being used
+    # The source field where the observable was extracted from
+    original_source_field = Keyword()
 
-    class Index: # pylint: disable=too-few-public-methods
+    class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-observable-history'
         settings = {
@@ -276,22 +281,23 @@ class Observable(base.BaseDocument):
     An observable is an artifact on an event that is of importance
     to an analyst. An observable could be an IP, domain, email, fqdn, etc.
     '''
-    
+
     tags = Keyword()
-    data_type = Text(fields={'keyword':Keyword()})
+    data_type = Text(fields={'keyword': Keyword()})
     value = Keyword()
     spotted = Boolean()
     ioc = Boolean()
     safe = Boolean()
     tlp = Integer()
-    events = Keyword() # A list of event UUIDs this Observable belongs to
-    case = Keyword() # The case the observable belongs to
-    rule = Keyword() # The rule the Observable belongs to
-    source_type = Keyword() # The type of object from the source field (int, str, ip, bool)
-    source_field = Keyword() # The source field or alias being used
-    original_source_field = Keyword() # The source field where the observable was extracted from
+    events = Keyword()  # A list of event UUIDs this Observable belongs to
+    case = Keyword()  # The case the observable belongs to
+    rule = Keyword()  # The rule the Observable belongs to
+    source_type = Keyword()  # The type of object from the source field (int, str, ip, bool)
+    source_field = Keyword()  # The source field or alias being used
+    # The source field where the observable was extracted from
+    original_source_field = Keyword()
 
-    class Index: # pylint: disable=too-few-public-methods
+    class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-observables-test'
         settings = {
@@ -314,7 +320,6 @@ class Observable(base.BaseDocument):
 
         return super().save(**kwargs)
 
-
     def set_case(self, uuid):
         '''
         Assigns the observable to a case
@@ -322,14 +327,12 @@ class Observable(base.BaseDocument):
         self.case = uuid
         self.save()
 
-
     def set_rule(self, uuid):
         '''
         Assigns the event rule the observable belongs to
         '''
         self.rule = uuid
         self.save()
-
 
     def toggle_ioc(self):
         '''
@@ -339,7 +342,6 @@ class Observable(base.BaseDocument):
             self.update(ioc=False, refresh=True)
         else:
             self.update(ioc=True, refresh=True)
-
 
     def enrich(self):
         '''
@@ -362,7 +364,6 @@ class Observable(base.BaseDocument):
 
         self.save()
 
-
     def add_event_uuid(self, uuid):
         '''
         Adds an event UUID to an observable for future lookup
@@ -372,7 +373,6 @@ class Observable(base.BaseDocument):
                 self.events.append(uuid)
         else:
             self.events = [uuid]
-
 
     def add_tag(self, tag):
         '''
@@ -384,20 +384,24 @@ class Observable(base.BaseDocument):
         else:
             self.tags = [tag]
 
-
     def check_threat_list(self):
         '''
         Checks the value of the observable against all threat
         lists for this type
         '''
-        theat_lists = threat.ThreatList.get_by_data_type(self.data_type, organization=self.organization)
-        for l in theat_lists:
-            if l.active:
-                hits = l.check_value(self.value)
-                if hits > 0:
-                    if l.tag_on_match:
-                        self.add_tag(f"list: {l.name}")
-        self.save()
+        try:
+            theat_lists = threat.ThreatList.get_by_data_type(
+                self.data_type, organization=self.organization)
+            for l in theat_lists:
+                if l.active:
+                    hits = l.check_value(self.value)
+                    if hits > 0:
+                        if l.tag_on_match:
+                            self.add_tag(f"list: {l.name}")
+            self.save()
+        except Exception as error:
+            # TODO: Determine if we can use the current_app logger here
+            print(f"Error Checking observable against threat list: {error}")
 
     def auto_data_type(self):
         '''
@@ -425,8 +429,7 @@ class Observable(base.BaseDocument):
                         matched = True
 
             if not matched:
-                self.data_type = "generic" # CHANGE THIS TO GENERIC
-
+                self.data_type = "generic"  # CHANGE THIS TO GENERIC
 
     @classmethod
     def get_by_value_and_field(self, value, field, all_docs=True):
@@ -436,7 +439,8 @@ class Observable(base.BaseDocument):
         documents = []
         if value is not None:
             if isinstance(value, list):
-                response = self.search().query('terms', value=value).query('match', source_field=field)
+                response = self.search().query('terms', value=value).query(
+                    'match', source_field=field)
                 if all_docs:
                     response = response[0:response.count()]
                     response.execute()
@@ -444,7 +448,8 @@ class Observable(base.BaseDocument):
                     response.execute()
                 documents = list(response)
             else:
-                response = self.search().query('term', value=value).query('match', source_field=field)
+                response = self.search().query('term', value=value).query(
+                    'match', source_field=field)
                 if all_docs:
                     response = response[0:response.count()]
                     response.execute()
@@ -453,7 +458,6 @@ class Observable(base.BaseDocument):
                 documents = response
 
         return documents
-
 
     @classmethod
     def get_by_value(self, value, all_docs=True):
@@ -526,9 +530,9 @@ class Observable(base.BaseDocument):
         Fetches the observable based on the case and the value
         '''
         s = self.search()
-        #if any(c in value for c in ['-','@']):
+        # if any(c in value for c in ['-','@']):
         #    s = s.filter('term', value__keyword=value)
-        #else:
+        # else:
         s = s.filter('match', value=value)
         s = s.filter('match', case=uuid)
         response = s.execute()
@@ -538,7 +542,7 @@ class Observable(base.BaseDocument):
             return None
 
     def __eq__(self, other):
-        return self.data_type==other.data_type and self.value==other.value
+        return self.data_type == other.data_type and self.value == other.value
 
     def __hash__(self):
         return hash(('data_type', self.data_type, 'value', self.value))
