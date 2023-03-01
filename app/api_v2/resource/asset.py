@@ -181,9 +181,6 @@ class AssetList(Resource):
             if args[arg]:
                 search = search.filter('term', **{arg: args[arg]})
 
-        import json
-        print(json.dumps(search.to_dict(), indent=4))
-
         assets = search.scan()
         return {'assets': [a for a in assets]}
     
