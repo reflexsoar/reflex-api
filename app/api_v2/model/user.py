@@ -600,6 +600,12 @@ class Permission(InnerDoc):
     update_service_account = Boolean()
     delete_service_account = Boolean()
 
+    # Asset Permissions
+    create_asset = Boolean()
+    view_assets = Boolean()
+    update_asset = Boolean()
+    delete_asset = Boolean()
+
 
 class ServiceAccount(base.BaseDocument):
     '''

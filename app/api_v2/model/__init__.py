@@ -86,6 +86,7 @@ from .detection import (
 from .task import Task
 from .mitre import MITRETactic, MITRETechnique
 from .notification import EmailNotificationTemplate, NotificationChannel, Notification, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE
+from .asset import Asset, UserAsset, GroupAsset, ComputerAsset, NetworkInterface, OperatingSystem
 
 VERSION = (2, 0, 0)
 __version__ = VERSION
@@ -139,7 +140,14 @@ __all__ = [
     Notification,
     EmailNotificationTemplate,
     ServiceAccount,
+    Asset,
+    UserAsset,
+    GroupAsset,
+    ComputerAsset,
+    NetworkInterface,
+    OperatingSystem,
     NOTIFICATION_CHANNEL_TYPES,
     SOURCE_OBJECT_TYPE,
-    memcached_client
+    memcached_client,
+    Ip
 ]
