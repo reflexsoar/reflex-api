@@ -165,7 +165,6 @@ class RoleDetails(Resource):
             
             # Check to see if the user is trying to set forbidden permissions
             if any([permission in DEFAULT_ORG_ONLY_PERMISSIONS and api.payload['permissions'][permission] for permission in api.payload['permissions']]):
-                print("WHAT!")
                 if org and org.default_org == False:
                     api.abort(400, 'Only the default Organization can have these permissions.')
 
@@ -181,6 +180,7 @@ class RoleDetails(Resource):
                 api.abort(400, 'A role must be empty before it can be moved between Organizations.')
 
             else:
+                print(api.payload)
                 role.update(**api.payload, refresh=True)
                 return role
         else:

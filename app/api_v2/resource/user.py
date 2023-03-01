@@ -8,7 +8,7 @@ from flask_restx import inputs as xinputs
 
 from ..model import Organization, Role, User
 from ..utils import (check_org, ip_approved, log_event, page_results,
-                     token_required, user_has)
+                     token_required, user_has, user_scope_has, request_user)
 from .shared import ISO8601, mod_pagination, mod_permissions
 
 api = Namespace('User', description='User related operations', path='/user')
@@ -92,6 +92,7 @@ mod_user_create_success = api.model('UserCreateSuccess', {
 })
 
 mod_user_create = api.model('UserCreate', {
+    'organization': fields.String(required=False),
     'username': fields.String(required=True),
     'email': fields.String(required=True),
     'password': fields.String(required=True),
@@ -140,6 +141,48 @@ class UserInfo(Resource):
             current_user.default_org = organization.default_org
 
         return current_user
+
+scope_permission_parser = api.parser()
+scope_permission_parser.add_argument('organization', location='args', type=str, action='split', required=False, help='Organization UUID')
+
+@api.route("/test/scoped_user_list")
+class TestScopedUserList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(scope_permission_parser)
+    @api.marshal_with(mod_user_list_paged)
+    @token_required
+    @user_scope_has('view_users')
+    def get(self, current_user):
+        ''' TEST SCOPED GET REQUESTS '''
+
+        users = User.scoped_search()
+        print(len(users))
+
+        return {
+            'users': users,
+            'pagination': {
+                'total_results': len(users),
+                'page': 1,
+                'pages': 1,
+                'page_size': len(users)
+            }
+        }
+
+@api.route("/test/scoped_user_create")
+class TestScopedUserCreate(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_user_create)
+    @api.marshal_with(mod_user_create_success)
+    @token_required
+    @user_scope_has('add_user')
+    def post(self, current_user):
+        ''' TEST SCOPED POST REQUESTS '''
+
+        data = api.payload
+
+        return {'message': 'success', 'user': data}
 
 
 @api.route('/generate_api_key')

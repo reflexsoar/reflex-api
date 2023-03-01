@@ -28,6 +28,7 @@ class Config(object):
     API_DESCRIPTION = 'A Security Orchestration and Automation Platform'
     WTF_CSRF_ENABLED = False
     PERMISSIONS_DISABLED = False
+    SCOPE_BASED_ACCESS = as_bool(os.getenv('REFLEX_SCOPE_BASED_ACCESS')) if os.getenv('REFLEX_SCOPE_BASED_ACCESS') else False
 
     PLUGIN_DIRECTORY = os.getenv('REFLEX_PLUGINS_DIR') if os.getenv('REFLEX_PLUGINS_DIR') else 'plugins/'
     PLUGIN_EXTENSIONS = ['zip']

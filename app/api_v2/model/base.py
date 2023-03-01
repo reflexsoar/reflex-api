@@ -56,6 +56,7 @@ class BaseDocument(Document):
         current_user = utils._current_user_id_or_none(organization_only=True)
 
         s = Search(using=cls._get_using(using), index=cls._default_index(index), doc_type=[cls])
+        s = s.source(excludes=['password_hash'])
         if current_user:
             
             is_default_org = 'default_org' in current_user and current_user['default_org']
