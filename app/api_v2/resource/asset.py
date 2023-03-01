@@ -108,6 +108,7 @@ mod_asset_create = api.model('AssetCreate', {
 
 mod_asset_detail = api.model('AssetDetail', {
     'uuid': fields.String,
+    'organization': fields.String,
     'asset_type': fields.String,
     'host': fields.Nested(mod_computer_asset, skip_none=True),
     'user': fields.Nested(mod_user_asset, skip_none=True),
@@ -160,7 +161,7 @@ asset_list_parser.add_argument('host__name', type=str, help='Host name', locatio
 asset_list_parser.add_argument('host__ip', type=str, help='IP address', location='args')
 asset_list_parser.add_argument('mac', type=str, help='MAC address', location='args')
 asset_list_parser.add_argument('user__username', type=str, help='User principal name', location='args')
-
+asset_list_parser.add_argument('organization', type=str, help='Organization', location='args')
 
 @api.route('')
 @api.doc(security="Bearer")
