@@ -282,8 +282,8 @@ class Detection(base.BaseDocument):
                         break
 
                 if not replaced:
-                    final_fields.append(field)
-        
+                    final_fields.append(detection_field)
+
         return final_fields
 
 
