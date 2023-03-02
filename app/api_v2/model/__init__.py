@@ -59,7 +59,7 @@ else:
 
 from .user import User, Role, ExpiredToken, Organization, ServiceAccount
 from .agent import Agent, AgentGroup, AgentPolicy, AgentLogMessage
-from .inout import Input, FieldMappingTemplate
+from .inout import Input, FieldMappingTemplate, VALID_DATA_TYPES
 from .threat import ThreatList, ThreatValue
 from .event import Event, EventRule, EventStatus, EventComment, EventView
 from .case import (
@@ -149,5 +149,6 @@ __all__ = [
     NOTIFICATION_CHANNEL_TYPES,
     SOURCE_OBJECT_TYPE,
     memcached_client,
-    Ip
+    Ip,
+    VALID_DATA_TYPES
 ]

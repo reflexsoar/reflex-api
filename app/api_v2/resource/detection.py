@@ -33,7 +33,9 @@ mod_detection_exception = api.model('DetectionException', {
     'condition': fields.String(required=True),
     'values': fields.List(fields.String(required=True)),
     'field': fields.String(required=True),
-    'list': fields.Nested(mod_intel_list)
+    'list': fields.Nested(mod_intel_list, required=False),
+    'is_global': fields.Boolean(required=False, default=False),
+    'rule_bound': fields.Boolean(required=False, default=False)
 }, strict=True)
 
 mod_detection_exception_list = api.model('DetectionExceptionList', {
@@ -43,6 +45,8 @@ mod_detection_exception_list = api.model('DetectionExceptionList', {
     'values': fields.List(fields.String),
     'field': fields.String,
     'list': fields.Nested(mod_intel_list),
+    'is_global': fields.Boolean(required=False, default=False),
+    'rule_bound': fields.Boolean(required=False, default=False),
     'created_by': fields.Nested(mod_user_list)
 }, strict=True)
 

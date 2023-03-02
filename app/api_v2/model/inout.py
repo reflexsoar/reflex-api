@@ -11,6 +11,30 @@ from . import (
     Date
 )
 
+VALID_DATA_TYPES = [
+        "url",
+        "user",
+        "sid",
+        "sha256hash",
+        "sha1hash",
+        "process",
+        "port",
+        "pid",
+        "md5hash",
+        "mac",
+        "ip",
+        "imphash",
+        "host",
+        "generic",
+        "fqdn",
+        "filepath",
+        "email_subject",
+        "email",
+        "domain",
+        "detection_id",
+        "command",
+      ]
+
 class FieldMap(InnerDoc):
     '''
     FieldMaps tell the agent what source field in the input to map to a
@@ -19,7 +43,11 @@ class FieldMap(InnerDoc):
 
     field = Keyword()
     data_type = Text(fields={'keyword':Keyword()})
+    sigma_field = Keyword()
     tlp = Integer()
+    ioc = Boolean()
+    safe = Boolean()
+    spotted = Boolean()
     tags = Keyword()
 
 
