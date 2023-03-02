@@ -105,6 +105,7 @@ class Input(base.BaseDocument):
     config = Object()
     credential = Keyword()  # The UUID of the credential in use
     tags = Keyword()
+    field_templates = Keyword() # A list of field templates to apply to the alert
     field_mapping = Nested(FieldMap)
     index_fields = Keyword() # A list of all the fields on the index via _mapping
     index_fields_last_updated = Date()
@@ -162,4 +163,28 @@ class Input(base.BaseDocument):
             user = response[0]
             return user
         return response
+
+    def get_field_settings(self):
+        '''Provides a list of field settings for this input'''
+
+        final_fields = []
+
+        if self.field_templates:
+            templates = FieldMappingTemplate.get_by_uuid(self.field_templates)
+            templates.sort(key=lambda x: x.priority, reverse=True)
+            for template in templates:
+                for template_field in template.field_mapping:
+                    replaced = False
+                    for field in final_fields:
+                        if field['field'] == template_field['field']:
+                            final_fields[final_fields.index(field)] = template_field
+                            replaced = True
+                            break
+                    
+                    if not replaced:
+                        final_fields.append(template_field)
+        else:
+            final_fields = self.field_mapping.fields
+
+        return final_fields
 

@@ -113,6 +113,8 @@ class FieldMappingTemplateDetails(Resource):
 
     
 field_mapping_template_parser = api.parser()
+field_mapping_template_parser.add_argument('name', location='args', required=False)
+field_mapping_template_parser.add_argument('name__like', location='args', required=False)
 field_mapping_template_parser.add_argument('organization', location='args', required=False)
 field_mapping_template_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
@@ -145,6 +147,12 @@ class FieldMapList(Resource):
         if user_in_default_org:
             if args.organization:
                 templates = templates.filter('term', organization=args.organization)
+
+        if args.name__like:
+            templates = templates.query('wildcard', name=f"*{args.name__like}*")
+
+        if args.name:
+            templates = templates.filter('term', name=args.name)
 
         sort_by = args.sort_by
         if sort_by not in ['name']:
