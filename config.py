@@ -22,6 +22,7 @@ class Config(object):
     DEBUG = False
     SECURITY_PASSWORD_HASH = 'pbkdf2_sha512'
     SECURITY_TRACKABLE = True
+    TEMPLATES_AUTO_RELOAD = True
     
     API_TITLE = 'Reflex SOAR'
     API_VERSION = '2.0'

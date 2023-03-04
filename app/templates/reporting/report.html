@@ -1,0 +1,268 @@
+{% extends "reporting/base.html" %}
+
+{% from "reporting/macros.html" import trend_arrow with context %}
+{% from "reporting/macros.html" import severity_badge with context %}
+{% from "reporting/macros.html" import severity_text with context %}
+{% block title %}Test{% endblock %}
+{% block body %}
+<header class="d-flex align-items-center pb-2 mb-5 border-bottom">
+    <div class="row">
+        <div class="col-8">
+            <span class="d-flex align-items-center text-dark text-decoration-none">
+                <img src="/img/logo.png" width="20%" alt="">&nbsp;
+                <span class="fs-2">{{ report.title }}</span>
+            </span>
+        </div>
+        <div class="col text-end">
+            <small class="text-muted justify-content-end">Generated: {{ report.generated_on }}</small>
+        </div>
+    </div>
+</header>
+<div class="row pb-3">
+    <div class="col">
+        <h2>Event Overview</h2>
+    </div>
+</div>
+<div class="row pb-3">
+    <h3 class="pb-3">Event Handling Metrics</h3>
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <div class="fs-5 mb-0 fw-semibold card-title">Total Events</div>
+                <div class="fs-6 card-subtitle mb-2 text-muted ">All Time</div>
+                <span class="fs-1">{{report.events.total}}</span>
+            </div>
+            <div class="card-footer text-muted">
+                &nbsp;
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <div class="fs-5 mb-0 fw-semibold card-title">Events this period</div>
+                <div class="fs-6 card-subtitle mb-2 text-muted">Last {{report.date.total_days}} Days</div>
+                <span class="fs-1">{{report.events.this_period.total}} {{
+                    trend_arrow(report.events.this_period.total_trend_direction) }}</span>
+            </div>
+            <div class="card-footer text-muted">
+                <small class="text-muted metric-footer">vs. {{report.events.last_period.total}} from last period</small>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <div class="fs-5 mb-0 fw-semibold card-title">Handled via Automation</div>
+                <div class="fs-6 card-subtitle mb-2 text-muted">Acted on by Event Rules</div>
+                <span class="fs-1">{{report.events.this_period.automation_total}} {{
+                    trend_arrow(report.events.this_period.automation_trend_direction) }}</span>
+            </div>
+            <div class="card-footer text-muted">
+                <small class="text-muted metric-footer">
+                    vs. {{report.events.last_period.automation_total }} last period | {{
+                    report.events.this_period.automation_percent }}% of events
+                </small>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <div class="fs-5 mb-0 fw-semibold card-title">Handled By Analyst</div>
+                <div class="fs-6 card-subtitle mb-2 text-muted ">Human interaction required</div>
+                <span class="fs-1">{{report.events.this_period.manual_total}} {{
+                    trend_arrow(report.events.this_period.manual_trend_direction) }}</span>
+            </div>
+            <div class="card-footer text-muted">
+                <small class="text-muted metric-footer">
+                    vs. {{report.events.last_period.manual_total }} last period | {{
+                    report.events.this_period.manual_percent }}% of events
+                </small>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <div class="fs-5 mb-0 fw-semibold card-title">Customer Reviewed</div>
+                <div class="fs-6 card-subtitle mb-2 text-muted ">Additional Info Provided</div>
+                <span class="fs-1">{{report.events.this_period.customer_total}} {{
+                    trend_arrow(report.events.this_period.customer_trend_direction) }}</span>
+            </div>
+            <div class="card-footer text-muted">
+                <small class="text-muted metric-footer">
+                    vs. {{report.events.last_period.customer_total }} last period | {{
+                    report.events.this_period.customer_percent }}% of events
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row" style="page-break-after: always">
+    <div class="col">
+        <h2 class="pb-3">Events Over Time</h2>
+        <p>The below chart represents the total volume of events for this reporting period compared to the volume during
+            the last reporting period. The blue bar represents the delta in the number of events received on the same
+            day the previous reporting period.</p>
+        <p>How to read this chart:
+        <ul>
+            <li>A large negative delta could be an indicator of issues with the detection engine firing, the indexing of
+                the post firing event or the shipment of the event to the Security Operations Center</li>
+            <li>A large positive delta could be an indicator that a new rule was added that created too many alerts, a
+                spike in suspicious activity or malicious activity occurred due to an ongoing attack or overall user
+                activity was higher due to the previous period being a holiday or low period for the organization</li>
+        </ul>
+        </p>
+        <p>The expected view of this chart is for volumes and deltas to remain relatively consistent and large swings in
+            either direction over sustained periods should be investigated.</p>
+    </div>
+    <div class="row">
+        <div class="col" style="position: relative; height:40vh; width:80vw">
+            <canvas id="events-over-time" width="400" height="100"></canvas>
+        </div>
+    </div>
+</div>
+
+
+<div class="row pb-3">
+    <h2 class="pb-3">Case Metrics</h2>
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <div class="fs-5 mb-0 fw-semibold card-title">Total Cases</div>
+                <div class="fs-6 card-subtitle mb-2 text-muted ">All Time</div>
+                <span class="fs-1">{{report.cases.total}}</span>
+            </div>
+            <div class="card-footer text-muted">
+                &nbsp;
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <div class="fs-5 mb-0 fw-semibold card-title">Cases Created</div>
+                <div class="fs-6 card-subtitle mb-2 text-muted ">Last {{report.date.total_days}} Days</div>
+                <span class="fs-1">{{report.cases.this_period}}</span>
+            </div>
+            <div class="card-footer text-muted">
+                &nbsp;
+            </div>
+        </div>
+    </div>
+    {% for severity in range(1, 5) %}
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <div class="fs-5 mb-0 fw-semibold card-title">Open Cases</div>
+                <div class="fs-6 card-subtitle mb-2 text-muted ">Last {{report.date.total_days}} Days</div>
+                <span class="fs-1">{{report.cases.open_by_severity[severity] if severity in report.cases.open_by_severity else 0 }}</span>
+            </div>
+            <div class="card-footer text-muted text-end">
+                {{ severity_badge(severity) }}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+<div class="row pb-3" style="page-break-after: always">
+    <h2 class="pb-3">Case Details</h2>
+    <div class="col">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th scope="col">Case Title</th>
+                    <th scope="col">Description</th>
+                    <th scope="col">Severity</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Total Events</th>
+                    <th scope="col">Created</th>
+                    <th scope="col">Updated</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for case in report.cases.details.open %}
+                <tr>
+                    <td><a href="{{ base_url }}/#/cases/{{ case.uuid }}">{{ case.title }}</a></td>
+                    <td>{{ case.description }}</td>
+                    <td>{{ severity_badge(case.severity) }}</td>
+                    <td>{{ case.status.name }}</td>
+                    <td>{{ case.total_events }}</td>
+                    <td>{{ case.created_at.strftime("%c") }}</td>
+                    <td>{{ case.updated_at.strftime("%c") }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <h2 class="pb-3">Event Details</h2>
+    </div>
+</div>
+{% for event in report.events.details %}
+<div class="row">
+    <div class="col">
+        <div class="row">
+            <div class="col">
+                <h3>{{ event.title }} - {{ event.hits }} hits</h3>
+                <p>{{event.description}}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+<script>
+    const ctx = document.getElementById('events-over-time');
+
+    const events_over_time_chart = new Chart(ctx, {
+        data: {
+            labels: {{ report.events.chart.labels | tojson }},
+            datasets: [{
+                label: 'Previous Period',
+                data: {{ report.events.chart.previous_period_data | tojson}},
+                type: 'line',
+                borderWidth: 2,
+                pointBorderWidth: 1,
+                pointRadius: 5,
+                tension: .5,
+                borderColor: "green"
+            },
+            {
+                label: 'This Period',
+                data: {{ report.events.chart.current_period_data | tojson}},
+                type: 'line',
+                borderWidth: 2,
+                pointBorderWidth: 1,
+                pointRadius: 5,
+                tension: .5,
+                borderColor: "blue"
+            },
+            {
+                label: 'Change from Previous Period',
+                data: {{ report.events.chart.delta | tojson }},
+                borderWidth: 0,
+                type: 'bar',
+                barThickness: 50,
+                backgroundColor: 'rgba(0, 0, 255, 0.3)'
+            }]
+        },
+        options: {
+            responsive: true,
+            spanGaps: true,
+            responsive: true,
+            pointDot: true,
+            pointDotRadius: 5,
+            pointDotStrokeWidth: 2,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>{{report}}
+{% endblock %}
