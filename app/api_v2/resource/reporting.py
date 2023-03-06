@@ -52,7 +52,7 @@ class Reporting(Resource):
 
         # MOVE THESE TO A CONFIG
         timezone = args.utc_offset
-        
+
         if not timezone.startswith('-'):
             timezone = '+' + timezone
 
@@ -168,7 +168,7 @@ class Reporting(Resource):
         # Get the customers alerts by severity by hour of the day
         event_hours_search = Event.search().filter('term', organization=organization_uuid).query('range', created_at=current_period)
         event_hours_search.aggs.bucket('severity', 'terms', field='severity')
-        event_hours_search.aggs['severity'].bucket('timeslice', 'histogram', script="doc['created_at'].value.getHour()", interval=1, min_doc_count=0, extended_bounds={'min': 0, 'max': 23}, order={'_key': 'desc'})
+        event_hours_search.aggs['severity'].bucket('timeslice', 'histogram', script=f"doc['created_at'].value.withZoneSameInstant(ZoneId.of('{timezone}')).getHour()", interval=1, min_doc_count=0, extended_bounds={'min': 0, 'max': 23}, order={'_key': 'desc'})
         event_hours_search.extra(size=0)
         event_hours_search = event_hours_search.execute()
         event_hours = []
