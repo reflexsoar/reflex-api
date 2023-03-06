@@ -124,6 +124,16 @@
     </div>
 </div>
 
+<div class="row" style="page-break-after: always;">
+    <div class="col">
+        <h2 class="pb-3">Events Time Analysis</h2>
+        <h3 class="pb-3">Severity by Hour of Day</h3>
+        <p>The below chart attempts to correlate the number of alerts received by severity to the hour of day in which it was received.  This chart is useful for determining whether the ideal number of Human operators are available during the time in which alerts are being received.  A high number of alerts outside the SOC hours would indicate that a shift change is necessary to accomodate for alerts in these time periods.</p>
+        <p><b>Time Zone Note:</b> All times in this chart are represented in UTC+0 timezone format.</p>
+        <div id="events_by_severity_by_hour"></div>
+    </div>
+</div>  
+
 
 <div class="row pb-3">
     <h2 class="pb-3">Case Metrics</h2>
@@ -264,5 +274,74 @@
             }
         }
     });
-</script>{{report}}
+</script>
+<script>
+    var events_by_severity_by_hour_options = {
+          series: {{report.events.severity_by_hour_of_day | tojson }}
+        , annotations: {
+            xaxis: [
+                {
+                    x: '{{report.soc_hours.start}}',
+                    x2: '{{report.soc_hours.end}}',
+                    borderColor: "#283747",
+                    fillColor: "#283747",
+                    opacity: 0.2,
+        label: {
+          borderColor: "#283747",
+          style: {
+            color: "#fff",
+            background: "#283747"
+          },
+          text: "SOC Hours"
+        }
+                }
+            ]
+        },
+          chart: {
+          height: 350,
+          type: 'heatmap',
+        },
+        dataLabels: {
+          enabled: true
+        },
+        plotOptions: {
+      heatmap: {
+        enableShades: true,
+        colorScale: {
+            min: 0,
+            max: 100,
+            ranges: [
+                {
+                    from: 0,
+                    to: 25,
+                    name: 'Low Volume',
+                    color: '#52BE80'
+                },
+                {
+                    from: 25,
+                    to: 75,
+                    name: 'Medium Volume',
+                    color: '#F39C12'
+                },
+                {
+                    from: 75,
+                    to: 250,
+                    name: 'High Volume',
+                    color: '#C0392B'
+                },
+                {
+                    from: 250,
+                    to: 1000,
+                    name: 'Very High Volume',
+                    color: '#7D3C98'
+                }
+            ]
+        
+        }
+      }
+    }
+        };
+var chart = new ApexCharts(document.querySelector("#events_by_severity_by_hour"), events_by_severity_by_hour_options);
+chart.render();
+</script>
 {% endblock %}

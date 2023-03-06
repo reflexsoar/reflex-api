@@ -1,5 +1,6 @@
 import json
 import datetime
+from app import cache
 from flask import render_template, make_response
 from flask_restx import Resource, Namespace, fields
 
@@ -7,6 +8,18 @@ from ..model import Event, Organization, Case
 
 api = Namespace('reporting', description='Reporting related operations', path='/reporting')
 
+
+def severity_as_string(severity):
+    if severity == 1:
+        return 'Low'
+    elif severity == 2:
+        return 'Medium'
+    elif severity == 3:
+        return 'High'
+    elif severity == 4:
+        return 'Critical'
+    else:
+        return 'Unknown'
 
 def events_per_period_per_day(events, start_date, end_date):
     date_span = end_date - start_date
@@ -22,25 +35,51 @@ def trend_direction(current, previous):
         return 'flat'
 
 
-@api.route("/<string:report_title>")
+report_parser = api.parser()
+report_parser.add_argument('days', type=int, required=False, help='Number of days to report on', default=14)
+report_parser.add_argument('utc_offset', type=str, required=False, help='UTC offset', default="00:00"),
+report_parser.add_argument('soc_start_hour', type=int, required=False, help='Start hour of SOC', default=14)
+report_parser.add_argument('soc_end_hour', type=int, required=False, help='End hour of SOC', default=22)
+
+@api.route("/<organization_uuid>")
 class Reporting(Resource):
 
-    def get(self, report_title):
+    @api.expect(report_parser)
+    def get(self, organization_uuid):
         headers = {'Content-Type': 'text/html'}
 
+        args = report_parser.parse_args()
+
         # MOVE THESE TO A CONFIG
-        organization_uuid = "ef7627cf-e006-4d8b-8e83-6d34a2e41457"
-        report_days = 14
+        timezone = args.utc_offset
+        
+        if not timezone.startswith('-'):
+            timezone = '+' + timezone
+
+        report_days = args.days
+        soc_start_hour = args.soc_start_hour
+        soc_end_hour = args.soc_end_hour
         base_url = "http://localhost:8080"
         #####
 
+        print(timezone)
+
+        if timezone.startswith('-'):
+            offset = int(timezone[1:3])*-1
+        if timezone.startswith('+'):
+            offset = int(timezone[1:3])
+
         current_period = {
-            'gte': datetime.datetime.utcnow() - datetime.timedelta(days=report_days)
+            'gte': datetime.datetime.utcnow() - datetime.timedelta(days=report_days),
+            'time_zone': f'{timezone}'
         }
+
+        print(current_period)
 
         previous_period = {
             'gte': datetime.datetime.utcnow() - datetime.timedelta(days=report_days*2),
-            'lt': datetime.datetime.utcnow() - datetime.timedelta(days=report_days)
+            'lt': datetime.datetime.utcnow() - datetime.timedelta(days=report_days),
+            'time_zone': f'{timezone}:00'
         }
 
         organization = Organization.get_by_uuid(organization_uuid)
@@ -126,6 +165,21 @@ class Reporting(Resource):
         delta = [current_data[i] - previous_data[i] for i in range(len(current_data))]
         event_chart_labels = [day for day in current_days.keys()]
 
+        # Get the customers alerts by severity by hour of the day
+        event_hours_search = Event.search().filter('term', organization=organization_uuid).query('range', created_at=current_period)
+        event_hours_search.aggs.bucket('severity', 'terms', field='severity')
+        event_hours_search.aggs['severity'].bucket('timeslice', 'histogram', script="doc['created_at'].value.getHour()", interval=1, min_doc_count=0, extended_bounds={'min': 0, 'max': 23}, order={'_key': 'desc'})
+        event_hours_search.extra(size=0)
+        event_hours_search = event_hours_search.execute()
+        event_hours = []
+        sorted_severity = sorted(event_hours_search.aggregations.severity.buckets, key=lambda x: x.key)
+        for severity in sorted_severity:
+            series = {'name': severity_as_string(severity.key), 'data': []}
+            timesorted = sorted(severity.timeslice.buckets, key=lambda x: x.key)
+            for timeslice in timesorted:
+                series['data'].append({'x': str(int(timeslice.key)), 'y': timeslice.doc_count})
+            event_hours.append(series)            
+
         # Create warnings for the Events Over Time chart
         warnings = []
 
@@ -172,11 +226,23 @@ class Reporting(Resource):
         open_cases = [case for case in open_case_search.scan()]
         [setattr(case, 'total_events', case.event_count) for case in open_cases]
         open_cases = [c.to_dict() for c in open_cases]
-        
+
+        if current_period_events == 0:
+            automation_percentage = 0
+            manual_percentage = 0
+            customer_percent = 0
+        else:
+            automation_percentage = round((handled_by_auto / current_period_events) * 100,0)
+            manual_percentage = round((handled_by_analyst / current_period_events) * 100,0)
+            customer_percent = round((customer_count / current_period_events) * 100,0)
 
         report = {
             'title': f'Monthly SOC Report for {organization.name}',
             'generated_on': datetime.datetime.utcnow().isoformat(),
+            'soc_hours': {
+                'start': soc_start_hour+offset,
+                'end': soc_end_hour+offset
+            },
             'date': {
                 'total_days': 30,
                 'start_date': '2020-01-01',
@@ -192,17 +258,18 @@ class Reporting(Resource):
                 }
             },
             'events': {
+                'severity_by_hour_of_day': event_hours,
                 'this_period': {
                     'total': current_period_events,
                     'total_trend_direction': trend_direction(current_period_events, previous_events_count),
                     'automation_total': handled_by_auto,
-                    'automation_percent': round(handled_by_auto/current_period_events*100,0),
+                    'automation_percent': automation_percentage,
                     'automation_trend_direction': trend_direction(handled_by_auto, handled_by_auto_previous_period),
                     'manual_total': handled_by_analyst,
-                    'manual_percent': round(handled_by_analyst/current_period_events*100,0),
+                    'manual_percent': manual_percentage,
                     'manual_trend_direction': trend_direction(handled_by_analyst, handled_by_analyst_previous_period),
                     'customer_total': customer_count,
-                    'customer_percent': round(customer_count/current_period_events*100,0),
+                    'customer_percent': customer_percent,
                     'customer_trend_direction': trend_direction(customer_count, customer_count_previous_period)
                 },
                 'last_period': {
