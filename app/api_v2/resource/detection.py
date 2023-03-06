@@ -26,7 +26,7 @@ from ..sigma_parsing.main import SigmaParser
 api = Namespace(
     'Detection', description='Reflex detection rules', path='/detection', strict=True)
 
-mod_export_detections = api.model('ExportDetections', {
+mod_bulk_detections = api.model('ExportDetections', {
     'detections': fields.List(fields.String, required=True)
 })
 
@@ -643,7 +643,7 @@ class DetectionFieldSettings(Resource):
                 "fields": final_fields,
                 "signature_fields": signature_fields
             }
-                    
+
             return response
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')
@@ -673,6 +673,7 @@ class ParseSigma(Resource):
 
         return detection
 
+
 @api.route("/<uuid>/export")
 class DetectionExport(Resource):
 
@@ -686,14 +687,15 @@ class DetectionExport(Resource):
         '''
 
         detection = Detection.get_by_uuid(uuid=uuid)
-        
+
         if detection:
             file_name = f'{detection.uuid}.json'
             exported_detection = detection.export()
             return exported_detection
-        
+
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')
+
 
 @api.route("/export")
 class DetectionExportSelected(Resource):
@@ -701,7 +703,7 @@ class DetectionExportSelected(Resource):
     @api.doc(security="Bearer")
     @token_required
     @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
-    @api.expect(mod_export_detections)
+    @api.expect(mod_bulk_detections)
     @user_has('view_detections')
     def post(self, current_user):
         '''
@@ -709,12 +711,108 @@ class DetectionExportSelected(Resource):
         '''
 
         detections = Detection.get_by_uuid(uuid=api.payload['detections'])
-        
+
         if detections:
             exported_detections = []
             for detection in detections:
                 exported_detections.append(detection.export())
             return exported_detections
-        
+
+        else:
+            api.abort(400, f'Detection rules not found')
+
+
+@api.route("/enable")
+class BulkEnableDetections(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @api.expect(mod_bulk_detections)
+    @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
+    @user_has('update_detection')
+    def post(self, current_user):
+        '''
+        Enables the selected detections
+        '''
+
+        updated_orgs = []
+
+        # Find all the detections
+        detections = Detection.get_by_uuid(uuid=api.payload['detections'])
+
+        if detections:
+
+            # Update each detection
+            for detection in detections:
+
+                # If the detection is already active, skip it
+                if detection.active:
+                    continue
+
+                # TODO: Add a access check to make sure this user has access to update
+                # the detection for now we will just check if the user is an admin or in
+                # the detection's organization
+                if current_user.default_org or current_user.organization == detection.organization:
+                    detection.update(active=True, refresh=True)
+
+                    # Track which organizations have updated detections so
+                    # the detection workload can be redistributed
+                    if detection.organization not in updated_orgs:
+                        updated_orgs.append(detection.organization)
+
+            # Redistribute the detection workload for each organization
+            for organization in updated_orgs:
+                redistribute_detections(organization)
+
+            return detections
+
+        else:
+            api.abort(400, f'Detection rules not found')
+
+
+@api.route("/disable")
+class BulkDisableDetections(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @api.expect(mod_bulk_detections)
+    @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
+    @user_has('update_detection')
+    def post(self, current_user):
+        '''
+        Disables the selected detections
+        '''
+
+        updated_orgs = []
+
+        # Find all the detections
+        detections = Detection.get_by_uuid(uuid=api.payload['detections'])
+
+        if detections:
+
+            # Update each detection
+            for detection in detections:
+
+                # If the detection is already disabled, skip it
+                if not detection.active:
+                    continue
+
+                # TODO: Add a access check to make sure this user has access to update
+                # the detection for now we will just check if the user is an admin or in
+                # the detection's organization
+                if current_user.default_org or current_user.organization == detection.organization:
+                    detection.update(active=False, refresh=True)
+
+                    # Track which organizations have updated detections so
+                    # the detection workload can be redistributed
+                    if detection.organization not in updated_orgs:
+                        updated_orgs.append(detection.organization)
+
+            # Redistribute the detection workload for each organization
+            for organization in updated_orgs:
+                redistribute_detections(organization)
+
+            return detections
+
         else:
             api.abort(400, f'Detection rules not found')
