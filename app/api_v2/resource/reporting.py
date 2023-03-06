@@ -5,7 +5,7 @@ from flask import render_template, make_response
 from flask_restx import Resource, Namespace, fields
 from ..utils import token_required, user_has
 
-from ..model import Event, Organization, Case
+from ..model import Event, Organization, Case, Settings
 
 api = Namespace('Reporting', description='Reporting related operations', path='/reporting')
 
@@ -45,15 +45,19 @@ class Reporting(Resource):
     @token_required    
     def get(self, current_user, organization_uuid):
 
-        if not current_user.default_org or current_user.organization != organization_uuid:
+        if not current_user.default_org and current_user.organization != organization_uuid:
             api.abort(403, "You do not have permission to view this report")
 
+        org_settings = Settings.load(organization=organization_uuid)
+        
         headers = {'Content-Type': 'text/html'}
 
         args = report_parser.parse_args()
 
-        # MOVE THESE TO A CONFIG
-        timezone = args.utc_offset
+        if hasattr(org_settings, 'utc_offset'):
+            timezone = org_settings.utc_offset
+        else:
+            timezone = args.utc_offset
 
         if not timezone.startswith('-'):
             timezone = '+' + timezone
