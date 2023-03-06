@@ -1,10 +1,13 @@
 import datetime
+import json
+import io
 
 from uuid import uuid4
 from app.api_v2.model.detection import DetectionException
 from app.api_v2.model.user import User
 from app.api_v2.model.utils import _current_user_id_or_none
 from ..utils import check_org, token_required, user_has
+from flask import send_file
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import (
     Detection,
@@ -22,6 +25,10 @@ from ..sigma_parsing.main import SigmaParser
 
 api = Namespace(
     'Detection', description='Reflex detection rules', path='/detection', strict=True)
+
+mod_export_detections = api.model('ExportDetections', {
+    'detections': fields.List(fields.String, required=True)
+})
 
 mod_intel_list = api.model('DetectionIntelList', {
     'name': fields.String,
@@ -665,3 +672,49 @@ class ParseSigma(Resource):
         #detection = sigma_parser.parse(sigma_rule)
 
         return detection
+
+@api.route("/<uuid>/export")
+class DetectionExport(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @api.marshal_with(mod_detection_details)
+    @user_has('view_detections')
+    def get(self, uuid, current_user):
+        '''
+        Returns the detection rule as a JSON object
+        '''
+
+        detection = Detection.get_by_uuid(uuid=uuid)
+        
+        if detection:
+            file_name = f'{detection.uuid}.json'
+            exported_detection = detection.export()
+            return exported_detection
+        
+        else:
+            api.abort(400, f'Detection rule for UUID {uuid} not found')
+
+@api.route("/export")
+class DetectionExportSelected(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
+    @api.expect(mod_export_detections)
+    @user_has('view_detections')
+    def post(self, current_user):
+        '''
+        Returns the detection rules as a JSON object
+        '''
+
+        detections = Detection.get_by_uuid(uuid=api.payload['detections'])
+        
+        if detections:
+            exported_detections = []
+            for detection in detections:
+                exported_detections.append(detection.export())
+            return exported_detections
+        
+        else:
+            api.abort(400, f'Detection rules not found')

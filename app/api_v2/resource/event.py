@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from app.api_v2.model.system import ObservableHistory, Settings
 from app.api_v2.model.user import Organization
+from app.api_v2.model.case import Case
 from flask import current_app
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus, EventComment
@@ -528,10 +529,12 @@ class EventListAggregated(Resource):
             return {'message': 'Event already exists'}, 409
 
 
-def fetch_observables_from_history(observables):
+def fetch_observables_from_history(observables, organization=None):
 
     search = ObservableHistory.search()
     search = search.filter('terms', value=[o['value'] for o in observables])
+    if organization:
+        search = search.filter('term', organization=organization)
     search = search[0:0]
     search.aggs.bucket('values', 'terms', field='value', order={'max_date': 'desc'})
     search.aggs['values'].bucket('max_date', 'max', field='created_at')
@@ -643,26 +646,29 @@ class EventObservablesByCase(Resource):
     @user_has('view_case_events')
     def get(self, uuid, current_user):
 
-        search = Event.search()
-        search = search.filter('term', case=uuid)
-        search = search[:0]
-        search.aggs.bucket('observables', 'nested', path="event_observables")
-        search.aggs['observables'].metric('unique_values', 'cardinality', field="event_observables.value.keyword")
-        search.aggs['observables'].bucket('values', 'top_hits', _source={"includes": [ "event_observables.value",
-                          "event_observables.data_type",
-                          "event_observables.tlp",
-                          "event_observables.ioc",
-                          "event_observables.spotted",
-                          "event_observables.safe",
-                          "event_observables.tags"]}, size=10000)
-        events = search.execute()
-        exists = set()
-        observables = [o.to_dict() for o in events.aggs.observables.values if [(o.value, o.data_type) not in exists and hasattr(o, 'value'), exists.add((o.value, o.data_type))][0]]
-        observables = fetch_observables_from_history(observables)
-        #observables = []
-        #
-        #for event in events:
-        #    observables += [o for o in event.observables if [(o.value, o.data_type) not in exists, exists.add((o.value, o.data_type))][0]]
+        case = Case.get_by_uuid(uuid)
+
+        observables = []
+
+        if case:
+
+            search = Event.search()
+            search = search.filter('term', case=uuid)
+            search = search[:0]
+            search.aggs.bucket('observables', 'nested', path="event_observables")
+            search.aggs['observables'].metric('unique_values', 'cardinality', field="event_observables.value.keyword")
+            search.aggs['observables'].bucket('values', 'top_hits', _source={"includes": [ "event_observables.value",
+                            "event_observables.data_type",
+                            "event_observables.tlp",
+                            "event_observables.ioc",
+                            "event_observables.spotted",
+                            "event_observables.safe",
+                            "event_observables.tags"]}, size=10000)
+            events = search.execute()
+            exists = set()
+            observables = [o.to_dict() for o in events.aggs.observables.values if [(o.value, o.data_type) not in exists and hasattr(o, 'value'), exists.add((o.value, o.data_type))][0]]
+            observables = fetch_observables_from_history(observables, organization=case.organization)
+
         return {
             'observables': list(observables),
             'total_observables': events.aggs.observables.unique_values.value,
@@ -1340,7 +1346,7 @@ class EventIndexed(Resource):
 
         event = Event.get_by_uuid(uuid)
         if event:
-            event.event_observables = fetch_observables_from_history(event.event_observables)
+            event.event_observables = fetch_observables_from_history(event.event_observables, organization=event.organization)
             event_as_dict = event.as_indexed_dict()
             event_stripped = {}
             for k, v in event_as_dict.items():
@@ -1362,7 +1368,7 @@ class EventDetails(Resource):
 
         event = Event.get_by_uuid(uuid)
         if event:
-            event.event_observables = fetch_observables_from_history(event.event_observables)
+            event.event_observables = fetch_observables_from_history(event.event_observables, organization=event.organization)
             return event
         else:
             api.abort(404, 'Event not found.')

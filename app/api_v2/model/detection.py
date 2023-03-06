@@ -285,6 +285,17 @@ class Detection(base.BaseDocument):
                     final_fields.append(detection_field)
 
         return final_fields
+    
+    def export(self):
+        ''' Returns the detection as a dictionary, excluding certain fields '''
+        detection = self.to_dict()
+        stripped_fields = ['active','created_at', 'created_by', 'updated_at',
+                           'updated_by', 'case_template', 'source',
+                           'time_taken', 'query_time_taken', 'run_start'
+                           'run_finished', 'next_run', 'last_run', 'last_hit',
+                           'organization']
+        
+        return {k: v for k, v in detection.items() if k not in stripped_fields}
 
 
 class DetectionPerformanceMetric(base.BaseDocument):
