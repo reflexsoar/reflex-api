@@ -102,7 +102,7 @@ class Reporting(Resource):
 
         # Find the number of events per day for this period
         events_per_day = Event.search().filter('term', organization=organization_uuid).filter('range', created_at=current_period)
-        events_per_day.aggs.bucket('dates', 'date_histogram', field='created_at', fixed_interval='1d', extended_bounds={
+        events_per_day.aggs.bucket('dates', 'date_histogram', field='created_at', fixed_interval='1d', time_zone=timezone, extended_bounds={
           "min": f"now-{report_days}d",
           "max": "now/d"
         })        
@@ -113,7 +113,7 @@ class Reporting(Resource):
 
         # Find the number of events per day for this period
         events_per_day = Event.search().filter('term', organization=organization_uuid).filter('range', created_at=previous_period)
-        events_per_day.aggs.bucket('dates', 'date_histogram', field='created_at', fixed_interval='1d', extended_bounds={
+        events_per_day.aggs.bucket('dates', 'date_histogram', field='created_at', fixed_interval='1d', time_zone=timezone, extended_bounds={
           "min": f"now-{report_days*2}d",
           "max": f"now-{report_days}d"
         })        
@@ -236,12 +236,15 @@ class Reporting(Resource):
             manual_percentage = round((handled_by_analyst / current_period_events) * 100,0)
             customer_percent = round((customer_count / current_period_events) * 100,0)
 
+        adjusted_soc_end_hour = soc_end_hour + offset
+        adjusted_soc_start_hour = soc_start_hour + offset
+
         report = {
             'title': f'Monthly SOC Report for {organization.name}',
             'generated_on': datetime.datetime.utcnow().isoformat(),
             'soc_hours': {
-                'start': soc_start_hour+offset,
-                'end': soc_end_hour+offset
+                'start': adjusted_soc_start_hour,
+                'end': adjusted_soc_end_hour
             },
             'date': {
                 'total_days': 30,
