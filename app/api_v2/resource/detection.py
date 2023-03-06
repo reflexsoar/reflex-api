@@ -30,8 +30,6 @@ mod_bulk_detections = api.model('ExportDetections', {
     'detections': fields.List(fields.String, required=True)
 })
 
-
-
 mod_intel_list = api.model('DetectionIntelList', {
     'name': fields.String,
     'uuid': fields.String
@@ -267,6 +265,10 @@ mod_detection_field_settings = api.model('DetectionFieldSettings', {
 
 mod_detection_import = api.model('ImportDetection', {
     'detections': fields.List(fields.Nested(mod_create_detection))
+})
+
+mod_deleted_detections = api.model('DeletedDetections', {
+    'detections': fields.List(fields.String)
 })
 
 detection_list_parser = api.parser()
@@ -774,6 +776,44 @@ class BulkEnableDetections(Resource):
 
         else:
             api.abort(400, f'Detection rules not found')
+
+
+@api.route("/delete")
+class BulkDeleteDetections(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_bulk_detections)
+    @token_required
+    @api.marshal_with(mod_deleted_detections, as_list=True, skip_none=True)
+    @user_has('delete_detection')
+    def delete(self, current_user):
+        '''
+        Deletes the selected detections
+        '''
+
+        # Find all the detections
+        detections = Detection.get_by_uuid(uuid=api.payload['detections'])
+
+        deleted_detections = []
+
+        if detections:
+
+            # Update each detection
+            for detection in detections:
+
+                # Skip detections that are currently active, can only delete inactive detections
+                if detection.active:
+                    continue
+
+                # TODO: Add a access check to make sure this user has access to update
+                # the detection for now we will just check if the user is an admin or in
+                # the detection's organization
+                if current_user.default_org or current_user.organization == detection.organization:
+                    detection_uuid = detection.uuid
+                    detection.delete()
+                    deleted_detections.append(detection_uuid)
+
+        return {'detections': deleted_detections}
 
 
 @api.route("/disable")
