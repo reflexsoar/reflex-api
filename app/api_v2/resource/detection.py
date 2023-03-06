@@ -263,6 +263,14 @@ mod_detection_field_settings = api.model('DetectionFieldSettings', {
     'signature_fields': fields.List(fields.String)
 })
 
+mod_detection_import = api.model('ImportDetection', {
+    'detections': fields.List(fields.Nested(mod_create_detection))
+})
+
+mod_deleted_detections = api.model('DeletedDetections', {
+    'detections': fields.List(fields.String)
+})
+
 detection_list_parser = api.parser()
 detection_list_parser.add_argument(
     'agent', location='args', type=str, required=False)
@@ -678,8 +686,8 @@ class ParseSigma(Resource):
 class DetectionExport(Resource):
 
     @api.doc(security="Bearer")
-    @token_required
     @api.marshal_with(mod_detection_details)
+    @token_required
     @user_has('view_detections')
     def get(self, uuid, current_user):
         '''
@@ -701,9 +709,9 @@ class DetectionExport(Resource):
 class DetectionExportSelected(Resource):
 
     @api.doc(security="Bearer")
-    @token_required
     @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
     @api.expect(mod_bulk_detections)
+    @token_required
     @user_has('view_detections')
     def post(self, current_user):
         '''
@@ -726,8 +734,8 @@ class DetectionExportSelected(Resource):
 class BulkEnableDetections(Resource):
 
     @api.doc(security="Bearer")
-    @token_required
     @api.expect(mod_bulk_detections)
+    @token_required
     @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
     @user_has('update_detection')
     def post(self, current_user):
@@ -770,12 +778,50 @@ class BulkEnableDetections(Resource):
             api.abort(400, f'Detection rules not found')
 
 
+@api.route("/delete")
+class BulkDeleteDetections(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_bulk_detections)
+    @token_required
+    @api.marshal_with(mod_deleted_detections, as_list=True, skip_none=True)
+    @user_has('delete_detection')
+    def delete(self, current_user):
+        '''
+        Deletes the selected detections
+        '''
+
+        # Find all the detections
+        detections = Detection.get_by_uuid(uuid=api.payload['detections'])
+
+        deleted_detections = []
+
+        if detections:
+
+            # Update each detection
+            for detection in detections:
+
+                # Skip detections that are currently active, can only delete inactive detections
+                if detection.active:
+                    continue
+
+                # TODO: Add a access check to make sure this user has access to update
+                # the detection for now we will just check if the user is an admin or in
+                # the detection's organization
+                if current_user.default_org or current_user.organization == detection.organization:
+                    detection_uuid = detection.uuid
+                    detection.delete()
+                    deleted_detections.append(detection_uuid)
+
+        return {'detections': deleted_detections}
+
+
 @api.route("/disable")
 class BulkDisableDetections(Resource):
 
     @api.doc(security="Bearer")
-    @token_required
     @api.expect(mod_bulk_detections)
+    @token_required    
     @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
     @user_has('update_detection')
     def post(self, current_user):
@@ -816,3 +862,25 @@ class BulkDisableDetections(Resource):
 
         else:
             api.abort(400, f'Detection rules not found')
+
+@api.route("/import")
+class DetectionImport(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_detection_import)
+    @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
+    @token_required    
+    @user_has('create_detection')
+    def post(self, current_user):
+        '''
+        Imports a detection rule or rules
+        '''
+
+        imported_detections = []
+
+        if 'detections' in api.payload:
+            for detection in api.payload['detections']:
+                d = Detection.create_from_json(detection)
+                imported_detections.append(d)
+
+        return imported_detections

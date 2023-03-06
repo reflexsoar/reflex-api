@@ -167,6 +167,7 @@ class Settings(base.BaseDocument):
     allow_user_registration = Boolean()  # Allow users to register themselves
     # The default role to assign to self registered users
     default_self_registration_role = Keyword()
+    utc_offset = Keyword() # The UTC offset for the system stored as a string e.g. +10:00
 
     class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

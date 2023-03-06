@@ -12,6 +12,17 @@ from . import (
     Date,
 )
 
+class ReportResult(base.BaseDocument):
+
+    class Index:
+        name = "reflex-report-results"
+        settings = {
+            "refresh_interval": "1s"
+        }
+
+    report_uuid = Keyword() # The report UUID this result is for
+    report_html = Text() # The HTML of the report
+
 class Report(base.BaseDocument):
 
     class Index:
