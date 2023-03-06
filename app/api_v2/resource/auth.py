@@ -59,6 +59,7 @@ class Login(Resource):
         # Find the user based on their username, if their account is locked don't return a user
         # object to prevent processing any more failed logons
         user = User.get_by_email(api.payload['email'])
+        
         if not user:
             api.abort(401, 'Incorrect username or password')
 

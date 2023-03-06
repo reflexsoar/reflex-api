@@ -366,7 +366,7 @@ class User(base.BaseDocument):
     @classmethod
     def get_by_email(self, email):
         response = self.search().query(
-            'term', email__keyword=email)
+            'match', email=email)
         response= response.source(excludes=[])
         response = response.execute()
         if response:
