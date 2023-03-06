@@ -6,6 +6,9 @@ from flask_restx import Model, fields, reqparse
 class ISO8601(fields.Raw):
     ''' Returns a Python DateTime object in ISO8601 format with the Zulu time indicator '''
 
+    __schema_example__ = '2019-01-01T00:00:00.000Z'
+    __schema_type__ = 'string'
+
     def format(self, value):
         if isinstance(value, str):
             value = dateutil.parser.parse(value)
@@ -221,7 +224,11 @@ mod_permissions = Model('Permissions', {
     'use_api': fields.Boolean(optional=True),
     'create_service_account': fields.Boolean,
     'view_service_accounts': fields.Boolean,
-    'delete_service_account': fields.Boolean
+    'delete_service_account': fields.Boolean,
+    'create_asset': fields.Boolean,
+    'view_assets': fields.Boolean,
+    'update_asset': fields.Boolean,
+    'delete_asset': fields.Boolean,
 }, strict=True)
 
 mod_user_list = Model('UserList', {

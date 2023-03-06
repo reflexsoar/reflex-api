@@ -16,8 +16,11 @@ from . import (
     Date,
     Nested,
     system,
-    Object
+    Object,
+    FieldMappingTemplate
 )
+
+from .inout import FieldMap
 
 class MITRETacticTechnique(base.InnerDoc):
     '''
@@ -61,6 +64,8 @@ class DetectionException(base.BaseInnerDoc):
     condition = Keyword()
     values = Keyword(fields={'text': Text()})
     field = Keyword()
+    is_global = Boolean()
+    rule_bound = Boolean()
     list = Nested(DetectionExceptionIntelList)
 
 
@@ -129,19 +134,6 @@ class SourceConfig(base.InnerDoc):
     uuid = Keyword()
 
 
-class ObservableField(base.InnerDoc):
-    '''
-    Defines what fields to extract as observables and what their data_types and associated
-    meta data should be
-    '''
-
-    field = Keyword()
-    alias = Keyword()
-    data_type = Text(fields={'keyword':Keyword()})
-    tlp = Integer()
-    tags = Keyword()
-
-
 class DetectionLog(base.BaseDocument):
     '''
     A log entry for the detection for troubleshooting and history tracking
@@ -169,6 +161,8 @@ class Detection(base.BaseDocument):
     '''
 
     name = Keyword(fields={'text':Text()})
+    original_uuid = Keyword() # The UUID of the original detection this detection was created from
+    from_repo_sync = Boolean() # Tells you if the rule was created from a repo sync
     query = Object(QueryConfig) # The query to run against the log source
     detection_id = Keyword() # A persistent UUID that follows the rule and is associated to events
     from_sigma = Boolean() # Tells you if the rule was converted from a Sigma rule
@@ -191,7 +185,8 @@ class Detection(base.BaseDocument):
     risk_score = Integer() # 0 - 100 
     severity = Integer() # 1-4 (1: Low, 2: Medium, 3: High, 4: Critical)
     signature_fields = Keyword() # Calculate a unique signature for this rule based on fields on the source event
-    observable_fields = Nested(ObservableField) # Configures which fields should show up as observables in the alert
+    field_templates = Keyword() # A list of field templates to apply to the alert
+    observable_fields = Nested(FieldMap) # Configures which fields should show up as observables in the alert
     time_taken = Integer() # How long the rule took to run in milliseconds
     query_time_taken = Long() # How long the query took to run in milliseconds
     interval = Integer() # How often should the rule run in minutes
@@ -251,6 +246,45 @@ class Detection(base.BaseDocument):
         if len(response) > 0:
             return response
         return []
+    
+    def get_field_settings(self):
+        '''Provides a list of field settings for this detection'''
+
+        final_fields = []
+        # If the detection is using templates, merge the fields from all the 
+        # templates into a single list.  Templates with a higher priority will
+        # override templates with a lower priority in the event of a field name
+        # collision
+        if self.field_templates:
+            templates = FieldMappingTemplate.get_by_uuid(self.field_templates)
+            templates.sort(key=lambda x: x.priority, reverse=True)
+            for template in templates:
+                for template_field in template.field_mapping:
+                    replaced = False
+                    for field in final_fields:
+                        if field['field'] == template_field['field']:
+                            final_fields[final_fields.index(field)] = template_field
+                            replaced = True
+                            break
+                    
+                    if not replaced:
+                        final_fields.append(template_field)
+
+        # Add additional field settings from the detection rule, these will override
+        # any field settings from the templates in the event of a field name collision
+        if self.observable_fields:
+            for detection_field in self.observable_fields:
+                replaced = False
+                for field in final_fields:
+                    if field['field'] == detection_field['field']:
+                        final_fields[final_fields.index(field)] = detection_field
+                        replaced = True
+                        break
+
+                if not replaced:
+                    final_fields.append(detection_field)
+
+        return final_fields
 
 
 class DetectionPerformanceMetric(base.BaseDocument):

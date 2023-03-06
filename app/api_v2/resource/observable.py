@@ -156,7 +156,10 @@ class ObservableHits(Resource):
             matches = pattern.findall(value)
             if matches:
                 for match in matches:
-                    decoded_values.append(base64.b64decode(match).decode('utf-8'))
+                    import json
+                    decoded_value = base64.b64decode(match)
+                    encoding = json.detect_encoding(decoded_value)
+                    decoded_values.append(decoded_value.decode(encoding))
         except Exception as e:
             pass
 

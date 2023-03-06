@@ -4,7 +4,8 @@ from flask import request
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import (
     FieldMappingTemplate,
-    Organization
+    Organization,
+    VALID_DATA_TYPES
 )
 from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
@@ -13,26 +14,28 @@ from .agent_group import mod_agent_group_list
 from ..schemas import mod_input_list
 
 api = Namespace(
-    'FieldMappingTemplate', description='Field Mapping Template administration', path='/field_mapping_template', strict=True)
+    'FieldMappingTemplate', description='Field Mapping Template administration', path='/field_template', validate=True)
 
 
 mod_field_mapping = api.model('FieldMapping', {
-    'field': fields.String,
-    'alias': fields.String,
-    'data_type': fields.String,
-    'tlp': fields.Integer,
-    'tags': fields.List(fields.String),
-})
+    'field': fields.String(required=True),
+    'alias': fields.String(required=False),
+    'data_type': fields.String(required=True, enum=VALID_DATA_TYPES),
+    'sigma_field': fields.String(required=False),
+    'tlp': fields.Integer(required=True),
+    'tags': fields.List(fields.String, required=False),
+}, strict=True)
 
 
 mod_create_field_mapping_template = api.model('FieldMappingCreate', {
-    'name': fields.String,
-    'description': fields.String,
-    'priority': fields.Integer,
-    'field_mapping': fields.List(fields.Nested(mod_field_mapping)),
-    'organization': fields.String,
-    'is_global': fields.Boolean
-})
+    'name': fields.String(required=True),
+    'description': fields.String(required=False),
+    'priority': fields.Integer(required=False, default=1),
+    'tags': fields.List(fields.String, required=False),
+    'field_mapping': fields.List(fields.Nested(mod_field_mapping), required=True),
+    'organization': fields.String(required=False),
+    'is_global': fields.Boolean(required=False, default=False)
+}, strict=True)
 
 mod_field_mapping_template_details = api.model('FieldMappingTemplateDetails', {
     'uuid': fields.String,
@@ -42,6 +45,7 @@ mod_field_mapping_template_details = api.model('FieldMappingTemplateDetails', {
     'field_mapping': fields.List(fields.Nested(mod_field_mapping)),
     'organization': fields.String,
     'is_global': fields.Boolean,
+    'tags': fields.List(fields.String),
     'created_at': ISO8601,
     'updated_at': ISO8601,
     'created_by': fields.Nested(mod_user_list),
@@ -109,6 +113,8 @@ class FieldMappingTemplateDetails(Resource):
 
     
 field_mapping_template_parser = api.parser()
+field_mapping_template_parser.add_argument('name', location='args', required=False)
+field_mapping_template_parser.add_argument('name__like', location='args', required=False)
 field_mapping_template_parser.add_argument('organization', location='args', required=False)
 field_mapping_template_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
@@ -141,6 +147,12 @@ class FieldMapList(Resource):
         if user_in_default_org:
             if args.organization:
                 templates = templates.filter('term', organization=args.organization)
+
+        if args.name__like:
+            templates = templates.query('wildcard', name=f"*{args.name__like}*")
+
+        if args.name:
+            templates = templates.filter('term', name=args.name)
 
         sort_by = args.sort_by
         if sort_by not in ['name']:

@@ -11,7 +11,8 @@ from ..model import (
     Organization,
     Event,
     Q,
-    Agent
+    Agent,
+    Input
 )
 from .shared import mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
@@ -33,7 +34,9 @@ mod_detection_exception = api.model('DetectionException', {
     'condition': fields.String(required=True),
     'values': fields.List(fields.String(required=True)),
     'field': fields.String(required=True),
-    'list': fields.Nested(mod_intel_list)
+    'list': fields.Nested(mod_intel_list, required=False),
+    'is_global': fields.Boolean(required=False, default=False),
+    'rule_bound': fields.Boolean(required=False, default=False)
 }, strict=True)
 
 mod_detection_exception_list = api.model('DetectionExceptionList', {
@@ -43,6 +46,8 @@ mod_detection_exception_list = api.model('DetectionExceptionList', {
     'values': fields.List(fields.String),
     'field': fields.String,
     'list': fields.Nested(mod_intel_list),
+    'is_global': fields.Boolean(required=False, default=False),
+    'rule_bound': fields.Boolean(required=False, default=False),
     'created_by': fields.Nested(mod_user_list)
 }, strict=True)
 
@@ -91,12 +96,15 @@ mod_observable_field = api.model('ObservableField', {
     'field': fields.String,
     'alias': fields.String,
     'data_type': fields.String,
+    'sigma_field': fields.String,
     'tlp': fields.Integer,
     'tags': fields.List(fields.String)
 })
 
 mod_detection_details = api.model('DetectionDetails', {
     'uuid': fields.String,
+    'original_uuid': fields.String,
+    'from_repo_sync': fields.Boolean,
     'name': fields.String,
     'query': fields.Nested(mod_query_config),
     'from_sigma': fields.Boolean,
@@ -120,6 +128,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'risk_score': fields.Integer,
     'severity': fields.Integer,
     'signature_fields': fields.List(fields.String),
+    'field_templates': fields.List(fields.String),
     'observable_fields': fields.List(fields.Nested(mod_observable_field)),
     'time_taken': fields.Integer,
     'query_time_taken': fields.Integer,
@@ -166,6 +175,7 @@ mod_create_detection = api.model('CreateDetection', {
     'risk_score': fields.Integer(default=10000, min=0, max=50000),
     'severity': fields.Integer(required=True, default=1, min=1, max=4),
     'signature_fields': fields.List(fields.String),
+    'field_templates': fields.List(fields.String),
     'observable_fields': fields.List(fields.Nested(mod_observable_field)),
     'interval': fields.Integer(default=5, required=True, min=1),
     'lookbehind': fields.Integer(default=5, required=True, min=1),
@@ -198,6 +208,7 @@ mod_update_detection = api.model('UpdateDetection', {
     'risk_score': fields.Integer(default=10000, min=0, max=50000),
     'severity': fields.Integer(required=True, default=1, min=1, max=4),
     'signature_fields': fields.List(fields.String),
+    'field_templates': fields.List(fields.String),
     'observable_fields': fields.List(fields.String),
     'interval': fields.Integer(default=5, required=True, min=1),
     'lookbehind': fields.Integer(default=5, required=True, min=1),
@@ -238,6 +249,11 @@ mod_sigma = api.model('Sigma', {
     'organization': fields.String,
     'pipeline': fields.String(default='ecs_windows'),
     'backend': fields.String(default='opensearch')
+})
+
+mod_detection_field_settings = api.model('DetectionFieldSettings', {
+    'fields': fields.List(fields.Nested(mod_observable_field)),
+    'signature_fields': fields.List(fields.String)
 })
 
 detection_list_parser = api.parser()
@@ -575,6 +591,53 @@ class DetectionDetails(Resource):
             redistribute_detections(organization)
 
             return {}
+        else:
+            api.abort(400, f'Detection rule for UUID {uuid} not found')
+
+
+@api.route("/<uuid>/field_settings")
+class DetectionFieldSettings(Resource):
+    '''
+    Returns information about how the detection rule fields are configured
+    '''
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_detection_field_settings)
+    @token_required
+    @user_has('view_detections')
+    def get(self, uuid, current_user):
+        detection = Detection.get_by_uuid(uuid=uuid)
+        if detection:
+
+            final_fields = []
+            signature_fields = []
+
+            final_fields = detection.get_field_settings()
+
+            source_input = None
+
+            if detection.signature_fields:
+                signature_fields = detection.signature_fields
+
+            # If the detection rule has no field settings or signature fields
+            # fetch the settings from the source input
+            if not final_fields or not signature_fields:
+                source_input = Input.get_by_uuid(detection.source.uuid)
+
+                # If no final_fields were determined, default to the source input field mapping
+                if not final_fields:
+                    final_fields = source_input.get_field_settings()
+
+                # If no signature fields were determined, default to the source input signature fields
+                if not signature_fields:
+                    signature_fields = source_input.config.signature_fields
+
+            response = {
+                "fields": final_fields,
+                "signature_fields": signature_fields
+            }
+                    
+            return response
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')
 

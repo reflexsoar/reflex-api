@@ -21,6 +21,8 @@ from .user import api as ns_user_v2
 from .inout import api as ns_input_v2
 from .service_account import api as ns_service_account_v2
 from .observable import api as ns_observable_v2
+from .asset import api as ns_asset_v2
+from .reporting import api as ns_reporting_v2
 
 __all__ = [
     'ns_playbook_v2',
@@ -45,6 +47,8 @@ __all__ = [
     'ns_input_v2',
     'ns_service_account_v2',
     'ns_observable_v2',
+    'ns_asset_v2',
+    'ns_reporting_v2',
     'mod_pagination',
     'ISO8601'
 ]

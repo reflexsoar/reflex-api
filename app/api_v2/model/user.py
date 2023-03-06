@@ -29,6 +29,12 @@ from . import (
 
 FLASK_BCRYPT = Bcrypt()
 
+class OrganizationScope(InnerDoc):
+    ''' Defines the scope of an organization '''
+
+    organization = Keyword()
+    role = Keyword()
+
 class UserNotificationSettings(InnerDoc):
     ''' Defines the notification settings for a user '''
 
@@ -67,6 +73,7 @@ class User(base.BaseDocument):
     watched_cases = Keyword() # What cases is the user currently watching
     notification_settings = Object(UserNotificationSettings)
     hide_product_updates = Boolean()
+    access_scope = Nested(OrganizationScope)
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -75,6 +82,62 @@ class User(base.BaseDocument):
             'refresh_interval': '1s'
         }
 
+    def get_access_scope_orgs(self):
+        '''Returns the UUIDs of the organizations the user has access to'''
+        uuids = [scope.organization for scope in self.access_scope]
+        if self.organization not in uuids:
+            uuids.append(self.organization)
+        return uuids
+    
+    def has_org_access(self, organization):
+        ''' Checks if the user has access to the specified organization '''
+
+        if self.access_scope is None:
+            return False
+
+        for scope in self.access_scope:
+            if scope.organization == organization:
+                return True
+
+        return False
+    
+    def scope_permissions(self, organization=None):
+        ''' Returns this users permissions for the specified organization
+        based on the role assigned in their permission scope mapping
+        '''
+        
+        if self.organization == organization or organization is None:
+            self.load_role()
+            return self.role.permissions
+        
+        for scope in self.access_scope:
+            if scope.organization == organization:
+                role = utils.get_role_by_uuid(scope.role)
+                return role.permissions
+        return {}
+    
+    def has_org_permission(self, permission, organization=None):
+        ''' Checks if the user has the specified permission for the specified organization as
+        defined in their scope mapping. By default the user has access to their own organization
+        from an organizational scope but their permissions are defined by their direct role
+        membership
+        '''
+
+        self.load_role()
+
+        if organization is not None:
+            if self.organization == organization:
+                return hasattr(self.role.permissions, permission) and getattr(self.role.permissions, permission) is True
+            
+            for scope in self.access_scope:
+                if scope.organization == organization:
+                    role = Role.get_by_uuid(scope.role)
+                    return hasattr(role.permissions, permission) and getattr(role.permissions, permission) is True
+        else:
+            return hasattr(self.role.permissions, permission) and getattr(self.role.permissions, permission) is True
+        
+        return False
+        
     def watch_case(self, case_uuid):
         ''' Adds a case to the list of cases the user is watching '''
 
@@ -94,6 +157,25 @@ class User(base.BaseDocument):
         if case_uuid in self.watched_cases:
             self.watched_cases.remove(case_uuid)
             self.save()
+
+
+    @classmethod
+    def scoped_search(cls):
+        ''' Returns a search object that is scoped to the current user '''
+        
+        search = cls.search()
+
+        current_user = request.current_user
+        print(current_user.__dict__)
+        if current_user and current_user.request_org_filter:
+            search = search.filter('terms', organization=current_user.request_org_filter)
+
+        import json
+        print(f"Search: {json.dumps(search.to_dict(), default=str)}")
+
+        results = search.execute()
+        return results
+
 
     def set_password(self, password):
         '''
@@ -285,6 +367,7 @@ class User(base.BaseDocument):
     def get_by_email(self, email):
         response = self.search().query(
             'term', email__keyword=email)
+        response= response.source(excludes=[])
         response = response.execute()
         if response:
             user = response[0]
@@ -599,6 +682,12 @@ class Permission(InnerDoc):
     view_service_accounts = Boolean()
     update_service_account = Boolean()
     delete_service_account = Boolean()
+
+    # Asset Permissions
+    create_asset = Boolean()
+    view_assets = Boolean()
+    update_asset = Boolean()
+    delete_asset = Boolean()
 
 
 class ServiceAccount(base.BaseDocument):

@@ -185,7 +185,11 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         "update_agent_policy": True,
         "delete_agent_policy": True,
         "create_agent_log_message": False,
-        "view_agent_logs": True
+        "view_agent_logs": True,
+        "create_asset": True,
+        "view_assets": True,
+        "update_asset": True,
+        "delete_asset": True
     }
 
     role_contents = {
@@ -309,7 +313,11 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         "create_service_account": False,
         "view_service_accounts": False,
         "update_service_account": False,
-        "delete_service_account": False
+        "delete_service_account": False,
+        "create_asset": False,
+        "view_assets": True,
+        "update_asset": False,
+        "delete_asset": False
     }
 
     role_contents = {
@@ -586,7 +594,7 @@ def initial_settings(cls, org_id, check_for_default=False):
         'case_sla_days': 14,
         'event_sla_minutes': 5,
         'allow_user_registration': False,
-        'default_self_registration_role': None
+        'default_self_registration_role': ''
     }
 
     if check_for_default == False:

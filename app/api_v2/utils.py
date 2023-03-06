@@ -251,6 +251,91 @@ def default_org(f):
     return wrapper
 
 
+def request_user():
+    try:
+        return request.current_user
+    except AttributeError:
+        return None
+
+def user_scope_has(permission: str):
+    '''
+    Route decorator that takes a permission as a string and determines if the
+    current_user has that permission.  If they do return the current route, if
+    they do not return 401 Unauthorized
+    '''
+
+    def decorator(f):
+        def wrapper(*args, **kwargs):
+
+            # Skip the scope check if the SCOPE_BASED_ACCESS is set to False
+            if not current_app.config['SCOPE_BASED_ACCESS']:
+                return f(*args, **kwargs)
+
+            # Define an empty scope check dictionary to track the scope and
+            # permission checks per organization when organization is a list
+            # of multiple oranizations
+            scope_checks = {}
+            
+            current_user = None
+            organization = None
+            
+            if 'current_user' in kwargs:
+                current_user = kwargs['current_user']
+
+            if 'organization' in request.args:
+                organization = request.args.get('organization').split(',')
+            
+            # If the user is authenticated and on the request object
+            if current_user:
+
+                # If the current_user is a pairing token and the route requires add_agent
+                # return the route unimpeded
+                if isinstance(current_user, dict) and current_user['type'] == 'pairing' and permission == 'add_agent':
+                    return f(*args, **kwargs)
+                
+                if not organization:
+                    organization = current_user.get_access_scope_orgs()
+
+                    if current_user.organization not in organization:
+                        organization.append(current_user.organization)
+
+                request.current_user = current_user
+
+                if request.method in ['POST', 'PUT', 'PATCH']:
+                    payload = request.get_json()
+                    if 'organization' in payload:
+                        if not current_user.has_org_access(payload['organization']):
+                            abort(403, f"You do not have permission to perform this action.  Not scoped for '{payload['organization']}'")
+                        
+                        if not current_user.has_org_permission(permission, payload['organization']):
+                            abort(403, f"You do not have permission to perform this action.  Required permission '{permission}'")
+                    return f(*args, **kwargs)
+
+                for org in organization:
+                    scope_checks[org] = current_user.has_org_permission(permission, org)
+                
+                # If any of the scope checks fail, remove the organization from the list of
+                # requested organizations
+                if False in scope_checks.values():
+                    for org in scope_checks:
+                        if not scope_checks[org]:
+                            organization.remove(org)
+
+                # If any organizations are left in the list, return the route
+                if len(organization) > 0:
+                    request.current_user.request_org_filter = organization
+                    return f(*args, **kwargs)
+                else:
+                    request.current_user.request_org_filter = [current_user.organization]
+                
+            abort(403, f"You do not have permission to perform this action.  Required permission '{permission}'")
+
+        wrapper.__doc__ = f.__doc__
+        wrapper.__name__ = f.__name__
+        return wrapper
+    return decorator
+
+
 def user_has(permission: str):
     '''
     Route decorator that takes a permission as a string and determines if the
