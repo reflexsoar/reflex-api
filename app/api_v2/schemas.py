@@ -569,7 +569,8 @@ mod_settings = Model('SettingsList', {
     'minimum_password_length': fields.Integer,
     'enforce_password_complexity': fields.Boolean,
     'disallowed_password_keywords': AsNewLineDelimited(),
-    'logon_expire_at': fields.Integer
+    'logon_expire_at': fields.Integer,
+    'utc_offset': fields.String,
 })
 
 mod_persistent_pairing_token = Model('PeristentPairingToken', {
