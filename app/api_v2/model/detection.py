@@ -5,6 +5,8 @@ Contains all the logic for the Detection engine
 
 import re
 import datetime
+
+from app.api_v2.model.utils import _current_user_id_or_none
 from . import (
     base,
     Keyword,
@@ -163,6 +165,7 @@ class Detection(base.BaseDocument):
     name = Keyword(fields={'text':Text()})
     original_uuid = Keyword() # The UUID of the original detection this detection was created from
     from_repo_sync = Boolean() # Tells you if the rule was created from a repo sync
+    repository = Keyword() # The UUID of the repository this rule was created from
     query = Object(QueryConfig) # The query to run against the log source
     detection_id = Keyword() # A persistent UUID that follows the rule and is associated to events
     from_sigma = Boolean() # Tells you if the rule was converted from a Sigma rule
@@ -293,9 +296,50 @@ class Detection(base.BaseDocument):
                            'updated_by', 'case_template', 'source',
                            'time_taken', 'query_time_taken', 'run_start'
                            'run_finished', 'next_run', 'last_run', 'last_hit',
-                           'organization']
+                           'organization', 'assigned_agent']
         
         return {k: v for k, v in detection.items() if k not in stripped_fields}
+    
+    
+    @classmethod
+    def create_from_json(cls, data, preserve_uuid=False, preserve_organization=False, from_repo=False, repository_uuid=None):
+        ''' Creates a detection from a json object '''
+
+        current_user = _current_user_id_or_none()
+        
+        # Don't preserve the UUID by default
+        if not preserve_uuid:
+            data.pop('uuid', None)
+
+        # Don't preserve the organization by default
+        if not preserve_organization:
+            data['organization'] = current_user['organization']
+
+        # If the detection is being created from a repository, set the from_repo_sync flag and
+        # set the repository UUID
+        if from_repo:
+            if not repository_uuid:
+                raise ValueError("Repository ID is required when creating a detection from a repository")
+            data['from_repo_sync'] = True
+            data['repository'] = repository_uuid
+        
+        # If preserving the UUID the detection should be updated instead of created
+        if preserve_uuid:
+            detection = cls.get_by_uuid(data['uuid'])
+            if detection:
+                detection.update(**data)
+                return detection
+            else:
+                raise ValueError("Detection with UUID {} does not exist".format(data['uuid']))
+            
+        existing_name = cls.get_by_name(data['name'], organization=data['organization'])
+        if existing_name:
+            data['name'] = f"[IMPORTED] - {data['name']}"
+
+        detection = cls(**data)
+        detection.last_run = datetime.datetime.utcnow()
+        detection.save()
+        return detection
 
 
 class DetectionPerformanceMetric(base.BaseDocument):

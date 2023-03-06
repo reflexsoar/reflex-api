@@ -30,6 +30,8 @@ mod_bulk_detections = api.model('ExportDetections', {
     'detections': fields.List(fields.String, required=True)
 })
 
+
+
 mod_intel_list = api.model('DetectionIntelList', {
     'name': fields.String,
     'uuid': fields.String
@@ -261,6 +263,10 @@ mod_sigma = api.model('Sigma', {
 mod_detection_field_settings = api.model('DetectionFieldSettings', {
     'fields': fields.List(fields.Nested(mod_observable_field)),
     'signature_fields': fields.List(fields.String)
+})
+
+mod_detection_import = api.model('ImportDetection', {
+    'detections': fields.List(fields.Nested(mod_create_detection))
 })
 
 detection_list_parser = api.parser()
@@ -678,8 +684,8 @@ class ParseSigma(Resource):
 class DetectionExport(Resource):
 
     @api.doc(security="Bearer")
-    @token_required
     @api.marshal_with(mod_detection_details)
+    @token_required
     @user_has('view_detections')
     def get(self, uuid, current_user):
         '''
@@ -701,9 +707,9 @@ class DetectionExport(Resource):
 class DetectionExportSelected(Resource):
 
     @api.doc(security="Bearer")
-    @token_required
     @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
     @api.expect(mod_bulk_detections)
+    @token_required
     @user_has('view_detections')
     def post(self, current_user):
         '''
@@ -726,8 +732,8 @@ class DetectionExportSelected(Resource):
 class BulkEnableDetections(Resource):
 
     @api.doc(security="Bearer")
-    @token_required
     @api.expect(mod_bulk_detections)
+    @token_required
     @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
     @user_has('update_detection')
     def post(self, current_user):
@@ -774,8 +780,8 @@ class BulkEnableDetections(Resource):
 class BulkDisableDetections(Resource):
 
     @api.doc(security="Bearer")
-    @token_required
     @api.expect(mod_bulk_detections)
+    @token_required    
     @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
     @user_has('update_detection')
     def post(self, current_user):
@@ -816,3 +822,25 @@ class BulkDisableDetections(Resource):
 
         else:
             api.abort(400, f'Detection rules not found')
+
+@api.route("/import")
+class DetectionImport(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_detection_import)
+    @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
+    @token_required    
+    @user_has('create_detection')
+    def post(self, current_user):
+        '''
+        Imports a detection rule or rules
+        '''
+
+        imported_detections = []
+
+        if 'detections' in api.payload:
+            for detection in api.payload['detections']:
+                d = Detection.create_from_json(detection)
+                imported_detections.append(d)
+
+        return imported_detections
