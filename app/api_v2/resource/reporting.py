@@ -3,10 +3,11 @@ import datetime
 from app import cache
 from flask import render_template, make_response
 from flask_restx import Resource, Namespace, fields
+from ..utils import token_required, user_has
 
 from ..model import Event, Organization, Case
 
-api = Namespace('reporting', description='Reporting related operations', path='/reporting')
+api = Namespace('Reporting', description='Reporting related operations', path='/reporting')
 
 
 def severity_as_string(severity):
@@ -20,11 +21,6 @@ def severity_as_string(severity):
         return 'Critical'
     else:
         return 'Unknown'
-
-def events_per_period_per_day(events, start_date, end_date):
-    date_span = end_date - start_date
-    for i in range(date_span.days + 1):
-        print(i)
 
 def trend_direction(current, previous):
     if current > previous:
@@ -44,8 +40,14 @@ report_parser.add_argument('soc_end_hour', type=int, required=False, help='End h
 @api.route("/<organization_uuid>")
 class Reporting(Resource):
 
+    @api.doc(security='Bearer')
     @api.expect(report_parser)
-    def get(self, organization_uuid):
+    @token_required    
+    def get(self, current_user, organization_uuid):
+
+        if not current_user.default_org or current_user.organization != organization_uuid:
+            api.abort(403, "You do not have permission to view this report")
+
         headers = {'Content-Type': 'text/html'}
 
         args = report_parser.parse_args()
@@ -62,8 +64,6 @@ class Reporting(Resource):
         base_url = "http://localhost:8080"
         #####
 
-        print(timezone)
-
         if timezone.startswith('-'):
             offset = int(timezone[1:3])*-1
         if timezone.startswith('+'):
@@ -73,8 +73,6 @@ class Reporting(Resource):
             'gte': datetime.datetime.utcnow() - datetime.timedelta(days=report_days),
             'time_zone': f'{timezone}'
         }
-
-        print(current_period)
 
         previous_period = {
             'gte': datetime.datetime.utcnow() - datetime.timedelta(days=report_days*2),
@@ -247,7 +245,7 @@ class Reporting(Resource):
                 'end': adjusted_soc_end_hour
             },
             'date': {
-                'total_days': 30,
+                'total_days': args.days,
                 'start_date': '2020-01-01',
                 'end_date': '2020-01-31'
             },

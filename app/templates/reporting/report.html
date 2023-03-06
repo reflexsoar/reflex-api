@@ -9,7 +9,7 @@
     <div class="row">
         <div class="col-8">
             <span class="d-flex align-items-center text-dark text-decoration-none">
-                <img src="/img/logo.png" width="20%" alt="">&nbsp;
+                <img src="/img/logo.png" width="25%" alt="">&nbsp;
                 <span class="fs-2">{{ report.title }}</span>
             </span>
         </div>
@@ -129,7 +129,6 @@
         <h2 class="pb-3">Events Time Analysis</h2>
         <h3 class="pb-3">Severity by Hour of Day</h3>
         <p>The below chart attempts to correlate the number of alerts received by severity to the hour of day in which it was received.  This chart is useful for determining whether the ideal number of Human operators are available during the time in which alerts are being received.  A high number of alerts outside the SOC hours would indicate that a shift change is necessary to accomodate for alerts in these time periods.</p>
-        <p><b>Time Zone Note:</b> All times in this chart are represented in UTC+0 timezone format.</p>
         <div id="events_by_severity_by_hour"></div>
     </div>
 </div>  
@@ -331,7 +330,7 @@
                 },
                 {
                     from: 250,
-                    to: 1000,
+                    to: 10000,
                     name: 'Very High Volume',
                     color: '#7D3C98'
                 }
