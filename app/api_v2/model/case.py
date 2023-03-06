@@ -546,17 +546,15 @@ class Case(base.BaseDocument):
             event_bulk_close = UpdateByQuery(index='reflex-events')
             event_bulk_close = event_bulk_close.query('term', case=self.uuid)
             event_bulk_close = event_bulk_close.script(
-                source="""
-                    ctx._source.status = params.status;
-                    ctx._source.closed_at = params.closed_at;
-                    ctx._source.closed_by = params.closed_by;
-                    DateTimeFormatter dtf = DateTimeFormatter.ofPattern(\"yyyy-MM-dd'T'HH:mm:ss.SSSSSS\").withZone(ZoneId.of('UTC'));
-                    ZonedDateTime zdt = ZonedDateTime.parse(params.closed_at, dtf);
-                    ZonedDateTime zdt2 = ZonedDateTime.parse(ctx._source.created_at, dtf);
-                    Instant Currentdate = Instant.ofEpochMilli(zdt.getMillis());
-                    Instant Startdate = Instant.ofEpochMilli(zdt2.getMillis());
-                    ctx._source.time_to_close = ChronoUnit.SECONDS.between(Startdate, Currentdate);
-                """,
+                source="""ctx._source.status = params.status;
+ctx._source.closed_at = params.closed_at;
+ctx._source.closed_by = params.closed_by;
+DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS").withZone(ZoneId.of('UTC'));
+ZonedDateTime zdt = ZonedDateTime.parse(params.closed_at, dtf);
+ZonedDateTime zdt2 = ZonedDateTime.parse(ctx._source.created_at, dtf);
+Instant Currentdate = Instant.ofEpochMilli(zdt.toInstant().toEpochMilli());
+Instant Startdate = Instant.ofEpochMilli(zdt2.toInstant().toEpochMilli());
+ctx._source.time_to_close = ChronoUnit.SECONDS.between(Startdate, Currentdate);""",
                 params={
                     'status': status,
                     'closed_at': datetime.datetime.utcnow().isoformat(),
