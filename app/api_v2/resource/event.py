@@ -1357,6 +1357,28 @@ class EventIndexed(Resource):
             api.abort(404, 'Event not found.')
 
 
+""" TODO: Allow an analyst to remap observables if a field mapping changed
+@api.route("/<uuid>/remap_observables")
+class EventRemapObservables(Resource):
+    '''
+    Will take the current field template/field mapping and remap all fields in the event and extract
+    any new observables from the event.
+    '''
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_event_details)
+    @token_required
+    @user_has('update_event')
+    def post(self, uuid, current_user):
+
+        event = Event.get_by_uuid(uuid)
+        if event:
+            event.remap_observables()
+            return event
+        else:
+            api.abort(404, 'Event not found.')
+"""
+
 @api.route("/<uuid>")
 class EventDetails(Resource):
 
