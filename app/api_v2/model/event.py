@@ -5,6 +5,7 @@ from app.api_v2.model.exceptions import EventRuleFailure
 from app.api_v2.model.notification import Notification
 from app.api_v2.model.system import Observable
 from app.api_v2.model.user import User
+from app.api_v2.model.inout import Input
 
 from app.api_v2.rql.parser import QueryParser
 from . import case as c
@@ -255,10 +256,6 @@ class Event(base.BaseDocument):
                 observable.add_event_uuid(self.uuid)
                 observable.auto_data_type()
                 observable.check_threat_list()
-                # REMOVED 2022-02-07 Use Threat List matching instead
-                # observable.enrich()
-                #observable.save()
-                #added_observables.append(observable)
 
                 observables_fields = ['uuid','data_type','value','tags','safe','tlp','spotted',
                                       'ioc','source_field','original_source_field']
@@ -504,6 +501,16 @@ class Event(base.BaseDocument):
         event_as_dict['raw_log'] = json.loads(event_as_dict['raw_log'])
         indexed_event = IndexedDict(event_as_dict)
         return indexed_event
+    
+    def remap_observables(self):
+        ''' Attempts to extract observables again using an updated
+        field template/field mapping
+        '''
+        if hasattr(self, 'input_uuid'):
+            _input = Input.get_by_uuid(self.input_uuid)
+            if _input:
+                fields = _input.get_field_settings()
+                print(fields)
 
 
 class EventRule(base.BaseDocument):
