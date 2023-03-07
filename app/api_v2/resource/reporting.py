@@ -51,6 +51,7 @@ class Reporting(Resource):
         org_settings = Settings.load(organization=organization_uuid)
         
         headers = {'Content-Type': 'text/html'}
+        logo_url = 'https://reflex.siemasaservice.com/img/color-logo-dots.5ecd1f6a.png'
 
         args = report_parser.parse_args()
 
@@ -321,5 +322,5 @@ class Reporting(Resource):
             }
         }
 
-        response = make_response(render_template('reporting/report.html', report=report, base_url=base_url), 200, headers)
+        response = make_response(render_template('reporting/report.html', report=report, base_url=base_url, logo_url=logo_url), 200, headers)
         return response
