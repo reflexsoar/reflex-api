@@ -407,6 +407,41 @@ class DetectionRepositoryToken(base.BaseDocument):
         raise NotImplementedError
 
 
+class DetectionRepositorySubscription(base.BaseDocument):
+    '''
+    A subscription is created when clicking enable on an internal-shared repository or adding
+    an external-private or external-public repository
+    '''
+
+    repository = Keyword() # The UUID of the repository this subscription belongs to
+    last_sync = Date() # The last time this repository was synced
+    last_sync_status = Keyword() # The status of the last sync
+    active = Boolean() # Whether or not this subscription is active
+
+    class Index:
+        name = "reflex-detection-repository-subscriptions"
+        settings = {
+            "refresh_interval": "1s"
+        }
+
+    @classmethod
+    def get_by_repository(cls, repository, organization=None):
+        '''
+        Fetches a document by the repository field
+        '''
+        response = cls.search()
+        response = response.filter('term', repository=repository)
+
+        if organization:
+            response = response.filter('term', organization=organization)
+
+        response = response.execute()
+
+        if len(response) > 0:
+            return response
+        return []
+
+
 class DetectionRepository(base.BaseDocument):
     '''
     A Detection Repository is a collection of detection rules that can be shared throughout the
@@ -425,6 +460,7 @@ class DetectionRepository(base.BaseDocument):
     refresh_interval = Integer() # The number of minutes that should pass before fetching new rules
     access_token = Keyword() # The access token used to fetch detections from an external repository if this is a repo_type 'remote'
     external_tokens = Keyword() # A list of external tokens that can be used to subscribe to this repository if it is a `external-private` share type
+    access_scope = Keyword() # Organizations in this list will have access to this repository if it is `local-shared`
 
     class Index:
         name = "reflex-detection-repositories"
@@ -449,6 +485,18 @@ class DetectionRepository(base.BaseDocument):
             response = response[0]
             return response
         return response
+    
+    def check_subscription(self, organization):
+        '''
+        Returns True if the organization is subscribed to this repository
+        '''
+        if self.organization == organization:
+            self.__dict__['subscribed'] = True
+        else:
+            subscription = DetectionRepositorySubscription.get_by_repository(self.uuid, organization=organization)
+            if subscription:
+                self.__dict__['subscribed'] = True
+            self.__dict__['subscribed'] = False
 
 
 class DetectionRepositoryBundle(base.BaseDocument):

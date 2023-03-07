@@ -81,7 +81,8 @@ from .detection import (
     DetectionLog,
     DetectionRepositoryToken,
     DetectionRepository,
-    DetectionRepositoryBundle
+    DetectionRepositoryBundle,
+    DetectionRepositorySubscription
 )
 from .task import Task
 from .mitre import MITRETactic, MITRETechnique

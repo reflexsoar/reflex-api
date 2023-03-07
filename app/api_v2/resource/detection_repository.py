@@ -3,19 +3,22 @@ from flask_restx import Resource, Namespace, fields
 from ..model import DetectionRepository, Detection, DetectionRepositoryToken, Organization
 from ..model.detection import VALID_REPO_SHARE_MODES, VALID_REPO_TYPES
 from ..utils import token_required, user_has
-from .shared import mod_pagination, mod_user_list, ISO8601
+from .shared import mod_pagination, mod_user_list, ISO8601, ValueCount
 
 api = Namespace('DetectionRepository', description='Detection Repository', path='/detection_repository')
 
 mod_detection_repo = api.model('DetectionRepository', {
+    'uuid': fields.String,
     'name': fields.String,
     'description': fields.String,
     'organization': fields.String,
     'tags': fields.List(fields.String),
     'active': fields.Boolean(default=False),
     'detections': fields.List(fields.String, help='A list of detection_ids NOT uuids of the detections in this repository'),
+    'detection_count': ValueCount(attribute='detections'),
     'share_type': fields.String,
     'repo_type': fields.String,
+    'subscribed': fields.Boolean,
     'url': fields.String,
     'refresh_interval': fields.Integer,
     'external_tokens': fields.List(fields.String),
@@ -84,8 +87,10 @@ class DetectionRepositoryList(Resource):
         # TODO: Fetch only the repositories that the user has access to which includes
         # repositories in their organization, remote repositories their organization
         # owns and local-shared repositories from the default organization
-
         repositories = [repo for repo in repositories.scan()]
+
+        # Get subscription status for each repository
+        [repo.check_subscription(organization=current_user.organization) for repo in repositories]
 
         return {
             'repositories': repositories,

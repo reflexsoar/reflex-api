@@ -32,7 +32,7 @@ from app.api_v2.model import (
         Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,
         MITRETechnique, EventView, NotificationChannel, Notification, FieldMappingTemplate,
         AgentLogMessage, EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
-        DetectionRepositoryToken
+        DetectionRepositoryToken, DetectionRepositorySubscription
 )
 
 from .defaults import (
@@ -118,7 +118,7 @@ def upgrade_indices(app):
         Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,MITRETechnique,
         EventView, NotificationChannel, Notification, FieldMappingTemplate, AgentLogMessage,
         EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
-        DetectionRepositoryToken
+        DetectionRepositoryToken, DetectionRepositorySubscription
         ]
 
     for model in models:
