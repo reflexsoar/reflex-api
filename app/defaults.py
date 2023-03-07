@@ -175,6 +175,11 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         "update_detection": True,
         "view_detections": True,
         "delete_detection": True,
+        "create_detection_repository": True,
+        "view_detection_repositories": True,
+        "update_detection_repository": True,
+        "delete_detection_repository": True,
+        "share_detection_repository": True,
         "create_notification_channel": True,
         "view_notification_channels": True,
         "update_notification_channel": True,
@@ -220,6 +225,11 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms['view_service_accounts'] = True
                     perms['update_service_account'] = True
                     perms['delete_service_account'] = True
+                    perms["create_detection_repository"] = True
+                    perms["view_detection_repositories"] = True
+                    perms["update_detection_repository"] = True
+                    perms["delete_detection_repository"] = True
+                    perms["share_detection_repository"] = True
                 else:
                     perms['view_organizations'] = False
                     perms['add_organization'] = False
@@ -229,6 +239,11 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms['view_service_accounts'] = False
                     perms['update_service_account'] = False
                     perms['delete_service_account'] = False
+                    perms["create_detection_repository"] = False
+                    perms["view_detection_repositories"] = False
+                    perms["update_detection_repository"] = False
+                    perms["delete_detection_repository"] = False
+                    perms["share_detection_repository"] = False
                 role = role[0]
                 role.permissions = perms
                 role.save()
@@ -299,7 +314,12 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         "update_detection": True,
         "view_detections": True,
         "delete_detection": True,
+        "create_detection_repository": False,
+        "view_detection_repositories": True,
+        "update_detection_repository": False,
+        "delete_detection_repository": False,
         "create_notification_channel": False,
+        "share_detection_repository": False,
         "view_notification_channels": True,
         "update_notification_channel": False,
         "delete_notification_channel": False,

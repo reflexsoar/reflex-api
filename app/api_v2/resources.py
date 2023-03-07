@@ -93,7 +93,8 @@ from .resource import (
     ns_service_account_v2,
     ns_observable_v2,
     ns_asset_v2,
-    ns_reporting_v2
+    ns_reporting_v2,
+    ns_detection_repository_v2
 )
 
 from .. import ep
@@ -152,6 +153,7 @@ api2.add_namespace(ns_service_account_v2)
 api2.add_namespace(ns_observable_v2)
 api2.add_namespace(ns_asset_v2)
 api2.add_namespace(ns_reporting_v2)
+api2.add_namespace(ns_detection_repository_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:

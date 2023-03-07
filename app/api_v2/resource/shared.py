@@ -229,6 +229,11 @@ mod_permissions = Model('Permissions', {
     'view_assets': fields.Boolean,
     'update_asset': fields.Boolean,
     'delete_asset': fields.Boolean,
+    'create_detection_repository': fields.Boolean,
+    'view_detection_repositories': fields.Boolean,
+    'update_detection_repository': fields.Boolean,
+    'delete_detection_repository': fields.Boolean,
+    'share_detection_repository': fields.Boolean
 }, strict=True)
 
 mod_user_list = Model('UserList', {

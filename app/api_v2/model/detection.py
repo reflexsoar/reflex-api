@@ -24,6 +24,11 @@ from . import (
 
 from .inout import FieldMap
 
+
+VALID_REPO_SHARE_MODES = ['private','local-shared', 'external-private', 'external-public']
+VALID_REPO_TYPES = ['local', 'remote']
+
+
 class MITRETacticTechnique(base.InnerDoc):
     '''
     A MITRE Tactic or Technique
@@ -219,6 +224,26 @@ class Detection(base.BaseDocument):
         }
 
     @classmethod
+    def get_by_detection_id(cls, detection_id, organization=None):
+        '''
+        Fetches a document by the detection_id field  which is a persistent UUID
+        that follows the rule across any installation of the API
+        '''
+        response = cls.search()
+
+        if isinstance(detection_id, list):
+            response = response.filter('terms', detection_id=detection_id)
+        else:
+            response = response.filter('term', detection_id=detection_id)
+
+        if organization:
+            response = response.filter('term', organization=organization)
+
+        response = [r for r in response.scan()]
+        return response
+
+
+    @classmethod
     def get_by_name(cls, name, organization=None):
         '''
         Fetches a document by the name field
@@ -296,7 +321,7 @@ class Detection(base.BaseDocument):
                            'updated_by', 'case_template', 'source',
                            'time_taken', 'query_time_taken', 'run_start'
                            'run_finished', 'next_run', 'last_run', 'last_hit',
-                           'organization', 'assigned_agent']
+                           'organization', 'assigned_agent', 'total_hits']
         
         return {k: v for k, v in detection.items() if k not in stripped_fields}
     
@@ -373,6 +398,12 @@ class DetectionRepositoryToken(base.BaseDocument):
             "refresh_interval": "1s"
         }
 
+    def validate(self):
+        '''
+        Validates the token to ensure it is still valid
+        '''
+        raise NotImplementedError
+
     def revoke(self):
         '''
         Revoke the token as it is no longer needed or has been abused
@@ -398,17 +429,37 @@ class DetectionRepository(base.BaseDocument):
     description = Text()
     tags = Keyword() # A list of tags used to categorize this repository
     active = Boolean()
-    shared_type = Integer() # 0: Private, 1: Shared, 2: Public
-    repo_type = Integer() # 0: Internal, 1: Reflex External, 2: GIT
+    share_type = Keyword() # private, local-shared, external-private, external-public
+    repo_type = Keyword() # internal, remote, git
     detections = Keyword() # A list of all the detections in this repository
     url = Keyword() # The URL to fetch detections from if this an external repository
-    refresh_interval = Integer() # The number of seconds that should pass before fetching new rules
+    refresh_interval = Integer() # The number of minutes that should pass before fetching new rules
+    access_token = Keyword() # The access token used to fetch detections from an external repository if this is a repo_type 'remote'
+    external_tokens = Keyword() # A list of external tokens that can be used to subscribe to this repository if it is a `external-private` share type
 
     class Index:
         name = "reflex-detection-repositories"
         settings = {
             "refresh_interval": "1s"
         }
+
+    @classmethod
+    def get_by_name(cls, name, organization=None):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = cls.search()
+        response = response.filter('term', name=name)
+        
+        if organization:
+            response = response.filter('term', organization=organization)
+
+        response = response.execute()
+        if response:
+            response = response[0]
+            return response
+        return response
 
 
 class DetectionRepositoryBundle(base.BaseDocument):
