@@ -19,6 +19,7 @@ mod_detection_repo = api.model('DetectionRepository', {
     'share_type': fields.String,
     'repo_type': fields.String,
     'subscribed': fields.Boolean,
+    'read_only': fields.Boolean,
     'url': fields.String,
     'refresh_interval': fields.Integer,
     'external_tokens': fields.List(fields.String),
@@ -47,6 +48,10 @@ mod_detection_repo_list = api.model('DetectionRepositoryList', {
     'pagination': fields.Nested(mod_pagination)
 })
 
+mod_repo_subscribe = api.model('DetectionRepositorySubscribe', {
+    'sync_interval': fields.Integer,
+})
+
 
 # PERMISSIONS
 # create_detection_repository
@@ -67,7 +72,105 @@ mod_detection_repo_list = api.model('DetectionRepositoryList', {
 # PUT /detection_repository/{id}/activate - Activate the repository
 # PUT /detection_repository/{id}/deactivate - Deactivate the repository
 # GET /detection_repository/{id}/sync - Sync the repository
+# POST /detection_repository/{id}/subscribe - Subscribe to the repository
+# POST /detection_repository/{id}/unsubscribe - Unsubscribe from the repository
 # DELETE /detection_repository/{id} - Delete
+
+
+@api.route('/<string:uuid>/sync')
+class DetectionRepositorySync(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('subscribe_detection_repository')
+    def post    (self, current_user, uuid):
+        '''Forces a sync of the repository'''
+        repository = DetectionRepository.get_by_uuid(uuid)
+
+        if not repository:
+            api.abort(404, 'Detection Repository not found')
+
+        if current_user.organization not in repository.access_scope:
+            api.abort(403, 'You do not have permission to sync this repository')
+
+        repository.check_subscription(organization=current_user.organization)
+        if not repository.subscribed:
+            api.abort(403, 'You do not have permission to sync this repository')
+
+        repository.sync(organization=current_user.organization)
+
+        return {'message': 'Syncing repository'}, 200
+
+
+@api.route('/<string:uuid>/subscribe')
+class DetectionRepositorySubscribe(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_detection_repo)
+    @api.expect(mod_repo_subscribe)
+    @token_required
+    @user_has('subscribe_detection_repository')
+    def post(self, current_user, uuid):
+        '''Subscribes to a detection repository
+        Permission Required `subscribe_detection_repository`
+        '''
+
+        repository = DetectionRepository.get_by_uuid(uuid)
+        if not repository:
+            api.abort(404, 'Detection Repository not found')
+
+        if current_user.organization not in repository.access_scope:
+            api.abort(403, 'You do not have permission to subscribe to this repository')
+        
+        subscription = None
+
+        try:
+            subscription = repository.subscribe()
+        except ValueError as e:
+            api.abort(400, str(e))
+
+        # Sync the repository
+        if subscription:
+            repository.sync(organization=subscription.organization)
+
+        repository.check_subscription(organization=current_user.organization)
+
+        return repository
+    
+
+@api.route('/<string:uuid>/unsubscribe')
+class DetectionRepositoryUnsubscribe(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_detection_repo)
+    @token_required
+    @user_has('subscribe_detection_repository')
+    def post(self, current_user, uuid):
+        '''Unsubscribes from a detection repository
+        Permission Required `subscribe_detection_repository`
+        '''
+
+        repository = DetectionRepository.get_by_uuid(uuid)
+        if not repository:
+            api.abort(404, 'Detection Repository not found')
+
+        if current_user.organization not in repository.access_scope:
+            api.abort(403, 'You do not have permission to unsubscribe from this repository')
+        
+        subscription = None
+
+        try:
+            subscription = repository.unsubscribe(organization=current_user.organization)
+        except ValueError as e:
+            api.abort(400, str(e))
+
+        if not subscription:
+            # Remove all the rules from the organizations detections library
+            repository.remove_rules(organization=current_user.organization)
+
+        repository.check_subscription(organization=current_user.organization)
+
+        return repository   
 
 
 @api.route('')
@@ -83,6 +186,18 @@ class DetectionRepositoryList(Resource):
         '''
 
         repositories = DetectionRepository.search()
+
+        # Filter by repositories that this organization owns or has access to
+        # via the access scope field
+        repositories = repositories.filter('bool', should=[
+            {'term': {'organization': current_user.organization}},
+            {'bool': {
+                'must': [
+                    {'term': {'share_type': 'local-shared'}},
+                    {'term': {'access_scope': current_user.organization}}
+                ]
+            }}
+        ])
 
         # TODO: Fetch only the repositories that the user has access to which includes
         # repositories in their organization, remote repositories their organization
@@ -153,7 +268,9 @@ class DetectionRepositoryList(Resource):
 
             # If the detection is from a repository sync, remove it from the list as sharing
             # detections from a repo in another repo is not supported
-            data['detections'] = [d.uuid for d in detections if d.from_repo_sync is False]
+            print(detections)
+            data['detections'] = [d.detection_id for d in detections if d.from_repo_sync is not True]
+            print(data['detections'])
 
         existing_repo = DetectionRepository.get_by_name(name=data['name'], organization=data['organization'])
         if existing_repo:

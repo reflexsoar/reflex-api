@@ -19,7 +19,8 @@ from . import (
     Nested,
     system,
     Object,
-    FieldMappingTemplate
+    FieldMappingTemplate,
+    AttrList
 )
 
 from .inout import FieldMap
@@ -229,9 +230,9 @@ class Detection(base.BaseDocument):
         Fetches a document by the detection_id field  which is a persistent UUID
         that follows the rule across any installation of the API
         '''
-        response = cls.search()
+        response = cls.search(skip_org_check=True)
 
-        if isinstance(detection_id, list):
+        if isinstance(detection_id, (list,AttrList)):
             response = response.filter('terms', detection_id=detection_id)
         else:
             response = response.filter('term', detection_id=detection_id)
@@ -414,6 +415,7 @@ class DetectionRepositorySubscription(base.BaseDocument):
     '''
 
     repository = Keyword() # The UUID of the repository this subscription belongs to
+    sync_interval = Integer() # The sync interval for this subscription, in minutes
     last_sync = Date() # The last time this repository was synced
     last_sync_status = Keyword() # The status of the last sync
     active = Boolean() # Whether or not this subscription is active
@@ -438,7 +440,7 @@ class DetectionRepositorySubscription(base.BaseDocument):
         response = response.execute()
 
         if len(response) > 0:
-            return response
+            return response[0]
         return []
 
 
@@ -486,17 +488,131 @@ class DetectionRepository(base.BaseDocument):
             return response
         return response
     
+    def subscribe(self, sync_interval=60):
+        '''
+        Creates a subscription for this repository
+        '''
+        subscription = DetectionRepositorySubscription.get_by_repository(self.uuid)
+        if not subscription:
+            subscription = DetectionRepositorySubscription(
+                repository=self.uuid,
+                sync_interval=sync_interval,
+                last_sync=datetime.datetime.utcnow(),
+                last_sync_status='pending',
+                active=True
+            )
+            subscription.save(refresh="wait_for")
+        else:
+            raise ValueError("Repository is already subscribed to")
+        
+        return subscription
+    
+    def unsubscribe(self, organization):
+        '''
+        Removes a subscription for this repository
+        '''
+        subscription = DetectionRepositorySubscription.get_by_repository(self.uuid)
+        if subscription:
+            subscription.delete(refresh="wait_for")
+        else:
+            raise ValueError("Repository is not subscribed to")
+        
+        return None
+    
     def check_subscription(self, organization):
         '''
         Returns True if the organization is subscribed to this repository
         '''
+
+        self.__dict__['subscribed'] = False
+
         if self.organization == organization:
             self.__dict__['subscribed'] = True
         else:
             subscription = DetectionRepositorySubscription.get_by_repository(self.uuid, organization=organization)
             if subscription:
                 self.__dict__['subscribed'] = True
-            self.__dict__['subscribed'] = False
+
+        # Also perform an owedership check
+        self.check_ownership(organization)
+
+        return self.subscribed
+
+    def check_ownership(self, organization):
+        '''
+        Returns True if the repository is read only
+        '''
+        if organization != self.organization:
+            self.__dict__['read_only'] = True
+        else:
+            self.__dict__['read_only'] = False
+
+        return self.read_only
+    
+    def sync(self, organization):
+        ''' Synchronizes the repository if it is a local repository '''
+        if self.repo_type == 'local':
+            detections_to_sync = Detection.get_by_detection_id(self.detections)
+            for detection in detections_to_sync:
+                existing_detection = Detection.get_by_detection_id(detection.detection_id, organization=organization)
+                if not existing_detection:
+                    new_detection = Detection(
+                        name=detection.name,
+                        description=detection.description,
+                        tags=detection.tags,
+                        active=False,
+                        query=detection.query,
+                        detection_id=detection.detection_id,
+                        organization=organization,
+                        tactics=detection.tactics,
+                        techniques=detection.techniques,
+                        rule_type=detection.rule_type,
+                        version=detection.version,
+                        risk_score=detection.risk_score,
+                        severity=detection.severity,
+                        interval=detection.interval,
+                        lookbehind=detection.lookbehind,
+                        last_run=datetime.datetime.utcfromtimestamp(40246871),
+                        mute_period=detection.mute_period,
+                        threshold_config=detection.threshold_config,
+                        metric_change_config=detection.metric_change_config,
+                        field_mismatch_config=detection.field_mismatch_config,
+                        new_terms_config=detection.new_terms_config,
+                        from_repo_sync=True
+                    )
+                    new_detection.save()
+                else:
+                    existing_detection = existing_detection[0]
+                    existing_detection.name = detection.name
+                    existing_detection.description = detection.description
+                    existing_detection.tags = detection.tags
+                    existing_detection.active = False
+                    existing_detection.query = detection.query
+                    existing_detection.tactics = detection.tactics
+                    existing_detection.techniques = detection.techniques
+                    existing_detection.rule_type = detection.rule_type
+                    existing_detection.version = detection.version
+                    existing_detection.risk_score = detection.risk_score
+                    existing_detection.severity = detection.severity
+                    existing_detection.interval = detection.interval
+                    existing_detection.lookbehind = detection.lookbehind
+                    existing_detection.mute_period = detection.mute_period
+                    existing_detection.threshold_config = detection.threshold_config
+                    existing_detection.metric_change_config = detection.metric_change_config
+                    existing_detection.field_mismatch_config = detection.field_mismatch_config
+                    existing_detection.new_terms_config = detection.new_terms_config
+                    existing_detection.from_repo_sync = True
+                    existing_detection.save()
+            Detection._index.refresh()
+
+
+    def remove_rules(self, organization):
+        ''' Removes all the rules associated with this repository from the 
+        target organizations rule set
+        '''
+        if self.repo_type == 'local':
+            detections_to_unlink = Detection.get_by_detection_id(self.detections, organization=organization)
+            print(detections_to_unlink)
 
 
 class DetectionRepositoryBundle(base.BaseDocument):

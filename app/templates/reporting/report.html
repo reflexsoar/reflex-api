@@ -5,11 +5,11 @@
 {% from "reporting/macros.html" import severity_text with context %}
 {% block title %}Test{% endblock %}
 {% block body %}
-<header class="d-flex align-items-center pb-2 mb-5 border-bottom">
+<header class="align-items-center pb-2 mb-5 border-bottom">
     <div class="row">
         <div class="col-8">
-            <span class="d-flex align-items-center text-dark text-decoration-none">
-                <img src="/img/logo.png" width="25%" alt="">&nbsp;
+            <span class="text-dark text-decoration-none">
+                <img src="{{ logo_url }}" width="25%" alt="">&nbsp;
                 <span class="fs-2">{{ report.title }}</span>
             </span>
         </div>
