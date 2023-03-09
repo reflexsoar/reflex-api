@@ -133,6 +133,40 @@
     </div>
 </div>  
 
+<div class="row row pb-3">
+    <div class="col">
+        <h2>Events Breakdown</h2>
+    </div>
+</div>
+<div class="row row pb-3">
+    <div class="col">
+        <h3 class="pb-3">Top Event Titles</h3>
+        <table class="table">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Event Title</th>
+                    <th scope="col">Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in report.events.this_period.top_titles %}
+                <tr>
+                    <td>{{event.title}}</td>
+                    <td>{{event.count}}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="col-3">
+        <h3>By Severity</h3>
+        <div id="events_by_severity"></div>
+    </div>
+    <div class="col-3">
+        <h3>By Dismiss Reason</h3>
+        <div id="events_by_dismiss_reason"></div>
+    </div>
+</div>
 
 <div class="row pb-3">
     <h2 class="pb-3">Case Metrics</h2>
@@ -178,8 +212,8 @@
 <div class="row pb-3" style="page-break-after: always">
     <h2 class="pb-3">Case Details</h2>
     <div class="col">
-        <table class="table table-sm">
-            <thead>
+        <table class="table">
+            <thead class="table-light">
                 <tr>
                     <th scope="col">Case Title</th>
                     <th scope="col">Description</th>
@@ -342,5 +376,128 @@
         };
 var chart = new ApexCharts(document.querySelector("#events_by_severity_by_hour"), events_by_severity_by_hour_options);
 chart.render();
+
+var events_by_severity_options = {
+    series: {{ report.events.this_period.by_severity['values'] }},
+    chart: {
+        width: 380,
+        type: 'radialBar',
+    },
+    plotOptions: {
+          radialBar: {
+            startAngle:0,
+            endAngle: 270,
+            dataLabels: {
+              name: {
+                fontSize: '22px',
+              },
+              value: {
+                fontSize: '16px',
+              },
+              total: {
+                show: true,
+                label: 'Total Events',
+                formatter: function (w) {
+                  
+                  return {{ report.events.this_period.by_severity['total'] }}
+                }
+              }
+            }
+          }
+        },
+        legend: {
+          show: true,
+          floating: true,
+          fontSize: '14px',
+          offsetX: 180,
+          offsetY: 0,
+          labels: {
+            useSeriesColors: true,
+          },
+          markers: {
+            size: 0
+          },
+          formatter: function(seriesName, opts) {
+            return seriesName + ":  " + opts.w.globals.series[opts.seriesIndex]
+          },
+          itemMargin: {
+            vertical: 3
+          }
+        },
+        responsive: [{
+          breakpoint: 480,
+          options: {
+            legend: {
+                show: false
+            }
+          }
+        }],
+    labels: {{ report.events.this_period.by_severity['labels'] | tojson }}
+}
+
+var severity_chart = new ApexCharts(document.querySelector("#events_by_severity"), events_by_severity_options);
+severity_chart.render();
+
+var events_by_dismiss_reason = {
+    series: {{ report.events.this_period.dismiss_reasons['values'] }},
+    chart: {
+        width: 380,
+        type: 'radialBar',
+    },
+    plotOptions: {
+          radialBar: {
+            startAngle:0,
+            endAngle: 270,
+            dataLabels: {
+              name: {
+                fontSize: '22px',
+              },
+              value: {
+                fontSize: '16px',
+              },
+              total: {
+                show: true,
+                label: 'Total Events',
+                formatter: function (w) {
+                  
+                  return {{ report.events.this_period.dismiss_reasons['total'] }}
+                }
+              }
+            }
+          }
+        },
+        legend: {
+          show: true,
+          floating: true,
+          fontSize: '14px',
+          offsetX: 160,
+          offsetY: 0,
+          labels: {
+            useSeriesColors: true,
+          },
+          markers: {
+            size: 0
+          },
+          formatter: function(seriesName, opts) {
+            return seriesName + ":  " + opts.w.globals.series[opts.seriesIndex]
+          },
+          itemMargin: {
+            vertical: 3
+          }
+        },
+        responsive: [{
+          breakpoint: 480,
+          options: {
+            legend: {
+                show: false
+            }
+          }
+        }],
+    labels: {{ report.events.this_period.dismiss_reasons['labels'] | tojson }}
+}
+
+var dismiss_reason_chart = new ApexCharts(document.querySelector("#events_by_dismiss_reason"), events_by_dismiss_reason);
+dismiss_reason_chart.render();
+
 </script>
 {% endblock %}

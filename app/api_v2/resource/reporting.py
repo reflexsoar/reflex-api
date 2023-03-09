@@ -1,3 +1,4 @@
+import math
 import json
 import datetime
 from app import cache
@@ -88,6 +89,62 @@ class Reporting(Resource):
         organization = Organization.get_by_uuid(organization_uuid)
         if not organization:
             api.abort(404, "Organization not found")
+
+        # Find the top 10 event titles for this period
+        top_events_search = Event.search()
+        top_events_search = top_events_search.filter('term', organization=organization_uuid)
+        top_events_search = top_events_search.filter('range', created_at=current_period)
+        top_events_search.aggs.bucket('top_events', 'terms', field='title', size=10)
+        top_events_search = top_events_search.execute()
+
+        top_event_titles = []
+        for event in top_events_search.aggregations.top_events.buckets:
+            top_event_titles.append({'title': event.key, 'count': event.doc_count})
+
+        # Aggregate by event severity for this period
+        event_severity_search = Event.search()
+        event_severity_search = event_severity_search.filter('term', organization=organization_uuid)
+        event_severity_search = event_severity_search.filter('range', created_at=current_period)
+
+        event_severity_search_total = event_severity_search.count()
+
+        event_severity_search.aggs.bucket('event_severity', 'terms', field='severity', size=10)
+        event_severity = event_severity_search.execute()
+
+        event_severity_counts = {
+            'values': [],
+            'labels': [],
+            'total': event_severity_search_total
+        }
+        for severity in event_severity.aggregations.event_severity.buckets:
+            if event_severity_search_total == 0:
+                event_severity_counts['values'].append(0)
+            else:
+                event_severity_counts['values'].append(math.floor(severity.doc_count/event_severity_search_total*100))
+            event_severity_counts['labels'].append(severity_as_string(severity.key))
+
+        # Aggregate by dismiss_reason for this period
+        dismiss_reason_search = Event.search()
+        dismiss_reason_search = dismiss_reason_search.filter('term', organization=organization_uuid)
+        dismiss_reason_search = dismiss_reason_search.filter('range', created_at=current_period)
+        dismiss_reason_search = dismiss_reason_search.filter('exists', field='dismiss_reason')
+
+        dismiss_reason_search_total = dismiss_reason_search.count()
+
+        dismiss_reason_search.aggs.bucket('dismiss_reason', 'terms', field='dismiss_reason.keyword', size=10)
+        dismiss_reason = dismiss_reason_search.execute()
+
+        dismiss_reason_counts = {
+            'values': [],
+            'labels': [],
+            'total': dismiss_reason_search_total
+        }
+        for reason in dismiss_reason.aggregations.dismiss_reason.buckets:
+            if dismiss_reason_search_total == 0:
+                dismiss_reason_counts['values'].append(0)
+            else:
+                dismiss_reason_counts['values'].append(math.floor(reason.doc_count/dismiss_reason_search_total*100))
+            dismiss_reason_counts['labels'].append(reason.key)
 
         
         # Find the total number of Events for the organization
@@ -266,6 +323,9 @@ class Reporting(Resource):
             'events': {
                 'severity_by_hour_of_day': event_hours,
                 'this_period': {
+                    'top_titles': top_event_titles,
+                    'by_severity': event_severity_counts,
+                    'dismiss_reasons': dismiss_reason_counts,
                     'total': current_period_events,
                     'total_trend_direction': trend_direction(current_period_events, previous_events_count),
                     'automation_total': handled_by_auto,
