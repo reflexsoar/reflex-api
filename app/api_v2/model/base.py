@@ -45,7 +45,7 @@ class BaseDocument(Document):
         return fnmatch(hit["_index"], f'{cls.Index.name}-*')
 
     @classmethod
-    def search(cls, using=None, index=None):
+    def search(cls, using=None, index=None, skip_org_check=False):
         """
         Creates an :class:`~elasticsearch_dsl.Search` instance that will search 
         over this ``Document``
@@ -61,9 +61,9 @@ class BaseDocument(Document):
             
             is_default_org = 'default_org' in current_user and current_user['default_org']
 
-            if cls.Index.name not in ['reflex-organizations', 'reflex-mitre-tactics', 'reflex-mitre-techniques']:
+            if cls.Index.name not in ['reflex-organizations', 'reflex-mitre-tactics', 'reflex-mitre-techniques', 'reflex-detection-repositories']:
                 
-                if not is_default_org:
+                if not is_default_org and not skip_org_check:
                     s = s.filter('term', organization=current_user['organization'])
             
         return s

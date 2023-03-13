@@ -366,7 +366,7 @@ class User(base.BaseDocument):
     @classmethod
     def get_by_email(self, email):
         response = self.search().query(
-            'term', email__keyword=email)
+            'match', email=email)
         response= response.source(excludes=[])
         response = response.execute()
         if response:
@@ -652,10 +652,11 @@ class Permission(InnerDoc):
     update_detection = Boolean()
     view_detections = Boolean()
     delete_detection = Boolean()
-    create_detection_repo = Boolean()
-    update_detection_repo = Boolean()
-    view_detection_repos = Boolean()
-    delete_detection_repo = Boolean()
+    create_detection_repository = Boolean()
+    view_detection_repositories = Boolean()
+    update_detection_repository = Boolean()
+    delete_detection_repository = Boolean()
+    share_detection_repository = Boolean()
     create_repo_sharing_token = Boolean()
     create_detection_exclusion = Boolean()
     update_detection_exclusion = Boolean()

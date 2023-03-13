@@ -678,9 +678,10 @@ class TestEventRQL(Resource):
             hits = len(result)
 
             response = {"message": f"Query matched {hits} Events", "success": True, "hits": result}
-            if hits/len(event_data) > 0.3:
-                response['message'] = f"Query matched {hits} Events.  This is more than 30% of the events queried.  Please consider refining your query."
-                response['danger'] = True
+            if len(event_data) > 0:
+                if hits/len(event_data) > 0.3:
+                    response['message'] = f"Query matched {hits} Events.  This is more than 30% of the events queried.  Please consider refining your query."
+                    response['danger'] = True
 
             if hits > 0:
                 if 'return_results' in api.payload and api.payload['return_results']:

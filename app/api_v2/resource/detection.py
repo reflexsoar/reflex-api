@@ -234,6 +234,49 @@ mod_detection_list_paged = api.model('DetectionListPaged', {
     'pagination': fields.Nested(mod_pagination)
 })
 
+mod_detection_export = api.model('DetectionExport', {
+    'original_uuid': fields.String(attribute='uuid'),
+    'from_repo_sync': fields.Boolean,
+    'name': fields.String,
+    'query': fields.Nested(mod_query_config),
+    'from_sigma': fields.Boolean,
+    'sigma_rule': fields.String,
+    'detection_id': fields.String,
+    'description': fields.String,
+    'guide': fields.String,
+    'tags': fields.List(fields.String),
+    'tactics': fields.List(fields.Nested(mod_tactic_brief)),
+    'techniques': fields.List(fields.Nested(mod_technique_brief)),
+    'references': fields.List(fields.String),
+    'false_positives': fields.List(fields.String),
+    'kill_chain_phase': fields.String,
+    'rule_type': fields.Integer,
+    'version': fields.Integer,
+    'active': fields.Boolean,
+    'warnings': fields.List(fields.String),
+    'source': fields.Nested(mod_source_config),
+    'risk_score': fields.Integer,
+    'severity': fields.Integer,
+    'signature_fields': fields.List(fields.String),
+    'observable_fields': fields.List(fields.Nested(mod_observable_field)),
+    'time_taken': fields.Integer,
+    'query_time_taken': fields.Integer,
+    'interval': fields.Integer,
+    'lookbehind': fields.Integer,
+    'mute_period': fields.Integer,
+    'skip_event_rules': fields.Boolean,
+    'exceptions': fields.List(fields.Nested(mod_detection_exception_list)),
+    'threshold_config': fields.Nested(mod_threshold_config, skip_none=True),
+    'metric_change_config': fields.Nested(mod_metric_change_config, skip_none=True),
+    'field_mismatch_config': fields.Nested(mod_field_mistmatch_config, skip_none=True),
+    'new_terms_config': fields.Nested(mod_new_terms_config, skip_none=True),
+    'include_source_meta_data': fields.Boolean()
+})
+
+mod_exported_detections = api.model('ExportedDetections', {
+    'detections': fields.List(fields.Nested(mod_detection_export))
+})
+
 mod_detection_hits = api.model('DetectionHit', {
     'title': fields.String,
     'tags': fields.List(fields.String),
@@ -686,7 +729,7 @@ class ParseSigma(Resource):
 class DetectionExport(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_detection_details)
+    @api.marshal_with(mod_detection_export)
     @token_required
     @user_has('view_detections')
     def get(self, uuid, current_user):
@@ -697,9 +740,7 @@ class DetectionExport(Resource):
         detection = Detection.get_by_uuid(uuid=uuid)
 
         if detection:
-            file_name = f'{detection.uuid}.json'
-            exported_detection = detection.export()
-            return exported_detection
+            return detection
 
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')
@@ -709,7 +750,7 @@ class DetectionExport(Resource):
 class DetectionExportSelected(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
+    @api.marshal_with(mod_detection_export, as_list=True, skip_none=True)
     @api.expect(mod_bulk_detections)
     @token_required
     @user_has('view_detections')
@@ -721,10 +762,7 @@ class DetectionExportSelected(Resource):
         detections = Detection.get_by_uuid(uuid=api.payload['detections'])
 
         if detections:
-            exported_detections = []
-            for detection in detections:
-                exported_detections.append(detection.export())
-            return exported_detections
+            return detections
 
         else:
             api.abort(400, f'Detection rules not found')
