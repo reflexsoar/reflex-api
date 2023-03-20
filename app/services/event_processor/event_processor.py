@@ -359,12 +359,12 @@ class EventWorker(Process):
 
         mgmr = Manager()
 
-        log_handler = logging.StreamHandler()
-        log_handler.setFormatter(logging.Formatter(
-            '%(asctime)s - %(name)s (%(process)d) - %(levelname)s - %(message)s'))
+        #log_handler = logging.StreamHandler()
+        #log_handler.setFormatter(logging.Formatter(
+        #    '%(asctime)s - %(name)s (%(process)d) - %(levelname)s - %(message)s'))
 
         self.logger = logging.getLogger('EventWorker')
-        self.logger.addHandler(log_handler)
+        #self.logger.addHandler(log_handler)
         self.logger.setLevel(log_levels[log_level])
 
         self.app_config = app_config
