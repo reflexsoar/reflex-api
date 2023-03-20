@@ -828,7 +828,7 @@ class Role(base.BaseDocument):
         if isinstance(user_id, list):
             self.members = [m for m in self.members if m not in user_id]
         else:
-            if self.members is not None:
+            if self.members is not None and user_id in self.members:
                 self.members.remove(user_id)
         self.save()
 
