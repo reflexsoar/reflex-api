@@ -769,6 +769,10 @@ class EventWorker(Process):
 
             # Assume it doesn't match by default
             matched = False
+            try:
+                data_type_name = l.data_type.name
+            except:
+                data_type_name = "generic"
 
             # If dealing with a CSV list
             if l.list_type == 'csv':
@@ -776,11 +780,11 @@ class EventWorker(Process):
                     observable['value'], observable['data_type'], MEMCACHED_CONFIG=MEMCACHED_CONFIG)
 
             else:
-                if observable['data_type'] == l.data_type.name:
+                if observable['data_type'] == data_type_name:
                     matched = l.check_value(
                         observable['value'], MEMCACHED_CONFIG=MEMCACHED_CONFIG)
                         
-                if l.data_type.name == "generic":
+                if data_type_name == "generic":
                     matched = l.check_value(
                         observable['value'], MEMCACHED_CONFIG=MEMCACHED_CONFIG)
 

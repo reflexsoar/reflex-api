@@ -1,6 +1,10 @@
+from functools import lru_cache
 import re
+import json
 import base64
 import urllib
+import requests
+import ipaddress
 from flask_restx import fields, Namespace, Resource
 from .shared import mod_pagination
 from ..utils import token_required, user_has, default_org
@@ -79,11 +83,49 @@ mod_observable_event_hits = api.model('ObservableEventHits', {
     'total_org_cases': fields.Integer,
     'threat_list_hits': fields.List(fields.Nested(mod_threat_list_hits)),
     'top_events': fields.List(fields.Nested(mod_top_events)),
-    'base64_decoded_values': fields.List(fields.String)
+    'base64_decoded_values': fields.List(fields.String),
+    'ip_whois': fields.Raw,
+    'url_haus': fields.Raw,
 })
+
+def check_url_haus(value, data_type):
+    ''' Connects to urlhaus-api.abuse.ch and pulls information '''
+
+    lookup_key = {
+        'ip': 'host',
+        'domain': 'host',
+        'url': 'url',
+    }
+
+    post_data = {lookup_key[data_type]: value}
+    try:
+        r = requests.post('https://urlhaus-api.abuse.ch/v1/host/', data=post_data)
+        if r.status_code == 200:
+            return r.json()
+    except:
+        return {}
+
+@lru_cache(maxsize=10000)
+def check_ip_whois_io(ip):
+    ''' Connects to ipwhois.io and pulls information about the IP address'''
+
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError:
+        return {}
+    
+    ip_information = {}
+    try:
+        r = requests.get(f'https://ipwho.is/{ip}')
+        if r.status_code == 200:
+            ip_information = r.json()
+    except:
+        pass
+    return ip_information
 
 observable_parser = api.parser()
 observable_parser.add_argument('organization', location='args', type=str, help='Organization UUID')
+observable_parser.add_argument('data_type', location='args', type=str, help='Data type of the observable')
 
 @api.route('/<string:value>/hits')
 class ObservableHits(Resource):
@@ -146,7 +188,14 @@ class ObservableHits(Resource):
         def list_url(l):
             return l.url if hasattr(l, 'url') and l.url else ''
 
-        list_data = [{'uuid': l.uuid, 'name': l.name, 'list_type': l.list_type, 'hits': hits[l.uuid], 'external_feed': is_external_feed(l), 'url': list_url(l) } for l in list_data]
+        list_data = [{
+            'uuid': l.uuid,
+            'name': l.name,
+            'list_type': l.list_type,
+            'hits': hits[l.uuid],
+            'external_feed': is_external_feed(l),
+            'url': list_url(l)
+            } for l in list_data]
 
 
         # Attempt to base64 decode any values that are base64 encoded
@@ -156,19 +205,28 @@ class ObservableHits(Resource):
             matches = pattern.findall(value)
             if matches:
                 for match in matches:
-                    import json
+                    
                     decoded_value = base64.b64decode(match)
                     encoding = json.detect_encoding(decoded_value)
                     decoded_values.append(decoded_value.decode(encoding))
         except Exception as e:
             pass
 
+        ip_whois = check_ip_whois_io(value)
+
+        #if args.data_type in ['domain','url','ip']:
+        #    url_haus = check_url_haus(value, args.data_type)
+        #else:
+        #    url_haus = {}
+
         response = {'system_wide_events': total_events,
                     'total_org_events': organization_events,
                     'total_org_cases': total_cases,
                     'threat_list_hits': list_data,
                     'top_events': top_events,
-                    'base64_decoded_values': decoded_values
+                    'base64_decoded_values': decoded_values,
+                    'ip_whois': ip_whois,
+                    #'url_haus': url_haus
                 }
 
         return response
