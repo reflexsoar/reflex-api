@@ -212,6 +212,7 @@ class ObservableHits(Resource):
         except Exception as e:
             pass
 
+        ip_whois = {}
         ip_whois = check_ip_whois_io(value)
 
         #if args.data_type in ['domain','url','ip']:
