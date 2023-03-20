@@ -213,7 +213,7 @@ class ObservableHits(Resource):
             pass
 
         ip_whois = {}
-        #ip_whois = check_ip_whois_io(value)
+        ip_whois = check_ip_whois_io(value)
 
         #if args.data_type in ['domain','url','ip']:
         #    url_haus = check_url_haus(value, args.data_type)
