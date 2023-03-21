@@ -221,7 +221,7 @@ event_list_parser.add_argument(
 event_list_parser.add_argument(
     'page_size', type=int, location='args', default=10, required=False)
 event_list_parser.add_argument(
-    'sort_by', type=str, location='args', default='created_at', required=False)
+    'sort_by', type=str, location='args', default='original_date', required=False)
 event_list_parser.add_argument(
     'sort_direction', type=str, location='args', default="desc", required=False)
 event_list_parser.add_argument('start', location='args', type=str, required=False)
