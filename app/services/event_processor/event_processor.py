@@ -642,7 +642,7 @@ class EventWorker(Process):
                 self.logger.error('Running in dedicated worker mode but no Kafka connection could be made, exiting')
                 exit(1)
 
-        self.reload_meta_info()
+        self.reload_meta_info(clear_reload_flag=True)
 
         _events = []
 
@@ -690,7 +690,7 @@ class EventWorker(Process):
                     # Reload all the event rules and other meta information if the refresh timer
                     # has expired
                     if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
-                        self.reload_meta_info()
+                        self.reload_meta_info(clear_reload_flag=True)
 
                     # Interrupt this flow if the worker is scheduled for restart
                     if self.should_restart.is_set():
