@@ -301,6 +301,12 @@ def create_app(environment='development'):
                 seconds=app.config['AGENT_HEALTH_CHECK_INPUT_INTERVAL']
             )
 
+            scheduler.add_job(
+                func=housekeeper.check_expired_event_rules,
+                trigger="interval",
+                seconds=600
+            )
+
         if not app.config['SLAMONITOR_DISABLED']:
             sla_monitor = SLAMonitor(app, log_level=app.config['SLAMONITOR_LOG_LEVEL'])
             scheduler.add_job(func=sla_monitor.check_event_slas, trigger="interval", seconds=app.config['SLAMONITOR_INTERVAL'])
