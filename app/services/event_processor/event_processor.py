@@ -41,18 +41,6 @@ from app.api_v2.model import (
 from app.api_v2.model.user import Organization
 from .errors import KafkaConnectionFailure
 
-if os.getenv('REFLEX_ELASTIC_APM_ENABLED') == 'true':
-    from elasticapm import Client
-    config = {
-        'SERVICE_NAME': 'reflex-event-processing',
-        'SECRET_TOKEN': os.getenv('REFLEX_ELASTIC_APM_TOKEN'),
-        'DEBUG': True,
-        'ENVIRONMENT': os.getenv('REFLEX_ELASTIC_APM_ENV'),
-        'SERVER_URL': os.getenv('REFLEX_ELASTIC_APM_HOST')
-    }
-
-    ep_apm_client = Client(config=config)
-
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
     from opensearch_dsl import connections
