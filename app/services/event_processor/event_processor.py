@@ -41,18 +41,6 @@ from app.api_v2.model import (
 from app.api_v2.model.user import Organization
 from .errors import KafkaConnectionFailure
 
-if os.getenv('REFLEX_ELASTIC_APM_ENABLED') == 'true':
-    from elasticapm import Client
-    config = {
-        'SERVICE_NAME': 'reflex-event-processing',
-        'SECRET_TOKEN': os.getenv('REFLEX_ELASTIC_APM_TOKEN'),
-        'DEBUG': True,
-        'ENVIRONMENT': os.getenv('REFLEX_ELASTIC_APM_ENV'),
-        'SERVER_URL': os.getenv('REFLEX_ELASTIC_APM_HOST')
-    }
-
-    ep_apm_client = Client(config=config)
-
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
     from opensearch_dsl import connections
@@ -511,14 +499,15 @@ class EventWorker(Process):
                 rule.update(active=False, disable_reason=f"Invalid RQL query. {e}", refresh=True)
                 self.logger.error(f"Failed to parse Event Rule {rule.name}, rule has been disabled.  Invalid RQL query. {e}.")
 
+        # MOVED TO HOUSEKEEPER ON 2023-03-20
         # Save expired rules
-        try:
-            ubq = UpdateByQuery(using=EventRule._index._using, index=EventRule._index._name)
-            ubq = ubq.filter('terms', uuid=[r.uuid for r in expired_rules])
-            ubq = ubq.script(source="ctx._source.active = false")
-            ubq.execute()
-        except Exception as e:
-            self.logger.error(f"Failed to disable expired rules. {e}")
+        # try:
+        #    ubq = UpdateByQuery(using=EventRule._index._using, index=EventRule._index._name)
+        #    ubq = ubq.filter('terms', uuid=[r.uuid for r in expired_rules])
+        #    ubq = ubq.script(source="ctx._source.active = false")
+        #    ubq.execute()
+        #except Exception as e:
+        #    self.logger.error(f"Failed to disable expired rules. {e}")
 
         sorted_rules = [r for r in loaded_rules if r.priority]
         sorted_rules.sort(key=lambda x: x.priority)
@@ -579,14 +568,26 @@ class EventWorker(Process):
         '''
         Fetches all the data types in the system
         '''
-        search = DataType.search()
-
-        if self.dedicated_worker:
-            search = search.filter('term', organization=self.organization)
-
-        data_types = search.scan()
-        self.data_types = list(data_types)
-
+        data_types = [
+            {'name': 'ip', 'description': 'IP Address',
+                'regex': r'/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/'},  # noqa: B950
+            {'name': 'email', 'description': 'An e-mail address',
+                'regex': r'/^[a-zA-Z0-9.!#$%&\'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/'},   # noqa: B950
+            {'name': 'md5hash', 'description': 'A MD5 hash', 'regex': r'/[a-f0-9A-F]{32}/'},
+            {'name': 'sha1hash', 'description': 'A SHA1 hash', 'regex': r'/[a-f0-9A-F]{40}/'},
+            {'name': 'sha256hash', 'description': 'A SHA256 hash',
+                'regex': r'/[a-f0-9A-F]{64}/'},
+            {'name': 'url', 'description': 'An address to a universal resource',
+                'regex': r'/(http|https)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/'},
+            {'name': 'process', 'description': 'A process that was launched on a machine',
+                'regex': r'^([A-Z]?[:\\\/]).*(\.\w{3,})?$'},
+            {'name': 'sid', 'description': 'A Microsoft Security Identifier',
+                'regex': r'^S(\-\d{1,10}){4,7}$'},
+            {'name': 'mac', 'description': 'The hardware address of a network adapter, MAC address',
+                'regex': r'^([A-Za-z0-9]{2}\:?\-?){6}$'},
+            {'name': 'port', 'description': 'Network port', 'regex': r'^\d{1,5}$'}
+        ]
+        self.data_types = [DataType(**dt) for dt in data_types]
 
     def check_cache(self, reference):
         '''
@@ -606,10 +607,14 @@ class EventWorker(Process):
         start_refresh = datetime.datetime.utcnow()
         self.logger.debug('Reloading configuration information')
         self.load_rules()
-        self.load_cases()
+        # self.load_cases() - NOT REQUIRED ANYMORE
         self.load_close_reasons()
         self.load_statuses()
-        self.load_data_types()
+
+        # Load data types only once
+        if len(self.data_types) == 0:
+            self.load_data_types()
+
         self.load_intel_lists()
         self.last_meta_refresh= datetime.datetime.utcnow()
         end_refresh = datetime.datetime.utcnow()
@@ -1094,20 +1099,19 @@ class EventWorker(Process):
                 raw_event['observables'] = [o for o in raw_event['observables'] if o['value'] not in [None,'','-']]
 
             for observable in raw_event['observables']:
+                
                 if observable['data_type'] == "auto":
                     raw_event['metrics']['auto_data_type_extraction'] = True
                     matched = False
                     raw_event['metrics']['auto_data_type_start'] = datetime.datetime.utcnow()
-                    for dt in [data_type for data_type in self.data_types if data_type.organization == raw_event['organization']]:
+                    for dt in self.data_types:
                         if dt.regex:
-                            if dt.regex.startswith('/') and dt.regex.endswith('/'):
-                                expression = dt.regex.lstrip('/').rstrip('/')
-                            else:
-                                expression = dt.regex
+                            expression = dt.regex.strip('/')
                             try:
                                 pattern = re.compile(expression)
                                 matches = pattern.findall(observable['value'])
                             except Exception as error:
+                                print(error)
                                 observable['data_type'] = "generic"
                             if len(matches) > 0:
                                 observable['data_type'] = dt.name

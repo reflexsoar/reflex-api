@@ -14,7 +14,8 @@ from app.api_v2.model import (
     AgentGroup,
     Task,
     Q,
-    Event
+    Event,
+    EventRule
 )
 
 
@@ -145,6 +146,22 @@ class HouseKeeper(object):
                         agent.healthy = True
             agent.save(refresh=True)
 
+    @check_lock
+    def check_expired_event_rules(self):
+        ''' Checks to see if any event rules have expired and disables them
+        '''
+        self.logger.info('Checking for expired event rules')
+        search = EventRule.search()
+        search = search[0:search.count()]
+        search = search.filter('bool', should=[Q('range', expires_at={
+                                 'lte': datetime.datetime.utcnow().isoformat()}), Q('bool', must_not=[Q('exists', field='expires_at')])])
+        rules = search.scan()
+        for rule in rules:
+            if rule.expired():
+                rule.enabled = False
+                rule.save(refresh=True)
+
+    
     def prune_old_agents(self):
         ''' Automatically removes any agents that have not actively
         talked to the system in a number of days
