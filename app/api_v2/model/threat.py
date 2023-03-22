@@ -151,6 +151,7 @@ class ThreatList(base.BaseDocument):
     description = Text(fields={'keyword':Keyword()})
     list_type = Text(fields={'keyword':Keyword()})  # value, pattern, csv
     data_type_uuid = Keyword()
+    data_type_name = Keyword() # The data type of the values in the list
     tag_on_match = Boolean()  # Default to False
     url = Text(fields={'keyword':Keyword()}) # A url to pull threat information from
     poll_interval = Integer() # How often to pull from this list
