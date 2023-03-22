@@ -195,7 +195,7 @@ class EventProcessor:
         '''
         Adds an item to the queue for Event Workers to work on
         '''
-        self.logger.info(f"Enqueuing event {item['uuid']} for processing, current queue size: {self.qsize()}")
+        self.logger.info(f"Enqueuing event for processing, current queue size: {self.qsize()}")
         if hasattr(self, 'dedicated_workers') and self.dedicated_workers:
             self.kf_producer.send(f"events-{item['organization']}", item)
         else:
