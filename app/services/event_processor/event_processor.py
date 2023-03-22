@@ -731,6 +731,7 @@ class EventWorker(Process):
                 _events = []
 
                 self.status.value = 'PUSHING'
+                self.logger.debug(f"Pushing {len(self.events)} events to Elasticsearch/Opensearch")
 
                 # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
                 bulk_dismiss = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'dismiss']
@@ -753,6 +754,8 @@ class EventWorker(Process):
 
                     # Send Events
                     for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events), refresh=True):
+                        if ok == False:
+                            self.logger.error(f"Failed to index event: {action}")
                         pass
 
                     # Update Cases
