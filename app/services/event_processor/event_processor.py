@@ -44,12 +44,12 @@ from .errors import KafkaConnectionFailure
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
     from opensearch_dsl import connections
-    from opensearchpy.helpers import streaming_bulk
+    from opensearchpy.helpers import streaming_bulk, bulk
     from opensearchpy.exceptions import ConnectionTimeout as EXC_CONNECTION_TIMEOUT
     from opensearchpy.helpers.errors import BulkIndexError as EXC_BULK_INDEX_ERROR
 else:
     from elasticsearch_dsl import connections
-    from elasticsearch.helpers import streaming_bulk
+    from elasticsearch.helpers import streaming_bulk, bulk
     from elasticsearch.exceptions import ConnectionTimeout as EXC_CONNECTION_TIMEOUT
     from elasticsearch.helpers.errors import BulkIndexError as EXC_BULK_INDEX_ERROR
 
@@ -677,16 +677,24 @@ class EventWorker(Process):
             else:
                 while not queue_empty:
                     self.status.value = 'POLLING'
-                    queue_empty = self.event_queue.empty()
                     _event = self.event_queue.get()
                     _event['metrics'] = {
                             'event_processing_dequeue': datetime.datetime.utcnow()
                         }
                     _events.append(_event)
+
                     if len(_events) >= self.config['ES_BULK_SIZE']:
+                        self.logger.debug('ES_BULK_SIZE reached, processing events')
+                        queue_empty = True
                         break
 
+                    queue_empty = self.event_queue.empty()
+            
+            true_event_count = len([e for e in _events if 'task' not in e])                    
+
             if queue_empty:
+                self.logger.debug(f'Queue is empty, holding {true_event_count} events')
+
                 if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
                     self.logger.debug('QUEUE EMPTY - Reloading interval has expired, reloading meta information')
                     self.reload_meta_info(clear_reload_flag=True)
@@ -751,13 +759,13 @@ class EventWorker(Process):
                         event['metrics']['event_processing_duration'] = (event['metrics']['event_processing_end'] - event['metrics']['event_processing_start']).total_seconds()
                     return event
                 
-                self.logger.debug('Processing {} events'.format(len(_events)))
+                self.logger.debug('Processing {} events'.format(true_event_count))
 
                 with ThreadPoolExecutor(max_workers=10) as executor:
                     results = executor.map(_process_event, _events)
                     self.events.extend([r for r in results if r is not None])
 
-                self.logger.debug(f"Processing finished for {len(_events)} events")
+                self.logger.debug(f"Processing finished for {true_event_count} events")
                 
             if (len(self.events) >= self.config["ES_BULK_SIZE"] or queue_empty) and len(self.events) != 0:
 
@@ -797,12 +805,18 @@ class EventWorker(Process):
                     self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
 
                     # Send Events
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events), refresh=False):
-                        if ok == False:
-                            self.logger.error(f"Failed to index event: {action}")
-                        else:
-                            self.logger.debug(f"Pushed {len(self.events)} events")
-                        pass
+                    result = bulk(connection, self.prepare_events(self.events))
+                    if result[0] != len(self.events):
+                        self.logger.error(f"Failed to index events: {result}")
+                        for item in result[1]:
+                            self.logger.error(f"Failed to index event: {item}")
+                            
+                    #for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events), refresh=False):
+                    #    if ok == False:
+                    #        self.logger.error(f"Failed to index event: {action}")
+                    #    else:
+                    #        self.logger.debug(f"Pushed {len(self.events)} events")
+                    #    pass
 
                     # Update Cases
                     #for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(self.events)):
