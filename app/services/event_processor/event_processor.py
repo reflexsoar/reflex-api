@@ -651,7 +651,6 @@ class EventWorker(Process):
 
             
             queue_empty = False
-            self.status.value = 'POLLING'
 
             if self.config['DEDICATED_WORKERS']:
                 message = self.kf_consumer.poll(self.config['ES_BULK_SIZE'])
@@ -668,6 +667,7 @@ class EventWorker(Process):
                     if not len(_events) > 0:
                         time.sleep(1)
                 else:
+                    self.status.value = 'POLLING'
                     for topic_data, consumer_records in message.items():
                         for msg in consumer_records:
                             _event = msg.value
@@ -689,7 +689,7 @@ class EventWorker(Process):
                         exit()
 
                     # Only sleep if not holding on to events
-                    if not len(_events) > 0:
+                    if len(_events) == 0:
                         time.sleep(1)
                 else:
                     # Reload all the event rules and other meta information if the refresh timer
@@ -702,15 +702,18 @@ class EventWorker(Process):
                         self.reload_meta_info(clear_reload_flag=True)
 
                     while not self.event_queue.empty() or len(_events) >= self.config["ES_BULK_SIZE"]:
+                        self.status.value = 'POLLING'
                         _event = self.event_queue.get()
                         _event['metrics'] = {
                                 'event_processing_dequeue': datetime.datetime.utcnow()
                             }
                         _events.append(_event)
 
-            if len(_events) >= self.config["ES_BULK_SIZE"] or queue_empty:
-                self.status.value = 'PROCESSING'
+            if len(_events) > 0:
                 self.events_in_processing.value = len(_events)
+
+            if len(_events) >= self.config["ES_BULK_SIZE"] or queue_empty:
+                self.status.value = 'PROCESSING'                
 
                 def _process_event(event):
                     event['metrics']['event_processing_start'] = datetime.datetime.utcnow()
@@ -731,7 +734,6 @@ class EventWorker(Process):
                 _events = []
 
                 self.status.value = 'PUSHING'
-                self.logger.debug(f"Pushing {len(self.events)} events to Elasticsearch/Opensearch")
 
                 # Perform bulk dismiss operations on events resubmitted to the Event Processor with _meta.action == "dismiss"
                 bulk_dismiss = [e for e in self.events if '_meta' in e and e['_meta']['action'] == 'dismiss']
@@ -742,12 +744,24 @@ class EventWorker(Process):
 
                 try:
                     for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case), refresh=True):
+                        if ok == False:
+                            self.logger.error(f"Failed to add event to case: {action}")
+                        else:
+                            self.logger.debug(f"Added {len(add_to_case)} events to cases")
                         pass
 
                     for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss), refresh=True):
+                        if ok == False:
+                            self.logger.error(f"Failed to dismiss event: {action}")
+                        else:
+                            self.logger.debug(f"Dismissed {len(bulk_dismiss)} events")
                         pass
 
                     for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule), refresh=True):
+                        if ok == False:
+                            self.logger.error(f"Failed to index retro event: {action}")
+                        else:
+                            self.logger.debug(f"Added {len(retro_apply_event_rule)} retro events")
                         pass
 
                     self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
@@ -756,6 +770,8 @@ class EventWorker(Process):
                     for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events), refresh=True):
                         if ok == False:
                             self.logger.error(f"Failed to index event: {action}")
+                        else:
+                            self.logger.debug(f"Pushed {len(self.events)} events")
                         pass
 
                     # Update Cases
