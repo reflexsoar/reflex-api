@@ -678,6 +678,30 @@ class EventWorker(Process):
                             }
                             _events.append(_event)
             else:
+                while not queue_empty:
+                    queue_empty = self.event_queue.empty()
+                    _event = self.event_queue.get()
+                    _event['metrics'] = {
+                            'event_processing_dequeue': datetime.datetime.utcnow()
+                        }
+                    _events.append(_event)
+
+                if queue_empty:
+                    if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
+                        self.logger.debug('QUEUE EMPTY - Reloading interval has expired, reloading meta information')
+                        self.reload_meta_info(clear_reload_flag=True)
+
+                    if self.should_restart.is_set():
+                        self.reload_meta_info(clear_reload_flag=True)
+
+                    if self.should_exit.is_set():
+                        self.logger.debug('Exiting due to should_exit flag being set')
+                        exit()
+
+                    if len(_events) == 0:
+                        time.sleep(1)
+
+                """    
                 if self.event_queue.empty():
                     queue_empty = True
 
@@ -712,7 +736,7 @@ class EventWorker(Process):
                                 'event_processing_dequeue': datetime.datetime.utcnow()
                             }
                         _events.append(_event)
-                        self.events_in_processing.value = len(_events)
+                """
 
             if len(_events) >= self.config["ES_BULK_SIZE"] or queue_empty:
                 self.status.value = 'PROCESSING'
