@@ -195,6 +195,7 @@ class EventProcessor:
         '''
         Adds an item to the queue for Event Workers to work on
         '''
+        self.logger.info(f"Enqueuing event for processing, current queue size: {self.qsize()}")
         if hasattr(self, 'dedicated_workers') and self.dedicated_workers:
             self.kf_producer.send(f"events-{item['organization']}", item)
         else:
@@ -642,7 +643,7 @@ class EventWorker(Process):
                 self.logger.error('Running in dedicated worker mode but no Kafka connection could be made, exiting')
                 exit(1)
 
-        self.reload_meta_info()
+        self.reload_meta_info(clear_reload_flag=True)
 
         _events = []
 
@@ -677,6 +678,10 @@ class EventWorker(Process):
             else:
                 if self.event_queue.empty():
                     queue_empty = True
+
+                    if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
+                        self.reload_meta_info(clear_reload_flag=True)
+
                     if self.should_restart.is_set():
                         self.reload_meta_info(clear_reload_flag=True)
 
@@ -690,7 +695,7 @@ class EventWorker(Process):
                     # Reload all the event rules and other meta information if the refresh timer
                     # has expired
                     if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
-                        self.reload_meta_info()
+                        self.reload_meta_info(clear_reload_flag=True)
 
                     # Interrupt this flow if the worker is scheduled for restart
                     if self.should_restart.is_set():
@@ -787,7 +792,7 @@ class EventWorker(Process):
             # Assume it doesn't match by default
             matched = False
             try:
-                data_type_name = l.data_type.name
+                data_type_name = l.data_type_name
             except:
                 data_type_name = "generic"
 

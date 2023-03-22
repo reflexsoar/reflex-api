@@ -236,8 +236,13 @@ class ThreatListList(Resource):
                     continue
                 values.append(value)
 
-        if 'data_type_uuid' in api.payload and DataType.get_by_uuid(api.payload['data_type_uuid']) is None:
-            api.abort(400, "Invalid data type")
+        # TODO: Get rid of this uuid association entirely at some point
+        if 'data_type_uuid' in api.payload:
+            data_type = DataType.get_by_uuid(api.payload['data_type_uuid'])
+            if data_type is None:
+                api.abort(400, "Invalid data type")
+            else:
+                api.payload['data_type_name'] = data_type.name
 
         value_list = ThreatList(**api.payload)
         value_list.save()

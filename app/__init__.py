@@ -41,6 +41,8 @@ from .defaults import (
     create_default_event_status, create_analyst_role,create_admin_user, set_install_uuid, send_telemetry
 )
 
+from .upgrades import upgrades
+
 REFLEX_VERSION = '0.1.4'
 
 # Elastic or Opensearch
@@ -248,6 +250,10 @@ def create_app(environment='development'):
         else:
             upgrade_indices(app)
             setup(app, check_for_default=True)
+
+    # Perform any necessary upgrades to the database
+    for upgrade in upgrades:
+        upgrade()
 
     if not app.config['DISABLE_TELEMETRY']:
         set_install_uuid()

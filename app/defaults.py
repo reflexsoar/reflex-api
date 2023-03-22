@@ -32,12 +32,14 @@ def create_default_email_templates(cls, org_id, check_for_default=False):
     else:
         orgs = Organization.search().scan()
         for org in orgs:
-            existing_templates = cls.search().filter('term', organization=org.uuid).execute()
+            existing_templates = cls.search().filter(
+                'term', organization=org.uuid).execute()
             for template in templates:
                 if template['internal_id'] not in [x.internal_id for x in existing_templates]:
                     new_template = cls(**template, organization=org.uuid)
                     new_template.save()
-                    print(f"{template['internal_id']} missing from {org.name} - {new_template}")
+                    print(
+                        f"{template['internal_id']} missing from {org.name} - {new_template}")
 
     return
 
@@ -56,9 +58,10 @@ def create_default_organization(cls):
 
     return org.uuid
 
+
 def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=False):
 
-    perms = { 
+    perms = {
         'add_user': True,
         'update_user': True,
         'delete_user': True,
@@ -80,7 +83,7 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         "update_credential": True,
         "decrypt_credential": True,
         "delete_credential": True,
-        "view_credentials": True ,
+        "view_credentials": True,
         "add_playbook": True,
         "update_playbook": True,
         "delete_playbook": True,
@@ -215,7 +218,8 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
     else:
         orgs = Organization.search().scan()
         for org in orgs:
-            role = cls.search().filter('term', organization=org.uuid).filter('term', name='Admin').execute()
+            role = cls.search().filter('term', organization=org.uuid).filter(
+                'term', name='Admin').execute()
             if role:
                 if org.default_org:
                     perms['view_organizations'] = True
@@ -254,7 +258,7 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
 
 def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
 
-    perms = { 
+    perms = {
         'view_users': True,
         'view_roles': True,
         "add_tag": True,
@@ -265,7 +269,7 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         "update_credential": True,
         "decrypt_credential": True,
         "delete_credential": True,
-        "view_credentials": True ,
+        "view_credentials": True,
         "add_playbook": True,
         "view_playbooks": True,
         "add_tag_to_playbook": True,
@@ -361,7 +365,8 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
     else:
         orgs = Organization.search().scan()
         for org in orgs:
-            role = cls.search().filter('term', organization=org.uuid).filter('term', name='Analyst').execute()
+            role = cls.search().filter('term', organization=org.uuid).filter(
+                'term', name='Analyst').execute()
             if role:
                 if org.default_org:
                     perms['view_organizations'] = True
@@ -374,9 +379,9 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
 
 def create_agent_role(cls, org_id, check_for_default=False):
 
-    perms = { 
+    perms = {
         "decrypt_credential": True,
-        "view_credentials": True ,
+        "view_credentials": True,
         "view_playbooks": True,
         "add_event": True,
         "update_event": True,
@@ -421,12 +426,13 @@ def create_agent_role(cls, org_id, check_for_default=False):
     else:
         orgs = Organization.search().scan()
         for org in orgs:
-            role = cls.search().filter('term', organization=org.uuid).filter('term', name='Agent').execute()
+            role = cls.search().filter('term', organization=org.uuid).filter(
+                'term', name='Agent').execute()
             if role:
                 role = role[0]
                 role.permissions = perms
                 role.save()
-    
+
 
 def create_admin_user(cls, org_id):
 
@@ -449,34 +455,46 @@ def create_admin_user(cls, org_id):
 
     return user.uuid
 
+
 def create_default_data_types(cls, org_id):
 
     data_types = [
-        {'name': 'ip', 'description': 'IP Address', 'regex': r'/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/'},
+        {'name': 'ip', 'description': 'IP Address',
+            'regex': r'/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/'},
         {'name': 'domain', 'description': 'A domain name'},
         {'name': 'fqdn', 'description': 'A fully qualified domain name of a host'},
         {'name': 'host', 'description': 'A host name'},
         {'name': 'filepath', 'description': 'The full path to a file'},
-        {'name': 'email', 'description': 'An e-mail address', 'regex': r'/^[a-zA-Z0-9.!#$%&\'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/'},
+        {'name': 'email', 'description': 'An e-mail address',
+            'regex': r'/^[a-zA-Z0-9.!#$%&\'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/'},
         {'name': 'email_subject', 'description': 'An e-mail subject'},
-        {'name': 'md5hash', 'description': 'A MD5 hash', 'regex': r'/[a-f0-9A-F]{32}/'},
-        {'name': 'sha1hash', 'description': 'A SHA1 hash', 'regex': r'/[a-f0-9A-F]{40}/'},
-        {'name': 'sha256hash', 'description': 'A SHA256 hash', 'regex': r'/[a-f0-9A-F]{64}/'},
+        {'name': 'md5hash', 'description': 'A MD5 hash',
+            'regex': r'/[a-f0-9A-F]{32}/'},
+        {'name': 'sha1hash', 'description': 'A SHA1 hash',
+            'regex': r'/[a-f0-9A-F]{40}/'},
+        {'name': 'sha256hash', 'description': 'A SHA256 hash',
+            'regex': r'/[a-f0-9A-F]{64}/'},
         {'name': 'user', 'description': 'A username'},
         {'name': 'command', 'description': 'A command that was executed'},
-        {'name': 'url', 'description': 'An address to a universal resource', 'regex': r'/(http|https)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/'},
+        {'name': 'url', 'description': 'An address to a universal resource',
+            'regex': r'/(http|https)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/'},
         {'name': 'imphash', 'description': 'A hash of a binaries import table'},
-        {'name': 'process', 'description': 'A process that was launched on a machine', 'regex':r'^([A-Z]?[:\\\/]).*(\.\w{3,})?$'},
-        {'name': 'sid', 'description': 'A Microsoft Security Identifier', 'regex':r'^S(\-\d{1,10}){4,7}$'},
-        {'name': 'mac', 'description': 'The hardware address of a network adapter, MAC address', 'regex': r'^([A-Za-z0-9]{2}\:?\-?){6}$'},
-        {'name': 'detection_id', 'description': 'The ID of detection rule/signature/policy that was fired'},
-        {'name': 'port', 'description': 'Network port', 'regex':r'^\d{1,5}$'},
+        {'name': 'process', 'description': 'A process that was launched on a machine',
+            'regex': r'^([A-Z]?[:\\\/]).*(\.\w{3,})?$'},
+        {'name': 'sid', 'description': 'A Microsoft Security Identifier',
+            'regex': r'^S(\-\d{1,10}){4,7}$'},
+        {'name': 'mac', 'description': 'The hardware address of a network adapter, MAC address',
+            'regex': r'^([A-Za-z0-9]{2}\:?\-?){6}$'},
+        {'name': 'detection_id',
+            'description': 'The ID of detection rule/signature/policy that was fired'},
+        {'name': 'port', 'description': 'Network port', 'regex': r'^\d{1,5}$'},
         {'name': 'pid', 'description': 'Process ID'},
         {'name': 'generic', 'description': 'A generic data type for a data type doesn\'t exist for the specific value'}
     ]
     for d in data_types:
         data_type = cls(**d, organization=org_id)
         data_type.save()
+
 
 def create_default_case_status(cls, org_id):
 
@@ -493,17 +511,23 @@ def create_default_case_status(cls, org_id):
             status.closed = True
             status.save()
 
+
 def create_default_closure_reasons(cls, org_id, check_for_default=False):
 
     reasons = [
-        {'title': 'False positive', 'description': 'Event matched detection rule but is not malicious', 'enabled': True},
-        {'title': 'No action required', 'description': 'No action required', 'enabled': True},
+        {'title': 'False positive',
+            'description': 'Event matched detection rule but is not malicious', 'enabled': True},
+        {'title': 'No action required',
+            'description': 'No action required', 'enabled': True},
         {'title': 'True positive', 'description': 'Event is malicious', 'enabled': True},
         {'title': 'Other', 'description': 'Any other reason not listed', 'enabled': True},
-        {'title': 'Insufficient Information', 'description': 'Additional enrichment and data is needed for this alert to be actionable.', 'enabled': True},
+        {'title': 'Insufficient Information',
+            'description': 'Additional enrichment and data is needed for this alert to be actionable.', 'enabled': True},
         {'title': 'Informational Event', 'description': 'Detection provides data that is not normally malicious but should be evaluated to ensure it is expected.', 'enabled': True},
-        {'title': 'Rule Defective', 'description': 'Alert rule is not firing correctly.', 'enabled': True},
-        {'title': 'Benign Activity', 'description': 'Event is not malicious', 'enabled': True},
+        {'title': 'Rule Defective',
+            'description': 'Alert rule is not firing correctly.', 'enabled': True},
+        {'title': 'Benign Activity',
+            'description': 'Event is not malicious', 'enabled': True},
     ]
 
     # If this is the first setup of the system, we need to create the default closure reasons
@@ -518,7 +542,8 @@ def create_default_closure_reasons(cls, org_id, check_for_default=False):
             existing_reasons = cls.search().filter('term', organization=org.uuid).execute()
             for r in reasons:
                 if r['title'] not in [reason.title for reason in existing_reasons]:
-                    new_reason = next((reason for reason in reasons if reason['title'] == r['title']), None)
+                    new_reason = next(
+                        (reason for reason in reasons if reason['title'] == r['title']), None)
                     reason = cls(**new_reason, organization=org.uuid)
                     reason.save()
                     print(f"{r['title']} missing from {org.name} - {new_reason}")
@@ -538,15 +563,18 @@ def create_default_event_status(cls, org_id):
             status.closed = True
         status.save()
 
+
 def create_default_case_templates(cls, org_id):
 
     templates = [
-        {"title":"Phishing Analysis","description":"Use this case template when investigating a Phishing e-mail.","tasks":[{"title":"Fetch original e-mail","description":"Get a copy of the original e-mail so that analysis can be performed on it to determine if it really is a phishing e-mail or not.","group_uuid":None,"owner_uuid":None,"order":"0"},{"title":"Notify users","description":"Send a phishing alert e-mail to all users so they are aware they may have been targeted.  This should buy time until the e-mail is scrubbed from the environment.","group_uuid":None,"owner_uuid":None,"order":"1"},{"title":"Quarantine","description":"Remove the original message from the e-mail environment","group_uuid":None,"owner_uuid":None,"order":"2"},{"title":"Post Mortem","description":"What have we learned from this event that could help in future events?","group_uuid":None,"owner_uuid":None,"order":"3"}],"tlp":2,"severity":2,"tags":["phishing"]}
+        {"title": "Phishing Analysis", "description": "Use this case template when investigating a Phishing e-mail.", "tasks": [{"title": "Fetch original e-mail", "description": "Get a copy of the original e-mail so that analysis can be performed on it to determine if it really is a phishing e-mail or not.", "group_uuid": None, "owner_uuid": None, "order": "0"}, {"title": "Notify users", "description": "Send a phishing alert e-mail to all users so they are aware they may have been targeted.  This should buy time until the e-mail is scrubbed from the environment.", "group_uuid": None, "owner_uuid": None, "order": "1"}, {
+            "title": "Quarantine", "description": "Remove the original message from the e-mail environment", "group_uuid": None, "owner_uuid": None, "order": "2"}, {"title": "Post Mortem", "description": "What have we learned from this event that could help in future events?", "group_uuid": None, "owner_uuid": None, "order": "3"}], "tlp": 2, "severity": 2, "tags": ["phishing"]}
     ]
 
     for t in templates:
         template = cls(**t, organization=org_id)
         template.save()
+
 
 def set_install_uuid():
     '''
@@ -576,7 +604,7 @@ def send_telemetry():
         'event_count': 0,
         'last_restart': datetime.utcnow().isoformat()
     }
-    
+
     org = Organization.search().filter('term', default_org=True).execute()
     if org:
         org = org[0]
@@ -613,7 +641,7 @@ def initial_settings(cls, org_id, check_for_default=False):
         'events_page_refresh': 60,
         'events_per_page': 10,
         'require_approved_ips': False,
-        'data_types': ['ip','user','host','fqdn','sha1','md5','sha256','imphash','ssdeep','vthash','network','domain','url','mail','sid','mac'],
+        'data_types': ['ip', 'user', 'host', 'fqdn', 'sha1', 'md5', 'sha256', 'imphash', 'ssdeep', 'vthash', 'network', 'domain', 'url', 'mail', 'sid', 'mac'],
         'organization': org_id,
         'case_sla_days': 14,
         'event_sla_minutes': 5,
@@ -628,14 +656,16 @@ def initial_settings(cls, org_id, check_for_default=False):
     else:
         orgs = Organization.search().scan()
         for org in orgs:
-            existing_settings = cls.search().filter('term', organization=org.uuid).execute()[0]
+            existing_settings = cls.search().filter(
+                'term', organization=org.uuid).execute()[0]
             for setting in settings_content:
                 if setting == 'peristent_pairing_token':
                     continue
                 if getattr(existing_settings, setting) == None:
                     print(f"{setting} missing from {org.name}")
-                    setattr(existing_settings, setting, settings_content[setting])
+                    setattr(existing_settings, setting,
+                            settings_content[setting])
             existing_settings.save()
 
     #settings = cls(**settings_content)
-    #settings.save()
+    # settings.save()
