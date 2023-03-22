@@ -195,11 +195,11 @@ class EventProcessor:
         '''
         Adds an item to the queue for Event Workers to work on
         '''
-        self.logger.info(f"Enqueuing event for processing, current queue size: {self.qsize()}")
         if hasattr(self, 'dedicated_workers') and self.dedicated_workers:
             self.kf_producer.send(f"events-{item['organization']}", item)
         else:
             self.event_queue.put(item)
+        self.logger.info(f"Enqueuing event for processing, current queue size: {self.qsize()}")
     
     def qsize(self):
         '''
@@ -713,7 +713,8 @@ class EventWorker(Process):
                 self.events_in_processing.value = len(_events)
 
             if len(_events) >= self.config["ES_BULK_SIZE"] or queue_empty:
-                self.status.value = 'PROCESSING'                
+                self.status.value = 'PROCESSING'
+                self.events_in_processing.value = len(_events)
 
                 def _process_event(event):
                     event['metrics']['event_processing_start'] = datetime.datetime.utcnow()
@@ -727,7 +728,7 @@ class EventWorker(Process):
                     results = executor.map(_process_event, _events)
                     self.events.extend([r for r in results if r is not None])
 
-                self.events_in_processing.value = 0
+                
 
             if (len(self.events) >= self.config["ES_BULK_SIZE"] or queue_empty) and len(self.events) != 0:
 
@@ -796,6 +797,7 @@ class EventWorker(Process):
                             self.logger.error(f"Unable to mark task {task.uuid} as finished. Reason: {e}")
 
                 self.processed_events.value += len(self.events)
+                self.events_in_processing.value = 0
                 self.last_event.value = datetime.datetime.utcnow().isoformat()
                 self.events = []
 
