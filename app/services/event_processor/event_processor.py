@@ -693,8 +693,6 @@ class EventWorker(Process):
             true_event_count = len([e for e in _events if 'task' not in e])                    
 
             if queue_empty:
-                self.logger.debug(f'Queue is empty, holding {true_event_count} events')
-
                 if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
                     self.logger.debug('QUEUE EMPTY - Reloading interval has expired, reloading meta information')
                     self.reload_meta_info(clear_reload_flag=True)
@@ -765,7 +763,11 @@ class EventWorker(Process):
                     results = executor.map(_process_event, _events)
                     self.events.extend([r for r in results if r is not None])
 
-                self.logger.debug(f"Processing finished for {true_event_count} events")
+                if len(self.events) == 0:
+                    self.logger.debug('No events to push, skipping bulk push')
+                    _events = []
+                else:
+                    self.logger.debug(f"Processing finished for {true_event_count} events")
                 
             if (len(self.events) >= self.config["ES_BULK_SIZE"] or queue_empty) and len(self.events) != 0:
 
@@ -795,22 +797,27 @@ class EventWorker(Process):
                             self.logger.debug(f"Dismissed {len(bulk_dismiss)} events")
                         pass
 
-                    for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule), refresh=False):
-                        if ok == False:
-                            self.logger.error(f"Failed to index retro event: {action}")
-                        else:
-                            self.logger.debug(f"Added {len(retro_apply_event_rule)} retro events")
-                        pass
+                    result = bulk(connection, self.prepare_retro_events(retro_apply_event_rule))
+                    if len(result[1]) > 0:
+                        self.logger.error(f"Failed to index retro events: {result}")
+                        for item in result[1]:
+                            self.logger.error(f"Failed to index retro event: {item}")
+                    #for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule), refresh=False):
+                    #    if ok == False:
+                    #        self.logger.error(f"Failed to index retro event: {action}")
+                    #    else:
+                    #        self.logger.debug(f"Added {len(retro_apply_event_rule)} retro events")
+                    #    pass
 
                     self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
 
                     # Send Events
                     result = bulk(connection, self.prepare_events(self.events))
-                    if result[0] != len(self.events):
-                        self.logger.error(f"Failed to index events: {result}")
+                    if len(result[1]) > 0:
+                        self.logger.error(f"Failed to index retro events: {result}")
                         for item in result[1]:
-                            self.logger.error(f"Failed to index event: {item}")
-                            
+                            self.logger.error(f"Failed to index retro event: {item}")
+
                     #for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events), refresh=False):
                     #    if ok == False:
                     #        self.logger.error(f"Failed to index event: {action}")
