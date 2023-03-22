@@ -683,7 +683,7 @@ class EventWorker(Process):
                             'event_processing_dequeue': datetime.datetime.utcnow()
                         }
                     _events.append(_event)
-                    if len(_events) > self.config['ES_BULK_SIZE']:
+                    if len(_events) >= self.config['ES_BULK_SIZE']:
                         break
 
             if queue_empty:
@@ -1153,57 +1153,62 @@ class EventWorker(Process):
             if 'observables' in raw_event:
                 raw_event['observables'] = [o for o in raw_event['observables'] if o['value'] not in [None,'','-']]
 
-            for observable in raw_event['observables']:
+            try:
+                for observable in raw_event['observables']:
                 
-                if observable['data_type'] == "auto":
-                    raw_event['metrics']['auto_data_type_extraction'] = True
-                    matched = False
-                    raw_event['metrics']['auto_data_type_start'] = datetime.datetime.utcnow()
-                    for dt in self.data_types:
-                        if dt.regex:
-                            expression = dt.regex.strip('/')
-                            try:
-                                pattern = re.compile(expression)
-                                matches = pattern.findall(observable['value'])
-                            except Exception as error:
-                                print(error)
-                                observable['data_type'] = "generic"
-                            if len(matches) > 0:
-                                observable['data_type'] = dt.name
-                                matched = True
-                    raw_event['metrics']['auto_data_type_end'] = datetime.datetime.utcnow()
-                    raw_event['metrics']['auto_data_type_duration'] = (raw_event['metrics']['auto_data_type_end'] - raw_event['metrics']['auto_data_type_start']).total_seconds()
+                    if observable['data_type'] == "auto":
+                        raw_event['metrics']['auto_data_type_extraction'] = True
+                        matched = False
+                        raw_event['metrics']['auto_data_type_start'] = datetime.datetime.utcnow()
+                        for dt in self.data_types:
+                            if dt.regex:
+                                expression = dt.regex.strip('/')
+                                try:
+                                    pattern = re.compile(expression)
+                                    matches = pattern.findall(observable['value'])
+                                except Exception as error:
+                                    print(error)
+                                    observable['data_type'] = "generic"
+                                if len(matches) > 0:
+                                    observable['data_type'] = dt.name
+                                    matched = True
+                        raw_event['metrics']['auto_data_type_end'] = datetime.datetime.utcnow()
+                        raw_event['metrics']['auto_data_type_duration'] = (raw_event['metrics']['auto_data_type_end'] - raw_event['metrics']['auto_data_type_start']).total_seconds()
+            except Exception as error:
+                self.logger.error(f"Error occurred while auto data typing observables: {error}")
 
             if 'observables' in raw_event:
                 
-                raw_event['metrics']['threat_list_check_start'] = datetime.datetime.utcnow()
-                if self.app_config['THREAT_POLLER_MEMCACHED_ENABLED']:
-                    MEMCACHED_CONFIG = (
-                        self.app_config['THREAT_POLLER_MEMCACHED_HOST'],
-                        self.app_config['THREAT_POLLER_MEMCACHED_PORT']
-                    )
+                try:
+                    raw_event['metrics']['threat_list_check_start'] = datetime.datetime.utcnow()
+                    if self.app_config['THREAT_POLLER_MEMCACHED_ENABLED']:
+                        MEMCACHED_CONFIG = (
+                            self.app_config['THREAT_POLLER_MEMCACHED_HOST'],
+                            self.app_config['THREAT_POLLER_MEMCACHED_PORT']
+                        )
 
-                obs = [self.check_threat_list(observable,
-                                              organization,
-                                              MEMCACHED_CONFIG=MEMCACHED_CONFIG
-                                            ) for observable in raw_event['observables']]
+                    obs = [self.check_threat_list(observable,
+                                                organization,
+                                                MEMCACHED_CONFIG=MEMCACHED_CONFIG
+                                                ) for observable in raw_event['observables']]
 
-                # If any of the observables matched a threat list, add the threat list tags to the event
-                
-                if any([o['list_matched'] for o in obs if o.get('list_matched')]):
-                    for o in obs:
-                        if o.get('list_matched'):
-                            if 'tags' in raw_event:
-                                raw_event['tags'].extend([tag for tag in o['tags'] if tag.startswith('list: ')])
-                            else:
-                                raw_event['tags'] = [tag for tag in o['tags'] if tag.startswith('list: ')]
-                            del o['list_matched']
-                
+                    # If any of the observables matched a threat list, add the threat list tags to the event
+                    if any([o['list_matched'] for o in obs if o.get('list_matched')]):
+                        for o in obs:
+                            if o.get('list_matched'):
+                                if 'tags' in raw_event:
+                                    raw_event['tags'].extend([tag for tag in o['tags'] if tag.startswith('list: ')])
+                                else:
+                                    raw_event['tags'] = [tag for tag in o['tags'] if tag.startswith('list: ')]
+                                del o['list_matched']
+                    
 
-                raw_event['observables'] = obs
+                    raw_event['observables'] = obs
 
-                raw_event['metrics']['threat_list_check_end'] = datetime.datetime.utcnow()
-                raw_event['metrics']['threat_list_check_duration'] = (raw_event['metrics']['threat_list_check_end'] - raw_event['metrics']['threat_list_check_start']).total_seconds()
+                    raw_event['metrics']['threat_list_check_end'] = datetime.datetime.utcnow()
+                    raw_event['metrics']['threat_list_check_duration'] = (raw_event['metrics']['threat_list_check_end'] - raw_event['metrics']['threat_list_check_start']).total_seconds()
+                except Exception as error:
+                    self.logger.error(f"Error occurred while intel list checking observables: {error}")
 
             if 'tags' in raw_event:
                 raw_event['tags'] = [t for t in raw_event['tags'] if not t.endswith(': None')]
