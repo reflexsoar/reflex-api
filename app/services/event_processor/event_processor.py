@@ -743,21 +743,21 @@ class EventWorker(Process):
                 task_end = self.pop_events_by_action(self.events, 'task_end')
 
                 try:
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case), refresh=True):
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case), refresh=False):
                         if ok == False:
                             self.logger.error(f"Failed to add event to case: {action}")
                         else:
                             self.logger.debug(f"Added {len(add_to_case)} events to cases")
                         pass
 
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss), refresh=True):
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss), refresh=False):
                         if ok == False:
                             self.logger.error(f"Failed to dismiss event: {action}")
                         else:
                             self.logger.debug(f"Dismissed {len(bulk_dismiss)} events")
                         pass
 
-                    for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule), refresh=True):
+                    for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule), refresh=False):
                         if ok == False:
                             self.logger.error(f"Failed to index retro event: {action}")
                         else:
@@ -767,7 +767,7 @@ class EventWorker(Process):
                     self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
 
                     # Send Events
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events), refresh=True):
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events), refresh=False):
                         if ok == False:
                             self.logger.error(f"Failed to index event: {action}")
                         else:
