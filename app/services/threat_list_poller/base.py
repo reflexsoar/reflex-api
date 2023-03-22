@@ -273,8 +273,8 @@ class ThreatListPoller(object):
             do_poll = False
             poll_uuid = str(uuid.uuid4())
 
-            data_type = DataType.get_by_uuid(l.data_type_uuid)
-            data_type_name = data_type.name
+            #data_type = DataType.get_by_uuid(l.data_type_uuid)
+            data_type_name = l.data_type_name
 
             if l.last_polled is not None:
                 time_since = datetime.datetime.utcnow() - l.last_polled
@@ -293,7 +293,7 @@ class ThreatListPoller(object):
             if do_poll:
                 data_from_url = False
                 data = None
-                data_type_name = l.data_type.name
+                data_type_name = l.data_type_name
                 start_date = datetime.datetime.utcnow()
                 if l.url:
                     response = self.session.get(l.url)
@@ -408,7 +408,7 @@ class ThreatListPoller(object):
                 if self.memcached_config and data:
                     self.logger.info(f'Pushing data to memcached')
                     if data_from_url and data:
-                        self.to_memcached(data, data_type.name, l.uuid, l.url, l.list_type, l.organization, ttl=l.poll_interval)
+                        self.to_memcached(data, l.data_type_name, l.uuid, l.url, l.list_type, l.organization, ttl=l.poll_interval)
                     else:
-                        self.to_memcached(l.values, data_type.name, l.uuid, 'manual_list', l.list_type, l.organization, ttl=0)
+                        self.to_memcached(l.values, l.data_type_name, l.uuid, 'manual_list', l.list_type, l.organization, ttl=0)
                         l.polled()

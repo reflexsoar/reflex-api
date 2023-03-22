@@ -240,7 +240,7 @@ class ThreatList(base.BaseDocument):
                 client = memcached_client.client
             
                 # Check memcached first
-                memcached_key = f"{self.organization}:{self.uuid}:{self.data_type.name}:{value}"
+                memcached_key = f"{self.organization}:{self.uuid}:{self.data_type_name}:{value}"
 
                 if not found:
                     try:
@@ -289,7 +289,7 @@ class ThreatList(base.BaseDocument):
 
             values = [{
                 'value': v,
-                'data_type': self.data_type.name,
+                'data_type': self.data_type_name,
                 'organization': self.organization,
                 'poll_interval': poll_interval,
                 'from_poll': from_poll,

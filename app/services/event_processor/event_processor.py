@@ -792,7 +792,7 @@ class EventWorker(Process):
             # Assume it doesn't match by default
             matched = False
             try:
-                data_type_name = l.data_type.name
+                data_type_name = l.data_type_name
             except:
                 data_type_name = "generic"
 
