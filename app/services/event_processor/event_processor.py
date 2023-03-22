@@ -683,6 +683,8 @@ class EventWorker(Process):
                             'event_processing_dequeue': datetime.datetime.utcnow()
                         }
                     _events.append(_event)
+                    if len(_events) > self.config['ES_BULK_SIZE']:
+                        break
 
             if queue_empty:
                 if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
