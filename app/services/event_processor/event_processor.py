@@ -652,6 +652,8 @@ class EventWorker(Process):
             
             queue_empty = False
 
+            self.status.value = 'POLLING'
+
             if self.config['DEDICATED_WORKERS']:
                 message = self.kf_consumer.poll(self.config['ES_BULK_SIZE'])
 
@@ -667,7 +669,6 @@ class EventWorker(Process):
                     if not len(_events) > 0:
                         time.sleep(1)
                 else:
-                    self.status.value = 'POLLING'
                     for topic_data, consumer_records in message.items():
                         for msg in consumer_records:
                             _event = msg.value
@@ -680,12 +681,14 @@ class EventWorker(Process):
                     queue_empty = True
 
                     if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
+                        self.logger.debug('QUEUE EMPTY - Reloading interval has expired, reloading meta information')
                         self.reload_meta_info(clear_reload_flag=True)
 
                     if self.should_restart.is_set():
                         self.reload_meta_info(clear_reload_flag=True)
 
                     if self.should_exit.is_set():
+                        self.logger.debug('Exiting due to should_exit flag being set')
                         exit()
 
                     # Only sleep if not holding on to events
@@ -695,6 +698,7 @@ class EventWorker(Process):
                     # Reload all the event rules and other meta information if the refresh timer
                     # has expired
                     if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
+                        self.logger.debug('QUEUE NOT EMPTY - Reloading interval has expired, reloading meta information')
                         self.reload_meta_info(clear_reload_flag=True)
 
                     # Interrupt this flow if the worker is scheduled for restart
@@ -702,15 +706,14 @@ class EventWorker(Process):
                         self.reload_meta_info(clear_reload_flag=True)
 
                     while not self.event_queue.empty() or len(_events) >= self.config["ES_BULK_SIZE"]:
-                        self.status.value = 'POLLING'
                         _event = self.event_queue.get()
                         _event['metrics'] = {
                                 'event_processing_dequeue': datetime.datetime.utcnow()
                             }
                         _events.append(_event)
+                        self.events_in_processing.value = len(_events)
 
-            if len(_events) > 0:
-                self.events_in_processing.value = len(_events)
+            self.logger.debug(f"Holding {len(_events)} events in memory (queue_empty: {queue_empty})")
 
             if len(_events) >= self.config["ES_BULK_SIZE"] or queue_empty:
                 self.status.value = 'PROCESSING'
