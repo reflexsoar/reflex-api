@@ -195,6 +195,7 @@ class EventProcessor:
         '''
         Adds an item to the queue for Event Workers to work on
         '''
+        self.logger.info(f"Enqueuing event {item['uuid']} for processing, current queue size: {self.qsize()}")
         if hasattr(self, 'dedicated_workers') and self.dedicated_workers:
             self.kf_producer.send(f"events-{item['organization']}", item)
         else:
@@ -680,7 +681,7 @@ class EventWorker(Process):
 
                     if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
                         self.reload_meta_info(clear_reload_flag=True)
-                        
+
                     if self.should_restart.is_set():
                         self.reload_meta_info(clear_reload_flag=True)
 
