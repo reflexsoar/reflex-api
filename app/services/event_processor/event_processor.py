@@ -677,6 +677,10 @@ class EventWorker(Process):
             else:
                 if self.event_queue.empty():
                     queue_empty = True
+
+                    if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
+                        self.reload_meta_info(clear_reload_flag=True)
+                        
                     if self.should_restart.is_set():
                         self.reload_meta_info(clear_reload_flag=True)
 
