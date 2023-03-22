@@ -199,7 +199,8 @@ class EventProcessor:
             self.kf_producer.send(f"events-{item['organization']}", item)
         else:
             self.event_queue.put(item)
-        self.logger.info(f"Enqueuing event for processing, current queue size: {self.qsize()}")
+        if 'task' not in item:
+            self.logger.info(f"Enqueuing event for processing, current queue size: {self.qsize()}")
     
     def qsize(self):
         '''
@@ -713,8 +714,6 @@ class EventWorker(Process):
                         _events.append(_event)
                         self.events_in_processing.value = len(_events)
 
-            self.logger.debug(f"Holding {len(_events)} events in memory (queue_empty: {queue_empty})")
-
             if len(_events) >= self.config["ES_BULK_SIZE"] or queue_empty:
                 self.status.value = 'PROCESSING'
                 self.events_in_processing.value = len(_events)
@@ -730,9 +729,7 @@ class EventWorker(Process):
                 with ThreadPoolExecutor(max_workers=10) as executor:
                     results = executor.map(_process_event, _events)
                     self.events.extend([r for r in results if r is not None])
-
                 
-
             if (len(self.events) >= self.config["ES_BULK_SIZE"] or queue_empty) and len(self.events) != 0:
 
                 _events = []
