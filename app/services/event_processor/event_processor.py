@@ -650,10 +650,7 @@ class EventWorker(Process):
 
         while True:
 
-            
             queue_empty = False
-
-            self.status.value = 'POLLING'
 
             if self.config['DEDICATED_WORKERS']:
                 message = self.kf_consumer.poll(self.config['ES_BULK_SIZE'])
@@ -679,6 +676,7 @@ class EventWorker(Process):
                             _events.append(_event)
             else:
                 while not queue_empty:
+                    self.status.value = 'POLLING'
                     queue_empty = self.event_queue.empty()
                     _event = self.event_queue.get()
                     _event['metrics'] = {
@@ -686,20 +684,21 @@ class EventWorker(Process):
                         }
                     _events.append(_event)
 
-                if queue_empty:
-                    if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
-                        self.logger.debug('QUEUE EMPTY - Reloading interval has expired, reloading meta information')
-                        self.reload_meta_info(clear_reload_flag=True)
+            if queue_empty:
+                if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
+                    self.logger.debug('QUEUE EMPTY - Reloading interval has expired, reloading meta information')
+                    self.reload_meta_info(clear_reload_flag=True)
 
-                    if self.should_restart.is_set():
-                        self.reload_meta_info(clear_reload_flag=True)
+                if self.should_restart.is_set():
+                    self.reload_meta_info(clear_reload_flag=True)
 
-                    if self.should_exit.is_set():
-                        self.logger.debug('Exiting due to should_exit flag being set')
-                        exit()
+                if self.should_exit.is_set():
+                    self.logger.debug('Exiting due to should_exit flag being set')
+                    exit()
 
-                    if len(_events) == 0:
-                        time.sleep(1)
+                if len(_events) == 0:
+                    self.status.value = 'IDLE'
+                    time.sleep(1)
 
                 """    
                 if self.event_queue.empty():
@@ -749,10 +748,14 @@ class EventWorker(Process):
                         event['metrics']['event_processing_end'] = datetime.datetime.utcnow()
                         event['metrics']['event_processing_duration'] = (event['metrics']['event_processing_end'] - event['metrics']['event_processing_start']).total_seconds()
                     return event
+                
+                self.logger.debug('Processing {} events'.format(len(_events)))
 
                 with ThreadPoolExecutor(max_workers=10) as executor:
                     results = executor.map(_process_event, _events)
                     self.events.extend([r for r in results if r is not None])
+
+                self.logger.debug(f"Processing finished for {len(_events)} events")
                 
             if (len(self.events) >= self.config["ES_BULK_SIZE"] or queue_empty) and len(self.events) != 0:
 
