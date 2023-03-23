@@ -1,3 +1,4 @@
+from functools import lru_cache
 import re
 import ipaddress
 from app.api_v2.model import ThreatList
@@ -575,6 +576,7 @@ class RQLSearch:
             self.allowed_mutators=['lowercase','uppercase']
             self.organization = organization
 
+        @lru_cache(maxsize=100000)
         def fetch_values(self, name):
             threat_list = ThreatList.search()
             threat_list = threat_list.filter('term', name=name)
@@ -586,18 +588,24 @@ class RQLSearch:
                 return [v.value for v in threat_list[0].values]
             else:
                 return []
-
-        def __call__(self, obj):
-
-            super().__call__(obj)
-
+            
+        @lru_cache(maxsize=100000)
+        def get_list(self, value):
             threat_list = ThreatList.search()
-            threat_list = threat_list.filter('term', name=self.value)
+            threat_list = threat_list.filter('term', name=value)
 
             if self.organization:
                 threat_list = threat_list.filter('term', organization=self.organization)
 
             threat_list = threat_list.execute()
+            return threat_list
+
+
+        def __call__(self, obj):
+
+            super().__call__(obj)
+
+            threat_list = self.get_list(self.value)
 
             if threat_list:
                 threat_list = threat_list[0]

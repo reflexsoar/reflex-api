@@ -912,6 +912,8 @@ class CreateBulkEvents(Resource):
             #client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
             client = memcached_client.client
 
+            _events_to_queue = []
+
             # TODO: MAKE THIS FASTER SOMEHOW
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
@@ -923,7 +925,11 @@ class CreateBulkEvents(Resource):
                     if hasattr(ep, 'dedicated_workers') and ep.dedicated_workers:
                         ep.to_kafka_topic(event)
                     else:
-                        ep.enqueue(event)
+                        _events_to_queue.append(event)
+                        #ep.enqueue(event)
+
+            if len(_events_to_queue) > 0:
+                list(map(ep.enqueue, _events_to_queue))
             
             # Signal the end of the task
             # The Event Processor will use this event to close the running task

@@ -44,12 +44,12 @@ from .errors import KafkaConnectionFailure
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
     from opensearch_dsl import connections
-    from opensearchpy.helpers import streaming_bulk
+    from opensearchpy.helpers import streaming_bulk, bulk
     from opensearchpy.exceptions import ConnectionTimeout as EXC_CONNECTION_TIMEOUT
     from opensearchpy.helpers.errors import BulkIndexError as EXC_BULK_INDEX_ERROR
 else:
     from elasticsearch_dsl import connections
-    from elasticsearch.helpers import streaming_bulk
+    from elasticsearch.helpers import streaming_bulk, bulk
     from elasticsearch.exceptions import ConnectionTimeout as EXC_CONNECTION_TIMEOUT
     from elasticsearch.helpers.errors import BulkIndexError as EXC_BULK_INDEX_ERROR
 
@@ -195,11 +195,12 @@ class EventProcessor:
         '''
         Adds an item to the queue for Event Workers to work on
         '''
-        self.logger.info(f"Enqueuing event for processing, current queue size: {self.qsize()}")
         if hasattr(self, 'dedicated_workers') and self.dedicated_workers:
             self.kf_producer.send(f"events-{item['organization']}", item)
         else:
             self.event_queue.put(item)
+        if 'task' not in item:
+            self.logger.info(f"Enqueuing event for processing, current queue size: {self.qsize()}")
     
     def qsize(self):
         '''
@@ -649,9 +650,7 @@ class EventWorker(Process):
 
         while True:
 
-            
             queue_empty = False
-            self.status.value = 'POLLING'
 
             if self.config['DEDICATED_WORKERS']:
                 message = self.kf_consumer.poll(self.config['ES_BULK_SIZE'])
@@ -676,25 +675,62 @@ class EventWorker(Process):
                             }
                             _events.append(_event)
             else:
+                while not queue_empty:
+                    self.status.value = 'POLLING'
+                    _event = self.event_queue.get()
+                    _event['metrics'] = {
+                            'event_processing_dequeue': datetime.datetime.utcnow()
+                        }
+                    _events.append(_event)
+
+                    if len(_events) >= self.config['ES_BULK_SIZE']:
+                        self.logger.debug('ES_BULK_SIZE reached, processing events')
+                        queue_empty = True
+                        break
+
+                    queue_empty = self.event_queue.empty()
+            
+            true_event_count = len([e for e in _events if 'task' not in e])                    
+
+            if queue_empty:
+                if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
+                    self.logger.debug('QUEUE EMPTY - Reloading interval has expired, reloading meta information')
+                    self.reload_meta_info(clear_reload_flag=True)
+
+                if self.should_restart.is_set():
+                    self.reload_meta_info(clear_reload_flag=True)
+
+                if self.should_exit.is_set():
+                    self.logger.debug('Exiting due to should_exit flag being set')
+                    exit()
+
+                if len(_events) == 0:
+                    self.status.value = 'IDLE'
+                    time.sleep(1)
+
+                """    
                 if self.event_queue.empty():
                     queue_empty = True
 
                     if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
+                        self.logger.debug('QUEUE EMPTY - Reloading interval has expired, reloading meta information')
                         self.reload_meta_info(clear_reload_flag=True)
 
                     if self.should_restart.is_set():
                         self.reload_meta_info(clear_reload_flag=True)
 
                     if self.should_exit.is_set():
+                        self.logger.debug('Exiting due to should_exit flag being set')
                         exit()
 
                     # Only sleep if not holding on to events
-                    if not len(_events) > 0:
+                    if len(_events) == 0:
                         time.sleep(1)
                 else:
                     # Reload all the event rules and other meta information if the refresh timer
                     # has expired
                     if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
+                        self.logger.debug('QUEUE NOT EMPTY - Reloading interval has expired, reloading meta information')
                         self.reload_meta_info(clear_reload_flag=True)
 
                     # Interrupt this flow if the worker is scheduled for restart
@@ -707,6 +743,7 @@ class EventWorker(Process):
                                 'event_processing_dequeue': datetime.datetime.utcnow()
                             }
                         _events.append(_event)
+                """
 
             if len(_events) >= self.config["ES_BULK_SIZE"] or queue_empty:
                 self.status.value = 'PROCESSING'
@@ -719,13 +756,19 @@ class EventWorker(Process):
                         event['metrics']['event_processing_end'] = datetime.datetime.utcnow()
                         event['metrics']['event_processing_duration'] = (event['metrics']['event_processing_end'] - event['metrics']['event_processing_start']).total_seconds()
                     return event
+                
+                self.logger.debug('Processing {} events'.format(true_event_count))
 
                 with ThreadPoolExecutor(max_workers=10) as executor:
                     results = executor.map(_process_event, _events)
                     self.events.extend([r for r in results if r is not None])
 
-                self.events_in_processing.value = 0
-
+                if len(self.events) == 0:
+                    self.logger.debug('No events to push, skipping bulk push')
+                    _events = []
+                else:
+                    self.logger.debug(f"Processing finished for {true_event_count} events")
+                
             if (len(self.events) >= self.config["ES_BULK_SIZE"] or queue_empty) and len(self.events) != 0:
 
                 _events = []
@@ -740,20 +783,47 @@ class EventWorker(Process):
                 task_end = self.pop_events_by_action(self.events, 'task_end')
 
                 try:
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case), refresh=True):
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_add_to_case(add_to_case), refresh=False):
+                        if ok == False:
+                            self.logger.error(f"Failed to add event to case: {action}")
+                        else:
+                            self.logger.debug(f"Added {len(add_to_case)} events to cases")
                         pass
 
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss), refresh=True):
+                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_dismiss_events(bulk_dismiss), refresh=False):
+                        if ok == False:
+                            self.logger.error(f"Failed to dismiss event: {action}")
+                        else:
+                            self.logger.debug(f"Dismissed {len(bulk_dismiss)} events")
                         pass
 
-                    for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule), refresh=True):
-                        pass
+                    result = bulk(connection, self.prepare_retro_events(retro_apply_event_rule))
+                    if len(result[1]) > 0:
+                        self.logger.error(f"Failed to index retro events: {result}")
+                        for item in result[1]:
+                            self.logger.error(f"Failed to index retro event: {item}")
+                    #for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule), refresh=False):
+                    #    if ok == False:
+                    #        self.logger.error(f"Failed to index retro event: {action}")
+                    #    else:
+                    #        self.logger.debug(f"Added {len(retro_apply_event_rule)} retro events")
+                    #    pass
 
                     self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
 
                     # Send Events
-                    for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events), refresh=True):
-                        pass
+                    result = bulk(connection, self.prepare_events(self.events))
+                    if len(result[1]) > 0:
+                        self.logger.error(f"Failed to index retro events: {result}")
+                        for item in result[1]:
+                            self.logger.error(f"Failed to index retro event: {item}")
+
+                    #for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events), refresh=False):
+                    #    if ok == False:
+                    #        self.logger.error(f"Failed to index event: {action}")
+                    #    else:
+                    #        self.logger.debug(f"Pushed {len(self.events)} events")
+                    #    pass
 
                     # Update Cases
                     #for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(self.events)):
@@ -777,6 +847,7 @@ class EventWorker(Process):
                             self.logger.error(f"Unable to mark task {task.uuid} as finished. Reason: {e}")
 
                 self.processed_events.value += len(self.events)
+                self.events_in_processing.value = 0
                 self.last_event.value = datetime.datetime.utcnow().isoformat()
                 self.events = []
 
@@ -1103,57 +1174,62 @@ class EventWorker(Process):
             if 'observables' in raw_event:
                 raw_event['observables'] = [o for o in raw_event['observables'] if o['value'] not in [None,'','-']]
 
-            for observable in raw_event['observables']:
+            try:
+                for observable in raw_event['observables']:
                 
-                if observable['data_type'] == "auto":
-                    raw_event['metrics']['auto_data_type_extraction'] = True
-                    matched = False
-                    raw_event['metrics']['auto_data_type_start'] = datetime.datetime.utcnow()
-                    for dt in self.data_types:
-                        if dt.regex:
-                            expression = dt.regex.strip('/')
-                            try:
-                                pattern = re.compile(expression)
-                                matches = pattern.findall(observable['value'])
-                            except Exception as error:
-                                print(error)
-                                observable['data_type'] = "generic"
-                            if len(matches) > 0:
-                                observable['data_type'] = dt.name
-                                matched = True
-                    raw_event['metrics']['auto_data_type_end'] = datetime.datetime.utcnow()
-                    raw_event['metrics']['auto_data_type_duration'] = (raw_event['metrics']['auto_data_type_end'] - raw_event['metrics']['auto_data_type_start']).total_seconds()
+                    if observable['data_type'] == "auto":
+                        raw_event['metrics']['auto_data_type_extraction'] = True
+                        matched = False
+                        raw_event['metrics']['auto_data_type_start'] = datetime.datetime.utcnow()
+                        for dt in self.data_types:
+                            if dt.regex:
+                                expression = dt.regex.strip('/')
+                                try:
+                                    pattern = re.compile(expression)
+                                    matches = pattern.findall(observable['value'])
+                                except Exception as error:
+                                    print(error)
+                                    observable['data_type'] = "generic"
+                                if len(matches) > 0:
+                                    observable['data_type'] = dt.name
+                                    matched = True
+                        raw_event['metrics']['auto_data_type_end'] = datetime.datetime.utcnow()
+                        raw_event['metrics']['auto_data_type_duration'] = (raw_event['metrics']['auto_data_type_end'] - raw_event['metrics']['auto_data_type_start']).total_seconds()
+            except Exception as error:
+                self.logger.error(f"Error occurred while auto data typing observables: {error}")
 
             if 'observables' in raw_event:
                 
-                raw_event['metrics']['threat_list_check_start'] = datetime.datetime.utcnow()
-                if self.app_config['THREAT_POLLER_MEMCACHED_ENABLED']:
-                    MEMCACHED_CONFIG = (
-                        self.app_config['THREAT_POLLER_MEMCACHED_HOST'],
-                        self.app_config['THREAT_POLLER_MEMCACHED_PORT']
-                    )
+                try:
+                    raw_event['metrics']['threat_list_check_start'] = datetime.datetime.utcnow()
+                    if self.app_config['THREAT_POLLER_MEMCACHED_ENABLED']:
+                        MEMCACHED_CONFIG = (
+                            self.app_config['THREAT_POLLER_MEMCACHED_HOST'],
+                            self.app_config['THREAT_POLLER_MEMCACHED_PORT']
+                        )
 
-                obs = [self.check_threat_list(observable,
-                                              organization,
-                                              MEMCACHED_CONFIG=MEMCACHED_CONFIG
-                                            ) for observable in raw_event['observables']]
+                    obs = [self.check_threat_list(observable,
+                                                organization,
+                                                MEMCACHED_CONFIG=MEMCACHED_CONFIG
+                                                ) for observable in raw_event['observables']]
 
-                # If any of the observables matched a threat list, add the threat list tags to the event
-                
-                if any([o['list_matched'] for o in obs if o.get('list_matched')]):
-                    for o in obs:
-                        if o.get('list_matched'):
-                            if 'tags' in raw_event:
-                                raw_event['tags'].extend([tag for tag in o['tags'] if tag.startswith('list: ')])
-                            else:
-                                raw_event['tags'] = [tag for tag in o['tags'] if tag.startswith('list: ')]
-                            del o['list_matched']
-                
+                    # If any of the observables matched a threat list, add the threat list tags to the event
+                    if any([o['list_matched'] for o in obs if o.get('list_matched')]):
+                        for o in obs:
+                            if o.get('list_matched'):
+                                if 'tags' in raw_event:
+                                    raw_event['tags'].extend([tag for tag in o['tags'] if tag.startswith('list: ')])
+                                else:
+                                    raw_event['tags'] = [tag for tag in o['tags'] if tag.startswith('list: ')]
+                                del o['list_matched']
+                    
 
-                raw_event['observables'] = obs
+                    raw_event['observables'] = obs
 
-                raw_event['metrics']['threat_list_check_end'] = datetime.datetime.utcnow()
-                raw_event['metrics']['threat_list_check_duration'] = (raw_event['metrics']['threat_list_check_end'] - raw_event['metrics']['threat_list_check_start']).total_seconds()
+                    raw_event['metrics']['threat_list_check_end'] = datetime.datetime.utcnow()
+                    raw_event['metrics']['threat_list_check_duration'] = (raw_event['metrics']['threat_list_check_end'] - raw_event['metrics']['threat_list_check_start']).total_seconds()
+                except Exception as error:
+                    self.logger.error(f"Error occurred while intel list checking observables: {error}")
 
             if 'tags' in raw_event:
                 raw_event['tags'] = [t for t in raw_event['tags'] if not t.endswith(': None')]

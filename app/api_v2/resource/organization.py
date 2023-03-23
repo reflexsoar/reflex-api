@@ -44,12 +44,22 @@ mod_organization_list_paged = api.model('PagedOrganizationList', {
     'pagination': fields.Nested(mod_pagination)
 })
 
+mod_admin_user_create = api.model('AdminUserCreate', {
+    'username': fields.String(required=True),
+    'email': fields.String(required=True),
+    'password': fields.String(required=True),
+    'first_name': fields.String(required=True),
+    'last_name': fields.String(required=True),
+    'locked': fields.Boolean,
+    'role_uuid': fields.String(required=False)
+}, strict=True)
+
 mod_organization_create = api.model('CreateOrganization', {
     'name': fields.String,
     'description': fields.String,
     'url': fields.String,
     'logon_domains': fields.List(fields.String),
-    'admin_user': fields.Nested(mod_user_create, required=True)
+    'admin_user': fields.Nested(mod_admin_user_create, required=True)
 }, strict=True)
 
 
