@@ -166,7 +166,6 @@ class User(base.BaseDocument):
         search = cls.search()
 
         current_user = request.current_user
-        print(current_user.__dict__)
         if current_user and current_user.request_org_filter:
             search = search.filter('terms', organization=current_user.request_org_filter)
 
@@ -657,11 +656,12 @@ class Permission(InnerDoc):
     update_detection_repository = Boolean()
     delete_detection_repository = Boolean()
     share_detection_repository = Boolean()
+    subscribe_detection_repository = Boolean()
     create_repo_sharing_token = Boolean()
     create_detection_exclusion = Boolean()
     update_detection_exclusion = Boolean()
     view_detection_exclusions = Boolean()
-    delete_detection_exclusion = Boolean()
+    delete_detection_exclusion = Boolean()    
 
     # Notification Channel Permissions
     create_notification_channel = Boolean()
