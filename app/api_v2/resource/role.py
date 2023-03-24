@@ -180,7 +180,6 @@ class RoleDetails(Resource):
                 api.abort(400, 'A role must be empty before it can be moved between Organizations.')
 
             else:
-                print(api.payload)
                 role.update(**api.payload, refresh=True)
                 return role
         else:
