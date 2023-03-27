@@ -2,7 +2,7 @@ from flask_restx import Resource, Namespace, fields
 
 from ..model import DetectionRepository, Detection, DetectionRepositoryToken, Organization
 from ..model.detection import VALID_REPO_SHARE_MODES, VALID_REPO_TYPES
-from ..utils import token_required, user_has
+from ..utils import token_required, user_has, default_org
 from .shared import mod_pagination, mod_user_list, ISO8601, ValueCount
 
 api = Namespace('DetectionRepository', description='Detection Repository', path='/detection_repository')
@@ -50,6 +50,10 @@ mod_detection_repo_list = api.model('DetectionRepositoryList', {
 
 mod_repo_subscribe = api.model('DetectionRepositorySubscribe', {
     'sync_interval': fields.Integer,
+})
+
+mod_detection_add = api.model('DetectionRepositoryAddDetections', {
+    'detections': fields.List(fields.String, help='A list of detection_ids NOT uuids of the detections in this repository'),
 })
 
 
@@ -137,6 +141,79 @@ class DetectionRepositorySubscribe(Resource):
 
         return repository
     
+
+@api.route('/<string:uuid>/remove_detections')
+class DetectionRepositoryRemoveDetections(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_detection_add)
+    @token_required
+    @default_org
+    @user_has('update_detection_repository')
+    def post(self, user_in_default_org, current_user, uuid):
+        '''Removes detections from a detection repository'''
+
+        repository = DetectionRepository.get_by_uuid(uuid)
+        if not repository:
+            api.abort(404, 'Detection Repository not found')
+
+        if not user_in_default_org and current_user.organization != repository.organization:
+            api.abort(403, 'You do not have permission to remove detections from this repository')
+
+        repository.check_subscription(organization=current_user.organization)
+
+        if repository.read_only:
+            api.abort(403, 'You do not have permission to remove detections from this repository')
+
+        data = api.payload
+
+        if not data.get('detections'):
+            api.abort(400, 'No detections provided')
+
+        detections = Detection.get_by_uuid(data.get('detections'), organization=repository.organization)
+        if detections:
+            repository.remove_detections(detections)
+
+        return {'message': 'Detections removed from repository'}, 200
+
+
+@api.route('/<string:uuid>/add_detections')
+class DetectionRepositoryAddDetections(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_detection_add)
+    @token_required
+    @default_org
+    @user_has('update_detection_repository')
+    def post(self, user_in_default_org, current_user, uuid):
+        '''Adds detections to a detection repository
+        Permission Required `update_detection_repository`
+        '''
+
+        repository = DetectionRepository.get_by_uuid(uuid)
+        if not repository:
+            api.abort(404, 'Detection Repository not found')
+
+        if not user_in_default_org and current_user.organization != repository.organization:
+            api.abort(403, 'You do not have permission to add detections to this repository')
+
+        repository.check_subscription(organization=current_user.organization)
+
+        if repository.read_only:
+            api.abort(403, 'This repository is read only')
+
+        data = api.payload
+
+        if not data.get('detections'):
+            api.abort(400, 'No detections provided')
+
+        detections = Detection.get_by_uuid(data.get('detections'), organization=repository.organization)
+        if detections:
+            repository.add_detections(detections=detections)
+        else:
+            api.abort(400, 'No detections found')
+
+        return {'message': 'Detections added to repository'}, 200
 
 @api.route('/<string:uuid>/unsubscribe')
 class DetectionRepositoryUnsubscribe(Resource):
@@ -268,7 +345,6 @@ class DetectionRepositoryList(Resource):
 
             # If the detection is from a repository sync, remove it from the list as sharing
             # detections from a repo in another repo is not supported
-            print(detections)
             data['detections'] = [d.detection_id for d in detections if d.from_repo_sync is not True]
             print(data['detections'])
 

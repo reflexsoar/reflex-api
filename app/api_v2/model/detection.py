@@ -20,7 +20,8 @@ from . import (
     system,
     Object,
     FieldMappingTemplate,
-    AttrList
+    AttrList,
+    UpdateByQuery
 )
 
 from .inout import FieldMap
@@ -217,12 +218,20 @@ class Detection(base.BaseDocument):
     assigned_agent = Keyword() # The UUID of the agent that should run this alarm
     include_source_meta_data = Boolean() # If true the detection will include the meta data from the source event in the alert
     status = Keyword() # Experimental, Beta, Stable, Test, Deprecated, Production
+    repository = Keyword() # The UUID of the repositories this rule is associated to
 
     class Index:
         name = "reflex-detections"
         settings = {
             "refresh_interval": "1s"
         }
+
+    def save(self, **kwargs):
+        ''' Override save to set some defaults '''
+        if not self.from_repo_sync:
+            self.from_repo_sync = False
+
+        super(Detection, self).save(**kwargs)
 
     @classmethod
     def get_by_detection_id(cls, detection_id, organization=None):
@@ -533,7 +542,7 @@ class DetectionRepository(base.BaseDocument):
             if subscription:
                 self.__dict__['subscribed'] = True
 
-        # Also perform an owedership check
+        # Also perform an ownership check
         self.check_ownership(organization)
 
         return self.subscribed
@@ -578,7 +587,8 @@ class DetectionRepository(base.BaseDocument):
                         metric_change_config=detection.metric_change_config,
                         field_mismatch_config=detection.field_mismatch_config,
                         new_terms_config=detection.new_terms_config,
-                        from_repo_sync=True
+                        from_repo_sync=True,
+                        original_uuid=detection.uuid
                     )
                     new_detection.save()
                 else:
@@ -605,14 +615,93 @@ class DetectionRepository(base.BaseDocument):
                     existing_detection.save()
             Detection._index.refresh()
 
+    def add_detections(self, detections):
+        ''' Adds detections to the repository '''
+        
+        detections = [d.detection_id for d in detections if d.organization == self.organization and d.from_repo_sync == False]
+        if self.detections is None:
+            self.detections = []
+        detections = [d for d in detections if d not in self.detections]
+        print(detections)
+        try:
+            self.detections.extend(detections)
+            self.save()
+
+            # Update the detection with the repository uuid
+            ubq = UpdateByQuery(index=Detection._index._name)
+            ubq = ubq.query('term', organization=self.organization)
+            ubq = ubq.query('terms', detection_id=detections)
+
+            # Painless script if the repository field does not exist or is null set it to a list with the repository uuid
+            # if it does exist add the repository uuid to the list
+            script = '''
+            if (ctx._source.repository == null) {
+                ctx._source.repository = [params.repository];
+            } else {
+                ctx._source.repository.add(params.repository);
+            }
+            '''
+            ubq = ubq.script(source=script, params={'repository': self.uuid})
+            ubq.execute()
+
+        except Exception as e:
+            print(e)
+
+    def remove_detections(self, detections):
+        ''' Removes detections from the repository, rules that are not in this repository
+        will be disassociated from the repository for any tenants that are subscribed to this
+        repository
+        '''
+        detections = [d.detection_id for d in detections if d.organization == self.organization]
+
+        if self.detections is None:
+            self.detections = []
+
+        detections = [d for d in detections if d in self.detections]
+        try:
+            self.detections = [d for d in self.detections if d not in detections]
+            self.save()
+
+            # Update the detection with the repository uuid
+            ubq = UpdateByQuery(index=Detection._index._name)
+            ubq = ubq.query('term', organization=self.organization)
+            ubq = ubq.query('terms', detection_id=detections)
+
+            # Remove the repository uuid from the detections repository list if it exists in the list
+            # else do nothing.  If the repository list is empty after the removal remove the repository field
+            # set it to an empty list
+            script = "if (ctx._source.containsKey('repository')) { ctx._source.repository.remove(ctx._source.repository.indexOf(params.repository)) }"
+            ubq = ubq.script(source=script, params={'repository': self.uuid})
+            ubq.execute()
+
+            # Set from_repo_sync to False for any detections that were in this repository but are not anymore
+            # and have been synced to a tenant
+            ubq = UpdateByQuery(index=Detection._index._name)
+            ubq = ubq.query('term', organization=self.organization)
+            ubq = ubq.query('term', from_repo_sync=True)
+            ubq = ubq.query('terms', detection_id=detections)
+            ubq = ubq.script(source="ctx._source.from_repo_sync = false")
+            ubq.execute()
+
+        except Exception as e:
+            print(e)
+
+        
 
     def remove_rules(self, organization):
         ''' Removes all the rules associated with this repository from the 
         target organizations rule set
         '''
         if self.repo_type == 'local':
-            detections_to_unlink = Detection.get_by_detection_id(self.detections, organization=organization)
-            print(detections_to_unlink)
+            
+            # Update by query all the detections that were synchronized from this repo to this
+            # organization and set from_repo_sync to False
+            ubq = UpdateByQuery(index=Detection._index._name)
+            ubq = ubq.query('term', organization=organization)
+            ubq = ubq.query('term', from_repo_sync=True)
+            ubq = ubq.query('terms', detection_id=self.detections)
+            ubq = ubq.script(source="ctx._source.from_repo_sync = false")
+            ubq.execute()
 
 
 class DetectionRepositoryBundle(base.BaseDocument):

@@ -6,7 +6,7 @@ from uuid import uuid4
 from app.api_v2.model.detection import DetectionException
 from app.api_v2.model.user import User
 from app.api_v2.model.utils import _current_user_id_or_none
-from ..utils import check_org, token_required, user_has
+from ..utils import check_org, token_required, user_has, default_org
 from flask import send_file
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import (
@@ -157,7 +157,8 @@ mod_detection_details = api.model('DetectionDetails', {
     'created_at': ISO8601,
     'created_by': fields.Nested(mod_user_list, skip_none=True),
     'updated_at': ISO8601,
-    'updated_by': fields.Nested(mod_user_list, skip_none=True)
+    'updated_by': fields.Nested(mod_user_list, skip_none=True),
+    'repository': fields.List(fields.String)
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
@@ -333,6 +334,8 @@ detection_list_parser.add_argument(
     'tactics', location='args', action='split', type=str, required=False)
 detection_list_parser.add_argument(
     'organization', location='args', type=str, required=False)
+detection_list_parser.add_argument(
+    'repo_synced', location='args', type=xinputs.boolean, required=False)
 
 
 @api.route("")
@@ -364,6 +367,9 @@ class DetectionList(Resource):
 
         if args.organization:
             search = search.filter('term', organization=args.organization)
+
+        if args.repo_synced:
+            search = search.filter('term', repo_synced=True)
 
         if 'active' in args and args.active in (True, False):
             search = search.filter('term', active=args.active)
@@ -823,8 +829,9 @@ class BulkDeleteDetections(Resource):
     @api.expect(mod_bulk_detections)
     @token_required
     @api.marshal_with(mod_deleted_detections, as_list=True, skip_none=True)
+    @default_org
     @user_has('delete_detection')
-    def delete(self, current_user):
+    def delete(self, user_in_default_org, current_user):
         '''
         Deletes the selected detections
         '''
@@ -836,6 +843,9 @@ class BulkDeleteDetections(Resource):
 
         if detections:
 
+            if any([detection.from_repo_sync for detection in detections]):
+                api.abort(400, f'Detection rules cannot be deleted because they were created by a repository sync')
+
             # Update each detection
             for detection in detections:
 
@@ -846,7 +856,7 @@ class BulkDeleteDetections(Resource):
                 # TODO: Add a access check to make sure this user has access to update
                 # the detection for now we will just check if the user is an admin or in
                 # the detection's organization
-                if current_user.default_org or current_user.organization == detection.organization:
+                if user_in_default_org or current_user.organization == detection.organization:
                     detection_uuid = detection.uuid
                     detection.delete()
                     deleted_detections.append(detection_uuid)
