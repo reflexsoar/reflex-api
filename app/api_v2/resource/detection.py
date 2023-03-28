@@ -3,7 +3,7 @@ import json
 import io
 
 from uuid import uuid4
-from app.api_v2.model.detection import DetectionException
+from app.api_v2.model.detection import DetectionException, DetectionRepository
 from app.api_v2.model.user import User
 from app.api_v2.model.utils import _current_user_id_or_none
 from ..utils import check_org, token_required, user_has, default_org
@@ -654,6 +654,20 @@ class DetectionDetails(Resource):
             # Redistribute the detection workload for the organization
             redistribute_detections(organization)
 
+            # If the detection was part of a repository, remove it from the repository
+            if detection.repository:
+                repositories = DetectionRepository.get_by_uuid(
+                    uuid=detection.repository)
+                if repositories:
+                    if isinstance(repositories, list):
+                        for repo in repositories:
+                            repo.detections = [
+                                detection for detection in repo.detections if detection != detection.uuid]
+                            repo.save(refresh=True)
+                    else:
+                        repositories.detections.remove(detection.detection_id)
+                        repositories.save()
+
             return {}
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')
@@ -844,7 +858,8 @@ class BulkDeleteDetections(Resource):
         if detections:
 
             if any([detection.from_repo_sync for detection in detections]):
-                api.abort(400, f'Detection rules cannot be deleted because they were created by a repository sync')
+                api.abort(
+                    400, f'Detection rules cannot be deleted because they were created by a repository sync')
 
             # Update each detection
             for detection in detections:
@@ -858,8 +873,30 @@ class BulkDeleteDetections(Resource):
                 # the detection's organization
                 if user_in_default_org or current_user.organization == detection.organization:
                     detection_uuid = detection.uuid
+
+                    # If the detection was part of a repository, remove it from the repository
+                    if detection.repository:
+                        repositories = DetectionRepository.get_by_uuid(
+                            uuid=detection.repository)
+                        if repositories:
+                            if isinstance(repositories, list):
+                                for repo in repositories:
+                                    repo.remove_detections([detection])
+                            else:
+                                repositories.remove_detections([detection])
+
+                        # Set from_repo_sync to False on any detections synchronized from this detection
+                        synchronized_detections = Detection.get_by_detection_id(detection.detection_id)
+                        if synchronized_detections:
+                            for synchronized_detection in synchronized_detections:
+                                if synchronized_detection.uuid != detection_uuid:
+                                    synchronized_detection.update(from_repo_sync=False)
+
+                    # Delete the detection
                     detection.delete()
                     deleted_detections.append(detection_uuid)
+
+                    
 
         return {'detections': deleted_detections}
 
@@ -869,7 +906,7 @@ class BulkDisableDetections(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(mod_bulk_detections)
-    @token_required    
+    @token_required
     @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
     @user_has('update_detection')
     def post(self, current_user):
@@ -911,13 +948,14 @@ class BulkDisableDetections(Resource):
         else:
             api.abort(400, f'Detection rules not found')
 
+
 @api.route("/import")
 class DetectionImport(Resource):
 
     @api.doc(security="Bearer")
     @api.expect(mod_detection_import)
     @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
-    @token_required    
+    @token_required
     @user_has('create_detection')
     def post(self, current_user):
         '''

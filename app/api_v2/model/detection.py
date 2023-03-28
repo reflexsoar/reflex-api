@@ -622,7 +622,6 @@ class DetectionRepository(base.BaseDocument):
         if self.detections is None:
             self.detections = []
         detections = [d for d in detections if d not in self.detections]
-        print(detections)
         try:
             self.detections.extend(detections)
             self.save()

@@ -38,6 +38,7 @@ mod_detection_repo_create = api.model('DetectionRepositoryCreate', {
     'detections': fields.List(fields.String, help='A list of detection_ids NOT uuids of the detections in this repository'),
     'share_type': fields.String(requried=True, enum=VALID_REPO_SHARE_MODES),
     'repo_type': fields.String(required=True, enum=VALID_REPO_TYPES),
+    'access_scope': fields.List(fields.String, required=False),
     'url': fields.String,
     'access_token': fields.String,
     'refresh_interval': fields.Integer
@@ -79,6 +80,45 @@ mod_detection_add = api.model('DetectionRepositoryAddDetections', {
 # POST /detection_repository/{id}/subscribe - Subscribe to the repository
 # POST /detection_repository/{id}/unsubscribe - Unsubscribe from the repository
 # DELETE /detection_repository/{id} - Delete
+
+
+@api.route('/<string:uuid>')
+class DetectionRepositoryDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_detection_repo_create)
+    @api.marshal_with(mod_detection_repo)
+    @token_required
+    @default_org
+    @user_has('update_detection_repository')
+    def put(self, user_in_default_org, current_user, uuid):
+
+        # Locate the detection if it doesn't exist return a 404
+        repository = DetectionRepository.get_by_uuid(uuid)
+        if not repository:
+            api.abort(404, 'Detection Repository not found')
+
+        # If the user is not a member of the default_org don't allow them
+        # to change access_scope or the organization of the repository
+        if not user_in_default_org:
+            if 'organization' in api.payload:
+                api.abort(403, 'You do not have permission to change the organization of this repository')
+            if 'access_scope' in api.payload:
+                api.abort(403, 'You do not have permission to change the access scope of this repository')
+
+        # If the name is changing make sure it doesn't already exist and return a 409 if it does
+        if 'name' in api.payload:
+            existing_repo = DetectionRepository.get_by_name(api.payload['name'])
+            if existing_repo and existing_repo.uuid != uuid:
+                api.abort(409, 'A repository with that name already exists')
+
+        # Save the changes to the repository
+        repository.update(**api.payload)
+
+        repository.check_subscription(organization=current_user.organization)
+
+        # Return the new repo data
+        return repository, 200
 
 
 @api.route('/<string:uuid>/sync')
@@ -308,6 +348,10 @@ class DetectionRepositoryList(Resource):
 
         data = api.payload
 
+        # Do not allow the user to set the UUID
+        if 'uuid' in data:
+            del data['uuid']
+
         if 'organization' in data:
             if data['organization'] != current_user.organization and not current_user.default_org:
                 api.abort(403, 'You do not have permission to create a repository in this organization')
@@ -340,7 +384,7 @@ class DetectionRepositoryList(Resource):
 
         # Check to make sure any detections being added to the repository exist
         # if they don't, remove them from the list
-        if data['detections']:
+        if 'detections' in data and data['detections']:
             detections = Detection.get_by_detection_id(detection_id=data['detections'], organization=data['organization'])
 
             # If the detection is from a repository sync, remove it from the list as sharing
