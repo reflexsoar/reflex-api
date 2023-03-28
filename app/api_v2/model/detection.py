@@ -560,60 +560,61 @@ class DetectionRepository(base.BaseDocument):
     
     def sync(self, organization):
         ''' Synchronizes the repository if it is a local repository '''
-        if self.repo_type == 'local':
-            detections_to_sync = Detection.get_by_detection_id(self.detections)
-            for detection in detections_to_sync:
-                existing_detection = Detection.get_by_detection_id(detection.detection_id, organization=organization)
-                if not existing_detection:
-                    new_detection = Detection(
-                        name=detection.name,
-                        description=detection.description,
-                        tags=detection.tags,
-                        active=False,
-                        query=detection.query,
-                        detection_id=detection.detection_id,
-                        organization=organization,
-                        tactics=detection.tactics,
-                        techniques=detection.techniques,
-                        rule_type=detection.rule_type,
-                        version=detection.version,
-                        risk_score=detection.risk_score,
-                        severity=detection.severity,
-                        interval=detection.interval,
-                        lookbehind=detection.lookbehind,
-                        last_run=datetime.datetime.utcfromtimestamp(40246871),
-                        mute_period=detection.mute_period,
-                        threshold_config=detection.threshold_config,
-                        metric_change_config=detection.metric_change_config,
-                        field_mismatch_config=detection.field_mismatch_config,
-                        new_terms_config=detection.new_terms_config,
-                        from_repo_sync=True,
-                        original_uuid=detection.uuid
-                    )
-                    new_detection.save()
-                else:
-                    existing_detection = existing_detection[0]
-                    existing_detection.name = detection.name
-                    existing_detection.description = detection.description
-                    existing_detection.tags = detection.tags
-                    existing_detection.active = False
-                    existing_detection.query = detection.query
-                    existing_detection.tactics = detection.tactics
-                    existing_detection.techniques = detection.techniques
-                    existing_detection.rule_type = detection.rule_type
-                    existing_detection.version = detection.version
-                    existing_detection.risk_score = detection.risk_score
-                    existing_detection.severity = detection.severity
-                    existing_detection.interval = detection.interval
-                    existing_detection.lookbehind = detection.lookbehind
-                    existing_detection.mute_period = detection.mute_period
-                    existing_detection.threshold_config = detection.threshold_config
-                    existing_detection.metric_change_config = detection.metric_change_config
-                    existing_detection.field_mismatch_config = detection.field_mismatch_config
-                    existing_detection.new_terms_config = detection.new_terms_config
-                    existing_detection.from_repo_sync = True
-                    existing_detection.save()
-            Detection._index.refresh()
+        if self.detections and len(self.detections) > 0:
+            if self.repo_type == 'local':
+                detections_to_sync = Detection.get_by_detection_id(self.detections)
+                for detection in detections_to_sync:
+                    existing_detection = Detection.get_by_detection_id(detection.detection_id, organization=organization)
+                    if not existing_detection:
+                        new_detection = Detection(
+                            name=detection.name,
+                            description=detection.description,
+                            tags=detection.tags,
+                            active=False,
+                            query=detection.query,
+                            detection_id=detection.detection_id,
+                            organization=organization,
+                            tactics=detection.tactics,
+                            techniques=detection.techniques,
+                            rule_type=detection.rule_type,
+                            version=detection.version,
+                            risk_score=detection.risk_score,
+                            severity=detection.severity,
+                            interval=detection.interval,
+                            lookbehind=detection.lookbehind,
+                            last_run=datetime.datetime.utcfromtimestamp(40246871),
+                            mute_period=detection.mute_period,
+                            threshold_config=detection.threshold_config,
+                            metric_change_config=detection.metric_change_config,
+                            field_mismatch_config=detection.field_mismatch_config,
+                            new_terms_config=detection.new_terms_config,
+                            from_repo_sync=True,
+                            original_uuid=detection.uuid
+                        )
+                        new_detection.save()
+                    else:
+                        existing_detection = existing_detection[0]
+                        existing_detection.name = detection.name
+                        existing_detection.description = detection.description
+                        existing_detection.tags = detection.tags
+                        existing_detection.active = False
+                        existing_detection.query = detection.query
+                        existing_detection.tactics = detection.tactics
+                        existing_detection.techniques = detection.techniques
+                        existing_detection.rule_type = detection.rule_type
+                        existing_detection.version = detection.version
+                        existing_detection.risk_score = detection.risk_score
+                        existing_detection.severity = detection.severity
+                        existing_detection.interval = detection.interval
+                        existing_detection.lookbehind = detection.lookbehind
+                        existing_detection.mute_period = detection.mute_period
+                        existing_detection.threshold_config = detection.threshold_config
+                        existing_detection.metric_change_config = detection.metric_change_config
+                        existing_detection.field_mismatch_config = detection.field_mismatch_config
+                        existing_detection.new_terms_config = detection.new_terms_config
+                        existing_detection.from_repo_sync = True
+                        existing_detection.save()
+                Detection._index.refresh()
 
     def add_detections(self, detections):
         ''' Adds detections to the repository '''
@@ -691,16 +692,17 @@ class DetectionRepository(base.BaseDocument):
         ''' Removes all the rules associated with this repository from the 
         target organizations rule set
         '''
-        if self.repo_type == 'local':
-            
-            # Update by query all the detections that were synchronized from this repo to this
-            # organization and set from_repo_sync to False
-            ubq = UpdateByQuery(index=Detection._index._name)
-            ubq = ubq.query('term', organization=organization)
-            ubq = ubq.query('term', from_repo_sync=True)
-            ubq = ubq.query('terms', detection_id=self.detections)
-            ubq = ubq.script(source="ctx._source.from_repo_sync = false")
-            ubq.execute()
+        if self.detections and len(self.detections) > 0:
+            if self.repo_type == 'local':
+                
+                # Update by query all the detections that were synchronized from this repo to this
+                # organization and set from_repo_sync to False
+                ubq = UpdateByQuery(index=Detection._index._name)
+                ubq = ubq.query('term', organization=organization)
+                ubq = ubq.query('term', from_repo_sync=True)
+                ubq = ubq.query('terms', detection_id=self.detections)
+                ubq = ubq.script(source="ctx._source.from_repo_sync = false")
+                ubq.execute()
 
 
 class DetectionRepositoryBundle(base.BaseDocument):

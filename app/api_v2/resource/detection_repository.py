@@ -1,6 +1,6 @@
 from flask_restx import Resource, Namespace, fields
 
-from ..model import DetectionRepository, Detection, DetectionRepositoryToken, Organization
+from ..model import DetectionRepository, Detection, DetectionRepositoryToken, Organization, UpdateByQuery, DetectionRepositorySubscription
 from ..model.detection import VALID_REPO_SHARE_MODES, VALID_REPO_TYPES
 from ..utils import token_required, user_has, default_org
 from .shared import mod_pagination, mod_user_list, ISO8601, ValueCount
@@ -112,6 +112,48 @@ class DetectionRepositoryDetails(Resource):
             if existing_repo and existing_repo.uuid != uuid:
                 api.abort(409, 'A repository with that name already exists')
 
+        if 'access_scope' in api.payload:
+
+            # Determine if any uuids in access_scope have been removed, and for the ones that
+            # have been removed, set the from_repo_sync flag to False for any detections
+            # that were synced from this repository where the detections organization is the UUID
+
+            # Get the current access_scope
+            current_access_scope = repository.access_scope
+
+            # Get the new access_scope
+            new_access_scope = api.payload['access_scope']
+
+            # Get the list of uuids that have been removed from the access_scope
+            if current_access_scope and new_access_scope:
+                removed_uuids = list(set(current_access_scope) - set(new_access_scope))
+
+                if removed_uuids:
+
+                    # Get the list of detections that were synced from this repository
+                    # and are in the removed_uuids list
+                    detections = Detection.search()
+                    detections = detections.filter(
+                        'term', from_repo_sync=True)
+                    detections = detections.filter('terms', organization=removed_uuids)
+                    detections = [d for d in detections.scan()]
+
+                    # Set the from_repo_sync flag to False for all detections that were synced from this repository
+                    # and are in the removed_uuids list
+                    for detection in detections:
+                        detection.from_repo_sync = False
+                        detection.save()
+
+
+                    # Delete any active subscriptions for the removed_uuids and this repository
+                    subscriptions = DetectionRepositorySubscription.search()
+                    subscriptions = subscriptions.filter('term', repository=repository.uuid)
+                    subscriptions = subscriptions.filter('terms', organization=removed_uuids)
+                    subscriptions = [s for s in subscriptions.scan()]
+
+                    for subscription in subscriptions:
+                        subscription.delete()
+
         # Save the changes to the repository
         repository.update(**api.payload)
 
@@ -119,6 +161,47 @@ class DetectionRepositoryDetails(Resource):
 
         # Return the new repo data
         return repository, 200
+    
+    @api.doc(security="Bearer")
+    @token_required
+    @default_org
+    @user_has('delete_detection_repository')
+    def delete(self, user_in_default_org, current_user, uuid):
+        '''Delete a repository'''
+        repository = DetectionRepository.get_by_uuid(uuid)
+
+        if not repository:
+            api.abort(404, 'Detection Repository not found')
+
+        # If the user deleting this repository is not in the same organization 
+        # of a default_org member of the repository don't allow them to delete it
+        if current_user.organization != repository.organization:
+            if not user_in_default_org:
+                api.abort(403, 'You do not have permission to delete this repository')
+
+        # Find all detections synchronized from this repo
+        update_query = UpdateByQuery(index=Detection._index._name)
+
+        # Find any detection with a detection_id that matches repository.detections
+        update_query = update_query.filter('terms', detection_id=repository.detections)
+
+        # Filter for detections that are from_repo_sync
+        update_query = update_query.filter('term', from_repo_sync=True)
+
+        # Filter out any detections that are in the same organization as the repository
+        # using a bool not match
+        update_query = update_query.filter('bool', must_not={'match': {'organization': repository.organization}})
+
+        # Painless script to set from_repo_sync to false
+        update_query = update_query.script(source='ctx._source.from_repo_sync = false')
+
+        # Execute the update
+        update_query.execute()
+        
+        # Delete the repository
+        repository.delete()
+
+        return {'message': 'Repository deleted'}, 200
 
 
 @api.route('/<string:uuid>/sync')
