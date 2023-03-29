@@ -609,7 +609,7 @@ class DetectionDetails(Resource):
 
             # Update the detection version number when the detection is saved and certain fields
             # are present in the update payoad
-            if any([field in api.payload for field in ['query', 'description', 'guide']]):
+            if any([field in api.payload for field in ['query', 'description', 'guide', 'title', 'setup_guide', 'testing_guide']]):
                 if hasattr(detection, 'version'):
                     detection.version += 1
                 else:

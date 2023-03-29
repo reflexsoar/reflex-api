@@ -26,7 +26,8 @@ mod_detection_repo = api.model('DetectionRepository', {
     'created_at': ISO8601(),
     'updated_at': ISO8601(),
     'created_by': fields.Nested(mod_user_list),
-    'updated_by': fields.Nested(mod_user_list)
+    'updated_by': fields.Nested(mod_user_list),
+    'access_scope': fields.List(fields.String),
 }, strict=True)
 
 mod_detection_repo_create = api.model('DetectionRepositoryCreate', {
@@ -49,8 +50,28 @@ mod_detection_repo_list = api.model('DetectionRepositoryList', {
     'pagination': fields.Nested(mod_pagination)
 })
 
+mod_repo_subscription_sync_settings = api.model('DetectionRepositorySubscriptionSyncSettings', {
+    'risk_score': fields.Boolean(default=True),
+    'severity': fields.Boolean(default=True),
+    'interval': fields.Boolean(default=True),
+    'lookbehind': fields.Boolean(default=True),
+    'mute_period': fields.Boolean(default=True),
+    'threshold_config': fields.Boolean(default=True),
+    'metric_change_config': fields.Boolean(default=True),
+    'field_mismatch_config': fields.Boolean(default=True),
+    'new_terms_config': fields.Boolean(default=True),
+    'field_templates': fields.Boolean(default=True),
+    'signature_fields': fields.Boolean(default=True),
+    'observable_fields': fields.Boolean(default=True),
+    'guide': fields.Boolean(default=True),
+    'setup_guide': fields.Boolean(default=True),
+    'testing_guide': fields.Boolean(default=True),
+    'false_positives': fields.Boolean(default=True)
+})
+
 mod_repo_subscribe = api.model('DetectionRepositorySubscribe', {
     'sync_interval': fields.Integer,
+    'sync_settings': fields.Nested(mod_repo_subscription_sync_settings)
 })
 
 mod_detection_add = api.model('DetectionRepositoryAddDetections', {
@@ -217,7 +238,7 @@ class DetectionRepositorySync(Resource):
         if not repository:
             api.abort(404, 'Detection Repository not found')
 
-        if current_user.organization not in repository.access_scope:
+        if not repository.check_access_scope(organization=current_user.organization):
             api.abort(403, 'You do not have permission to sync this repository')
 
         repository.check_subscription(organization=current_user.organization)
@@ -246,13 +267,18 @@ class DetectionRepositorySubscribe(Resource):
         if not repository:
             api.abort(404, 'Detection Repository not found')
 
-        if current_user.organization not in repository.access_scope:
+        if not repository.check_access_scope(organization=current_user.organization):
             api.abort(403, 'You do not have permission to subscribe to this repository')
         
         subscription = None
 
+        data = api.payload
+
         try:
-            subscription = repository.subscribe()
+            sync_interval = data['sync_interval']
+            sync_settings = data['sync_settings']
+            subscription = repository.subscribe(sync_interval=sync_interval,
+                                                sync_settings=sync_settings)
         except ValueError as e:
             api.abort(400, str(e))
 
@@ -354,7 +380,7 @@ class DetectionRepositoryUnsubscribe(Resource):
         if not repository:
             api.abort(404, 'Detection Repository not found')
 
-        if current_user.organization not in repository.access_scope:
+        if not repository.check_access_scope(organization=current_user.organization):
             api.abort(403, 'You do not have permission to unsubscribe from this repository')
         
         subscription = None
@@ -386,23 +412,12 @@ class DetectionRepositoryList(Resource):
         '''
 
         repositories = DetectionRepository.search()
+        repositories = [repo for repo in repositories.scan()]
 
         # Filter by repositories that this organization owns or has access to
-        # via the access scope field
-        repositories = repositories.filter('bool', should=[
-            {'term': {'organization': current_user.organization}},
-            {'bool': {
-                'must': [
-                    {'term': {'share_type': 'local-shared'}},
-                    {'term': {'access_scope': current_user.organization}}
-                ]
-            }}
-        ])
-
-        # TODO: Fetch only the repositories that the user has access to which includes
-        # repositories in their organization, remote repositories their organization
-        # owns and local-shared repositories from the default organization
-        repositories = [repo for repo in repositories.scan()]
+        # via the access scope field, if the access_scope field is empty then
+        # the user has access to the repository
+        repositories = [repo for repo in repositories if repo.check_access_scope(current_user.organization)]
 
         # Get subscription status for each repository
         [repo.check_subscription(organization=current_user.organization) for repo in repositories]
