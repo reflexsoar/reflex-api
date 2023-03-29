@@ -250,7 +250,7 @@ class Detection(base.BaseDocument):
         super(Detection, self).save(**kwargs)
 
     @classmethod
-    def get_by_detection_id(cls, detection_id, organization=None):
+    def get_by_detection_id(cls, detection_id, repository=None, organization=None):
         '''
         Fetches a document by the detection_id field  which is a persistent UUID
         that follows the rule across any installation of the API
@@ -261,6 +261,9 @@ class Detection(base.BaseDocument):
             response = response.filter('terms', detection_id=detection_id)
         else:
             response = response.filter('term', detection_id=detection_id)
+
+        if repository:
+            response = response.filter('term', repository__keyword=repository)
 
         if organization:
             response = response.filter('term', organization=organization)
@@ -570,6 +573,12 @@ class DetectionRepository(base.BaseDocument):
             response = response[0]
             return response
         return response
+    
+    def get_subscription(self):
+        '''
+        Returns the subscription for this repository
+        '''
+        return DetectionRepositorySubscription.get_by_repository(self.uuid)
 
     def subscribe(self, sync_settings, sync_interval=60):
         '''
@@ -668,14 +677,13 @@ class DetectionRepository(base.BaseDocument):
 
             # If the sync settings are not defined, set the defaults
             if not subscription.sync_settings:
-                print("Setting default sync settings")
                 subscription.set_default_sync_settings()
                 subscription.save(refresh="wait_for")
 
             if self.detections and len(self.detections) > 0:
                 if self.repo_type == 'local':
                     detections_to_sync = Detection.get_by_detection_id(
-                        self.detections)
+                        self.detections, repository=self.uuid)
                     for detection in detections_to_sync:
                         existing_detection = Detection.get_by_detection_id(
                             detection.detection_id, organization=organization)

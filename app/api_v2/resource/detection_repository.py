@@ -250,6 +250,55 @@ class DetectionRepositorySync(Resource):
         return {'message': 'Syncing repository'}, 200
 
 
+@api.route('/<string:uuid>/subscription')
+class DetectionRepositorySubscription(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_repo_subscribe)
+    @token_required
+    @user_has('subscribe_detection_repository')
+    def get(self, current_user, uuid):
+        '''Gets the subscription for the repository'''
+        repository = DetectionRepository.get_by_uuid(uuid)
+
+        if not repository:
+            api.abort(404, 'Detection Repository not found')
+
+        if not repository.check_access_scope(organization=current_user.organization):
+            api.abort(403, 'You do not have permission to get the subscription for this repository')
+
+        subscription = repository.get_subscription(organization=current_user.organization)
+        print(subscription)
+
+        if not subscription:
+            api.abort(404, 'Subscription not found')
+
+        return subscription, 200
+    
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_repo_subscribe)
+    @api.expect(mod_repo_subscribe)
+    @token_required
+    @user_has('subscribe_detection_repository')
+    def put(self, current_user, uuid):
+        '''Updates the subscription for the repository'''
+        repository = DetectionRepository.get_by_uuid(uuid)
+
+        if not repository:
+            api.abort(404, 'Detection Repository not found')
+
+        if not repository.check_access_scope(organization=current_user.organization):
+            api.abort(403, 'You do not have permission to update the subscription for this repository')
+
+        subscription = repository.get_subscription(organization=current_user.organization)
+
+        if not subscription:
+            api.abort(404, 'Subscription not found')
+
+        subscription.update(**api.payload)
+
+        return subscription, 200
+
 @api.route('/<string:uuid>/subscribe')
 class DetectionRepositorySubscribe(Resource):
 

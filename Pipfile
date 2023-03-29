@@ -58,6 +58,7 @@ pysigma-pipeline-windows = "*"
 pysigma-backend-opensearch = "*"
 urllib3 = "*"
 psutil = "*"
+diskcache = "*"
 
 [requires]
 python_version = "3.8"
