@@ -549,6 +549,7 @@ class DetectionRepository(base.BaseDocument):
     external_tokens = Keyword()
     # Organizations in this list will have access to this repository if it is `local-shared`
     access_scope = Keyword()
+    delete_rules_on_sync = Boolean()  # Whether or not to delete rules that are no longer in the repository
 
     class Index:
         name = "reflex-detection-repositories"
