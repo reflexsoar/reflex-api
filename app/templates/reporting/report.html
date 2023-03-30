@@ -99,7 +99,7 @@
         </div>
     </div>
 </div>
-<div class="row" style="page-break-after: always">
+<div class="row">
     <div class="col">
         <h2 class="pb-3">Events Over Time</h2>
         <p>The below chart represents the total volume of events for this reporting period compared to the volume during
@@ -253,6 +253,13 @@
             <div class="col">
                 <h3>{{ event.title }} - {{ event.hits }} hits</h3>
                 <p>{{event.description}}</p>
+                <h4>Dismiss Comment</h4>
+                <ul>
+                    {% for comment in event.dismiss_comment %}
+                    <li>{{comment}}</li>
+                    {% endfor %}
+                </ul>
+
             </div>
         </div>
     </div>

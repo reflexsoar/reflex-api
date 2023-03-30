@@ -33,7 +33,7 @@ def trend_direction(current, previous):
 
 
 report_parser = api.parser()
-report_parser.add_argument('days', type=int, required=False, help='Number of days to report on', default=14)
+report_parser.add_argument('days', type=int, required=False, help='Number of days to report on', default=30)
 report_parser.add_argument('utc_offset', type=str, required=False, help='UTC offset', default="00:00"),
 report_parser.add_argument('soc_start_hour', type=int, required=False, help='Start hour of SOC', default=14)
 report_parser.add_argument('soc_end_hour', type=int, required=False, help='End hour of SOC', default=22)
@@ -299,6 +299,44 @@ class Reporting(Resource):
         adjusted_soc_end_hour = soc_end_hour + offset
         adjusted_soc_start_hour = soc_start_hour + offset
 
+        # Aggregate all events in this period by their title,
+        # filtering the event by the organization_uuid but not the other buckets,
+        # description, dismiss_reason, dismiss_comment, and tuning advice
+        # and return the aggs as a list of dicts
+        event_search = Event.search()
+
+        # Aggregate by a filter for organization_uuid and date range
+        event_search.aggs.bucket('org_filter', 'filter', filter={'term': {'organization': organization_uuid}})
+        event_search.aggs['org_filter'].bucket('date_filter', 'filter', filter={'range': {'created_at': current_period}})
+        # Aggregate by title
+        event_search.aggs['org_filter']['date_filter'].bucket('title', 'terms', field='title', size=1000)
+        # Aggregate by description
+        event_search.aggs['org_filter']['date_filter']['title'].bucket('description', 'terms', field='description.keyword', size=1000)
+        # Aggregate by dismiss_reason
+        event_search.aggs['org_filter']['date_filter']['title'].bucket('dismiss_reason', 'terms', field='dismiss_reason.keyword', size=1000)
+        # Aggregate by dismiss_comment
+        event_search.aggs['org_filter']['date_filter']['title'].bucket('dismiss_comment', 'terms', field='dismiss_comment.keyword', size=1000)
+        # Aggregate by tuning_advice
+        event_search.aggs['org_filter']['date_filter']['title'].bucket('tuning_advice', 'terms', field='tuning_advice.keyword', size=1000)
+
+        print(event_search.to_dict())
+        event_search = event_search.execute()
+
+
+        # Create a list of dicts with the event title, close_reason, dismiss_comment, and tuning_advice
+        # for each event in the current period
+        event_details = []
+        for title in event_search.aggregations.org_filter.date_filter.title.buckets:
+            print(title.to_dict())
+            event_details.append({
+                'title': title.key,
+                'hits': title.doc_count,
+                'description': title.description.buckets[0].key if title.description.buckets else "No description provided",
+                'dismiss_reason': [b['key'] for b in title.dismiss_reason.buckets],
+                'dismiss_comment': [b['key'] for b in title.dismiss_comment.buckets],
+                'tuning_advice': [b['key'] for b in title.tuning_advice.buckets]
+            })
+
         report = {
             'title': f'Monthly SOC Report for {organization.name}',
             'generated_on': datetime.datetime.utcnow().isoformat(),
@@ -352,33 +390,7 @@ class Reporting(Resource):
                     'warnings': warnings
                 },
                 'total': total_events,
-                'details': [
-                    {
-                        'title': 'Event 1',
-                        'hits': 35,
-                        'description': 'Event 1 Description',
-                        'dismiss_comment': [
-                            'Comment 1',
-                            'Comment 2',
-                            'Comment 3'
-                        ],
-                        'tuning_advice': [
-                            'Tuning Advice 1'
-                        ]
-                    },
-                    {
-                        'title': 'Event 2',
-                        'hits': 10,
-                        'description': 'Event 2 Description',
-                        'dismiss_comment': [
-                            'Comment 1',
-                            'Comment 2',
-                            'Comment 3'
-                        ],
-                        'tuning_advice': [
-                        ]
-                    }
-                ]
+                'details': event_details
             }
         }
 
