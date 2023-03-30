@@ -12,7 +12,8 @@ from . import (
     AttrList,
     utils,
     Search,
-    InnerDoc
+    InnerDoc,
+    Object
 )
 
 class BaseInnerDoc(InnerDoc):
@@ -36,8 +37,8 @@ class BaseDocument(Document):
     uuid = Keyword()
     created_at = Date()
     updated_at = Date()
-    updated_by = Nested()
-    created_by = Nested()
+    updated_by = Object()
+    created_by = Object()
     organization = Keyword() # Required on all documents to provide logical isolate of tenants
 
     @classmethod
