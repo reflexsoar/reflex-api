@@ -9,6 +9,8 @@ experiment
 
 # Databases
 *.db
+*.db-shm
+*.db-wal
 app/api_v2/plugins/*
 app/*/backup/*
 tools/backup/

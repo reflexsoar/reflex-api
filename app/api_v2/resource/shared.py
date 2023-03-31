@@ -233,7 +233,8 @@ mod_permissions = Model('Permissions', {
     'view_detection_repositories': fields.Boolean,
     'update_detection_repository': fields.Boolean,
     'delete_detection_repository': fields.Boolean,
-    'share_detection_repository': fields.Boolean
+    'share_detection_repository': fields.Boolean,
+    'subscribe_detection_repository': fields.Boolean
 }, strict=True)
 
 mod_user_list = Model('UserList', {
