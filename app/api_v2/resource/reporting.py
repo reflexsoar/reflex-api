@@ -319,15 +319,12 @@ class Reporting(Resource):
         # Aggregate by tuning_advice
         event_search.aggs['org_filter']['date_filter']['title'].bucket('tuning_advice', 'terms', field='tuning_advice.keyword', size=1000)
 
-        print(event_search.to_dict())
         event_search = event_search.execute()
-
 
         # Create a list of dicts with the event title, close_reason, dismiss_comment, and tuning_advice
         # for each event in the current period
         event_details = []
         for title in event_search.aggregations.org_filter.date_filter.title.buckets:
-            print(title.to_dict())
             event_details.append({
                 'title': title.key,
                 'hits': title.doc_count,
