@@ -12,28 +12,30 @@ from . import (
 )
 
 VALID_DATA_TYPES = [
-        "url",
-        "user",
-        "sid",
-        "sha256hash",
-        "sha1hash",
-        "process",
-        "port",
-        "pid",
-        "md5hash",
-        "mac",
-        "ip",
-        "imphash",
-        "host",
-        "generic",
-        "fqdn",
-        "filepath",
-        "email_subject",
-        "email",
-        "domain",
-        "detection_id",
-        "command",
-      ]
+    "none",
+    "url",
+    "user",
+    "sid",
+    "sha256hash",
+    "sha1hash",
+    "process",
+    "port",
+    "pid",
+    "md5hash",
+    "mac",
+    "ip",
+    "imphash",
+    "host",
+    "generic",
+    "fqdn",
+    "filepath",
+    "email_subject",
+    "email",
+    "domain",
+    "detection_id",
+    "command",
+]
+
 
 class FieldMap(InnerDoc):
     '''
@@ -42,7 +44,7 @@ class FieldMap(InnerDoc):
     '''
 
     field = Keyword()
-    data_type = Text(fields={'keyword':Keyword()})
+    data_type = Text(fields={'keyword': Keyword()})
     sigma_field = Keyword()
     tlp = Integer()
     ioc = Boolean()
@@ -57,12 +59,13 @@ class FieldMappingTemplate(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text(fields={'keyword':Keyword()})
-    priority = Integer() # Higher priority templates are applied last and override lower priority
+    description = Text(fields={'keyword': Keyword()})
+    # Higher priority templates are applied last and override lower priority
+    priority = Integer()
     field_mapping = Nested(FieldMap)
     is_global = Boolean()
 
-    class Index: # pylint: disable=too-few-public-methods
+    class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-field-mapping-templates'
         settings = {
@@ -76,11 +79,11 @@ class FieldMappingTemplate(base.BaseDocument):
         Uses a term search on a keyword field for EXACT matching
         '''
         response = self.search()
-        
+
         response = response.filter('term', name=name)
         if organization:
             response = response.filter('term', organization=organization)
-            
+
         response = response.execute()
         if response:
             user = response[0]
@@ -96,26 +99,29 @@ class Input(base.BaseDocument):
     '''
 
     name = Keyword()
-    description = Text(fields={'keyword':Keyword()})
+    description = Text(fields={'keyword': Keyword()})
 
     # Renamed from 'plugin'.
     # The name of the ingestor being used e.g. 'elasticsearch' or 'ews'
-    source = Text(fields={'keyword':Keyword()})
+    source = Text(fields={'keyword': Keyword()})
     enabled = Boolean()  # Default to False
     config = Object()
     credential = Keyword()  # The UUID of the credential in use
     tags = Keyword()
-    field_templates = Keyword() # A list of field templates to apply to the alert
+    field_templates = Keyword()  # A list of field templates to apply to the alert
     field_mapping = Nested(FieldMap)
-    index_fields = Keyword() # A list of all the fields on the index via _mapping
+    index_fields = Keyword()  # A list of all the fields on the index via _mapping
     index_fields_last_updated = Date()
-    field_mapping_templates = Keyword() # A list of UUIDs of FieldMappingTemplates
-    sigma_backend = Keyword() # What sigma backend pysigma should convert to when this input is used
-    sigma_pipeline = Keyword() # What sigma pipeline pysigma should use when this input is used
-    sigma_field_mapping = Keyword() # What sigma field mapping pysigma should use when this input is used
-    mitre_data_sources = Keyword() # What MITRE data sources does this input cover?
+    field_mapping_templates = Keyword()  # A list of UUIDs of FieldMappingTemplates
+    # What sigma backend pysigma should convert to when this input is used
+    sigma_backend = Keyword()
+    # What sigma pipeline pysigma should use when this input is used
+    sigma_pipeline = Keyword()
+    # What sigma field mapping pysigma should use when this input is used
+    sigma_field_mapping = Keyword()
+    mitre_data_sources = Keyword()  # What MITRE data sources does this input cover?
 
-    class Index: # pylint: disable=too-few-public-methods
+    class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-inputs'
         settings = {
@@ -137,7 +143,7 @@ class Input(base.BaseDocument):
         ''' Returns the field mapping as a dict '''
 
         # Pull any field mapping templates assigned to this input and merge them
-        #if hasattr(self, 'field_mapping_templates') and len(self.field_mapping_templates) > 0:
+        # if hasattr(self, 'field_mapping_templates') and len(self.field_mapping_templates) > 0:
 
         if isinstance(self.field_mapping, AttrList):
             if self.field_mapping and len(self.field_mapping) >= 1:
@@ -154,10 +160,10 @@ class Input(base.BaseDocument):
         '''
         response = self.search()
         response = response.filter('term', name=name)
-        
+
         if organization:
             response = response.filter('term', organization=organization)
-            
+
         response = response.execute()
         if response:
             user = response[0]
@@ -177,14 +183,14 @@ class Input(base.BaseDocument):
                     replaced = False
                     for field in final_fields:
                         if field['field'] == template_field['field']:
-                            final_fields[final_fields.index(field)] = template_field
+                            final_fields[final_fields.index(
+                                field)] = template_field
                             replaced = True
                             break
-                    
+
                     if not replaced:
                         final_fields.append(template_field)
         else:
             final_fields = self.field_mapping.fields
 
         return final_fields
-

@@ -30,6 +30,12 @@ from .inout import FieldMap
 VALID_REPO_SHARE_MODES = ['private', 'local-shared',
                           'external-private', 'external-public']
 VALID_REPO_TYPES = ['local', 'remote']
+VALID_DETECTION_STATUS = ['Experimental', 'Draft', 'Superceded',
+                          'Beta',
+                          'Stable',
+                          'Test',
+                          'Deprecated',
+                          'Production']
 
 
 class MITRETacticTechnique(base.InnerDoc):
@@ -165,6 +171,31 @@ class DetectionLog(base.BaseDocument):
         }
 
 
+class DetectionSchedulHourRange(base.InnerDoc):
+    '''
+    A range of hours for a day
+    '''
+    start = Integer()
+    end = Integer()
+
+
+class DetectionScheduleDay(base.InnerDoc):
+    '''
+    A day of the week with a list of hours
+    '''
+    custom = Boolean()
+    hours = Nested(DetectionSchedulHourRange)
+
+class DetectionSchedule(base.InnerDoc):
+    '''Defines what days and the hours of the day a detection should run'''
+    monday = Object(DetectionScheduleDay)
+    tuesday = Object(DetectionScheduleDay)
+    wednesday = Object(DetectionScheduleDay)
+    thursday = Object(DetectionScheduleDay)
+    friday = Object(DetectionScheduleDay)
+    saturday = Object(DetectionScheduleDay)
+    sunday = Object(DetectionScheduleDay)
+
 class Detection(base.BaseDocument):
     '''
     A Detection is a rule defined by a security team to look for suspicious or malicious
@@ -235,6 +266,8 @@ class Detection(base.BaseDocument):
     include_source_meta_data = Boolean()
     status = Keyword()  # Experimental, Beta, Stable, Test, Deprecated, Production
     repository = Keyword()  # The UUID of the repositories this rule is associated to
+    daily_schedule = Boolean()  # If false the detection will always run
+    schedule = Nested(DetectionSchedule)
 
     class Index:
         name = "reflex-detections"
@@ -246,6 +279,66 @@ class Detection(base.BaseDocument):
         ''' Override save to set some defaults '''
         if not self.from_repo_sync:
             self.from_repo_sync = False
+
+        if not self.status:
+            self.status = 'Draft'
+
+        if not self.daily_schedule:
+            self.daily_schedule = False
+
+        if not self.schedule:
+            self.schedule = {
+                'monday': {
+                    'custom': False,
+                    'hours': [{
+                        'from': '00:00',
+                        'to': '23:59'
+                    }]
+                },
+                'tuesday': {
+                    'custom': False,
+                    'hours': [{
+                        'from': '00:00',
+                        'to': '23:59'
+                    }]
+                },
+                'wednesday': {
+                    'custom': False,
+                    'hours': [{
+                        'from': '00:00',
+                        'to': '23:59'
+                    }]
+                },
+                'thursday': {
+                    'custom': False,
+                    'hours': [{
+                        'from': '00:00',
+                        'to': '23:59'
+                    }]
+                },
+                'friday': {
+                    'custom': False,
+                    'hours': [{
+                        'from': '00:00',
+                        'to': '23:59'
+                    }]
+                },
+                'saturday': {
+                    'custom': False,
+                    'hours': [{
+                        'from': '00:00',
+                        'to': '23:59'
+                    }]
+                },
+                'sunday': {
+                    'custom': False,
+                    'hours': [{
+                        'from': '00:00',
+                        'to': '23:59'
+                    }]
+                }
+
+            }
 
         super(Detection, self).save(**kwargs)
 
@@ -549,7 +642,8 @@ class DetectionRepository(base.BaseDocument):
     external_tokens = Keyword()
     # Organizations in this list will have access to this repository if it is `local-shared`
     access_scope = Keyword()
-    delete_rules_on_sync = Boolean()  # Whether or not to delete rules that are no longer in the repository
+    # Whether or not to delete rules that are no longer in the repository
+    delete_rules_on_sync = Boolean()
 
     class Index:
         name = "reflex-detection-repositories"
@@ -574,7 +668,7 @@ class DetectionRepository(base.BaseDocument):
             response = response[0]
             return response
         return response
-    
+
     def get_subscription(self):
         '''
         Returns the subscription for this repository
