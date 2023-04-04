@@ -3,7 +3,7 @@ import json
 import io
 
 from uuid import uuid4
-from app.api_v2.model.detection import DetectionException, DetectionRepository
+from app.api_v2.model.detection import DetectionException, DetectionRepository, VALID_DETECTION_STATUS
 from app.api_v2.model.user import User
 from app.api_v2.model.utils import _current_user_id_or_none
 from ..utils import check_org, token_required, user_has, default_org
@@ -108,12 +108,33 @@ mod_observable_field = api.model('ObservableField', {
     'tags': fields.List(fields.String)
 })
 
+mod_detection_schedule_hour_range = api.model('DetectionScheduleHourRange', {
+    'from': fields.String,
+    'to': fields.String
+})
+
+mod_detection_schedule_day = api.model('DetectionScheduleDay', {
+    'custom': fields.Boolean,
+    'hours': fields.List(fields.Nested(mod_detection_schedule_hour_range))
+})
+
+mod_detection_schedule = api.model('DetectionSchedule', {
+    'monday': fields.Nested(mod_detection_schedule_day),
+    'tuesday': fields.Nested(mod_detection_schedule_day),
+    'wednesday': fields.Nested(mod_detection_schedule_day),
+    'thursday': fields.Nested(mod_detection_schedule_day),
+    'friday': fields.Nested(mod_detection_schedule_day),
+    'saturday': fields.Nested(mod_detection_schedule_day),
+    'sunday': fields.Nested(mod_detection_schedule_day)
+})
+
 mod_detection_details = api.model('DetectionDetails', {
     'uuid': fields.String,
     'original_uuid': fields.String,
     'from_repo_sync': fields.Boolean,
     'name': fields.String,
     'query': fields.Nested(mod_query_config),
+    'status': fields.String,
     'from_sigma': fields.Boolean,
     'sigma_rule': fields.String,
     'organization': fields.String,
@@ -160,7 +181,9 @@ mod_detection_details = api.model('DetectionDetails', {
     'created_by': fields.Nested(mod_user_list, skip_none=True),
     'updated_at': ISO8601,
     'updated_by': fields.Nested(mod_user_list, skip_none=True),
-    'repository': fields.List(fields.String)
+    'repository': fields.List(fields.String),
+    'daily_schedule': fields.Boolean,
+    'schedule': fields.Nested(mod_detection_schedule)
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
@@ -170,6 +193,7 @@ mod_create_detection = api.model('CreateDetection', {
     'sigma_rule': fields.String(required=False, skip_none=True),
     'sigma_rule_id': fields.String(required=False),
     'organization': fields.String,
+    'status': fields.String(default='Draft', required=False, enum=VALID_DETECTION_STATUS),
     'description': fields.String(default="A detailed description.", required=True),
     'guide': fields.String(default="An investigation guide on how to triage this detection"),
     'setup_guide': fields.String,
@@ -198,7 +222,9 @@ mod_create_detection = api.model('CreateDetection', {
     'metric_change_config': fields.Nested(mod_metric_change_config),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
     'new_terms_config': fields.Nested(mod_new_terms_config),
-    'include_source_meta_data': fields.Boolean(default=False)
+    'include_source_meta_data': fields.Boolean(default=False),
+    'daily_schedule': fields.Boolean(required=False),
+    'schedule': fields.Nested(mod_detection_schedule, required=False)
 }, strict=True)
 
 mod_update_detection = api.model('UpdateDetection', {
@@ -233,7 +259,10 @@ mod_update_detection = api.model('UpdateDetection', {
     'metric_change_config': fields.Nested(mod_metric_change_config),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
     'new_terms_config': fields.Nested(mod_new_terms_config),
-    'include_source_meta_data': fields.Boolean()
+    'include_source_meta_data': fields.Boolean(),
+    'status': fields.String(default='Draft', required=False, enum=VALID_DETECTION_STATUS),
+    'daily_schedule': fields.Boolean(required=False),
+    'schedule': fields.Nested(mod_detection_schedule, required=False)
 }, strict=True)
 
 mod_detection_list_paged = api.model('DetectionListPaged', {
@@ -277,7 +306,8 @@ mod_detection_export = api.model('DetectionExport', {
     'metric_change_config': fields.Nested(mod_metric_change_config, skip_none=True),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config, skip_none=True),
     'new_terms_config': fields.Nested(mod_new_terms_config, skip_none=True),
-    'include_source_meta_data': fields.Boolean()
+    'include_source_meta_data': fields.Boolean(),
+    'status': fields.String,
 })
 
 mod_exported_detections = api.model('ExportedDetections', {
@@ -892,17 +922,17 @@ class BulkDeleteDetections(Resource):
                                 repositories.remove_detections([detection])
 
                         # Set from_repo_sync to False on any detections synchronized from this detection
-                        synchronized_detections = Detection.get_by_detection_id(detection.detection_id)
+                        synchronized_detections = Detection.get_by_detection_id(
+                            detection.detection_id)
                         if synchronized_detections:
                             for synchronized_detection in synchronized_detections:
                                 if synchronized_detection.uuid != detection_uuid:
-                                    synchronized_detection.update(from_repo_sync=False)
+                                    synchronized_detection.update(
+                                        from_repo_sync=False)
 
                     # Delete the detection
                     detection.delete()
                     deleted_detections.append(detection_uuid)
-
-                    
 
         return {'detections': deleted_detections}
 
