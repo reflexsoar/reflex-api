@@ -220,7 +220,11 @@ class ObservableHits(Resource):
         #else:
         #    url_haus = {}
 
+        overall_risk_score = 0
+
+
         response = {'system_wide_events': total_events,
+                    'risk_score': overall_risk_score,
                     'total_org_events': organization_events,
                     'total_org_cases': total_cases,
                     'threat_list_hits': list_data,
