@@ -76,6 +76,11 @@ mod_metric_change_config = api.model('MetricChangeConfig', {
     'increase': fields.Boolean()
 }, strict=True)
 
+mod_indicator_match_config = api.model('IndicatorMatchConfig', {
+    'list_uuid': fields.String,
+    'source_field': fields.String,
+}, strict=True)
+
 mod_new_terms_config = api.model('NewTermsConfig', {
     'key_field': fields.String,
     'max_terms': fields.Integer,
@@ -176,6 +181,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'metric_change_config': fields.Nested(mod_metric_change_config, skip_none=True),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config, skip_none=True),
     'new_terms_config': fields.Nested(mod_new_terms_config, skip_none=True),
+    'indicator_match_config': fields.Nested(mod_indicator_match_config, skip_none=True),
     'include_source_meta_data': fields.Boolean(),
     'created_at': ISO8601,
     'created_by': fields.Nested(mod_user_list, skip_none=True),
@@ -219,6 +225,7 @@ mod_create_detection = api.model('CreateDetection', {
     'skip_event_rules': fields.Boolean(default=False),
     'exceptions': fields.List(fields.Nested(mod_detection_exception_list)),
     'threshold_config': fields.Nested(mod_threshold_config),
+    'indicator_match_config': fields.Nested(mod_indicator_match_config),
     'metric_change_config': fields.Nested(mod_metric_change_config),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
     'new_terms_config': fields.Nested(mod_new_terms_config),
@@ -259,6 +266,7 @@ mod_update_detection = api.model('UpdateDetection', {
     'metric_change_config': fields.Nested(mod_metric_change_config),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
     'new_terms_config': fields.Nested(mod_new_terms_config),
+    'indicator_match_config': fields.Nested(mod_indicator_match_config),
     'include_source_meta_data': fields.Boolean(),
     'status': fields.String(default='Draft', required=False, enum=VALID_DETECTION_STATUS),
     'daily_schedule': fields.Boolean(required=False),
@@ -306,6 +314,7 @@ mod_detection_export = api.model('DetectionExport', {
     'metric_change_config': fields.Nested(mod_metric_change_config, skip_none=True),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config, skip_none=True),
     'new_terms_config': fields.Nested(mod_new_terms_config, skip_none=True),
+    'indicator_match_config': fields.Nested(mod_indicator_match_config, skip_none=True),
     'include_source_meta_data': fields.Boolean(),
     'status': fields.String,
 })
@@ -744,7 +753,10 @@ class DetectionFieldSettings(Resource):
 
                 # If no signature fields were determined, default to the source input signature fields
                 if not signature_fields:
-                    signature_fields = source_input.config.signature_fields
+                    if hasattr(source_input.config, 'signature_fields'):
+                        signature_fields = source_input.config.signature_fields
+                    else:
+                        signature_fields = []
 
             response = {
                 "fields": final_fields,

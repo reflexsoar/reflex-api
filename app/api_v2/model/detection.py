@@ -85,6 +85,15 @@ class DetectionException(base.BaseInnerDoc):
     list = Nested(DetectionExceptionIntelList)
 
 
+class IndicatorMatchConfig(base.InnerDoc):
+    '''
+    An indicator match rule compares the value of a field to a value contained 
+    in an intel list
+    '''
+    list_uuid = Keyword()
+    source_field = Keyword()
+
+
 class MetricChangeConfig(base.InnerDoc):
     '''
     The configuration for a Metric Changes
@@ -261,6 +270,7 @@ class Detection(base.BaseDocument):
     metric_change_config = Object(MetricChangeConfig)
     field_mismatch_config = Object(FieldMismatchConfig)
     new_terms_config = Object(NewTermsConfig)
+    indicator_match_config = Object(IndicatorMatchConfig)
     assigned_agent = Keyword()  # The UUID of the agent that should run this alarm
     # If true the detection will include the meta data from the source event in the alert
     include_source_meta_data = Boolean()

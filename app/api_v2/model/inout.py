@@ -191,6 +191,9 @@ class Input(base.BaseDocument):
                     if not replaced:
                         final_fields.append(template_field)
         else:
-            final_fields = self.field_mapping.fields
+            if hasattr(self.field_mapping, 'fields'):
+                final_fields = self.field_mapping.fields
+            else:
+                final_fields = []
 
         return final_fields
