@@ -433,6 +433,13 @@ class DetectionList(Resource):
         if 'agent' in args and args.agent not in (None, ''):
             search = search.filter('term', assigned_agent=args.agent)
             detections = list(search.scan())
+
+            # Remove the fields the agent doesn't need such as guide, setup_guide, testing_guide
+            for detection in detections:
+                for field in ['guide', 'setup_guide', 'testing_guide']:
+                    if field in detection:
+                        del detection[field]
+
             total_results = len(detections)
             pages = 1
         else:

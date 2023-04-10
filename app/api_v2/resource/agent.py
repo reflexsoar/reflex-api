@@ -284,7 +284,6 @@ class AgentInputs(Resource):
             _inputs = []
             [_inputs.append(_input) for _input in agent._inputs]
             for group in agent._groups:
-
                 [_inputs.append(_input) for _input in group._inputs]
                 
             return {'inputs': _inputs}
