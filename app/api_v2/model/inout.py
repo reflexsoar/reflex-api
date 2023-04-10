@@ -105,6 +105,7 @@ class Input(base.BaseDocument):
     # The name of the ingestor being used e.g. 'elasticsearch' or 'ews'
     source = Text(fields={'keyword': Keyword()})
     enabled = Boolean()  # Default to False
+    detections_only = Boolean()  # Default to False (True means it is only used for detections)
     config = Object()
     credential = Keyword()  # The UUID of the credential in use
     tags = Keyword()
