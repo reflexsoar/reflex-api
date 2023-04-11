@@ -3,7 +3,7 @@
 {% from "reporting/macros.html" import trend_arrow with context %}
 {% from "reporting/macros.html" import severity_badge with context %}
 {% from "reporting/macros.html" import severity_text with context %}
-{% block title %}Test{% endblock %}
+{% block title %}{{ report.title }}{% endblock %}
 {% block body %}
 <header class="align-items-center pb-2 mb-5 border-bottom">
     <div class="row">

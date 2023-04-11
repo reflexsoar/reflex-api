@@ -43,7 +43,7 @@ class Reporting(Resource):
 
     @api.doc(security='Bearer')
     @api.expect(report_parser)
-    @token_required    
+    @token_required
     def get(self, current_user, organization_uuid):
 
         if not current_user.default_org and current_user.organization != organization_uuid:
