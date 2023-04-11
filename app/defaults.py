@@ -395,6 +395,7 @@ def create_agent_role(cls, org_id, check_for_default=False):
         "view_agents": True,
         "view_plugins": True,
         "add_event": True,
+        "view_lists": True,
         'view_settings': True,
         'view_inputs': True,
         'view_detections': True,

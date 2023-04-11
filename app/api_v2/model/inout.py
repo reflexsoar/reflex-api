@@ -105,6 +105,7 @@ class Input(base.BaseDocument):
     # The name of the ingestor being used e.g. 'elasticsearch' or 'ews'
     source = Text(fields={'keyword': Keyword()})
     enabled = Boolean()  # Default to False
+    detections_only = Boolean()  # Default to False (True means it is only used for detections)
     config = Object()
     credential = Keyword()  # The UUID of the credential in use
     tags = Keyword()
@@ -191,6 +192,9 @@ class Input(base.BaseDocument):
                     if not replaced:
                         final_fields.append(template_field)
         else:
-            final_fields = self.field_mapping.fields
+            if hasattr(self.field_mapping, 'fields'):
+                final_fields = self.field_mapping.fields
+            else:
+                final_fields = []
 
         return final_fields
