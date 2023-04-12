@@ -1,10 +1,12 @@
 import math
 import json
 import datetime
+import ipaddress
 from app import cache
 from flask import render_template, make_response
 from flask_restx import Resource, Namespace, fields
 from ..utils import token_required, user_has
+from .utils import check_ip_whois_io
 
 from ..model import Event, Organization, Case, Settings
 
@@ -334,6 +336,76 @@ class Reporting(Resource):
                 'tuning_advice': [b['key'] for b in title.tuning_advice.buckets]
             })
 
+        # Aggregate all the observables in this period by their data_type and show the top 10
+        event_observables = Event.search()
+        event_observables.aggs.bucket('org_filter', 'filter', filter={'term': {'organization': organization_uuid}})
+        event_observables.aggs['org_filter'].bucket('date_filter', 'filter', filter={'range': {'created_at': current_period}})
+
+        # Nested aggregation for event_observables path
+        event_observables.aggs['org_filter']['date_filter'].bucket('nested', 'nested', path='event_observables')
+
+        # Aggregated by the event_observables.data_type.keyword
+        event_observables.aggs['org_filter']['date_filter']['nested'].bucket('observables', 'terms', field='event_observables.data_type.keyword', size=25)
+
+        # Aggregate by the event_observables.observable_value.keyword
+        event_observables.aggs['org_filter']['date_filter']['nested']['observables'].bucket('observables', 'terms', field='event_observables.value.keyword', size=10)
+
+        import json
+        print(json.dumps(event_observables.to_dict(), indent=2, default=str))
+
+        event_observables = event_observables.execute()
+
+        top_10_users = []
+        top_10_hosts = []
+        top_10_ips = []
+        top_10_public_ips = []
+        top_10_domains = []
+
+        for observable in event_observables.aggregations.org_filter.date_filter.nested.observables.buckets:
+            if observable.key == 'user':
+                for user in observable.observables.buckets:
+                    top_10_users.append({
+                        'name': user.key, 'count': user.doc_count
+                    })
+            elif observable.key == 'host':
+                for host in observable.observables.buckets:
+                    top_10_hosts.append({
+                         'name': host.key, 'count': host.doc_count
+                    })
+            elif observable.key == 'ip':
+                # Exclude RFC1918 addresses using ipaddress is_private
+                for ip in observable.observables.buckets:
+                    if not ipaddress.ip_address(ip.key).is_private:
+                        top_10_public_ips.append({
+                            'name':ip.key, 'count': ip.doc_count
+                        })
+                    
+                    top_10_ips.append({
+                        
+                            'name': ip.key,
+                            'count': ip.doc_count
+                        })
+            elif observable.key == 'domain':
+                for domain in observable.observables.buckets:
+                    top_10_domains.append({
+                        'name': domain.key, 'count': domain.doc_count
+                    })
+
+        # Determine the top countries based on the IPs in the public IP list using check_ip_whois_io
+        countries = {}
+        for ip in top_10_public_ips:
+            name = ip['name']
+            count = ip['count']
+            ip_data = check_ip_whois_io(name)
+            if ip_data and 'country' in ip_data:
+                country = ip_data['country']
+                if country not in countries:
+                    countries[country] = count
+                else:
+                    countries[country] += count
+
+        top_10_countries = [{'name': k, 'count': v} for k, v in sorted(countries.items(), key=lambda item: item[1], reverse=True)]
+
         report = {
             'title': f'Monthly SOC Report for {organization.name}',
             'generated_on': datetime.datetime.utcnow().isoformat(),
@@ -354,6 +426,13 @@ class Reporting(Resource):
                 'details': {
                     'open': open_cases
                 }
+            },
+            'observables': {
+                'top_10_users': top_10_users,
+                'top_10_hosts': top_10_hosts,
+                'top_10_ips': top_10_ips,
+                'top_10_domains': top_10_domains,
+                'top_10_countries': top_10_countries,
             },
             'events': {
                 'severity_by_hour_of_day': event_hours,

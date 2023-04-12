@@ -1,5 +1,8 @@
 import math
 import datetime
+import ipaddress
+from functools import lru_cache
+import requests
 from ..model import Agent, Detection, Tag
 
 def time_since(start_time, message, format="s"):
@@ -14,6 +17,24 @@ def time_since(start_time, message, format="s"):
     elif format == "h":
         print(f"{message} - {time_diff.total_seconds()/3600}h")
     return time_diff
+
+@lru_cache(maxsize=10000)
+def check_ip_whois_io(ip):
+    ''' Connects to ipwhois.io and pulls information about the IP address'''
+
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError:
+        return {}
+    
+    ip_information = {}
+    try:
+        r = requests.get(f'https://ipwho.is/{ip}')
+        if r.status_code == 200:
+            ip_information = r.json()
+    except:
+        pass
+    return ip_information
 
 def save_tags(tags):
     '''

@@ -243,6 +243,96 @@
 
 <div class="row">
     <div class="col">
+        <h2 class="pb-3">Observable Details</h2>
+        <p>The Observables Details section of this report attempts to highlight "top talkers" in the organizations security event data to better express who at risk users, domains, hosts and other observables are.</p>
+    </div>
+</div>
+<div class="row">
+    <!-- table of the top 10 countries -->
+    <div class="col-3">
+        <h3 class="pb-3">Top 10 Countries</h3>
+        <table class="table">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Country</th>
+                    <th scope="col">Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for country in report.observables.top_10_countries %}
+                <tr>
+                    <td>{{country.name}}</td>
+                    <td>{{country.count}}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- table of the top 10 domains -->
+    <div class="col-3">
+        <h3 class="pb-3">Top 10 Domains</h3>
+        <table class="table">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Domain</th>
+                    <th scope="col">Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for domain in report.observables.top_10_domains %}
+                <tr>
+                    <td>{{domain.name}}</td>
+                    <td>{{domain.count}}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>  
+    <!-- table of the top 10 IPs -->
+    <div class="col-3">
+        <h3 class="pb-3">Top 10 IPs</h3>
+        <table class="table">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">IP</th>
+                    <th scope="col">Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ip in report.observables.top_10_ips %}
+                <tr>
+                    <td>{{ip.name}}</td>
+                    <td>{{ip.count}}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>  
+    <!-- table of the top 10 users -->
+    <div class="col-3">
+        <h3 class="pb-3">Top 10 Users</h3>
+        <p>The following users have appeared in security events.</p>
+        <table class="table">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">User</th>
+                    <th scope="col">Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in report.observables.top_10_users %}
+                <tr>
+                    <td>{{user.name}}</td>
+                    <td>{{user.count}}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
         <h2 class="pb-3">Event Details</h2>
     </div>
 </div>
