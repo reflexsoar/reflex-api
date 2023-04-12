@@ -779,6 +779,8 @@ class DetectionRepository(base.BaseDocument):
             self.uuid, organization=organization)
 
         if subscription:
+            
+            print(subscription.to_dict())
 
             # If the sync settings are not defined, set the defaults
             if not subscription.sync_settings:
@@ -786,6 +788,7 @@ class DetectionRepository(base.BaseDocument):
                 subscription.save(refresh="wait_for")
 
             if self.detections and len(self.detections) > 0:
+                print(self.detections)
                 if self.repo_type == 'local':
                     detections_to_sync = Detection.get_by_detection_id(
                         self.detections, repository=self.uuid)
@@ -819,6 +822,7 @@ class DetectionRepository(base.BaseDocument):
                                 from_repo_sync=True,
                                 original_uuid=detection.uuid
                             )
+                            print(new_detection.to_dict())
                             new_detection.save()
                         else:
                             existing_detection = existing_detection[0]
