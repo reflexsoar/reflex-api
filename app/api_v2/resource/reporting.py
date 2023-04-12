@@ -5,7 +5,7 @@ import ipaddress
 from app import cache
 from flask import render_template, make_response
 from flask_restx import Resource, Namespace, fields
-from ..utils import token_required, user_has
+from ..utils import default_org, token_required, user_has
 from .utils import check_ip_whois_io
 
 from ..model import Event, Organization, Case, Settings
@@ -46,9 +46,12 @@ class Reporting(Resource):
     @api.doc(security='Bearer')
     @api.expect(report_parser)
     @token_required
-    def get(self, current_user, organization_uuid):
+    @default_org
+    def get(self, user_in_default_org, current_user, organization_uuid):
 
-        if not current_user.default_org and current_user.organization != organization_uuid:
+        # If the current_user has the property default_org and they are not part of the default_org or a part
+        # of the target organization abort 403
+        if not user_in_default_org and current_user.organization != organization_uuid:
             api.abort(403, "You do not have permission to view this report")
 
         org_settings = Settings.load(organization=organization_uuid)
