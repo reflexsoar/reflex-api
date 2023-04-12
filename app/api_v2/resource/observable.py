@@ -7,6 +7,7 @@ import requests
 import ipaddress
 from flask_restx import fields, Namespace, Resource
 from .shared import mod_pagination
+from .utils import check_ip_whois_io
 from ..utils import token_required, user_has, default_org
 from ..model import (
     Event,
@@ -104,24 +105,6 @@ def check_url_haus(value, data_type):
             return r.json()
     except:
         return {}
-
-@lru_cache(maxsize=10000)
-def check_ip_whois_io(ip):
-    ''' Connects to ipwhois.io and pulls information about the IP address'''
-
-    try:
-        ipaddress.ip_address(ip)
-    except ValueError:
-        return {}
-    
-    ip_information = {}
-    try:
-        r = requests.get(f'https://ipwho.is/{ip}')
-        if r.status_code == 200:
-            ip_information = r.json()
-    except:
-        pass
-    return ip_information
 
 observable_parser = api.parser()
 observable_parser.add_argument('organization', location='args', type=str, help='Organization UUID')
