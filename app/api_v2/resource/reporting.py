@@ -375,6 +375,11 @@ class Reporting(Resource):
             elif observable.key == 'ip':
                 # Exclude RFC1918 addresses using ipaddress is_private
                 for ip in observable.observables.buckets:
+                    try:
+                        valid_ip = ipaddress.ip_address(ip.key)
+                    except ValueError:
+                        continue
+                    
                     if not ipaddress.ip_address(ip.key).is_private:
                         top_10_public_ips.append({
                             'name':ip.key, 'count': ip.doc_count
