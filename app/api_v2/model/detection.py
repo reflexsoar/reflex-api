@@ -823,6 +823,9 @@ class DetectionRepository(base.BaseDocument):
                                 original_uuid=detection.uuid,
                                 signature_fields=detection.signature_fields,
                                 observable_fields=detection.observable_fields
+                                guide=detection.guide
+                                setup_guide=detection.setup_guide
+                                testing_guide=detection.testing_guide
                             )
                             new_detection.save()
                         else:
