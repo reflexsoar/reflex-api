@@ -359,14 +359,17 @@ class Detection(base.BaseDocument):
         that follows the rule across any installation of the API
         '''
         response = cls.search(skip_org_check=True)
+        
+        if isinstance(detection_id, AttrList):
+            detection_id = [d for d in detection_id]
 
-        if isinstance(detection_id, (list, AttrList)):
+        if isinstance(detection_id, list):
             response = response.filter('terms', detection_id=detection_id)
         else:
             response = response.filter('term', detection_id=detection_id)
 
         if repository:
-            response = response.filter('term', repository__keyword=repository)
+            response = response.filter('term', repository=repository)
 
         if organization:
             response = response.filter('term', organization=organization)
@@ -779,8 +782,6 @@ class DetectionRepository(base.BaseDocument):
             self.uuid, organization=organization)
 
         if subscription:
-            
-            print(subscription.to_dict())
 
             # If the sync settings are not defined, set the defaults
             if not subscription.sync_settings:
@@ -788,7 +789,6 @@ class DetectionRepository(base.BaseDocument):
                 subscription.save(refresh="wait_for")
 
             if self.detections and len(self.detections) > 0:
-                print(self.detections)
                 if self.repo_type == 'local':
                     detections_to_sync = Detection.get_by_detection_id(
                         self.detections, repository=self.uuid)
