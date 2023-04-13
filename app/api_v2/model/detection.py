@@ -820,7 +820,9 @@ class DetectionRepository(base.BaseDocument):
                                 field_mismatch_config=detection.field_mismatch_config,
                                 new_terms_config=detection.new_terms_config,
                                 from_repo_sync=True,
-                                original_uuid=detection.uuid
+                                original_uuid=detection.uuid,
+                                signature_fields=detection.signature_fields,
+                                observable_fields=detection.observable_fields
                             )
                             new_detection.save()
                         else:
