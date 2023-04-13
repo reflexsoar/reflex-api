@@ -268,7 +268,6 @@ class DetectionRepositorySubscription(Resource):
             api.abort(403, 'You do not have permission to get the subscription for this repository')
 
         subscription = repository.get_subscription(organization=current_user.organization)
-        print(subscription)
 
         if not subscription:
             api.abort(404, 'Subscription not found')
@@ -537,7 +536,6 @@ class DetectionRepositoryList(Resource):
             # If the detection is from a repository sync, remove it from the list as sharing
             # detections from a repo in another repo is not supported
             data['detections'] = [d.detection_id for d in detections if d.from_repo_sync is not True]
-            print(data['detections'])
 
         existing_repo = DetectionRepository.get_by_name(name=data['name'], organization=data['organization'])
         if existing_repo:
