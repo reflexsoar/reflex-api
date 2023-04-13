@@ -826,6 +826,7 @@ class DetectionRepository(base.BaseDocument):
                                 guide=detection.guide
                                 setup_guide=detection.setup_guide
                                 testing_guide=detection.testing_guide
+                                status=detection.status
                             )
                             new_detection.save()
                         else:
