@@ -822,10 +822,10 @@ class DetectionRepository(base.BaseDocument):
                                 from_repo_sync=True,
                                 original_uuid=detection.uuid,
                                 signature_fields=detection.signature_fields,
-                                observable_fields=detection.observable_fields
-                                guide=detection.guide
-                                setup_guide=detection.setup_guide
-                                testing_guide=detection.testing_guide
+                                observable_fields=detection.observable_fields,
+                                guide=detection.guide,
+                                setup_guide=detection.setup_guide,
+                                testing_guide=detection.testing_guide,
                                 status=detection.status
                             )
                             new_detection.save()
