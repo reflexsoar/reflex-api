@@ -820,9 +820,14 @@ class DetectionRepository(base.BaseDocument):
                                 field_mismatch_config=detection.field_mismatch_config,
                                 new_terms_config=detection.new_terms_config,
                                 from_repo_sync=True,
-                                original_uuid=detection.uuid
+                                original_uuid=detection.uuid,
+                                signature_fields=detection.signature_fields,
+                                observable_fields=detection.observable_fields
+                                guide=detection.guide
+                                setup_guide=detection.setup_guide
+                                testing_guide=detection.testing_guide
+                                status=detection.status
                             )
-                            print(new_detection.to_dict())
                             new_detection.save()
                         else:
                             existing_detection = existing_detection[0]
@@ -923,8 +928,6 @@ class DetectionRepository(base.BaseDocument):
             ubq = ubq.query('term', from_repo_sync=True)
             ubq = ubq.query('terms', detection_id=detections)
             ubq = ubq.script(source="ctx._source.from_repo_sync = false")
-            import json
-            print(json.dumps(ubq.to_dict()))
             ubq.execute()
 
         except Exception as e:
