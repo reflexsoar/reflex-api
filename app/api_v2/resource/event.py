@@ -961,6 +961,9 @@ class EventBulkDismiss(Resource):
 
         event_list = []
 
+        if not 'uuids' in api.payload or len(api.payload['uuids']) == 0:
+            api.abort(400, 'No events selected to dismiss.')
+
         settings = Settings.load(organization=current_user.organization)
         if settings.require_event_dismiss_comment and 'dismiss_comment' not in api.payload:
             api.abort(400, 'A dismiss comment is required.')
@@ -1080,6 +1083,9 @@ class EventBulkDismiss(Resource):
         ubq = ubq.params(slices='auto', wait_for_completion=False)
 
         events = list(search.scan())
+
+        if len(events) == 0:
+            api.abort(400, 'No events found')
         
         # Check to see if the user is trying to bulk dismiss across organizations/tenants
         orgs = []
@@ -1087,7 +1093,7 @@ class EventBulkDismiss(Resource):
         if len(orgs) > 1:
             api.abort(400, 'Bulk dismissal actions organizations is unsupported')
 
-        x = ubq.execute()
+        #x = ubq.execute()
 
         signatures = [e.signature for e in events]
         
@@ -1154,7 +1160,7 @@ class EventBulkDismiss(Resource):
             )
             rubq = rubq.params(slices='auto', wait_for_completion=False)
 
-            x = rubq.execute()
+            #x = rubq.execute()
 
         """[event_list.append(e) for e in events if len(events) > 0 and e not in event_list]
         [event_list.append(e) for e in related_events if len(related_events) > 0 and e not in event_list]
