@@ -961,6 +961,9 @@ class EventBulkDismiss(Resource):
 
         event_list = []
 
+        if not 'uuids' in api.payload or len(api.payload['uuids']) == 0:
+            api.abort(400, 'No events selected to dismiss.')
+
         settings = Settings.load(organization=current_user.organization)
         if settings.require_event_dismiss_comment and 'dismiss_comment' not in api.payload:
             api.abort(400, 'A dismiss comment is required.')
@@ -1080,6 +1083,9 @@ class EventBulkDismiss(Resource):
         ubq = ubq.params(slices='auto', wait_for_completion=False)
 
         events = list(search.scan())
+
+        if len(events) == 0:
+            api.abort(400, 'No events found')
         
         # Check to see if the user is trying to bulk dismiss across organizations/tenants
         orgs = []
@@ -1155,33 +1161,6 @@ class EventBulkDismiss(Resource):
             rubq = rubq.params(slices='auto', wait_for_completion=False)
 
             x = rubq.execute()
-
-        """[event_list.append(e) for e in events if len(events) > 0 and e not in event_list]
-        [event_list.append(e) for e in related_events if len(related_events) > 0 and e not in event_list]
-
-        if len(event_list) > 0:
-            task = Task()
-            task_id = task.create(task_type='bulk_dismiss_events')
-            event_count = 0
-            for event in event_list:
-                event_dict = event.to_dict()
-
-                event_dict['_meta'] = {
-                                'action': 'dismiss',
-                                'dismiss_reason': api.payload['dismiss_reason_uuid'],
-                                'dismiss_comment': api.payload['dismiss_comment'],
-                                '_id': event.meta.id,
-                                'updated_by': {
-                                    'organization': current_user.organization,
-                                    'username': current_user.username,
-                                    'uuid': current_user.uuid
-                                }
-                            }
-                ep.enqueue(event_dict)
-                event_count += 1
-            
-            task.set_message(f'{event_count} Events marked for bulk dismissal')
-            ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})"""
 
         # Give ES time to do it's thing
         time.sleep(1)
