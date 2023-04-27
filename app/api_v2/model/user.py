@@ -378,7 +378,9 @@ class User(base.BaseDocument):
         Unlocks a user account and resets their failed_logons back to 0
         '''
         if self.locked:
-            self.update(locked=False, failed_logons=0)
+            self.locked = False
+            self.failed_logons = 0
+            self.save()
 
     def load_role(self):
         self.role = Role.get_by_member(self.uuid)
@@ -396,33 +398,25 @@ class User(base.BaseDocument):
         '''
 
         if self.otp_secret is None:
-            self.otp_secret = base64.b32encode(os.urandom(15)).decode('utf-8')
-
-        self.update(otp_secret=self.otp_secret)
+            self.update(otp_secret = base64.b32encode(os.urandom(15)).decode('utf-8'))
 
     def enable_mfa(self):
         ''' Removes the otp secret when the user disables MFA
         '''
         
-        self.mfa_enabled = True
-        self.update(mfa_enabled=True)
+        self.update(mfa_enabled = True)
 
     def disable_mfa(self):
         ''' Removes the otp secret when the user disables MFA
         '''
-        
-        if self.otp_secret is not None:
-            self.otp_secret = None
+        self.update(mfa_enabled = False, otp_secret = None)
 
-        self.mfa_enabled = False
-
-        self.update(mfa_enabled=True)
+        #self.save()
 
     def verify_mfa_setup_complete(self, token):
         ''' Once the user submits a TOTP that is correct enable MFA'''
         
         if onetimepass.valid_totp(token, self.otp_secret):
-            self.mfa_enabled = True
             self.update(mfa_enabled=True)
             return True
         return False
