@@ -398,34 +398,26 @@ class User(base.BaseDocument):
         '''
 
         if self.otp_secret is None:
-            self.otp_secret = base64.b32encode(os.urandom(15)).decode('utf-8')
-
-        self.save()
+            self.update(otp_secret = base64.b32encode(os.urandom(15)).decode('utf-8'))
 
     def enable_mfa(self):
         ''' Removes the otp secret when the user disables MFA
         '''
         
-        self.mfa_enabled = True
-        self.save()
+        self.update(mfa_enabled = True)
 
     def disable_mfa(self):
         ''' Removes the otp secret when the user disables MFA
         '''
-        
-        if self.otp_secret is not None:
-            self.otp_secret = None
+        self.update(mfa_enabled = False, otp_secret = None)
 
-        self.mfa_enabled = False
-
-        self.save()
+        #self.save()
 
     def verify_mfa_setup_complete(self, token):
         ''' Once the user submits a TOTP that is correct enable MFA'''
         
         if onetimepass.valid_totp(token, self.otp_secret):
-            self.mfa_enabled = True
-            self.save()
+            self.update(mfa_enabled=True)
             return True
         return False
 
