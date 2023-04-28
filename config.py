@@ -83,14 +83,14 @@ class Config(object):
 
     # Define Housekeeper settings for Silent Event Rule checks, default to 60 seconds, 7 days, 0 hits
     EVENT_RULE_SILENT_CHECK_ENABLED = as_bool(os.getenv('REFLEX_EVENT_RULE_SILENT_CHECK_ENABLED')) if os.getenv('REFLEX_EVENT_RULE_SILENT_CHECK_ENABLED') else False
-    EVENT_RULE_SILENT_INTERVAL = int(os.getenv('REFLEX_EVENT_RULE_SILENT_INTERVAL')) if os.getenv('REFLEX_EVENT_RULE_SILENT_INTERVAL') else 60 # Default to 60 seconds
-    EVENT_RULE_SILENT_DAYS = int(os.getenv('REFLEX_EVENT_RULE_SILENT_DAYS')) if os.getenv('REFLEX_EVENT_RULE_SILENT_DAYS') else 30 # Default to 7 days
+    EVENT_RULE_SILENT_INTERVAL = int(os.getenv('REFLEX_EVENT_RULE_SILENT_INTERVAL')) if os.getenv('REFLEX_EVENT_RULE_SILENT_INTERVAL') else 3600 # Default to 60 seconds
+    EVENT_RULE_SILENT_DAYS = int(os.getenv('REFLEX_EVENT_RULE_SILENT_DAYS')) if os.getenv('REFLEX_EVENT_RULE_SILENT_DAYS') else 30 # Default to 30 days
     EVENT_RULE_SILENT_HITS = int(os.getenv('REFLEX_EVENT_RULE_SILENT_HITS')) if os.getenv('REFLEX_EVENT_RULE_SILENT_HITS') else 0
 
     # Define Housekeeper settings for High Volume Event Rule checks, default to 60 seconds, 7 days, 10000 hits
     EVENT_RULE_HIGH_VOLUME_CHECK_ENABLED = as_bool(os.getenv('REFLEX_EVENT_RULE_HIGH_VOLUME_CHECK_ENABLED')) if os.getenv('REFLEX_EVENT_RULE_HIGH_VOLUME_CHECK_ENABLED') else False
-    EVENT_RULE_HIGH_VOLUME_INTERVAL = int(os.getenv('REFLEX_EVENT_RULE_HIGH_VOLUME_INTERVAL')) if os.getenv('REFLEX_EVENT_RULE_HIGH_VOLUME_INTERVAL') else 60 # Default to 60 seconds
-    EVENT_RULE_HIGH_VOLUME_DAYS = int(os.getenv('REFLEX_EVENT_RULE_HIGH_VOLUME_DAYS')) if os.getenv('REFLEX_EVENT_RULE_HIGH_VOLUME_DAYS') else 30 # Default to 7 days
+    EVENT_RULE_HIGH_VOLUME_INTERVAL = int(os.getenv('REFLEX_EVENT_RULE_HIGH_VOLUME_INTERVAL')) if os.getenv('REFLEX_EVENT_RULE_HIGH_VOLUME_INTERVAL') else 3600 # Default to 60 seconds
+    EVENT_RULE_HIGH_VOLUME_DAYS = int(os.getenv('REFLEX_EVENT_RULE_HIGH_VOLUME_DAYS')) if os.getenv('REFLEX_EVENT_RULE_HIGH_VOLUME_DAYS') else 30 # Default to 30 days
     EVENT_RULE_HIGH_VOLUME_HITS = int(os.getenv('REFLEX_EVENT_RULE_HIGH_VOLUME_HITS')) if os.getenv('REFLEX_EVENT_RULE_HIGH_VOLUME_HITS') else 10000
 
     # EVENT INGEST CONFIGURATION
