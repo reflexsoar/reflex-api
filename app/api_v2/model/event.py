@@ -558,6 +558,8 @@ class EventRule(base.BaseDocument):
     notification_channels = Keyword() # The channels to send notifications to
     agent_uuid = Keyword() # The agent that created this event rule
     agent_type = Keyword() # The type of agent that created this event rule
+    high_volume_rule = Boolean() # This flags true if the Event rule is too noisy
+    tags = Keyword() # Descriptive tags for the event rule
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

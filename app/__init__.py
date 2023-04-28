@@ -313,6 +313,20 @@ def create_app(environment='development'):
                 seconds=600
             )
 
+            if app.config['EVENT_RULE_SILENT_CHECK_ENABLED']:
+                scheduler.add_job(
+                    func=housekeeper.check_silent_event_rules,
+                    trigger="interval",
+                    seconds=app.config['EVENT_RULE_SILENT_INTERVAL']
+                )
+
+            if app.config['EVENT_RULE_HIGH_VOLUME_CHECK_ENABLED']:
+                scheduler.add_job(
+                    func=housekeeper.check_high_volume_event_rules,
+                    trigger="interval",
+                    seconds=app.config['EVENT_RULE_HIGH_VOLUME_INTERVAL']
+                )
+
         if not app.config['SLAMONITOR_DISABLED']:
             sla_monitor = SLAMonitor(app, log_level=app.config['SLAMONITOR_LOG_LEVEL'])
             scheduler.add_job(func=sla_monitor.check_event_slas, trigger="interval", seconds=app.config['SLAMONITOR_INTERVAL'])
