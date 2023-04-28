@@ -246,9 +246,7 @@ class HouseKeeper(object):
                     'lte': f"now-{self.event_rule_silent_days}d"})
         
         search = search.filter('term', active=True)
-
-        import json
-        print(json.dumps(search.to_dict(), indent=4))
+        
         rules = search.scan()
 
         # Disable the rules
