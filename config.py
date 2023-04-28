@@ -86,6 +86,9 @@ class Config(object):
     EVENT_RULE_SILENT_INTERVAL = int(os.getenv('REFLEX_EVENT_RULE_SILENT_INTERVAL')) if os.getenv('REFLEX_EVENT_RULE_SILENT_INTERVAL') else 3600 # Default to 60 seconds
     EVENT_RULE_SILENT_DAYS = int(os.getenv('REFLEX_EVENT_RULE_SILENT_DAYS')) if os.getenv('REFLEX_EVENT_RULE_SILENT_DAYS') else 30 # Default to 30 days
     EVENT_RULE_SILENT_HITS = int(os.getenv('REFLEX_EVENT_RULE_SILENT_HITS')) if os.getenv('REFLEX_EVENT_RULE_SILENT_HITS') else 0
+    EVENT_RULE_SILENT_ACTIONS = os.getenv('REFLEX_EVENT_RULE_SILENT_ACTIONS') if os.getenv('REFLEX_EVENT_RULE_SILENT_ACTIONS') else ['dismiss']
+    if isinstance(EVENT_RULE_SILENT_ACTIONS, str):
+        EVENT_RULE_SILENT_ACTIONS = EVENT_RULE_SILENT_ACTIONS.replace(' ', '').split(',')
 
     # Define Housekeeper settings for High Volume Event Rule checks, default to 60 seconds, 7 days, 10000 hits
     EVENT_RULE_HIGH_VOLUME_CHECK_ENABLED = as_bool(os.getenv('REFLEX_EVENT_RULE_HIGH_VOLUME_CHECK_ENABLED')) if os.getenv('REFLEX_EVENT_RULE_HIGH_VOLUME_CHECK_ENABLED') else False
