@@ -109,6 +109,8 @@ mod_event_rule_list = api.model('EventRuleList', {
     'priority': fields.Integer,
     'notification_channels': fields.List(fields.String),
     'run_retroactively': fields.Boolean,
+    'tags': fields.List(fields.String),
+    'high_volume_rule': fields.Boolean
 })
 
 mod_event_rule_list_paged = api.model('PagedEventRuleList', {

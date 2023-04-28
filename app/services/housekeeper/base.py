@@ -65,8 +65,10 @@ class HouseKeeper(object):
         self.agent_health_input_ttl = self.app.config['AGENT_HEALTH_CHECK_INPUT_TTL']
         self.event_rule_silent_days = self.app.config['EVENT_RULE_SILENT_DAYS']
         self.event_rule_silent_hits = self.app.config['EVENT_RULE_SILENT_HITS']
+        self.event_rule_silent_actions = self.app.config['EVENT_RULE_SILENT_ACTIONS']
         self.event_rule_high_volume_days = self.app.config['EVENT_RULE_HIGH_VOLUME_DAYS']
         self.event_rule_high_volume_hits = self.app.config['EVENT_RULE_HIGH_VOLUME_HITS']
+        
         self.logger.info(
             f"Service started.")
         self.logger.info(
@@ -189,6 +191,18 @@ class HouseKeeper(object):
         Disables event rules without hits in the last N days
         '''
 
+        SUPPORTED_ACTIONS = [
+            'dismiss',
+            'add_tags',
+            'remove_tags',
+            'update_severity',
+            'mute_event',
+            'dismiss',
+            'merge_into_case',
+            'create_new_case',
+            'set_organization'
+        ]
+
         self.logger.info('Checking silent event rules')
         events = Event.search()
 
@@ -213,11 +227,28 @@ class HouseKeeper(object):
         search = search[0:search.count()]
         search = search.filter('bool', must_not=[Q('terms', uuid=rules_with_hits)])
 
+        # Filter by certain actions
+        if len(self.event_rule_silent_actions) > 0:
+
+            # Create an or filter
+            or_filter = Q('bool', should=[])
+
+            # Add each action to the or filter
+            for action in self.event_rule_silent_actions:
+                if action in SUPPORTED_ACTIONS:
+                    or_filter.should.append(Q('term', **{action: True}))
+
+            # Add the or filter to the search
+            search = search.filter(or_filter)
+
         # Only if the rule hasn't been updated in the last N days
         search = search.filter('range', updated_at={
                     'lte': f"now-{self.event_rule_silent_days}d"})
         
         search = search.filter('term', active=True)
+
+        import json
+        print(json.dumps(search.to_dict(), indent=4))
         rules = search.scan()
 
         # Disable the rules
