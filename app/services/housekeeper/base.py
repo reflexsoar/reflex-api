@@ -63,8 +63,29 @@ class HouseKeeper(object):
         self.task_prune_lifetime = self.app.config['TASK_PRUNE_LIFETIME']
         self.agent_health_lifetime = self.app.config['AGENT_HEALTH_LIFETIME']
         self.agent_health_input_ttl = self.app.config['AGENT_HEALTH_CHECK_INPUT_TTL']
+        self.event_rule_silent_days = self.app.config['EVENT_RULE_SILENT_DAYS']
+        self.event_rule_silent_hits = self.app.config['EVENT_RULE_SILENT_HITS']
+        self.event_rule_high_volume_days = self.app.config['EVENT_RULE_HIGH_VOLUME_DAYS']
+        self.event_rule_high_volume_hits = self.app.config['EVENT_RULE_HIGH_VOLUME_HITS']
         self.logger.info(
-            f"Service started. Task Lifetime: {self.task_prune_lifetime} | Agent Lifetime: {self.agent_prune_lifetime}")
+            f"Service started.")
+        self.logger.info(
+            f"Agent Prune Lifetime: {self.agent_prune_lifetime} days")
+        self.logger.info(
+            f"Task Prune Lifetime: {self.task_prune_lifetime} days")
+        self.logger.info(
+            f"Agent Health Lifetime: {self.agent_health_lifetime} days")
+        self.logger.info(
+            f"Agent Health Input TTL: {self.agent_health_input_ttl} days")
+        self.logger.info(
+            f"Event Rule Silent Days: {self.event_rule_silent_days} days")
+        self.logger.info(
+            f"Event Rule Silent Hits: {self.event_rule_silent_hits} hits")
+        self.logger.info(
+            f"Event Rule High Volume Days: {self.event_rule_high_volume_days} days")
+        self.logger.info(
+            f"Event Rule High Volume Hits: {self.event_rule_high_volume_hits} hits")
+
         self.check_lock = None
 
     @check_lock
@@ -161,6 +182,110 @@ class HouseKeeper(object):
                 rule.enabled = False
                 rule.save(refresh=True)
 
+    
+    @check_lock
+    def check_silent_event_rules(self):
+        '''
+        Disables event rules without hits in the last N days
+        '''
+
+        self.logger.info('Checking silent event rules')
+        events = Event.search()
+
+        # Filter by time range now-Nd
+        events = events.filter('range', created_at={
+                    'gte': f"now-{self.event_rule_silent_days}d"})
+
+        # Aggregate count of event rule uuids from the events index
+        events.aggs.bucket('event_rules', 'terms', field='event_rules', size=10000)
+
+        # Set the size to 0 so we don't get any events back
+        events = events[0:0]
+
+        # Run the search
+        results = events.execute()
+        
+        # Create a list of rules with hits 
+        rules_with_hits = [b.key for b in results.aggregations.event_rules.buckets]
+
+        # Find all rules that don't have hits and are still enabled
+        search = EventRule.search()
+        search = search[0:search.count()]
+        search = search.filter('bool', must_not=[Q('terms', uuid=rules_with_hits)])
+
+        # Only if the rule hasn't been updated in the last N days
+        search = search.filter('range', updated_at={
+                    'lte': f"now-{self.event_rule_silent_days}d"})
+        
+        search = search.filter('term', active=True)
+        rules = search.scan()
+
+        # Disable the rules
+        for rule in rules:
+            rule.active = False
+            if not hasattr(rule, 'tags'):
+                rule.tags = ['Silent Rule']
+            else:
+                if rule.tags is None:
+                    rule.tags = ['Silent Rule']
+                else:
+                    if 'Silent Rule' not in rule.tags:
+                        rule.tags.append('Silent Rule')
+            rule.save(refresh=True)
+
+    @check_lock
+    def check_high_volume_event_rules(self):
+        '''
+        Sets the high_volume_rule value to true if a rule exceeds 
+        N events in the last N days
+        '''
+        self.logger.info('Checking high volume event rules')
+
+        # Create the search
+        events = Event.search()
+
+        # Filter by time range now-Nd
+        events = events.filter('range', created_at={
+                    'gte': f"now-{self.event_rule_high_volume_days}d"})
+
+        # Aggregate count of event rule uuids from the events index
+        events.aggs.bucket('event_rules', 'terms', field='event_rules', size=10000)
+
+        # Set the size to 0 so we don't get any events back
+        events = events[0:0]
+
+        # Run the search
+        results = events.execute()
+
+        # Create a list of rules with hits > N
+        rules_with_high_hits = [b.key for b in results.aggregations.event_rules.buckets if b.doc_count > self.event_rule_high_volume_count]
+
+        # Create a list of rules with hits < N
+        rules_withlow_hits = [b.key for b in results.aggregations.event_rules.buckets if b.doc_count < self.event_rule_high_volume_count]
+
+        # Find all rules that have hits > N and are still enabled and set the high_volume_rule flag
+        search = EventRule.search()
+        search = search[0:search.count()]
+        search = search.filter('bool', must=[Q('terms', uuid=rules_with_high_hits)])
+        search = search.filter('term', active=True)
+        rules = search.scan()
+
+        # Set the high_volume_rule value to true
+        for rule in rules:
+            rule.update(high_volume_rule = True)
+
+        # Find all teh rules that have hits < N thave also had high_volume_rule set to true
+        # and clear the flag as the volume has dropped
+        search = EventRule.search()
+        search = search[0:search.count()]
+        search = search.filter('bool', must=[Q('terms', uuid=rules_withlow_hits)])
+        search = search.filter('term', active=True)
+        search = search.filter('term', high_volume_rule=True)
+        rules = search.scan()
+
+        # Set the high_volume_rule value to false
+        for rule in rules:
+            rule.update(high_volume_rule = False)
     
     def prune_old_agents(self):
         ''' Automatically removes any agents that have not actively
