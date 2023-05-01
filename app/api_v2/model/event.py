@@ -78,8 +78,21 @@ class EventView(base.BaseDocument):
         name = 'reflex-event-views'
 
     name = Keyword(fields={'text':Text()})
-    public = Boolean() # Is the filter public or private
+    shared = Boolean() # Is the filter public or private
     filter_string = Text() # The JSON string of the filter
+
+    @classmethod
+    def get_by_name(cls, name):
+        '''
+        Fetches a document by the name field
+        '''
+        response = cls.search()
+        response = response.filter('term', name=name)
+        response = response.execute()
+        if response:
+            view = response[0]
+            return view
+        return response
 
 
 class EventObservable(InnerDoc):
