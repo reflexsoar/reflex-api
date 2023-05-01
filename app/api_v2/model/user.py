@@ -424,6 +424,12 @@ class User(base.BaseDocument):
     def verify_totp(self, token):
         ''' Checks to see if the submitted TOTP token is valid'''
         return onetimepass.valid_totp(token, self.otp_secret)
+    
+    def is_default_org(self):
+        ''' Checks to see if the user belongs to the default org'''
+        if hasattr(self, 'default_org'):
+            return self.default_org
+        return False
 
 
 class OrganizationSLASettings(InnerDoc):

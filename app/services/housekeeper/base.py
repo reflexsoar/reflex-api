@@ -241,6 +241,9 @@ class HouseKeeper(object):
             # Add the or filter to the search
             search = search.filter(or_filter)
 
+        # Exclude protected rules
+        search = search.filter('bool', must_not=[Q('term', protected=True)])
+
         # Only if the rule hasn't been updated in the last N days
         search = search.filter('range', updated_at={
                     'lte': f"now-{self.event_rule_silent_days}d"})
