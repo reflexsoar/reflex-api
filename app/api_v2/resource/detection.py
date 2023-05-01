@@ -655,10 +655,10 @@ class DetectionFilters(Resource):
         technique_keys = [bucket.key for bucket in detections.aggregations.techniques.technique_names.buckets]
 
         # Get the names for the keys we found
-        _orgs = Organization.get_by_uuid(org_keys)
-        _repos = DetectionRepository.get_by_uuid(repo_keys)
-        _tactics = MITRETactic.get_by_external_id(tactic_keys)
-        _techniques = MITRETechnique.get_by_external_id(technique_keys)
+        _orgs = {org.uuid: org.name for org in Organization.get_by_uuid(org_keys)}
+        _repos = {repo.uuid: repo.name for repo in DetectionRepository.get_by_uuid(repo_keys)}
+        _tactics = {tactic.external_id: tactic.name for tactic in MITRETactic.get_by_external_id(tactic_keys)}
+        _techniques = {technique.external_id: technique.name for technique in MITRETechnique.get_by_external_id(technique_keys)}
 
         filters = {
             'organizations': [],
@@ -672,13 +672,17 @@ class DetectionFilters(Resource):
 
         # Create a list of orgs with their uuid, name and count
         if _orgs:
-            filters['organizations'] = [{'value': org.uuid, 'name': org.name, 'count': bucket.doc_count} for org, bucket in zip(_orgs, detections.aggregations.organization.buckets)]
+            for bucket in detections.aggregations.organization.buckets:
+                filters['organizations'].append({'value': bucket.key, 'name': _orgs[bucket.key], 'count': bucket.doc_count})
         if _repos:
-            filters['repositories'] = [{'value': repo.uuid, 'name': repo.name, 'count': bucket.doc_count} for repo, bucket in zip(_repos, detections.aggregations.repository.buckets)]
+            for bucket in detections.aggregations.repository.buckets:
+                filters['repositories'].append({'value': bucket.key, 'name': _repos[bucket.key], 'count': bucket.doc_count})
         if _tactics:
-            filters['tactics'] = [{'value': tactic.external_id, 'name': tactic.name, 'count': bucket.doc_count} for tactic, bucket in zip(_tactics, detections.aggregations.tactics.tactic_names.buckets)]
+            for bucket in detections.aggregations.tactics.tactic_names.buckets:
+                filters['tactics'].append({'value': bucket.key, 'name': _tactics[bucket.key], 'count': bucket.doc_count})
         if _techniques:
-            filters['techniques'] = [{'value': technique.external_id, 'name': technique.name, 'count': bucket.doc_count} for technique, bucket in zip(_techniques, detections.aggregations.techniques.technique_names.buckets)]
+            for bucket in detections.aggregations.techniques.technique_names.buckets:
+                filters['techniques'].append({'value': bucket.key, 'name': _techniques[bucket.key], 'count': bucket.doc_count})
         if detections.aggregations.tags.buckets:
             filters['tags'] = [{'name': bucket.key, 'value': bucket.key, 'count': bucket.doc_count} for bucket in detections.aggregations.tags.buckets]            
 
