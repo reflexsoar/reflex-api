@@ -415,6 +415,10 @@ mod_detection_filters = api.model('DetectionFilters', {
     'warnings': fields.List(fields.Nested(mod_detection_warnings_filter))
 })
 
+mod_detection_uuids = api.model('DetectionUUIDs', {
+    'detections': fields.List(fields.String)
+})
+
 detection_list_parser = api.parser()
 detection_list_parser.add_argument(
     'agent', location='args', type=str, required=False)
@@ -575,6 +579,65 @@ class DetectionList(Resource):
             return detection
         else:
             api.abort(409, 'A detection rule with this name already exists')
+
+
+@api.route("/select_by_filter")
+class DetectionUUIDsByFilter(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_detection_uuids)
+    @api.expect(detection_list_parser)
+    @token_required
+    @user_has("view_detections")
+    @default_org
+    def get(self, user_in_default_org, current_user):
+
+        args = detection_list_parser.parse_args()
+
+        # Get all detections and aggregate the filters
+        detections = Detection.search()
+
+        # If there are any arguments provided, filter the detections
+
+        if args.techniques and len(args.techniques) > 0 and args.techniques != [""]:
+            detections = detections.filter('nested', path='techniques', query={
+                                           'terms': {'techniques.external_id': args.techniques}})
+
+        if args.tactics and len(args.tactics) > 0 and args.tactics != [""]:
+            detections = detections.filter('nested', path='tactics', query={
+                                           'terms': {'tactics.external_id': args.tactics}})
+
+        if args.tags and len(args.tags) > 0 and args.tags != [""]:
+            detections = detections.filter('terms', tags=args.tags)
+
+        if args.status and len(args.status) > 0 and args.status != [""]:
+            detections = detections.filter('terms', status=args.status)
+
+        if args.repository and len(args.repository) > 0 and args.repository[0] != '':
+            detections = detections.filter('terms', repository=args.repository)
+
+        if args.repo_synced is False:
+            detections = detections.filter('term', from_repo_sync=False)
+
+        if args.warnings and len(args.warnings) > 0:
+            detections = detections.filter('term', warnings=args.warnings)
+
+        # If the current_user is in the default org allow all detections, if they are not
+        # in the default organization, filter the detections only to their organization
+        if user_in_default_org is False:
+            detections = detections.filter(
+                'terms', organization=[current_user.organization])
+        else:
+            if args.organization and len(args.organization) > 0 and args.organization != ['']:
+                detections = detections.filter(
+                    'terms', organization=args.organization)
+                
+        # Use scan() to return all results
+        detections = detections.source(['detection_id']).scan()
+
+        return {
+            'detection_ids': [detection.uuid for detection in detections]
+        }
 
 
 @api.route("/filters")
