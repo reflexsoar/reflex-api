@@ -21,7 +21,8 @@ from . import (
     Object,
     FieldMappingTemplate,
     AttrList,
-    UpdateByQuery
+    UpdateByQuery,
+    Input
 )
 
 from .inout import FieldMap
@@ -564,9 +565,7 @@ class DetectionRepositorySubscriptionSyncSettings(base.InnerDoc):
     setup_guide = Boolean()
     testing_guide = Boolean()
     false_positives = Boolean()
-    # The UUID of the default input for any detections created from this
-    # repository subscription
-    default_input = Keyword()
+    
 
 
 class DetectionRepositorySubscription(base.BaseDocument):
@@ -582,6 +581,9 @@ class DetectionRepositorySubscription(base.BaseDocument):
     active = Boolean()  # Whether or not this subscription is active
     # The sync settings for this subscription
     sync_settings = Object(DetectionRepositorySubscriptionSyncSettings)
+    # The UUID of the default input for any detections created from this
+    # repository subscription
+    default_input = Keyword()
 
     class Index:
         name = "reflex-detection-repository-subscriptions"
@@ -691,7 +693,7 @@ class DetectionRepository(base.BaseDocument):
         '''
         return DetectionRepositorySubscription.get_by_repository(self.uuid)
 
-    def subscribe(self, sync_settings, sync_interval=60):
+    def subscribe(self, sync_settings, sync_interval=60, default_input=None):
         '''
         Creates a subscription for this repository
         '''
@@ -702,6 +704,7 @@ class DetectionRepository(base.BaseDocument):
                 repository=self.uuid,
                 sync_interval=sync_interval,
                 sync_settings=sync_settings,
+                default_input=default_input,
                 last_sync=datetime.datetime.utcnow(),
                 last_sync_status='pending',
                 active=True
@@ -792,6 +795,17 @@ class DetectionRepository(base.BaseDocument):
                 subscription.save(refresh="wait_for")
 
             if self.detections and len(self.detections) > 0:
+
+                input_config = None
+
+                if subscription.default_input:
+                    input = Input.get_by_uuid(subscription.default_input)
+                    input_config = {
+                        'uuid': input.uuid,
+                        'language': '',
+                        'name': input.name,
+                    }
+
                 if self.repo_type == 'local':
                     detections_to_sync = Detection.get_by_detection_id(
                         self.detections, repository=self.uuid)
@@ -829,7 +843,8 @@ class DetectionRepository(base.BaseDocument):
                                 guide=detection.guide,
                                 setup_guide=detection.setup_guide,
                                 testing_guide=detection.testing_guide,
-                                status=detection.status
+                                status=detection.status,
+                                source=input_config
                             )
                             new_detection.save()
                         else:
