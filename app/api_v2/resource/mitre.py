@@ -1,8 +1,8 @@
-from app.api_v2.model import MITRETactic, MITRETechnique, Q
+from app.api_v2.model import MITRETactic, MITRETechnique, Q, Detection
 from flask import request
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from .shared import mod_pagination
-from ..utils import page_results, token_required
+from ..utils import page_results, token_required, user_has
 
 
 api = Namespace(
@@ -196,3 +196,57 @@ class DataSourceList(Resource):
 
         results = search.execute()
         return {'data_sources': [bucket.key for bucket in results.aggregations.data_sources.buckets]}
+    
+
+detection_list_parser = api.parser()
+detection_list_parser.add_argument('organization', location='args', type=str, required=False)
+
+@api.route("/detections")
+class DetectionList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(detection_list_parser)
+    @token_required
+    @user_has("view_detections")
+    def get(self, current_user):
+        '''
+        Returns a list of techniques with the UUIDs of all the detections
+        that map to them.
+        '''
+
+        args = detection_list_parser.parse_args()
+
+        search = Detection.search()
+
+        if args.organization:
+            if not current_user.is_default_org:
+                search = search.filter('term', organization=current_user.organization)
+            else:
+                search = search.filter('term', organization=args.organization)
+
+        # Count the number of detections per techniques.external_id.  techniques.external_id is
+        # nested under techniques
+        search.aggs.bucket('techniques', 'nested', path='techniques').bucket('external_ids', 'terms', field='techniques.external_id', size=1000)
+
+        # Set the size to 0 so we don't return any hits
+        search = search[0:0]
+
+        # Return the results
+        results = search.execute()
+
+        # Create a dictionary of technique.external_id to detection UUIDs
+        detection_mapping = {
+            'techniques': {}
+        }
+        
+        for bucket in results.aggregations.techniques.external_ids.buckets:
+            #detection_mapping['techniques'].append({
+            #    'external_id': bucket.key,
+            #    'count': bucket.doc_count
+            #})
+            detection_mapping['techniques'][bucket.key] = bucket.doc_count
+
+        return detection_mapping
+
+        
+
