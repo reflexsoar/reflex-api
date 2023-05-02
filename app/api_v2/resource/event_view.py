@@ -14,7 +14,7 @@ mod_event_view_details = api.model('EventViewDetails', {
     'uuid': fields.String,
     'name': fields.String,
     'filter_string': fields.String,
-    'private': fields.Boolean,
+    'shared': fields.Boolean,
     'created_at': ISO8601,
     'created_by': fields.Nested(mod_user_list),
     'modified_at': ISO8601,
@@ -24,7 +24,7 @@ mod_event_view_details = api.model('EventViewDetails', {
 mod_event_view_create = api.model('EventViewCreate', {
     'name': fields.String,
     'filter_string': fields.String,
-    'private': fields.Boolean
+    'shared': fields.Boolean
 })
 
 mod_event_view_list = api.model('EventViewList', {
@@ -73,6 +73,10 @@ class EventViewList(Resource):
     @token_required
     @user_has('view_events')
     def post(self, current_user):
+
+        view = EventView.get_by_name(api.payload['name'])
+        if view:
+            api.abort(409, "A view with that name already exists")
 
         view = EventView(**api.payload)
         view.save()

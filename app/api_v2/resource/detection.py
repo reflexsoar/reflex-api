@@ -15,7 +15,10 @@ from ..model import (
     Event,
     Q,
     Agent,
-    Input
+    Input,
+    MITRETactic,
+    MITRETechnique,
+    DetectionRepository
 )
 from .shared import mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
@@ -360,6 +363,58 @@ mod_deleted_detections = api.model('DeletedDetections', {
     'detections': fields.List(fields.String)
 })
 
+mod_detection_repo_filter = api.model('DetectionRepoFilter', {
+    'value': fields.String,
+    'name': fields.String,
+    'count': fields.Integer
+})
+
+mod_detection_org_filter = api.model('DetectionOrgFilter', {
+    'value': fields.String,
+    'name': fields.String,
+    'count': fields.Integer
+})
+
+mod_detection_warnings_filter = api.model('DetectionWarningsFilter', {
+    'value': fields.String,
+    'name': fields.String,
+    'count': fields.Integer
+})
+
+mod_detection_status_filter = api.model('DetectionStatusFilter', {
+    'value': fields.String,
+    'name': fields.String,
+    'count': fields.Integer
+})
+
+mod_detection_tactic_filter = api.model('DetectionTacticFilter', {
+    'value': fields.String,
+    'name': fields.String,
+    'count': fields.Integer
+})
+
+mod_detection_technique_filter = api.model('DetectionTechniqueFilter', {
+    'value': fields.String,
+    'name': fields.String,
+    'count': fields.Integer
+})
+
+mod_detection_tag_filter = api.model('DetectionTagFilter', {
+    'value': fields.String,
+    'name': fields.String,
+    'count': fields.Integer
+})
+
+mod_detection_filters = api.model('DetectionFilters', {
+    'tags': fields.List(fields.Nested(mod_detection_tag_filter)),
+    'tactics': fields.List(fields.Nested(mod_detection_tactic_filter)),
+    'techniques': fields.List(fields.Nested(mod_detection_technique_filter)),
+    'status': fields.List(fields.Nested(mod_detection_status_filter)),
+    'organization': fields.List(fields.Nested(mod_detection_org_filter)),
+    'repositories': fields.List(fields.Nested(mod_detection_repo_filter)),
+    'warnings': fields.List(fields.Nested(mod_detection_warnings_filter))
+})
+
 detection_list_parser = api.parser()
 detection_list_parser.add_argument(
     'agent', location='args', type=str, required=False)
@@ -376,11 +431,21 @@ detection_list_parser.add_argument(
 detection_list_parser.add_argument(
     'techniques', location='args',  action='split', type=str, required=False)
 detection_list_parser.add_argument(
+    'phase_names', location='args', action='split', type=str, required=False)
+detection_list_parser.add_argument(
     'tactics', location='args', action='split', type=str, required=False)
 detection_list_parser.add_argument(
-    'organization', location='args', type=str, required=False)
+    'organization', location='args', action='split', type=str, required=False)
 detection_list_parser.add_argument(
-    'repo_synced', location='args', type=xinputs.boolean, required=False)
+    'repo_synced', location='args', type=xinputs.boolean, required=False, default=True)
+detection_list_parser.add_argument(
+    'tags', location='args', action='split', type=str, required=False)
+detection_list_parser.add_argument(
+    'repository', location='args', action='split', type=str, required=False)
+detection_list_parser.add_argument(
+    'status', location='args', action='split', type=str, required=False)
+detection_list_parser.add_argument(
+    'warnings', location='args', action='split', type=str, required=False)
 
 
 @api.route("")
@@ -410,24 +475,31 @@ class DetectionList(Resource):
         else:
             search = search.sort(args.sort_by)
 
-        if args.organization:
-            search = search.filter('term', organization=args.organization)
+        if args.organization and len(args.organization) > 0 and args.organization != ['']:
+            search = search.filter('terms', organization=args.organization)
 
-        if args.repo_synced:
-            search = search.filter('term', repo_synced=True)
+        if args.repo_synced is False:
+            search = search.filter('term', from_repo_sync=False)
 
         if 'active' in args and args.active in (True, False):
             search = search.filter('term', active=args.active)
 
-        if args.tactics and args.techniques:
+        if args.tags and len(args.tags) > 0 and args.tags[0] != '':
+            search = search.filter('terms', tags=args.tags)
+
+        if args.phase_names and args.techniques:
             search = search.filter('bool', must=[Q('nested', path='techniques', query={'terms': {'techniques.external_id': args.techniques}}), Q(
-                'nested', path='tactics', query={'terms': {'tactics.shortname': args.tactics}})])
-        elif args.tactics and not args.techniques:
+                'nested', path='tactics', query={'terms': {'tactics.shortname': args.phase_names}})])
+        elif args.phase_names and not args.techniques:
             search = search.filter('nested', path='tactics', query={
                                    'terms': {'tactics.shortname': args.tactics}})
-        elif args.techniques and not args.tactics:
+        elif args.techniques and not args.phase_names:
             search = search.filter('nested', path='techniques', query={
                                    'terms': {'techniques.external_id': args.techniques}})
+
+        if args.tactics and len(args.tactics) > 0 and args.tactics != [""]:
+            search = search.filter('nested', path='tactics', query={
+                                   'terms': {'tactics.external_id': args.tactics}})
 
         # If the agent parameter is provided do not page the results, load them all
         if 'agent' in args and args.agent not in (None, ''):
@@ -497,6 +569,156 @@ class DetectionList(Resource):
             return detection
         else:
             api.abort(409, 'A detection rule with this name already exists')
+
+
+@api.route("/filters")
+class DetectionFilters(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_detection_filters)
+    @api.expect(detection_list_parser)
+    @token_required
+    @user_has("view_detections")
+    @default_org
+    def get(self, user_in_default_org, current_user):
+        '''
+        Returns a list of available detection filters
+        '''
+
+        args = detection_list_parser.parse_args()
+
+        # Get all detections and aggregate the filters
+        detections = Detection.search()
+
+        # If there are any arguments provided, filter the detections
+
+        if args.techniques and len(args.techniques) > 0 and args.techniques != [""]:
+            detections = detections.filter('nested', path='techniques', query={
+                                           'terms': {'techniques.external_id': args.techniques}})
+
+        if args.tactics and len(args.tactics) > 0 and args.tactics != [""]:
+            detections = detections.filter('nested', path='tactics', query={
+                                           'terms': {'tactics.external_id': args.tactics}})
+
+        if args.tags and len(args.tags) > 0 and args.tags != [""]:
+            detections = detections.filter('terms', tags=args.tags)
+
+        if args.status and len(args.status) > 0 and args.status != [""]:
+            detections = detections.filter('term', status=args.status)
+
+        if args.repo_synced is False:
+            detections = detections.filter('term', from_repo_sync=False)
+
+        if args.warnings and len(args.warnings) > 0:
+            detections = detections.filter('term', warnings=args.warnings)
+
+        # If the current_user is in the default org allow all detections, if they are not
+        # in the default organization, filter the detections only to their organization
+        if user_in_default_org is False:
+            detections = detections.filter(
+                'terms', organization=[current_user.organization])
+        else:
+            if args.organization and len(args.organization) > 0 and args.organization != ['']:
+                detections = detections.filter(
+                    'terms', organization=args.organization)
+
+        # Aggregate for tags
+        detections.aggs.bucket('tags', 'terms', field='tags', size=1000)
+
+        # Aggregate for tactic names which are nested under tactics
+        detections.aggs.bucket('tactics', 'nested', path='tactics').bucket(
+            'tactic_names', 'terms', field='tactics.external_id', size=1000)
+
+        # Aggregate for technique names which are nested under techniques
+        detections.aggs.bucket('techniques', 'nested', path='techniques').bucket(
+            'technique_names', 'terms', field='techniques.external_id', size=1000)
+
+        # Aggregate for status
+        detections.aggs.bucket('status', 'terms', field='status', size=1000)
+
+        # Aggregate for organization
+        detections.aggs.bucket('organization', 'terms',
+                               field='organization', size=1000)
+
+        # Aggregate for repository
+        detections.aggs.bucket('repository', 'terms',
+                               field='repository', size=1000)
+
+        # Aggregate for warnings
+        detections.aggs.bucket('warnings', 'terms',
+                               field='warnings', size=1000)
+
+        # Set size to 0
+        detections = detections[0:0].execute()
+
+        # Get all the organization keys so we can find their associated names
+        org_keys = [
+            bucket.key for bucket in detections.aggregations.organization.buckets]
+
+        # Get all the repo keys so we can find their associated names
+        repo_keys = [
+            bucket.key for bucket in detections.aggregations.repository.buckets]
+
+        # Get all the tactic keys so we can find their associated shortnames
+        tactic_keys = [
+            bucket.key for bucket in detections.aggregations.tactics.tactic_names.buckets]
+
+        # Get all the technique keys so we can find their associated external_ids
+        technique_keys = [
+            bucket.key for bucket in detections.aggregations.techniques.technique_names.buckets]
+
+        # Get the names for the keys we found
+        _orgs = Organization.get_by_uuid(org_keys)
+        if _orgs:
+            _orgs = {org.uuid: org.name for org in _orgs}
+        _repos = DetectionRepository.get_by_uuid(repo_keys)
+        if _repos:
+            _repos = {repo.uuid: repo.name for repo in _repos}
+        _tactics = MITRETactic.get_by_external_id(tactic_keys)
+        if _tactics:
+            _tactics = {tactic.external_id: tactic.name for tactic in _tactics}
+        _techniques = MITRETechnique.get_by_external_id(technique_keys)
+        if _techniques:
+            _techniques = {
+                technique.external_id: technique.name for technique in _techniques}
+
+        filters = {
+            'organization': [],
+            'repositories': [],
+            'tactics': [],
+            'techniques': [],
+            'tags': [],
+            'status': [],
+            'warnings': []
+        }
+
+        # Create a list of orgs with their uuid, name and count
+        if _orgs:
+            for bucket in detections.aggregations.organization.buckets:
+                filters['organization'].append(
+                    {'value': bucket.key, 'name': _orgs[bucket.key], 'count': bucket.doc_count})
+        if _repos:
+            for bucket in detections.aggregations.repository.buckets:
+                filters['repositories'].append(
+                    {'value': bucket.key, 'name': _repos[bucket.key], 'count': bucket.doc_count})
+        if _tactics:
+            for bucket in detections.aggregations.tactics.tactic_names.buckets:
+                filters['tactics'].append(
+                    {'value': bucket.key, 'name': _tactics[bucket.key], 'count': bucket.doc_count})
+        if _techniques:
+            for bucket in detections.aggregations.techniques.technique_names.buckets:
+                filters['techniques'].append(
+                    {'value': bucket.key, 'name': _techniques[bucket.key], 'count': bucket.doc_count})
+        if detections.aggregations.tags.buckets:
+            filters['tags'] = [{'name': bucket.key, 'value': bucket.key, 'count': bucket.doc_count}
+                               for bucket in detections.aggregations.tags.buckets]
+
+        filters['status'] = [{'name': bucket.key, 'value': bucket.key, 'count': bucket.doc_count}
+                             for bucket in detections.aggregations.status.buckets]
+        filters['warnings'] = [{'name': bucket.key, 'value': bucket.key, 'count': bucket.doc_count}
+                               for bucket in detections.aggregations.warnings.buckets]
+
+        return filters
 
 
 detection_hit_parser = api.parser()

@@ -65,7 +65,8 @@ mod_event_rule_create = api.model('CreateEventRule', {
     'run_retroactively': fields.Boolean(optional=True),
     'skip_previous_match': fields.Boolean(optional=True),
     'priority': fields.Integer,
-    'notification_channels': fields.List(fields.String)
+    'notification_channels': fields.List(fields.String),
+    'protected': fields.Boolean,
 })
 
 mod_event_rule_list = api.model('EventRuleList', {
@@ -110,7 +111,8 @@ mod_event_rule_list = api.model('EventRuleList', {
     'notification_channels': fields.List(fields.String),
     'run_retroactively': fields.Boolean,
     'tags': fields.List(fields.String),
-    'high_volume_rule': fields.Boolean
+    'high_volume_rule': fields.Boolean,
+    'protected': fields.Boolean,
 })
 
 mod_event_rule_list_paged = api.model('PagedEventRuleList', {
@@ -371,6 +373,9 @@ class EventRuleDetails(Resource):
         event_rule = EventRule.get_by_uuid(uuid=uuid)
 
         if event_rule:
+
+            if event_rule.protected and event_rule.created_by.uuid != current_user.uuid and not current_user.is_default_org():
+                api.abort(400, 'Cannot update protected event rule.')
 
             if 'expire_days' in api.payload and not isinstance(api.payload['expire_days'], int):
                 api.abort(400, 'expire_days should be an integer.')

@@ -564,6 +564,9 @@ class DetectionRepositorySubscriptionSyncSettings(base.InnerDoc):
     setup_guide = Boolean()
     testing_guide = Boolean()
     false_positives = Boolean()
+    # The UUID of the default input for any detections created from this
+    # repository subscription
+    default_input = Keyword()
 
 
 class DetectionRepositorySubscription(base.BaseDocument):

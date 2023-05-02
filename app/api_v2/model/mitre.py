@@ -79,14 +79,17 @@ class MITRETechnique(base.BaseDocument):
     def get_by_external_id(cls, external_id):
         ''' Fetches the tactic by its external ID '''
         search = cls.search()
-        search = search.filter('match', external_id=external_id)
-        result = search.execute()
+        if isinstance(external_id, list):
+            search = search.filter('terms', external_id__keyword=external_id)
+        else:
+            search = search.filter('match', external_id=external_id)
+        result = [r for r in search.scan()]
         if result:
+            if isinstance(external_id, list):
+                return result
             return result[0]
         else:
             return None
-
-    
 
 
 class MITRETactic(base.BaseDocument):
@@ -117,9 +120,14 @@ class MITRETactic(base.BaseDocument):
     def get_by_external_id(cls, external_id):
         ''' Fetches the tactic by its external ID '''
         search = cls.search()
-        search = search.filter('term', external_id=external_id)
-        result = search.execute()
+        if isinstance(external_id, list):
+            search = search.filter('terms', external_id=external_id)
+        else:
+            search = search.filter('term', external_id=external_id)
+        result = [r for r in search.scan()]
         if result:
+            if isinstance(external_id, list):
+                return result
             return result[0]
         else:
             return None

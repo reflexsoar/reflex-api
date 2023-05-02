@@ -78,8 +78,21 @@ class EventView(base.BaseDocument):
         name = 'reflex-event-views'
 
     name = Keyword(fields={'text':Text()})
-    public = Boolean() # Is the filter public or private
+    shared = Boolean() # Is the filter public or private
     filter_string = Text() # The JSON string of the filter
+
+    @classmethod
+    def get_by_name(cls, name):
+        '''
+        Fetches a document by the name field
+        '''
+        response = cls.search()
+        response = response.filter('term', name=name)
+        response = response.execute()
+        if response:
+            view = response[0]
+            return view
+        return response
 
 
 class EventObservable(InnerDoc):
@@ -560,6 +573,7 @@ class EventRule(base.BaseDocument):
     agent_type = Keyword() # The type of agent that created this event rule
     high_volume_rule = Boolean() # This flags true if the Event rule is too noisy
     tags = Keyword() # Descriptive tags for the event rule
+    protected = Boolean() # If true, the event rule can only be modified by its creator
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
