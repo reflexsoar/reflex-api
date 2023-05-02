@@ -411,7 +411,7 @@ mod_detection_filters = api.model('DetectionFilters', {
     'techniques': fields.List(fields.Nested(mod_detection_technique_filter)),
     'status': fields.List(fields.Nested(mod_detection_status_filter)),
     'organization': fields.List(fields.Nested(mod_detection_org_filter)),
-    'repositories': fields.List(fields.Nested(mod_detection_repo_filter)),
+    'repository': fields.List(fields.Nested(mod_detection_repo_filter)),
     'warnings': fields.List(fields.Nested(mod_detection_warnings_filter))
 })
 
@@ -486,6 +486,12 @@ class DetectionList(Resource):
 
         if args.tags and len(args.tags) > 0 and args.tags[0] != '':
             search = search.filter('terms', tags=args.tags)
+
+        if args.status and len(args.status) > 0 and args.status[0] != '':
+            search = search.filter('terms', status=args.status)
+
+        if args.repository and len(args.repository) > 0 and args.repository[0] != '':
+            search = search.filter('terms', repository=args.repository)
 
         if args.phase_names and args.techniques:
             search = search.filter('bool', must=[Q('nested', path='techniques', query={'terms': {'techniques.external_id': args.techniques}}), Q(
@@ -604,7 +610,10 @@ class DetectionFilters(Resource):
             detections = detections.filter('terms', tags=args.tags)
 
         if args.status and len(args.status) > 0 and args.status != [""]:
-            detections = detections.filter('term', status=args.status)
+            detections = detections.filter('terms', status=args.status)
+
+        if args.repository and len(args.repository) > 0 and args.repository[0] != '':
+            detections = detections.filter('terms', repository=args.repository)
 
         if args.repo_synced is False:
             detections = detections.filter('term', from_repo_sync=False)
@@ -684,7 +693,7 @@ class DetectionFilters(Resource):
 
         filters = {
             'organization': [],
-            'repositories': [],
+            'repository': [],
             'tactics': [],
             'techniques': [],
             'tags': [],
@@ -699,7 +708,7 @@ class DetectionFilters(Resource):
                     {'value': bucket.key, 'name': _orgs[bucket.key], 'count': bucket.doc_count})
         if _repos:
             for bucket in detections.aggregations.repository.buckets:
-                filters['repositories'].append(
+                filters['repository'].append(
                     {'value': bucket.key, 'name': _repos[bucket.key], 'count': bucket.doc_count})
         if _tactics:
             for bucket in detections.aggregations.tactics.tactic_names.buckets:
