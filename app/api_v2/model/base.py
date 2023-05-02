@@ -86,8 +86,10 @@ class BaseDocument(Document):
                 response = response.query('terms', uuid=uuid, **kwargs)
                 if all_results:
                     response = response[0:response.count()]
-
-                response = response.execute()
+                    response = response.scan()
+                else:
+                    response = response.execute()
+                    
                 documents = list(response)
             else:
                 response = self.search()

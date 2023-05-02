@@ -410,7 +410,7 @@ class DetectionRepositoryAddDetections(Resource):
         if not data.get('detections'):
             api.abort(400, 'No detections provided')
 
-        detections = Detection.get_by_uuid(data.get('detections'), organization=repository.organization)
+        detections = Detection.get_by_uuid(data.get('detections'), organization=repository.organization, all_results=True)
         if detections:
             repository.add_detections(detections=detections)
         else:
