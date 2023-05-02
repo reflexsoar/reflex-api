@@ -852,7 +852,6 @@ class DetectionRepository(base.BaseDocument):
                             existing_detection.name = detection.name
                             existing_detection.description = detection.description
                             existing_detection.tags = detection.tags
-                            existing_detection.active = False
                             existing_detection.query = detection.query
                             existing_detection.tactics = detection.tactics
                             existing_detection.techniques = detection.techniques
