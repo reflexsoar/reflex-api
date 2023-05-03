@@ -457,7 +457,10 @@ detection_list_parser.add_argument(
     'status', location='args', action='split', type=str, required=False)
 detection_list_parser.add_argument(
     'warnings', location='args', action='split', type=str, required=False)
-
+detection_list_parser.add_argument(
+    'name__like', location='args', type=str, required=False)
+detection_list_parser.add_argument(
+    'description__like', location='args', type=str, required=False)
 
 @api.route("")
 class DetectionList(Resource):
@@ -503,6 +506,12 @@ class DetectionList(Resource):
 
         if args.repository and len(args.repository) > 0 and args.repository[0] != '':
             search = search.filter('terms', repository=args.repository)
+
+        if args.name__like:
+            search = search.filter('wildcard', name=f"*{args.name__like}*")
+
+        if args.description__like:
+            search = search.filter('wildcard', description=f"*{args.description__like.lower()}*")
 
         if args.phase_names and args.techniques:
             search = search.filter('bool', must=[Q('nested', path='techniques', query={'terms': {'techniques.external_id': args.techniques}}), Q(
@@ -632,6 +641,12 @@ class DetectionUUIDsByFilter(Resource):
         if args.active:
             search = search.filter('terms', active=args.active)
 
+        if args.name__like:
+            search = search.filter('wildcard', name=f"*{args.name__like}*")
+
+        if args.description__like:
+            search = search.filter('wildcard', description=f"*{args.description__like.lower()}*")
+
         # If the current_user is in the default org allow all detections, if they are not
         # in the default organization, filter the detections only to their organization
         if user_in_default_org is False:
@@ -696,6 +711,12 @@ class DetectionFilters(Resource):
 
         if args.active:
             detections = detections.filter('terms', active=args.active)
+
+        if args.name__like:
+            detections = detections.filter('wildcard', name=f"*{args.name__like}*")
+
+        if args.description__like:
+            detections = detections.filter('wildcard', description=f"*{args.description__like.lower()}*")
 
         # If the current_user is in the default org allow all detections, if they are not
         # in the default organization, filter the detections only to their organization
