@@ -405,6 +405,12 @@ mod_detection_tag_filter = api.model('DetectionTagFilter', {
     'count': fields.Integer
 })
 
+mod_detection_active_filter = api.model('DetectionActiveFilter', {
+    'value': fields.Boolean,
+    'name': fields.String,
+    'count': fields.Integer
+})
+
 mod_detection_filters = api.model('DetectionFilters', {
     'tags': fields.List(fields.Nested(mod_detection_tag_filter)),
     'tactics': fields.List(fields.Nested(mod_detection_tactic_filter)),
@@ -412,7 +418,8 @@ mod_detection_filters = api.model('DetectionFilters', {
     'status': fields.List(fields.Nested(mod_detection_status_filter)),
     'organization': fields.List(fields.Nested(mod_detection_org_filter)),
     'repository': fields.List(fields.Nested(mod_detection_repo_filter)),
-    'warnings': fields.List(fields.Nested(mod_detection_warnings_filter))
+    'warnings': fields.List(fields.Nested(mod_detection_warnings_filter)),
+    'active': fields.List(fields.Nested(mod_detection_warnings_filter))
 })
 
 mod_detection_uuids = api.model('DetectionUUIDs', {
@@ -423,7 +430,7 @@ detection_list_parser = api.parser()
 detection_list_parser.add_argument(
     'agent', location='args', type=str, required=False)
 detection_list_parser.add_argument(
-    'active', location='args', type=xinputs.boolean, required=False)
+    'active', location='args', action="split", type=xinputs.boolean, required=False)
 detection_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 detection_list_parser.add_argument(
@@ -485,8 +492,8 @@ class DetectionList(Resource):
         if args.repo_synced is False:
             search = search.filter('term', from_repo_sync=False)
 
-        if 'active' in args and args.active in (True, False):
-            search = search.filter('term', active=args.active)
+        if args.active:
+            search = search.filter('terms', active=args.active)
 
         if args.tags and len(args.tags) > 0 and args.tags[0] != '':
             search = search.filter('terms', tags=args.tags)
@@ -622,6 +629,9 @@ class DetectionUUIDsByFilter(Resource):
         if args.warnings and len(args.warnings) > 0:
             detections = detections.filter('term', warnings=args.warnings)
 
+        if args.active:
+            search = search.filter('terms', active=args.active)
+
         # If the current_user is in the default org allow all detections, if they are not
         # in the default organization, filter the detections only to their organization
         if user_in_default_org is False:
@@ -684,6 +694,9 @@ class DetectionFilters(Resource):
         if args.warnings and len(args.warnings) > 0:
             detections = detections.filter('term', warnings=args.warnings)
 
+        if args.active:
+            detections = detections.filter('terms', active=args.active)
+
         # If the current_user is in the default org allow all detections, if they are not
         # in the default organization, filter the detections only to their organization
         if user_in_default_org is False:
@@ -719,6 +732,10 @@ class DetectionFilters(Resource):
         # Aggregate for warnings
         detections.aggs.bucket('warnings', 'terms',
                                field='warnings', size=1000)
+        
+        # Aggregate for active
+        detections.aggs.bucket('active', 'terms',
+                                 field='active', size=1000)
 
         # Set size to 0
         detections = detections[0:0].execute()
@@ -761,7 +778,8 @@ class DetectionFilters(Resource):
             'techniques': [],
             'tags': [],
             'status': [],
-            'warnings': []
+            'warnings': [],
+            'active': []
         }
 
         # Create a list of orgs with their uuid, name and count
@@ -789,6 +807,13 @@ class DetectionFilters(Resource):
                              for bucket in detections.aggregations.status.buckets]
         filters['warnings'] = [{'name': bucket.key, 'value': bucket.key, 'count': bucket.doc_count}
                                for bucket in detections.aggregations.warnings.buckets]
+        
+        active_names = {
+            'True': 'Active',
+            'False': 'Inactive'
+        }
+        
+        filters['active'] = [{'name': active_names[str(bucket.key)], 'value': bucket.key, 'count': bucket.doc_count} for bucket in detections.aggregations.active.buckets]
 
         return filters
 
