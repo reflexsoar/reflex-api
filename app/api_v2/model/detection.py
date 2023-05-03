@@ -279,6 +279,7 @@ class Detection(base.BaseDocument):
     repository = Keyword()  # The UUID of the repositories this rule is associated to
     daily_schedule = Boolean()  # If false the detection will always run
     schedule = Nested(DetectionSchedule)
+    assess_rule = Boolean()  # If true the rule will be assessed for quality
 
     class Index:
         name = "reflex-detections"
@@ -844,7 +845,8 @@ class DetectionRepository(base.BaseDocument):
                                 setup_guide=detection.setup_guide,
                                 testing_guide=detection.testing_guide,
                                 status=detection.status,
-                                source=input_config
+                                source=input_config,
+                                assess_rule=True
                             )
                             new_detection.save()
                         else:
@@ -852,7 +854,11 @@ class DetectionRepository(base.BaseDocument):
                             existing_detection.name = detection.name
                             existing_detection.description = detection.description
                             existing_detection.tags = detection.tags
-                            existing_detection.query = detection.query
+                            
+                            if existing_detection.query != detection.query:
+                                existing_detection.assess_rule = True
+                                existing_detection.query = detection.query
+                                
                             existing_detection.tactics = detection.tactics
                             existing_detection.techniques = detection.techniques
                             existing_detection.rule_type = detection.rule_type
