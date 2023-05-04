@@ -4,6 +4,7 @@ import io
 
 from uuid import uuid4
 from app.api_v2.model.detection import DetectionException, DetectionRepository, VALID_DETECTION_STATUS
+from app.api_v2.model.system import Settings
 from app.api_v2.model.user import User
 from app.api_v2.model.utils import _current_user_id_or_none
 from ..utils import check_org, token_required, user_has, default_org
@@ -192,7 +193,10 @@ mod_detection_details = api.model('DetectionDetails', {
     'updated_by': fields.Nested(mod_user_list, skip_none=True),
     'repository': fields.List(fields.String),
     'daily_schedule': fields.Boolean,
-    'schedule': fields.Nested(mod_detection_schedule)
+    'schedule': fields.Nested(mod_detection_schedule),
+    'assess_rule': fields.Boolean,
+    'hits_over_time': fields.String,
+    'average_hits_per_day': fields.Integer
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
@@ -273,7 +277,10 @@ mod_update_detection = api.model('UpdateDetection', {
     'include_source_meta_data': fields.Boolean(),
     'status': fields.String(default='Draft', required=False, enum=VALID_DETECTION_STATUS),
     'daily_schedule': fields.Boolean(required=False),
-    'schedule': fields.Nested(mod_detection_schedule, required=False)
+    'schedule': fields.Nested(mod_detection_schedule, required=False),
+    'assess_rule': fields.Boolean,
+    'hits_over_time': fields.String,
+    'average_hits_per_day': fields.Integer
 }, strict=True)
 
 mod_detection_list_paged = api.model('DetectionListPaged', {
@@ -461,6 +468,10 @@ detection_list_parser.add_argument(
     'name__like', location='args', type=str, required=False)
 detection_list_parser.add_argument(
     'description__like', location='args', type=str, required=False)
+detection_list_parser.add_argument(
+    'assess_rule', location='args', type=xinputs.boolean, required=False, default=False)
+detection_list_parser.add_argument(
+    'rule_type', location='args', type=int, action='split', required=False)
 
 @api.route("")
 class DetectionList(Resource):
@@ -480,7 +491,7 @@ class DetectionList(Resource):
 
         args = detection_list_parser.parse_args()
 
-        if isinstance(current_user, Agent):
+        if isinstance(current_user, Agent) and not args.assess_rule:
             args.agent = current_user.uuid
 
         search = Detection.search()
@@ -526,6 +537,9 @@ class DetectionList(Resource):
         if args.tactics and len(args.tactics) > 0 and args.tactics != [""]:
             search = search.filter('nested', path='tactics', query={
                                    'terms': {'tactics.external_id': args.tactics}})
+            
+        if args.assess_rule:
+            search = search.filter('term', assess_rule=True)
 
         # If the agent parameter is provided do not page the results, load them all
         if 'agent' in args and args.agent not in (None, ''):
@@ -999,6 +1013,8 @@ class DetectionDetails(Resource):
         detection = Detection.get_by_uuid(uuid=uuid)
         if detection:
 
+            settings = Settings.load(organization=detection.organization)
+
             # Update the detection version number when the detection is saved and certain fields
             # are present in the update payoad
             if any([field in api.payload for field in ['query', 'description', 'guide', 'title', 'setup_guide', 'testing_guide']]):
@@ -1007,15 +1023,14 @@ class DetectionDetails(Resource):
                 else:
                     detection.version = 1
 
-            # TODO: Move the time_taken high watermark to an organizational global setting
-            # Defaults to longer than 30 seconds, clear all warnings on update
+
+            SLOW_DETECTION_THRESHOLD = settings.get('slow_detection_threshold', 1_000)
             api.payload['warnings'] = []
-            if 'query_time_taken' in api.payload and api.payload['query_time_taken'] > 30_000:
+            if 'query_time_taken' in api.payload and api.payload['query_time_taken'] > SLOW_DETECTION_THRESHOLD:
                 api.payload['warnings'].append('slow-query')
 
-            # TODO: Move the high watermark on hits to an organizational global setting
-            # Defaults to 10000
-            if 'hits' in api.payload and api.payload['hits'] > 10_000:
+            HIGH_VOLUME_THRESHOLD = settings.get('high_volume_threshold', 1_000)
+            if 'hits' in api.payload and api.payload['hits'] > HIGH_VOLUME_THRESHOLD:
                 api.payload['warnings'].append('high-volume')
 
             if 'active' in api.payload and detection.active != api.payload['active']:

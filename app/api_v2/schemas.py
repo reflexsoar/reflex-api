@@ -571,6 +571,8 @@ mod_settings = Model('SettingsList', {
     'disallowed_password_keywords': AsNewLineDelimited(),
     'logon_expire_at': fields.Integer,
     'utc_offset': fields.String,
+    'slow_detection_threshold': fields.Integer,
+    'high_volume_threshold': fields.Integer,
 })
 
 mod_persistent_pairing_token = Model('PeristentPairingToken', {
