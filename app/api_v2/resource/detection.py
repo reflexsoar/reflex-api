@@ -470,6 +470,8 @@ detection_list_parser.add_argument(
 detection_list_parser.add_argument(
     'description__like', location='args', type=str, required=False)
 detection_list_parser.add_argument(
+    'query__like', location='args', type=str, required=False)
+detection_list_parser.add_argument(
     'assess_rule', location='args', type=xinputs.boolean, required=False, default=False)
 detection_list_parser.add_argument(
     'rule_type', location='args', type=int, action='split', required=False)
@@ -524,6 +526,9 @@ class DetectionList(Resource):
 
         if args.description__like:
             search = search.filter('wildcard', description=f"*{args.description__like.lower()}*")
+
+        if args.query__like:
+            search = search.filter('wildcard', query__query=f"*{args.query__like.lower()}*")
 
         if args.rule_type:
             search = search.filter('terms', rule_type=args.rule_type)
@@ -665,6 +670,9 @@ class DetectionUUIDsByFilter(Resource):
         if args.description__like:
             search = search.filter('wildcard', description=f"*{args.description__like.lower()}*")
 
+        if args.query__like:
+            search = search.filter('wildcard', query__query=f"*{args.query__like.lower()}*")
+
         if args.rule_type:
             search = search.filter('terms', rule_type=args.rule_type)
 
@@ -738,6 +746,9 @@ class DetectionFilters(Resource):
 
         if args.description__like:
             detections = detections.filter('wildcard', description=f"*{args.description__like.lower()}*")
+
+        if args.query__like:
+            detections = detections.filter('wildcard', query__query=f"*{args.query__like.lower()}*")
 
         if args.rule_type:
             detections = detections.filter('terms', rule_type=args.rule_type)
