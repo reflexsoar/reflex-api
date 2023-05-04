@@ -280,6 +280,8 @@ class Detection(base.BaseDocument):
     daily_schedule = Boolean()  # If false the detection will always run
     schedule = Nested(DetectionSchedule)
     assess_rule = Boolean()  # If true the rule will be assessed for quality
+    hits_over_time = Keyword() # A JSON string of the hits over time
+    average_hits_per_day = Integer() # The average hits per day
 
     class Index:
         name = "reflex-detections"
@@ -858,7 +860,7 @@ class DetectionRepository(base.BaseDocument):
                             if existing_detection.query != detection.query:
                                 existing_detection.assess_rule = True
                                 existing_detection.query = detection.query
-                                
+
                             existing_detection.tactics = detection.tactics
                             existing_detection.techniques = detection.techniques
                             existing_detection.rule_type = detection.rule_type

@@ -648,7 +648,9 @@ def initial_settings(cls, org_id, check_for_default=False):
         'event_sla_minutes': 5,
         'allow_user_registration': False,
         'default_self_registration_role': '',
-        'utc_offset': '+00:00'
+        'utc_offset': '+00:00',
+        'slow_detection_threshold': 1000,
+        'high_volume_threshold': 1000
     }
 
     if check_for_default == False:
