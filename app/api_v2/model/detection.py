@@ -280,6 +280,8 @@ class Detection(base.BaseDocument):
     daily_schedule = Boolean()  # If false the detection will always run
     schedule = Nested(DetectionSchedule)
     assess_rule = Boolean()  # If true the rule will be assessed for quality
+    last_assessed = Date()  # When the rule was last assessed
+    average_query_time = Long()  # The average query time in milliseconds
     hits_over_time = Keyword() # A JSON string of the hits over time
     average_hits_per_day = Integer() # The average hits per day
 
@@ -883,6 +885,8 @@ class DetectionRepository(base.BaseDocument):
                     subscription.last_sync_status = 'success'
                     subscription.save(refresh="wait_for")
 
+                    # Check to see if any detections exist that are from_repo_sync
+
                     Detection._index.refresh()
 
     def add_detections(self, detections):
@@ -949,7 +953,7 @@ class DetectionRepository(base.BaseDocument):
             # Set from_repo_sync to False for any detections that were in this repository but are not anymore
             # and have been synced to a tenant
             ubq = UpdateByQuery(index=Detection._index._name)
-            ubq = ubq.query('term', organization=self.organization)
+            ubq = ubq.query('term', organization=self.organization) # TODO: MAYBE FIX THIS?
             ubq = ubq.query('term', from_repo_sync=True)
             ubq = ubq.query('terms', detection_id=detections)
             ubq = ubq.script(source="ctx._source.from_repo_sync = false")

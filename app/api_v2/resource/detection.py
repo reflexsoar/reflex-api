@@ -196,7 +196,9 @@ mod_detection_details = api.model('DetectionDetails', {
     'schedule': fields.Nested(mod_detection_schedule),
     'assess_rule': fields.Boolean,
     'hits_over_time': fields.String,
-    'average_hits_per_day': fields.Integer
+    'average_hits_per_day': fields.Integer,
+    'last_assessed': fields.DateTime,
+    'average_query_time': fields.Integer,
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
@@ -280,7 +282,9 @@ mod_update_detection = api.model('UpdateDetection', {
     'schedule': fields.Nested(mod_detection_schedule, required=False),
     'assess_rule': fields.Boolean,
     'hits_over_time': fields.String,
-    'average_hits_per_day': fields.Integer
+    'average_hits_per_day': fields.Integer,
+    'last_assessed': fields.DateTime,
+    'average_query_time': fields.Integer,
 }, strict=True)
 
 mod_detection_list_paged = api.model('DetectionListPaged', {
@@ -327,6 +331,7 @@ mod_detection_export = api.model('DetectionExport', {
     'indicator_match_config': fields.Nested(mod_indicator_match_config, skip_none=True),
     'include_source_meta_data': fields.Boolean(),
     'status': fields.String,
+    
 })
 
 mod_exported_detections = api.model('ExportedDetections', {
@@ -610,6 +615,7 @@ class DetectionList(Resource):
             detection.detection_id = uuid4()
             detection.version = 1
             detection.last_run = datetime.datetime.fromtimestamp(0)
+            detection.assess_rule = True  # Always assess a rule on creation
             detection.save(refresh=True)
 
             # Redistribute the detection workload for the organization
@@ -1037,8 +1043,10 @@ class DetectionDetails(Resource):
 
         should_redistribute = False
         forbidden_user_fields = ['query_time_taken', 'total_hits', 'last_hit', 'last_run',
-                                 'created_at', 'created_by', 'updated_at', 'updated_by', 'time_taken', 'warnings', 'version', 'running',
-                                 'assigned_agent']
+                                 'created_at', 'created_by', 'updated_at', 'updated_by',
+                                 'time_taken', 'warnings', 'version', 'running',
+                                 'assigned_agent', 'assess_rule', 'hits_over_time',
+                                 'average_hits_per_day', 'last_assessed', 'average_query_time']
 
         # Prevent users from updating these fields
         if isinstance(current_user, User):
@@ -1048,6 +1056,9 @@ class DetectionDetails(Resource):
 
         detection = Detection.get_by_uuid(uuid=uuid)
         if detection:
+
+            if 'query' in api.payload and detection.query.query != api.payload['query']:
+                api.payload['assess_rule'] = True
 
             settings = Settings.load(organization=detection.organization)
 
