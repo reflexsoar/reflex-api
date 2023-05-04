@@ -426,7 +426,8 @@ mod_detection_filters = api.model('DetectionFilters', {
     'organization': fields.List(fields.Nested(mod_detection_org_filter)),
     'repository': fields.List(fields.Nested(mod_detection_repo_filter)),
     'warnings': fields.List(fields.Nested(mod_detection_warnings_filter)),
-    'active': fields.List(fields.Nested(mod_detection_warnings_filter))
+    'active': fields.List(fields.Nested(mod_detection_warnings_filter)),
+    'rule_type': fields.List(fields.Nested(mod_detection_warnings_filter))
 })
 
 mod_detection_uuids = api.model('DetectionUUIDs', {
@@ -523,6 +524,9 @@ class DetectionList(Resource):
 
         if args.description__like:
             search = search.filter('wildcard', description=f"*{args.description__like.lower()}*")
+
+        if args.rule_type:
+            search = search.filter('terms', rule_type=args.rule_type)
 
         if args.phase_names and args.techniques:
             search = search.filter('bool', must=[Q('nested', path='techniques', query={'terms': {'techniques.external_id': args.techniques}}), Q(
@@ -661,6 +665,9 @@ class DetectionUUIDsByFilter(Resource):
         if args.description__like:
             search = search.filter('wildcard', description=f"*{args.description__like.lower()}*")
 
+        if args.rule_type:
+            search = search.filter('terms', rule_type=args.rule_type)
+
         # If the current_user is in the default org allow all detections, if they are not
         # in the default organization, filter the detections only to their organization
         if user_in_default_org is False:
@@ -732,6 +739,9 @@ class DetectionFilters(Resource):
         if args.description__like:
             detections = detections.filter('wildcard', description=f"*{args.description__like.lower()}*")
 
+        if args.rule_type:
+            detections = detections.filter('terms', rule_type=args.rule_type)
+
         # If the current_user is in the default org allow all detections, if they are not
         # in the default organization, filter the detections only to their organization
         if user_in_default_org is False:
@@ -771,6 +781,10 @@ class DetectionFilters(Resource):
         # Aggregate for active
         detections.aggs.bucket('active', 'terms',
                                  field='active', size=1000)
+        
+        # Aggregator for rule_type
+        detections.aggs.bucket('rule_type', 'terms',
+                                    field='rule_type', size=1000)
 
         # Set size to 0
         detections = detections[0:0].execute()
@@ -814,7 +828,8 @@ class DetectionFilters(Resource):
             'tags': [],
             'status': [],
             'warnings': [],
-            'active': []
+            'active': [],
+            'rule_type': []
         }
 
         # Create a list of orgs with their uuid, name and count
@@ -842,6 +857,16 @@ class DetectionFilters(Resource):
                              for bucket in detections.aggregations.status.buckets]
         filters['warnings'] = [{'name': bucket.key, 'value': bucket.key, 'count': bucket.doc_count}
                                for bucket in detections.aggregations.warnings.buckets]
+        rule_type_names = {
+            0: 'Match',
+            4: 'New Terms',
+            1: 'Threshold',
+            2: 'Metric',
+            3: 'Field Mismatch',
+            5: 'Indicator Match'
+        }
+
+        filters['rule_type'] = [{'name': rule_type_names[bucket.key], 'value': bucket.key, 'count': bucket.doc_count} for bucket in detections.aggregations.rule_type.buckets]
         
         active_names = {
             'True': 'Active',
