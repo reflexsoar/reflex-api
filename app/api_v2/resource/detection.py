@@ -1024,12 +1024,19 @@ class DetectionDetails(Resource):
                     detection.version = 1
 
 
-            SLOW_DETECTION_THRESHOLD = settings.get('slow_detection_threshold', 1_000)
+            try:
+                SLOW_DETECTION_THRESHOLD = settings.slow_detection_threshold
+            except:
+                SLOW_DETECTION_THRESHOLD = 1000
             api.payload['warnings'] = []
             if 'query_time_taken' in api.payload and api.payload['query_time_taken'] > SLOW_DETECTION_THRESHOLD:
                 api.payload['warnings'].append('slow-query')
 
-            HIGH_VOLUME_THRESHOLD = settings.get('high_volume_threshold', 1_000)
+            try:
+                HIGH_VOLUME_THRESHOLD = settings.high_volume_threshold
+            except:
+                HIGH_VOLUME_THRESHOLD = 1000
+
             if 'hits' in api.payload and api.payload['hits'] > HIGH_VOLUME_THRESHOLD:
                 api.payload['warnings'].append('high-volume')
 
