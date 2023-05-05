@@ -714,8 +714,6 @@ class DetectionUUIDsByFilter(Resource):
                 detections = detections.filter(
                     'terms', organization=args.organization)
                 
-        print(json.dumps(detections.to_dict(), indent=2))
-                
         # Use scan() to return all results
         detections = detections.scan()
 
