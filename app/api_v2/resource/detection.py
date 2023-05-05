@@ -524,7 +524,12 @@ class DetectionList(Resource):
             search = search.filter('terms', status=args.status)
 
         if args.repository and len(args.repository) > 0 and args.repository[0] != '':
-            search = search.filter('terms', repository=args.repository)
+            if 'None' in args.repository:
+                # If the user has selected None filter for detections with no value for repository
+                search = search.filter(
+                    'bool', should=[Q('terms', repository=args.repository), Q('bool', must_not=Q('exists', field='repository'))])
+            else:
+                search = search.filter('terms', repository=args.repository)
 
         if args.name__like:
             search = search.filter('wildcard', name=f"*{args.name__like}*")
@@ -659,7 +664,12 @@ class DetectionUUIDsByFilter(Resource):
             detections = detections.filter('terms', status=args.status)
 
         if args.repository and len(args.repository) > 0 and args.repository[0] != '':
-            detections = detections.filter('terms', repository=args.repository)
+            if 'None' in args.repository:
+                # If the user has selected None filter for detections with no value for repository
+                detections = detections.filter(
+                    'bool', should=[Q('terms', repository=args.repository), Q('bool', must_not=Q('exists', field='repository'))])
+            else:
+                detections = detections.filter('terms', repository=args.repository)
 
         if args.repo_synced is False:
             detections = detections.filter('term', from_repo_sync=False)
@@ -668,19 +678,19 @@ class DetectionUUIDsByFilter(Resource):
             detections = detections.filter('term', warnings=args.warnings)
 
         if args.active:
-            search = search.filter('terms', active=args.active)
+            detections = detections.filter('terms', active=args.active)
 
         if args.name__like:
-            search = search.filter('wildcard', name=f"*{args.name__like}*")
+            detections = detections.filter('wildcard', name=f"*{args.name__like}*")
 
         if args.description__like:
-            search = search.filter('wildcard', description=f"*{args.description__like.lower()}*")
+            detections = detections.filter('wildcard', description=f"*{args.description__like.lower()}*")
 
         if args.query__like:
-            search = search.filter('wildcard', query__query=f"*{args.query__like.lower()}*")
+            detections = detections.filter('wildcard', query__query=f"*{args.query__like.lower()}*")
 
         if args.rule_type:
-            search = search.filter('terms', rule_type=args.rule_type)
+            detections = detections.filter('terms', rule_type=args.rule_type)
 
         # If the current_user is in the default org allow all detections, if they are not
         # in the default organization, filter the detections only to their organization
@@ -736,7 +746,12 @@ class DetectionFilters(Resource):
             detections = detections.filter('terms', status=args.status)
 
         if args.repository and len(args.repository) > 0 and args.repository[0] != '':
-            detections = detections.filter('terms', repository=args.repository)
+            if 'None' in args.repository:
+                # If the user has selected None filter for detections with no value for repository
+                detections = detections.filter(
+                    'bool', should=[Q('terms', repository=args.repository), Q('bool', must_not=Q('exists', field='repository'))])
+            else:
+                detections = detections.filter('terms', repository=args.repository)
 
         if args.repo_synced is False:
             detections = detections.filter('term', from_repo_sync=False)
@@ -891,6 +906,12 @@ class DetectionFilters(Resource):
         }
         
         filters['active'] = [{'name': active_names[str(bucket.key)], 'value': bucket.key, 'count': bucket.doc_count} for bucket in detections.aggregations.active.buckets]
+
+        filters['repository'].append({
+            'value': 'None',
+            'name': 'None',
+            'count': 0
+        })
 
         return filters
 
