@@ -482,6 +482,8 @@ detection_list_parser.add_argument(
     'rule_type', location='args', type=int, action='split', required=False)
 detection_list_parser.add_argument(
     'max_average_hits_per_day', location='args', type=int, required=False, default=0)
+detection_list_parser.add_argument(
+    'min_average_hits_per_day', location='args', type=int, required=False, default=0)
 
 @api.route("")
 class DetectionList(Resource):
@@ -533,8 +535,18 @@ class DetectionList(Resource):
             else:
                 search = search.filter('terms', repository=args.repository)
 
-        # Filter the detections by max average hits per day, if it is set to 0 then don't filter
-        if args.max_average_hits_per_day > 0:
+        # If both min and max average hits per day are provided, filter for detections that fall within the range
+        if args.min_average_hits_per_day > 0 and args.max_average_hits_per_day > 0:
+            search = search.filter('range', average_hits_per_day={
+                                   'gte': args.min_average_hits_per_day, 'lte': args.max_average_hits_per_day})
+            
+        # If only min average hits per day is provided, filter for detections that are greater than or equal to the min
+        elif args.min_average_hits_per_day > 0:
+            search = search.filter('range', average_hits_per_day={
+                                   'gte': args.min_average_hits_per_day})
+            
+        # If only max average hits per day is provided, filter for detections that are less than or equal to the max
+        elif args.max_average_hits_per_day > 0:
             search = search.filter('range', average_hits_per_day={
                                    'lte': args.max_average_hits_per_day})
 
@@ -678,8 +690,18 @@ class DetectionUUIDsByFilter(Resource):
             else:
                 detections = detections.filter('terms', repository=args.repository)
 
-        # Filter the detections by max average hits per day, if it is set to 0 then don't filter
-        if args.max_average_hits_per_day > 0:
+        # If both min and max average hits per day are provided, filter for detections that fall within the range
+        if args.min_average_hits_per_day > 0 and args.max_average_hits_per_day > 0:
+            detections = detections.filter('range', average_hits_per_day={
+                                   'gte': args.min_average_hits_per_day, 'lte': args.max_average_hits_per_day})
+            
+        # If only min average hits per day is provided, filter for detections that are greater than or equal to the min
+        elif args.min_average_hits_per_day > 0:
+            detections = detections.filter('range', average_hits_per_day={
+                                   'gte': args.min_average_hits_per_day})
+            
+        # If only max average hits per day is provided, filter for detections that are less than or equal to the max
+        elif args.max_average_hits_per_day > 0:
             detections = detections.filter('range', average_hits_per_day={
                                    'lte': args.max_average_hits_per_day})
 
@@ -765,8 +787,18 @@ class DetectionFilters(Resource):
             else:
                 detections = detections.filter('terms', repository=args.repository)
 
-        # Filter the detections by max average hits per day, if it is set to 0 then don't filter
-        if args.max_average_hits_per_day > 0:
+        # If both min and max average hits per day are provided, filter for detections that fall within the range
+        if args.min_average_hits_per_day > 0 and args.max_average_hits_per_day > 0:
+            detections = detections.filter('range', average_hits_per_day={
+                                   'gte': args.min_average_hits_per_day, 'lte': args.max_average_hits_per_day})
+            
+        # If only min average hits per day is provided, filter for detections that are greater than or equal to the min
+        elif args.min_average_hits_per_day > 0:
+            detections = detections.filter('range', average_hits_per_day={
+                                   'gte': args.min_average_hits_per_day})
+            
+        # If only max average hits per day is provided, filter for detections that are less than or equal to the max
+        elif args.max_average_hits_per_day > 0:
             detections = detections.filter('range', average_hits_per_day={
                                    'lte': args.max_average_hits_per_day})
 
