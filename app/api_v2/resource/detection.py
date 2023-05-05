@@ -480,6 +480,8 @@ detection_list_parser.add_argument(
     'assess_rule', location='args', type=xinputs.boolean, required=False, default=False)
 detection_list_parser.add_argument(
     'rule_type', location='args', type=int, action='split', required=False)
+detection_list_parser.add_argument(
+    'max_average_hits_per_day', location='args', type=int, required=False, default=0)
 
 @api.route("")
 class DetectionList(Resource):
@@ -530,6 +532,11 @@ class DetectionList(Resource):
                     'bool', should=[Q('terms', repository=args.repository), Q('bool', must_not=Q('exists', field='repository'))])
             else:
                 search = search.filter('terms', repository=args.repository)
+
+        # Filter the detections by max average hits per day, if it is set to 0 then don't filter
+        if args.max_average_hits_per_day > 0:
+            search = search.filter('range', average_hits_per_day={
+                                   'lte': args.max_average_hits_per_day})
 
         if args.name__like:
             search = search.filter('wildcard', name=f"*{args.name__like}*")
@@ -671,6 +678,11 @@ class DetectionUUIDsByFilter(Resource):
             else:
                 detections = detections.filter('terms', repository=args.repository)
 
+        # Filter the detections by max average hits per day, if it is set to 0 then don't filter
+        if args.max_average_hits_per_day > 0:
+            detections = detections.filter('range', average_hits_per_day={
+                                   'lte': args.max_average_hits_per_day})
+
         if args.repo_synced is False:
             detections = detections.filter('term', from_repo_sync=False)
 
@@ -702,11 +714,13 @@ class DetectionUUIDsByFilter(Resource):
                 detections = detections.filter(
                     'terms', organization=args.organization)
                 
+        print(json.dumps(detections.to_dict(), indent=2))
+                
         # Use scan() to return all results
-        detections = detections.source(['detection_id']).scan()
+        detections = detections.scan()
 
         return {
-            'detection_ids': [detection.uuid for detection in detections]
+            'detections': [detection.uuid for detection in detections]
         }
 
 
@@ -752,6 +766,11 @@ class DetectionFilters(Resource):
                     'bool', should=[Q('terms', repository=args.repository), Q('bool', must_not=Q('exists', field='repository'))])
             else:
                 detections = detections.filter('terms', repository=args.repository)
+
+        # Filter the detections by max average hits per day, if it is set to 0 then don't filter
+        if args.max_average_hits_per_day > 0:
+            detections = detections.filter('range', average_hits_per_day={
+                                   'lte': args.max_average_hits_per_day})
 
         if args.repo_synced is False:
             detections = detections.filter('term', from_repo_sync=False)
