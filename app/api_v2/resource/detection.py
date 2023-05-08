@@ -1145,17 +1145,23 @@ class DetectionDetails(Resource):
                 SLOW_DETECTION_THRESHOLD = settings.slow_detection_threshold
             except:
                 SLOW_DETECTION_THRESHOLD = 1000
-            api.payload['warnings'] = []
             if 'query_time_taken' in api.payload and api.payload['query_time_taken'] > SLOW_DETECTION_THRESHOLD:
                 api.payload['warnings'].append('slow-query')
+            else:
+                if 'slow-query' in api.payload['warnings']:
+                    api.payload['warnings'].remove('slow-query')
 
             try:
                 HIGH_VOLUME_THRESHOLD = settings.high_volume_threshold
             except:
-                HIGH_VOLUME_THRESHOLD = 1000
+                HIGH_VOLUME_THRESHOLD = 10000
 
             if 'hits' in api.payload and api.payload['hits'] > HIGH_VOLUME_THRESHOLD:
                 api.payload['warnings'].append('high-volume')
+                api.payload['active'] = False  # Circuit break high volume alerts
+            else:
+                if 'high-volume' in api.payload['warnings']:
+                    api.payload['warnings'].remove('high-volume')
 
             if 'active' in api.payload and detection.active != api.payload['active']:
                 should_redistribute = True
@@ -1338,7 +1344,7 @@ class BulkEnableDetections(Resource):
         updated_orgs = []
 
         # Find all the detections
-        detections = Detection.get_by_uuid(uuid=api.payload['detections'])
+        detections = Detection.get_by_uuid(uuid=api.payload['detections'], all_results=True)
 
         if detections:
 
