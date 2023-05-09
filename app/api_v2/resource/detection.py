@@ -1143,6 +1143,9 @@ class DetectionDetails(Resource):
                 else:
                     detection.version = 1
 
+            if 'warnings' not in api.payload:
+                if hasattr(detection, 'warnings'):
+                    api.payload['warnings'] = detection.warnings
 
             try:
                 SLOW_DETECTION_THRESHOLD = settings.slow_detection_threshold
@@ -1171,6 +1174,10 @@ class DetectionDetails(Resource):
             else:
                 if 'warnings' in api.payload and 'high-volume' in api.payload['warnings']:
                     api.payload['warnings'].remove('high-volume')
+
+            # Clear all warnings
+            if 'warnings' not in api.payload:
+                api.payload['warnings'] = []
 
             if 'active' in api.payload and detection.active != api.payload['active']:
                 should_redistribute = True
