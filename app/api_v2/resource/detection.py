@@ -527,6 +527,9 @@ class DetectionList(Resource):
         if args.status and len(args.status) > 0 and args.status[0] != '':
             search = search.filter('terms', status=args.status)
 
+        if args.warnings and len(args.warnings) > 0:
+            search = search.filter('terms', warnings=args.warnings)
+
         if args.repository and len(args.repository) > 0 and args.repository[0] != '':
             if 'None' in args.repository:
                 # If the user has selected None filter for detections with no value for repository
@@ -709,7 +712,7 @@ class DetectionUUIDsByFilter(Resource):
             detections = detections.filter('term', from_repo_sync=False)
 
         if args.warnings and len(args.warnings) > 0:
-            detections = detections.filter('term', warnings=args.warnings)
+            detections = detections.filter('terms', warnings=args.warnings)
 
         if args.active:
             detections = detections.filter('terms', active=args.active)
@@ -806,7 +809,7 @@ class DetectionFilters(Resource):
             detections = detections.filter('term', from_repo_sync=False)
 
         if args.warnings and len(args.warnings) > 0:
-            detections = detections.filter('term', warnings=args.warnings)
+            detections = detections.filter('terms', warnings=args.warnings)
 
         if args.active:
             detections = detections.filter('terms', active=args.active)
