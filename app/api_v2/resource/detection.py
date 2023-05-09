@@ -1148,7 +1148,7 @@ class DetectionDetails(Resource):
             if 'query_time_taken' in api.payload and api.payload['query_time_taken'] > SLOW_DETECTION_THRESHOLD:
                 api.payload['warnings'].append('slow-query')
             else:
-                if 'slow-query' in api.payload['warnings']:
+                if 'warnigns' in api.payload and 'slow-query' in api.payload['warnings']:
                     api.payload['warnings'].remove('slow-query')
 
             try:
@@ -1160,7 +1160,7 @@ class DetectionDetails(Resource):
                 api.payload['warnings'].append('high-volume')
                 api.payload['active'] = False  # Circuit break high volume alerts
             else:
-                if 'high-volume' in api.payload['warnings']:
+                if 'warnigns' in api.payload and 'high-volume' in api.payload['warnings']:
                     api.payload['warnings'].remove('high-volume')
 
             if 'active' in api.payload and detection.active != api.payload['active']:
