@@ -1466,7 +1466,7 @@ class BulkDisableDetections(Resource):
         updated_orgs = []
 
         # Find all the detections
-        detections = Detection.get_by_uuid(uuid=api.payload['detections'])
+        detections = Detection.get_by_uuid(uuid=api.payload['detections'], all_results=True)
 
         if detections:
 
