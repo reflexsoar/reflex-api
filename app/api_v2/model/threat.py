@@ -137,6 +137,10 @@ class ThreatValue(base.BaseDocument):
 
         if values:
             search = search.filter('terms', value=values)
+        
+        # Limit the number of results to 10,000
+        search = search[0:10000]
+        
         return list(search.scan())
 
 
