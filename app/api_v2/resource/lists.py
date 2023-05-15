@@ -98,6 +98,10 @@ mod_list_match = api.model('ListMatch', {
     'matched': fields.Boolean
 })
 
+mod_list_multi_match = api.model('ListMultiMatch', {
+    'values': fields.List(fields.String, required=True)
+})
+
 mod_list_values_paged = api.model('ListValuesPaged', {
     'values': fields.Nested(mod_threat_value),
     'pagination': fields.Nested(mod_pagination)
@@ -383,6 +387,31 @@ class ThreatListTest(Resource):
                 }
         else:
             api.abort(404, {'message': 'Intel List not found'})
+
+@api.route('/test/<uuid>')
+class ThreatListMultiTest(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_list_multi_match)
+    @token_required
+    @user_has('view_lists')
+    def post(self, current_user, uuid):
+        '''
+        Takes a list of values to check against a list.  If the value appears
+        in the list add it to a dictionary of matched values with the value
+        as a key and True as the value.
+        '''
+
+        if 'values' not in api.payload or len(api.payload['values']) == 0:
+            api.abort(400, 'Values are required.')
+
+        if len(api.payload['values']) > 10000:
+            api.abort(400, 'Too many values.  Can not exceed 10000 values.')
+
+        values = ThreatValue.find(list_uuid=uuid, values=api.payload['values'])
+
+        return {v['value']: True for v in values}
+
 
 list_stats_parser = api.parser()
 list_stats_parser.add_argument('list', location='args', type=str, action='split', required=False)

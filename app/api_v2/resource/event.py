@@ -102,6 +102,9 @@ mod_event_list = api.model('EventList', {
     'detection_id': fields.String,
     'risk_score': fields.Integer(default=0),
     'total_comments': ValueCount(attribute='comments'),
+    'response_phase': fields.String,
+    'acknowledged': fields.Boolean,
+    'acknowledged_by': fields.Nested(mod_user_list),
 })
 
 mod_event_paged_list = api.model('PagedEventList', {
@@ -160,6 +163,9 @@ mod_event_details = api.model('EventDetails', {
     'dismissed_by': fields.Nested(mod_user_list),
     'dismissed_at': ISO8601(attribute='dismissed_at'),
     'total_comments': ValueCount(attribute='comments'),
+    'response_phase': fields.String,
+    'acknowledged': fields.Boolean,
+    'acknowledged_by': fields.Nested(mod_user_list),
 })
 
 mod_observable_update = api.model('ObservableUpdate', {

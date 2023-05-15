@@ -142,6 +142,8 @@ class EventMetrics(InnerDoc):
     enrichment_duration = Float()
     event_rule_duration = Float()
     auto_data_type_extraction = Boolean()
+    first_touch = Date()
+    total_touches = Integer()
 
 
 class Event(base.BaseDocument):
@@ -183,6 +185,9 @@ class Event(base.BaseDocument):
     original_date = Date() # The date the original log was generated (not when it was created in Reflex)
     comments = Nested()
     metrics = Object(EventMetrics)
+    response_phase = Keyword() # The response phase that the event is in
+    acknowledged = Boolean() # Has the event been acknowledged by an analyst
+    acknowledged_by = Object() # The analyst that acknowledged the event
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
