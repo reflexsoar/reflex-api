@@ -649,8 +649,10 @@ def initial_settings(cls, org_id, check_for_default=False):
         'allow_user_registration': False,
         'default_self_registration_role': '',
         'utc_offset': '+00:00',
-        'slow_detection_threshold': 1000,
-        'high_volume_threshold': 1000
+        'slow_detection_threshold': 5000,
+        'high_volume_threshold': 5000,
+        'slow_detection_warning_threshold': 1000,
+        'high_volume_warning_threshold': 1000
     }
 
     if check_for_default == False:

@@ -573,6 +573,8 @@ mod_settings = Model('SettingsList', {
     'utc_offset': fields.String,
     'slow_detection_threshold': fields.Integer,
     'high_volume_threshold': fields.Integer,
+    'slow_detection_warning_threshold': fields.Integer,
+    'high_volume_warning_threshold': fields.Integer
 })
 
 mod_persistent_pairing_token = Model('PeristentPairingToken', {
