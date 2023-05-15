@@ -168,7 +168,9 @@ class Settings(base.BaseDocument):
     # The default role to assign to self registered users
     default_self_registration_role = Keyword()
     utc_offset = Keyword() # The UTC offset for the system stored as a string e.g. +10:00
+    slow_detection_warning_threshold = Integer() # The number of milliseconds before a detection is considered slow
     slow_detection_threshold = Integer() # The number of milliseconds before a detection is considered slow
+    high_volume_warning_threshold = Integer() # The number of events per run before a detection is considered high volume
     high_volume_threshold = Integer() # The number of events per run before a detection is considered high volume
 
 
