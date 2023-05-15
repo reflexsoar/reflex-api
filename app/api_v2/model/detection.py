@@ -91,8 +91,8 @@ class IndicatorMatchConfig(base.InnerDoc):
     An indicator match rule compares the value of a field to a value contained 
     in an intel list
     '''
-    list_uuid = Keyword()
-    source_field = Keyword()
+    intel_list = Object()
+    key_field = Keyword()
 
 
 class MetricChangeConfig(base.InnerDoc):

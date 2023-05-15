@@ -81,8 +81,8 @@ mod_metric_change_config = api.model('MetricChangeConfig', {
 }, strict=True)
 
 mod_indicator_match_config = api.model('IndicatorMatchConfig', {
-    'list_uuid': fields.String,
-    'source_field': fields.String,
+    'intel_list': fields.Nested(mod_intel_list),
+    'key_field': fields.String,
 }, strict=True)
 
 mod_new_terms_config = api.model('NewTermsConfig', {
@@ -262,7 +262,7 @@ mod_update_detection = api.model('UpdateDetection', {
     'source': fields.String,
     'case_template': fields.String,
     'risk_score': fields.Integer(default=10000, min=0, max=50000),
-    'severity': fields.Integer(required=True, default=1, min=1, max=4),
+    'severity': fields.Integer(required=True, default=1, min=0, max=4),
     'signature_fields': fields.List(fields.String),
     'field_templates': fields.List(fields.String),
     'observable_fields': fields.List(fields.String),
@@ -1147,37 +1147,71 @@ class DetectionDetails(Resource):
                 if hasattr(detection, 'warnings'):
                     api.payload['warnings'] = detection.warnings
 
+            SLOW_QUERY = False
+            HIGH_VOLUME = False
+            SLOW_QUERY_DISABLE = False
+            HIGH_VOLUME_DISABLE = False
+            warnings = False
+
             try:
                 SLOW_DETECTION_THRESHOLD = settings.slow_detection_threshold
+                SLOW_DETECTION_WARNING_THRESHOLD = settings.slow_detection_warning_threshold
             except:
-                SLOW_DETECTION_THRESHOLD = 1000
-            if 'query_time_taken' in api.payload and api.payload['query_time_taken'] > SLOW_DETECTION_THRESHOLD:
-                if 'warnings' not in api.payload:
-                    api.payload['warnings'] = ['slow-query']
-                else:
-                    api.payload['warnings'].append('slow-query')
-            else:
-                if 'warnings' in api.payload and 'slow-query' in api.payload['warnings']:
-                    api.payload['warnings'].remove('slow-query')
+                SLOW_DETECTION_WARNING_THRESHOLD = 1000
+                SLOW_DETECTION_THRESHOLD = 5000
+            if 'query_time_taken' in api.payload and api.payload['query_time_taken'] > SLOW_DETECTION_WARNING_THRESHOLD:
+                SLOW_QUERY = True
+                if api.payload['query_time_taken'] > SLOW_DETECTION_THRESHOLD:
+                    SLOW_QUERY_DISABLE = True
+                WARNINGS = True
 
             try:
                 HIGH_VOLUME_THRESHOLD = settings.high_volume_threshold
+                HIGH_VOLUME_WARNING_THRESHOLD = settings.high_volume_warning_threshold
             except:
                 HIGH_VOLUME_THRESHOLD = 10000
+                HIGH_VOLUME_WARNING_THRESHOLD = 5000
 
-            if 'hits' in api.payload and api.payload['hits'] > HIGH_VOLUME_THRESHOLD:
+            if 'hits' in api.payload and api.payload['hits'] > HIGH_VOLUME_WARNING_THRESHOLD:
+                HIGH_VOLUME = True
+
+                if api.payload['hits'] > HIGH_VOLUME_THRESHOLD:
+                    HIGH_VOLUME_DISABLE = True
+                warnings = True
+
+            if warnings:
+
                 if 'warnings' not in api.payload:
-                    api.payload['warnings'] = ['high-volume']
+                    if hasattr(detection, 'warnings'):
+                        api.payload['warnings'] = detection.warnings
+                    else:
+                        api.payload['warnings'] = []
+                
+                if SLOW_QUERY and 'slow-query' not in api.payload['warnings']:
+                    api.payload['warnings'].append('slow-query')
                 else:
-                    api.payload['warnings'].append('high-volume')
-                api.payload['active'] = False  # Circuit break high volume alerts
-            else:
-                if 'warnings' in api.payload and 'high-volume' in api.payload['warnings']:
-                    api.payload['warnings'].remove('high-volume')
+                    if 'slow-query' in api.payload['warnings']:
+                        api.payload['warnings'].remove('slow-query')
 
-            # Clear all warnings
-            if 'warnings' not in api.payload:
-                api.payload['warnings'] = []
+                if HIGH_VOLUME and 'high-volume' not in api.payload['warnings']:
+                    api.payload['warnings'].append('high-volume')
+                else:
+                    if 'high-volume' in api.payload['warnings']:
+                        api.payload['warnings'].remove('high-volume')
+
+                if HIGH_VOLUME_DISABLE and 'high-volume-disable' not in api.payload['warnings']:
+                    api.payload['warnings'].append('high-volume-disable')
+                    api.payload['active'] = False
+                else:
+                    if 'high-volume-disable' in api.payload['warnings']:
+                        api.payload['warnings'].remove('high-volume-disable')
+
+                if SLOW_QUERY_DISABLE and 'slow-query-disable' not in api.payload['warnings']:
+                    api.payload['warnings'].append('slow-query-disable')
+                    api.payload['active'] = False
+                else:
+                    if 'slow-query-disable' in api.payload['warnings']:
+                        api.payload['warnings'].remove('slow-query-disable')
 
             if 'active' in api.payload and detection.active != api.payload['active']:
                 should_redistribute = True
