@@ -614,6 +614,30 @@ class IntelListValues(Resource):
         return response
 
 
+@api.route("/<uuid>/replace_values")
+class ReplaceValuesInThreatList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_list_values)
+    @token_required
+    @user_has('update_list')
+    def put(self, uuid, current_user):
+        ''' Replaces all the values in the list with the values
+        provided in the API call'''
+
+        value_list = ThreatList.get_by_uuid(uuid=uuid)
+        if value_list:
+
+            if 'values' in api.payload and api.payload['values'] not in [None, '']:
+                tv = ThreatValue.search()
+                tv = tv.filter('term', list_uuid=uuid)
+                tv.delete()
+                value_list.set_values(api.payload['values'])
+                return {'message': 'Succesfully replaced values in list.'}    
+            api.abort(400, {'message':'Values are required.'})
+        api.abort(404, 'ThreatList not found.')
+
+
 @api.route("/<uuid>/add_value")
 class AddValueToThreatList(Resource):
 
