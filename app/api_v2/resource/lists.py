@@ -628,6 +628,9 @@ class ReplaceValuesInThreatList(Resource):
         value_list = ThreatList.get_by_uuid(uuid=uuid)
         if value_list:
 
+            #if current_user.has_org_permission(value_list.organization, 'update_list') is False:
+            #    api.abort(403, 'You do not have permission to update this list.')
+
             if 'values' in api.payload and api.payload['values'] not in [None, '']:
                 tv = ThreatValue.search()
                 tv = tv.filter('term', list_uuid=uuid)
@@ -650,6 +653,9 @@ class AddValueToThreatList(Resource):
         value_list = ThreatList.get_by_uuid(uuid=uuid)
         if value_list:
 
+            #if current_user.has_org_permission(value_list.organization, 'update_list') is False:
+            #    api.abort(403, 'You do not have permission to update this list.')
+
             if 'values' in api.payload and api.payload['values'] not in [None,'']:
                 value_list.set_values(api.payload['values'])
                 return {'message': 'Succesfully added values to list.'}
@@ -669,11 +675,18 @@ class RemoveValueFromThreatList(Resource):
     def delete(self, uuid, current_user):
         ''' Deletes values from a ThreatList '''
 
-        if 'values' in api.payload:
-            values = ThreatValue.search()
-            values = values.filter('term', list_uuid=uuid)
-            values = values.filter('terms', values=api.payload['values'])
-            values.delete()
-            
-            return {'message': 'Succesfully removed values from list.'}
-        api.abort(400, {'message':'Values are required.'})
+        value_list = ThreatList.get_by_uuid(uuid=uuid)
+
+        if value_list:
+            #if current_user.has_org_permission(value_list.organization, 'update_list') is False:
+            #    api.abort(403, 'You do not have permission to update this list.')
+
+            if 'values' in api.payload:
+                values = ThreatValue.search()
+                values = values.filter('term', list_uuid=uuid)
+                values = values.filter('terms', values=api.payload['values'])
+                values.delete()
+                
+                return {'message': 'Succesfully removed values from list.'}
+            api.abort(400, {'message':'Values are required.'})
+        api.abort(404, 'ThreatList not found.')
