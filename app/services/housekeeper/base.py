@@ -15,7 +15,9 @@ from app.api_v2.model import (
     Task,
     Q,
     Event,
-    EventRule
+    EventRule,
+    DetectionRepositorySubscription,
+    DetectionRepository
 )
 
 
@@ -31,7 +33,7 @@ def check_lock(f):
         _owner.check_lock = True
         f(*args, **kwargs)
         _owner.check_lock = False
-        return 
+        return
     return wrapper
 
 
@@ -68,7 +70,7 @@ class HouseKeeper(object):
         self.event_rule_silent_actions = self.app.config['EVENT_RULE_SILENT_ACTIONS']
         self.event_rule_high_volume_days = self.app.config['EVENT_RULE_HIGH_VOLUME_DAYS']
         self.event_rule_high_volume_hits = self.app.config['EVENT_RULE_HIGH_VOLUME_HITS']
-        
+
         self.logger.info(
             f"Service started.")
         self.logger.info(
@@ -95,7 +97,7 @@ class HouseKeeper(object):
         ''' Checks the health of all agents if the agent hasn't check in for a set
         period of time, set the agent to unhealthy and remove it from any work it has to do
         '''
-        
+
         self.logger.info('Checking for unhealthy agents - Heartbeat TTL')
         issue_label = "Heartbeat TTL Expired"
 
@@ -122,6 +124,39 @@ class HouseKeeper(object):
             agent.save(refresh=True)
 
     @check_lock
+    def check_detection_repo_subscription_sync(self):
+        '''
+        Checks all active detection repository subscriptions and synchronizes
+        them based on the configured sync interval
+        '''
+
+        self.logger.info('Checking detection repository subscriptions')
+        subs = DetectionRepositorySubscription.search()
+        subs = subs.filter('term', active=True)
+
+        # Find all subscriptions that have a next_sync value in the past or
+        # the next_sync field does not exist
+        subs = subs.filter('bool', should=[Q('range', next_sync={
+            'lte': datetime.datetime.utcnow().isoformat()}), Q('bool', must_not=[Q('exists', field='next_sync')])])
+        
+        # The sub must have a repository uuid
+        subs = subs.filter('exists', field='repository')
+
+        subs = subs.scan()
+
+        for sub in subs:
+            repo = DetectionRepository.get_by_uuid(sub.repository)
+
+            if not repo:
+                self.logger.error(f"Unable to find repository {sub.repository} for subscription {sub.uuid}")
+                sub.active = False
+                sub.save(refresh=True)
+                continue
+
+            self.logger.info(f"Syncing detection repository subscription {repo.name}, {repo.uuid}")
+            repo.sync(sub.organization)
+
+    @check_lock
     def check_agent_input_health(self):
         ''' Checks to see if agents that are assigned inputs are still sending
         events
@@ -146,10 +181,12 @@ class HouseKeeper(object):
                 'gte': f"now-{self.agent_health_input_ttl}m"
             }})
 
-        event_search.aggs['agent_events'].bucket('agents', 'terms', field='agent_uuid.keyword', size=10000)
+        event_search.aggs['agent_events'].bucket(
+            'agents', 'terms', field='agent_uuid.keyword', size=10000)
         results = event_search.execute()
         for agent in agents_with_inputs:
-            uuids_with_events = [b.key for b in results.aggregations.agent_events.agents.buckets]
+            uuids_with_events = [
+                b.key for b in results.aggregations.agent_events.agents.buckets]
             if agent.uuid not in uuids_with_events:
                 agent.healthy = False
                 if hasattr(agent, 'health_issues') and agent.health_issues:
@@ -177,14 +214,13 @@ class HouseKeeper(object):
         search = EventRule.search()
         search = search[0:search.count()]
         search = search.filter('bool', should=[Q('range', expires_at={
-                                 'lte': datetime.datetime.utcnow().isoformat()}), Q('bool', must_not=[Q('exists', field='expires_at')])])
+            'lte': datetime.datetime.utcnow().isoformat()}), Q('bool', must_not=[Q('exists', field='expires_at')])])
         rules = search.scan()
         for rule in rules:
             if rule.expired():
                 rule.enabled = False
                 rule.save(refresh=True)
 
-    
     @check_lock
     def check_silent_event_rules(self):
         '''
@@ -208,24 +244,27 @@ class HouseKeeper(object):
 
         # Filter by time range now-Nd
         events = events.filter('range', created_at={
-                    'gte': f"now-{self.event_rule_silent_days}d"})
+            'gte': f"now-{self.event_rule_silent_days}d"})
 
         # Aggregate count of event rule uuids from the events index
-        events.aggs.bucket('event_rules', 'terms', field='event_rules', size=10000)
+        events.aggs.bucket('event_rules', 'terms',
+                           field='event_rules', size=10000)
 
         # Set the size to 0 so we don't get any events back
         events = events[0:0]
 
         # Run the search
         results = events.execute()
-        
-        # Create a list of rules with hits 
-        rules_with_hits = [b.key for b in results.aggregations.event_rules.buckets]
+
+        # Create a list of rules with hits
+        rules_with_hits = [
+            b.key for b in results.aggregations.event_rules.buckets]
 
         # Find all rules that don't have hits and are still enabled
         search = EventRule.search()
         search = search[0:search.count()]
-        search = search.filter('bool', must_not=[Q('terms', uuid=rules_with_hits)])
+        search = search.filter(
+            'bool', must_not=[Q('terms', uuid=rules_with_hits)])
 
         # Filter by certain actions
         if len(self.event_rule_silent_actions) > 0:
@@ -246,10 +285,10 @@ class HouseKeeper(object):
 
         # Only if the rule hasn't been updated in the last N days
         search = search.filter('range', updated_at={
-                    'lte': f"now-{self.event_rule_silent_days}d"})
-        
+            'lte': f"now-{self.event_rule_silent_days}d"})
+
         search = search.filter('term', active=True)
-        
+
         rules = search.scan()
 
         # Disable the rules
@@ -278,10 +317,11 @@ class HouseKeeper(object):
 
         # Filter by time range now-Nd
         events = events.filter('range', created_at={
-                    'gte': f"now-{self.event_rule_high_volume_days}d"})
+            'gte': f"now-{self.event_rule_high_volume_days}d"})
 
         # Aggregate count of event rule uuids from the events index
-        events.aggs.bucket('event_rules', 'terms', field='event_rules', size=10000)
+        events.aggs.bucket('event_rules', 'terms',
+                           field='event_rules', size=10000)
 
         # Set the size to 0 so we don't get any events back
         events = events[0:0]
@@ -290,35 +330,39 @@ class HouseKeeper(object):
         results = events.execute()
 
         # Create a list of rules with hits > N
-        rules_with_high_hits = [b.key for b in results.aggregations.event_rules.buckets if b.doc_count > self.event_rule_high_volume_count]
+        rules_with_high_hits = [
+            b.key for b in results.aggregations.event_rules.buckets if b.doc_count > self.event_rule_high_volume_count]
 
         # Create a list of rules with hits < N
-        rules_withlow_hits = [b.key for b in results.aggregations.event_rules.buckets if b.doc_count < self.event_rule_high_volume_count]
+        rules_withlow_hits = [
+            b.key for b in results.aggregations.event_rules.buckets if b.doc_count < self.event_rule_high_volume_count]
 
         # Find all rules that have hits > N and are still enabled and set the high_volume_rule flag
         search = EventRule.search()
         search = search[0:search.count()]
-        search = search.filter('bool', must=[Q('terms', uuid=rules_with_high_hits)])
+        search = search.filter(
+            'bool', must=[Q('terms', uuid=rules_with_high_hits)])
         search = search.filter('term', active=True)
         rules = search.scan()
 
         # Set the high_volume_rule value to true
         for rule in rules:
-            rule.update(high_volume_rule = True)
+            rule.update(high_volume_rule=True)
 
         # Find all teh rules that have hits < N thave also had high_volume_rule set to true
         # and clear the flag as the volume has dropped
         search = EventRule.search()
         search = search[0:search.count()]
-        search = search.filter('bool', must=[Q('terms', uuid=rules_withlow_hits)])
+        search = search.filter(
+            'bool', must=[Q('terms', uuid=rules_withlow_hits)])
         search = search.filter('term', active=True)
         search = search.filter('term', high_volume_rule=True)
         rules = search.scan()
 
         # Set the high_volume_rule value to false
         for rule in rules:
-            rule.update(high_volume_rule = False)
-    
+            rule.update(high_volume_rule=False)
+
     def prune_old_agents(self):
         ''' Automatically removes any agents that have not actively
         talked to the system in a number of days
