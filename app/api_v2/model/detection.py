@@ -580,8 +580,10 @@ class DetectionRepositorySubscription(base.BaseDocument):
     '''
 
     repository = Keyword()  # The UUID of the repository this subscription belongs to
+    synchronizing = Boolean()  # Whether or not the repository is currently being synchronized
     sync_interval = Integer()  # The sync interval for this subscription, in minutes
     last_sync = Date()  # The last time this repository was synced
+    next_sync = Date() # The next time this repository will be synced
     last_sync_status = Keyword()  # The status of the last sync
     active = Boolean()  # Whether or not this subscription is active
     # The sync settings for this subscription
@@ -801,6 +803,10 @@ class DetectionRepository(base.BaseDocument):
 
             if self.detections and len(self.detections) > 0:
 
+                # Trigger that the sync is starting
+                subscription.synchronizing = True
+                subscription.save(refresh="wait_for")
+
                 input_config = None
 
                 if subscription.default_input:
@@ -883,11 +889,18 @@ class DetectionRepository(base.BaseDocument):
                     # Update the subscription with the last sync time
                     subscription.last_sync = datetime.datetime.utcnow()
                     subscription.last_sync_status = 'success'
+                    subscription.next_sync = datetime.datetime.utcnow() + datetime.timedelta(minutes=subscription.sync_interval)
+                    subscription.synchronizing = False
                     subscription.save(refresh="wait_for")
 
                     # Check to see if any detections exist that are from_repo_sync
 
                     Detection._index.refresh()
+            
+            else:
+                subscription.next_sync = datetime.datetime.utcnow() + datetime.timedelta(minutes=subscription.sync_interval)
+                subscription.synchronizing = False
+                subscription.save(refresh="wait_for")
 
     def add_detections(self, detections):
         ''' Adds detections to the repository '''

@@ -1087,6 +1087,28 @@ class RemoveDetectionException(Resource):
             api.abort(404, f'Detection rule for UUID {uuid} not found')
 
 
+@api.route("/<uuid>/assess")
+class AssessDetection(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_detection_details)
+    @token_required
+    @user_has('update_detection')
+    def put(self, uuid, current_user):
+        '''
+        Sets the assess_rule flag to True
+        '''
+
+        detection = Detection.get_by_uuid(uuid=uuid)
+        if detection:
+            detection.assess_rule = True
+            detection.save(refresh=True)
+
+            return detection
+        else:
+            api.abort(404, f'Detection rule for UUID {uuid} not found')
+
+
 @api.route("/<uuid>")
 class DetectionDetails(Resource):
 

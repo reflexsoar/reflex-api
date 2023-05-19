@@ -718,6 +718,17 @@ class ServiceAccount(base.BaseDocument):
         Returns true if the service account has the specified permission
         '''
         return getattr(self.permissions, permission)
+    
+    def has_org_access(self, organization):
+        ''' Checks if the user has access to the specified organization '''
+
+        if self.organization_scope is None:
+            return False
+
+        if organization in self.organization_scope:
+            return True
+
+        return False
 
     def get_by_name(self, name, organization=None):
         '''

@@ -313,6 +313,12 @@ def create_app(environment='development'):
                 seconds=600
             )
 
+            scheduler.add_job(
+                func=housekeeper.check_detection_repo_subscription_sync,
+                trigger="interval",
+                seconds=300
+            )
+
             if app.config['EVENT_RULE_SILENT_CHECK_ENABLED']:
                 scheduler.add_job(
                     func=housekeeper.check_silent_event_rules,
