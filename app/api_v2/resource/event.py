@@ -340,77 +340,96 @@ class EventListAggregated(Resource):
             if args.observables:
                 search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))           
 
-            raw_event_count = search.count()
+            if args.grouped != False:
+                raw_event_count = search.count()
 
-            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
-            search.aggs['signature'].metric('max_date', 'max', field='original_date')
+                search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
+                search.aggs['signature'].metric('max_date', 'max', field='original_date')
 
-            events = search.execute()
+                events = search.execute()
 
-            event_uuids = []
-            sigs = []
+                event_uuids = []
+                sigs = []
 
-            # Sort the signatures based on what the user has in the sorting options
-            reverse_sort = False
-            if args.sort_direction == 'desc':
-                reverse_sort = True
+                # Sort the signatures based on what the user has in the sorting options
+                reverse_sort = False
+                if args.sort_direction == 'desc':
+                    reverse_sort = True
 
-            sigs = [s['key'] for s in events.aggs.signature.buckets] 
+                sigs = [s['key'] for s in events.aggs.signature.buckets] 
 
-            # START: Second aggregation based on signatures to find first UUID for card display purposes
-            # performance necessary
-            search = Event.search()
-            search = search[:0]
+                # START: Second aggregation based on signatures to find first UUID for card display purposes
+                # performance necessary
+                search = Event.search()
+                search = search[:0]
 
-            # Apply all filters
-            for _filter in search_filters:
-                search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+                # Apply all filters
+                for _filter in search_filters:
+                    search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
-            if args.observables:
-                search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))
+                if args.observables:
+                    search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))
 
-            paged_sigs = sigs[start:end]
-           
-            search = search.filter('terms', signature=paged_sigs)
-
-            number_of_sigs = len(paged_sigs)
-            if number_of_sigs == 0:
-                number_of_sigs = 10000
-
-            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
-            search.aggs['signature'].metric('max_date', 'max', field='original_date')
-            search.aggs['signature'].bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=number_of_sigs)
-            search.aggs['signature']['uuid'].metric('max_date', 'max', field='original_date')
-
-            events = search.execute()
-
-            #sigs2 = sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'])
-            sigs2 = events.aggs.signature.buckets
-            for signature in sigs2:
-                event_uuids.append(signature.uuid.buckets[0]['key'])
-
-            # END: Second aggregation based on signatures to find first UUID for card display purposes
-            # performance necessary
-
-            search = Event.search()
-
-            if args.sort_direction:
-                if args.sort_direction == "desc":
-                    args.sort_by = f"-{args.sort_by}"
-                else:
-                    args.sort_by = f"{args.sort_by}"
-
-            search = search.sort(args.sort_by)
-            search = search.filter('terms', uuid=event_uuids)
-            search = search[0:len(event_uuids)]
-
-            total_events = search.count()
-            pages = math.ceil(float(len(sigs) / args.page_size))
+                paged_sigs = sigs[start:end]
             
-            events = search.execute()
+                search = search.filter('terms', signature=paged_sigs)
 
-            # Apply search filters to the event for performing related event calcuations
-            [e.set_filters(filters=search_filters) for e in events]
+                number_of_sigs = len(paged_sigs)
+                if number_of_sigs == 0:
+                    number_of_sigs = 10000
+
+                search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
+                search.aggs['signature'].metric('max_date', 'max', field='original_date')
+                search.aggs['signature'].bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=number_of_sigs)
+                search.aggs['signature']['uuid'].metric('max_date', 'max', field='original_date')
+
+                events = search.execute()
+
+                #sigs2 = sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'])
+                sigs2 = events.aggs.signature.buckets
+                for signature in sigs2:
+                    event_uuids.append(signature.uuid.buckets[0]['key'])
+
+                # END: Second aggregation based on signatures to find first UUID for card display purposes
+                # performance necessary
+
+                search = Event.search()
+
+                if args.sort_direction:
+                    if args.sort_direction == "desc":
+                        args.sort_by = f"-{args.sort_by}"
+                    else:
+                        args.sort_by = f"{args.sort_by}"
+
+                search = search.sort(args.sort_by)
+                search = search.filter('terms', uuid=event_uuids)
+                search = search[0:len(event_uuids)]
+
+                total_events = search.count()
+                pages = math.ceil(float(len(sigs) / args.page_size))
+                
+                events = search.execute()
+
+                # Apply search filters to the event for performing related event calcuations
+                [e.set_filters(filters=search_filters) for e in events]
+            else:
+
+                if args.sort_direction:
+                    if args.sort_direction == "desc":
+                        args.sort_by = f"-{args.sort_by}"
+                    else:
+                        args.sort_by = f"{args.sort_by}"
+                
+                search = search.sort(args.sort_by)
+
+                search = search[start:end]
+
+                print(search.to_dict())
+
+                total_events = search.count()
+                pages = math.ceil(total_events / args.page_size)
+
+                events = search.execute()
        
         # If filtering by a signature
         else:
