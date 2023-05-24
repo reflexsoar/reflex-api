@@ -199,6 +199,10 @@ mod_detection_details = api.model('DetectionDetails', {
     'average_hits_per_day': fields.Integer,
     'last_assessed': fields.DateTime,
     'average_query_time': fields.Integer,
+    'email_template': fields.String,
+    'test_script': fields.String,
+    'test_script_safe': fields.Boolean,
+    'test_script_language': fields.String
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
@@ -240,7 +244,11 @@ mod_create_detection = api.model('CreateDetection', {
     'new_terms_config': fields.Nested(mod_new_terms_config),
     'include_source_meta_data': fields.Boolean(default=False),
     'daily_schedule': fields.Boolean(required=False),
-    'schedule': fields.Nested(mod_detection_schedule, required=False)
+    'schedule': fields.Nested(mod_detection_schedule, required=False),
+    'email_template': fields.String,
+    'test_script': fields.String,
+    'test_script_safe': fields.Boolean,
+    'test_script_language': fields.String
 }, strict=True)
 
 mod_update_detection = api.model('UpdateDetection', {
@@ -285,6 +293,10 @@ mod_update_detection = api.model('UpdateDetection', {
     'average_hits_per_day': fields.Integer,
     'last_assessed': fields.DateTime,
     'average_query_time': fields.Integer,
+    'email_template': fields.String,
+    'test_script': fields.String,
+    'test_script_safe': fields.Boolean,
+    'test_script_language': fields.String
 }, strict=True)
 
 mod_detection_list_paged = api.model('DetectionListPaged', {
@@ -302,6 +314,8 @@ mod_detection_export = api.model('DetectionExport', {
     'detection_id': fields.String,
     'description': fields.String,
     'guide': fields.String,
+    'setup_guide': fields.String,
+    'testing_guide': fields.String,
     'tags': fields.List(fields.String),
     'tactics': fields.List(fields.Nested(mod_tactic_brief)),
     'techniques': fields.List(fields.Nested(mod_technique_brief)),
@@ -331,7 +345,11 @@ mod_detection_export = api.model('DetectionExport', {
     'indicator_match_config': fields.Nested(mod_indicator_match_config, skip_none=True),
     'include_source_meta_data': fields.Boolean(),
     'status': fields.String,
-    
+    'email_template': fields.String,
+    'test_script': fields.String,
+    'test_script_safe': fields.Boolean,
+    'test_script_language': fields.String(default='python')
+
 })
 
 mod_exported_detections = api.model('ExportedDetections', {
@@ -1463,7 +1481,7 @@ class BulkDeleteDetections(Resource):
         '''
 
         # Find all the detections
-        detections = Detection.get_by_uuid(uuid=api.payload['detections'])
+        detections = Detection.get_by_uuid(uuid=api.payload['detections'], all_results=True)
 
         deleted_detections = []
 
@@ -1543,7 +1561,7 @@ class BulkDisableDetections(Resource):
                 # TODO: Add a access check to make sure this user has access to update
                 # the detection for now we will just check if the user is an admin or in
                 # the detection's organization
-                if current_user.default_org or current_user.organization == detection.organization:
+                if current_user.is_default_org() or current_user.organization == detection.organization:
                     detection.update(active=False, refresh=True)
 
                     # Track which organizations have updated detections so
