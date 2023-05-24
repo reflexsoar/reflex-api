@@ -201,7 +201,8 @@ mod_detection_details = api.model('DetectionDetails', {
     'average_query_time': fields.Integer,
     'email_template': fields.String,
     'test_script': fields.String,
-    'script_is_safe': fields.Boolean
+    'test_script_safe': fields.Boolean,
+    'test_script_language': fields.String
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
@@ -246,7 +247,8 @@ mod_create_detection = api.model('CreateDetection', {
     'schedule': fields.Nested(mod_detection_schedule, required=False),
     'email_template': fields.String,
     'test_script': fields.String,
-    'script_is_safe': fields.Boolean
+    'test_script_safe': fields.Boolean,
+    'test_script_language': fields.String
 }, strict=True)
 
 mod_update_detection = api.model('UpdateDetection', {
@@ -293,7 +295,8 @@ mod_update_detection = api.model('UpdateDetection', {
     'average_query_time': fields.Integer,
     'email_template': fields.String,
     'test_script': fields.String,
-    'script_is_safe': fields.Boolean
+    'test_script_safe': fields.Boolean,
+    'test_script_language': fields.String
 }, strict=True)
 
 mod_detection_list_paged = api.model('DetectionListPaged', {
@@ -344,7 +347,9 @@ mod_detection_export = api.model('DetectionExport', {
     'status': fields.String,
     'email_template': fields.String,
     'test_script': fields.String,
-    'script_is_safe': fields.Boolean
+    'test_script_safe': fields.Boolean,
+    'test_script_language': fields.String(default='python')
+
 })
 
 mod_exported_detections = api.model('ExportedDetections', {

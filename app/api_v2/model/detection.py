@@ -229,7 +229,8 @@ class Detection(base.BaseDocument):
     testing_guide = Text()  # A guide for how to test this detection
     email_template = Text()  # A template for the email notification
     test_script = Text()  # A script to test the detection
-    script_is_safe = Boolean()  # Is the script safe to run?
+    test_script_language = Keyword()  # Is the script safe to run?
+    test_script_safe = Boolean()  # Is the script safe to run?
     tags = Keyword()  # A list of tags used to categorize this repository
     tactics = Nested(MITRETacticTechnique)  # T1085.1
     techniques = Nested(MITRETacticTechnique)  # T1085
