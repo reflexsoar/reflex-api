@@ -199,6 +199,9 @@ mod_detection_details = api.model('DetectionDetails', {
     'average_hits_per_day': fields.Integer,
     'last_assessed': fields.DateTime,
     'average_query_time': fields.Integer,
+    'email_template': fields.String,
+    'test_script': fields.String,
+    'script_is_safe': fields.Boolean
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
@@ -240,7 +243,10 @@ mod_create_detection = api.model('CreateDetection', {
     'new_terms_config': fields.Nested(mod_new_terms_config),
     'include_source_meta_data': fields.Boolean(default=False),
     'daily_schedule': fields.Boolean(required=False),
-    'schedule': fields.Nested(mod_detection_schedule, required=False)
+    'schedule': fields.Nested(mod_detection_schedule, required=False),
+    'email_template': fields.String,
+    'test_script': fields.String,
+    'script_is_safe': fields.Boolean
 }, strict=True)
 
 mod_update_detection = api.model('UpdateDetection', {
@@ -285,6 +291,9 @@ mod_update_detection = api.model('UpdateDetection', {
     'average_hits_per_day': fields.Integer,
     'last_assessed': fields.DateTime,
     'average_query_time': fields.Integer,
+    'email_template': fields.String,
+    'test_script': fields.String,
+    'script_is_safe': fields.Boolean
 }, strict=True)
 
 mod_detection_list_paged = api.model('DetectionListPaged', {
@@ -302,6 +311,8 @@ mod_detection_export = api.model('DetectionExport', {
     'detection_id': fields.String,
     'description': fields.String,
     'guide': fields.String,
+    'setup_guide': fields.String,
+    'testing_guide': fields.String,
     'tags': fields.List(fields.String),
     'tactics': fields.List(fields.Nested(mod_tactic_brief)),
     'techniques': fields.List(fields.Nested(mod_technique_brief)),
@@ -331,7 +342,9 @@ mod_detection_export = api.model('DetectionExport', {
     'indicator_match_config': fields.Nested(mod_indicator_match_config, skip_none=True),
     'include_source_meta_data': fields.Boolean(),
     'status': fields.String,
-    
+    'email_template': fields.String,
+    'test_script': fields.String,
+    'script_is_safe': fields.Boolean
 })
 
 mod_exported_detections = api.model('ExportedDetections', {
