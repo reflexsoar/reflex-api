@@ -1543,7 +1543,7 @@ class BulkDisableDetections(Resource):
                 # TODO: Add a access check to make sure this user has access to update
                 # the detection for now we will just check if the user is an admin or in
                 # the detection's organization
-                if current_user.default_org or current_user.organization == detection.organization:
+                if current_user.is_default_org() or current_user.organization == detection.organization:
                     detection.update(active=False, refresh=True)
 
                     # Track which organizations have updated detections so
