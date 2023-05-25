@@ -908,10 +908,10 @@ class DetectionFilters(Resource):
             bucket.key for bucket in detections.aggregations.techniques.technique_names.buckets]
 
         # Get the names for the keys we found
-        _orgs = Organization.get_by_uuid(org_keys)
+        _orgs = Organization.get_by_uuid(org_keys, all_results=True)
         if _orgs:
             _orgs = {org.uuid: org.name for org in _orgs}
-        _repos = DetectionRepository.get_by_uuid(repo_keys)
+        _repos = DetectionRepository.get_by_uuid(repo_keys, all_results=True)
         if _repos:
             _repos = {repo.uuid: repo.name for repo in _repos}
         _tactics = MITRETactic.get_by_external_id(tactic_keys)
@@ -1409,7 +1409,7 @@ class DetectionExportSelected(Resource):
         Returns the detection rules as a JSON object
         '''
 
-        detections = Detection.get_by_uuid(uuid=api.payload['detections'])
+        detections = Detection.get_by_uuid(uuid=api.payload['detections'], all_results=True)
 
         if detections:
             return detections
