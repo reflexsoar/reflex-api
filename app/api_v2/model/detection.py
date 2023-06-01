@@ -815,7 +815,7 @@ class DetectionRepository(base.BaseDocument):
 
                 if subscription.default_input:
                     _input = Input.get_by_uuid(subscription.default_input)
-                    
+
                     if not _input:
                         return False
 
@@ -842,6 +842,7 @@ class DetectionRepository(base.BaseDocument):
                                 organization=organization,
                                 tactics=detection.tactics,
                                 techniques=detection.techniques,
+                                references=detection.references,
                                 rule_type=detection.rule_type,
                                 version=detection.version,
                                 risk_score=detection.risk_score,
@@ -879,6 +880,7 @@ class DetectionRepository(base.BaseDocument):
 
                             existing_detection.tactics = detection.tactics
                             existing_detection.techniques = detection.techniques
+                            existing_detection.references = detection.references
                             existing_detection.rule_type = detection.rule_type
                             existing_detection.version = detection.version
                             existing_detection.from_repo_sync = True
