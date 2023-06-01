@@ -814,11 +814,15 @@ class DetectionRepository(base.BaseDocument):
                 input_config = None
 
                 if subscription.default_input:
-                    input = Input.get_by_uuid(subscription.default_input)
+                    _input = Input.get_by_uuid(subscription.default_input)
+                    
+                    if not _input:
+                        return False
+
                     input_config = {
-                        'uuid': input.uuid,
+                        'uuid': _input.uuid,
                         'language': '',
-                        'name': input.name,
+                        'name': _input.name,
                     }
 
                 if self.repo_type == 'local':
