@@ -863,6 +863,10 @@ class DetectionRepository(base.BaseDocument):
                                 guide=detection.guide,
                                 setup_guide=detection.setup_guide,
                                 testing_guide=detection.testing_guide,
+                                test_script=detection.test_script,
+                                test_script_language=detection.test_script_language,
+                                test_script_safe=detection.test_script_safe,
+                                email_template=detection.email_template,
                                 status=detection.status,
                                 source=input_config,
                                 assess_rule=True
@@ -884,6 +888,10 @@ class DetectionRepository(base.BaseDocument):
                             existing_detection.rule_type = detection.rule_type
                             existing_detection.version = detection.version
                             existing_detection.from_repo_sync = True
+                            existing_detection.test_script = detection.test_script
+                            existing_detection.test_script_language = detection.test_script_language
+                            existing_detection.test_script_safe = detection.test_script_safe
+                            existing_detection.email_template = detection.email_template
 
                             # Set all the attributes based on the sync settings
                             sync_settings = subscription.sync_settings.to_dict()
