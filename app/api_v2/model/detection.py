@@ -814,11 +814,15 @@ class DetectionRepository(base.BaseDocument):
                 input_config = None
 
                 if subscription.default_input:
-                    input = Input.get_by_uuid(subscription.default_input)
+                    _input = Input.get_by_uuid(subscription.default_input)
+
+                    if not _input:
+                        return False
+
                     input_config = {
-                        'uuid': input.uuid,
+                        'uuid': _input.uuid,
                         'language': '',
-                        'name': input.name,
+                        'name': _input.name,
                     }
 
                 if self.repo_type == 'local':
@@ -838,6 +842,7 @@ class DetectionRepository(base.BaseDocument):
                                 organization=organization,
                                 tactics=detection.tactics,
                                 techniques=detection.techniques,
+                                references=detection.references,
                                 rule_type=detection.rule_type,
                                 version=detection.version,
                                 risk_score=detection.risk_score,
@@ -858,6 +863,10 @@ class DetectionRepository(base.BaseDocument):
                                 guide=detection.guide,
                                 setup_guide=detection.setup_guide,
                                 testing_guide=detection.testing_guide,
+                                test_script=detection.test_script,
+                                test_script_language=detection.test_script_language,
+                                test_script_safe=detection.test_script_safe,
+                                email_template=detection.email_template,
                                 status=detection.status,
                                 source=input_config,
                                 assess_rule=True
@@ -875,9 +884,14 @@ class DetectionRepository(base.BaseDocument):
 
                             existing_detection.tactics = detection.tactics
                             existing_detection.techniques = detection.techniques
+                            existing_detection.references = detection.references
                             existing_detection.rule_type = detection.rule_type
                             existing_detection.version = detection.version
                             existing_detection.from_repo_sync = True
+                            existing_detection.test_script = detection.test_script
+                            existing_detection.test_script_language = detection.test_script_language
+                            existing_detection.test_script_safe = detection.test_script_safe
+                            existing_detection.email_template = detection.email_template
 
                             # Set all the attributes based on the sync settings
                             sync_settings = subscription.sync_settings.to_dict()
