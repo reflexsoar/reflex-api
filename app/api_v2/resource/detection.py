@@ -91,6 +91,18 @@ mod_new_terms_config = api.model('NewTermsConfig', {
     'window_size': fields.Integer
 }, strict=True)
 
+mod_source_monitor_config = api.model('SourceMonitorConfig', {
+    'data_sources': fields.List(fields.String),
+    'source_lists': fields.List(fields.Nested(mod_intel_list)),
+    'excluded_sources': fields.List(fields.String),
+    'excluded_source_lists': fields.List(fields.Nested(mod_intel_list)),
+    'delta_change': fields.Boolean,
+    'delta_window': fields.Integer,
+    'operator': fields.String,
+    'threshold': fields.Integer,
+    'threshold_as_percent': fields.Boolean
+})
+
 mod_field_mistmatch_config = api.model('FieldMismatchConfig', {
     'source_field': fields.String,
     'target_field': fields.String,
@@ -186,6 +198,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config, skip_none=True),
     'new_terms_config': fields.Nested(mod_new_terms_config, skip_none=True),
     'indicator_match_config': fields.Nested(mod_indicator_match_config, skip_none=True),
+    'source_monitor_config': fields.Nested(mod_source_monitor_config, skip_none=True),
     'include_source_meta_data': fields.Boolean(),
     'created_at': ISO8601,
     'created_by': fields.Nested(mod_user_list, skip_none=True),
@@ -242,6 +255,7 @@ mod_create_detection = api.model('CreateDetection', {
     'metric_change_config': fields.Nested(mod_metric_change_config),
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
     'new_terms_config': fields.Nested(mod_new_terms_config),
+    'source_monitor_config': fields.Nested(mod_source_monitor_config),
     'include_source_meta_data': fields.Boolean(default=False),
     'daily_schedule': fields.Boolean(required=False),
     'schedule': fields.Nested(mod_detection_schedule, required=False),
@@ -284,6 +298,7 @@ mod_update_detection = api.model('UpdateDetection', {
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config),
     'new_terms_config': fields.Nested(mod_new_terms_config),
     'indicator_match_config': fields.Nested(mod_indicator_match_config),
+    'source_monitor_config': fields.Nested(mod_source_monitor_config),
     'include_source_meta_data': fields.Boolean(),
     'status': fields.String(default='Draft', required=False, enum=VALID_DETECTION_STATUS),
     'daily_schedule': fields.Boolean(required=False),
@@ -343,6 +358,7 @@ mod_detection_export = api.model('DetectionExport', {
     'field_mismatch_config': fields.Nested(mod_field_mistmatch_config, skip_none=True),
     'new_terms_config': fields.Nested(mod_new_terms_config, skip_none=True),
     'indicator_match_config': fields.Nested(mod_indicator_match_config, skip_none=True),
+    'source_monitor_config': fields.Nested(mod_source_monitor_config, skip_none=True),
     'include_source_meta_data': fields.Boolean(),
     'status': fields.String,
     'email_template': fields.String,

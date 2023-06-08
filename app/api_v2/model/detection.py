@@ -160,6 +160,21 @@ class SourceConfig(base.InnerDoc):
     uuid = Keyword()
 
 
+class SourceMonitorConfig(base.InnerDoc):
+    '''
+    Defines settings for a SourceMonitor detection type
+    '''
+    data_sources = Keyword()
+    source_lists = Keyword()
+    excluded_sources = Keyword()
+    excluded_source_lists = Keyword()
+    delta_change = Boolean() # True = delta change, False = absolute change
+    delta_window = Integer() # How far back to look for the delta
+    operator = Keyword() # The operator to use e.g. >, <, >=, <=, ==, !=
+    threshold = Integer() # The threshold e.g. 10 which is 10 items or 10%
+    threshold_as_percent = Boolean() # True = threshold is a percent, False = threshold is a value
+
+
 class DetectionLog(base.BaseDocument):
     '''
     A log entry for the detection for troubleshooting and history tracking
@@ -276,6 +291,7 @@ class Detection(base.BaseDocument):
     field_mismatch_config = Object(FieldMismatchConfig)
     new_terms_config = Object(NewTermsConfig)
     indicator_match_config = Object(IndicatorMatchConfig)
+    source_monitor_config = Object(SourceMonitorConfig)
     assigned_agent = Keyword()  # The UUID of the agent that should run this alarm
     # If true the detection will include the meta data from the source event in the alert
     include_source_meta_data = Boolean()
