@@ -233,7 +233,7 @@ class DetectionRepositorySync(Resource):
     @api.doc(security="Bearer")
     @token_required
     @user_has('subscribe_detection_repository')
-    def post    (self, current_user, uuid):
+    def post(self, current_user, uuid):
         '''Forces a sync of the repository'''
         repository = DetectionRepository.get_by_uuid(uuid)
 
@@ -548,6 +548,10 @@ class DetectionRepositoryList(Resource):
             # If the detection is from a repository sync, remove it from the list as sharing
             # detections from a repo in another repo is not supported
             data['detections'] = [d.detection_id for d in detections if d.from_repo_sync is not True]
+
+        # Set the default risk score if one is not provided
+        if 'risk_score' not in data:
+            data['risk_score'] = 50
 
         existing_repo = DetectionRepository.get_by_name(name=data['name'], organization=data['organization'])
         if existing_repo:
