@@ -1388,6 +1388,17 @@ class ParseSigma(Resource):
         #sigma_parser = SigmaParser()
         #detection = sigma_parser.parse(sigma_rule)
 
+        sev_map = {
+            1: 1,
+            2: 30,
+            3: 60,
+            4: 90   
+        }
+
+        # Set the default risk score based on the severity field
+        if hasattr(detection, 'severity'):
+            detection.risk_score = sev_map[detection.severity]
+
         return detection
 
 
