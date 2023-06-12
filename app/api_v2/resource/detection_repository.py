@@ -72,7 +72,8 @@ mod_repo_subscription_sync_settings = api.model('DetectionRepositorySubscription
 mod_repo_subscribe = api.model('DetectionRepositorySubscribe', {
     'sync_interval': fields.Integer,
     'sync_settings': fields.Nested(mod_repo_subscription_sync_settings),
-    'default_input': fields.String()
+    'default_input': fields.String() ,
+    'default_field_template': fields.String(),
 })
 
 mod_detection_add = api.model('DetectionRepositoryAddDetections', {
@@ -327,12 +328,17 @@ class DetectionRepositorySubscribe(Resource):
             sync_interval = data['sync_interval']
             sync_settings = data['sync_settings']
             default_input = None
+            default_field_template = None
             if 'default_input' in data:
                 default_input = data['default_input']
+
+            if 'default_field_template' in data:
+                default_field_template = data['default_field_template']
             
             subscription = repository.subscribe(sync_interval=sync_interval,
                                                 sync_settings=sync_settings,
-                                                default_input=default_input)
+                                                default_input=default_input,
+                                                default_field_template=default_field_template)
         except ValueError as e:
             api.abort(400, str(e))
 

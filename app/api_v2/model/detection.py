@@ -611,6 +611,7 @@ class DetectionRepositorySubscription(base.BaseDocument):
     # The UUID of the default input for any detections created from this
     # repository subscription
     default_input = Keyword()
+    default_field_template = Keyword()  # The UUID of the default field template
 
     class Index:
         name = "reflex-detection-repository-subscriptions"
@@ -720,7 +721,8 @@ class DetectionRepository(base.BaseDocument):
         '''
         return DetectionRepositorySubscription.get_by_repository(self.uuid)
 
-    def subscribe(self, sync_settings, sync_interval=60, default_input=None):
+    def subscribe(self, sync_settings, sync_interval=60, default_input=None,
+                  default_field_template=None):
         '''
         Creates a subscription for this repository
         '''
@@ -732,6 +734,7 @@ class DetectionRepository(base.BaseDocument):
                 sync_interval=sync_interval,
                 sync_settings=sync_settings,
                 default_input=default_input,
+                default_field_template=default_field_template,
                 last_sync=datetime.datetime.utcnow(),
                 last_sync_status='pending',
                 active=True
@@ -839,6 +842,18 @@ class DetectionRepository(base.BaseDocument):
                         'uuid': _input.uuid,
                         'language': '',
                         'name': _input.name,
+                    }
+
+                if subscription.default_field_template:
+                    field_template = FieldMappingTemplate.get_by_uuid(
+                        subscription.default_field_template)
+
+                    if not field_template:
+                        return False
+
+                    field_template_config = {
+                        'uuid': field_template.uuid,
+                        'name': field_template.name,
                     }
 
                 if self.repo_type == 'local':
