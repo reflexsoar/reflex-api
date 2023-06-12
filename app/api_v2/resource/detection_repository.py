@@ -227,6 +227,36 @@ class DetectionRepositoryDetails(Resource):
         return {'message': 'Repository deleted'}, 200
 
 
+@api.route('/<string:uuid>/sync_local_subscribers')
+class DetectionRepositorySyncLocalSubscribers(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('sync_local_subscribers')
+    def post(self, current_user, uuid):
+        '''
+        Forces a sync of the repository for all local subscribers.  The user
+        must have the sync_local_subscribers permission to perform this action
+        and must be a member of the default organization.
+        '''
+
+        if not current_user.is_default_org:
+            api.abort(403, 'You do not have permission to sync local subscribers')
+
+        # Get the repository
+        repository = DetectionRepository.get_by_uuid(uuid)
+
+        # Locate all the local subscriptions for this repository
+        subscriptions = DetectionRepositorySubscription.get_by_repository(uuid=uuid)
+
+        # Sync the repository for each local subscriber
+        for subscription in subscriptions:
+            repository.sync(organization=subscription.organization,
+                            subscription=subscription)
+            
+        return {'message': 'Syncing repository'}, 200
+
+
 @api.route('/<string:uuid>/sync')
 class DetectionRepositorySync(Resource):
 

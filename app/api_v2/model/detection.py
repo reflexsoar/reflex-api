@@ -810,12 +810,13 @@ class DetectionRepository(base.BaseDocument):
 
         return self.read_only
 
-    def sync(self, organization):
+    def sync(self, organization, subscription=None):
         ''' Synchronizes the repository if it is a local repository '''
 
         # Get the configuration for the repository sync via the subscription
-        subscription = DetectionRepositorySubscription.get_by_repository(
-            self.uuid, organization=organization)
+        if not subscription:
+            subscription = DetectionRepositorySubscription.get_by_repository(
+                self.uuid, organization=organization)
 
         if subscription:
 
