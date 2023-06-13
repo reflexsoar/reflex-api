@@ -846,16 +846,14 @@ class DetectionRepository(base.BaseDocument):
                     }
 
                 if subscription.default_field_template:
+                    
                     field_template = FieldMappingTemplate.get_by_uuid(
                         subscription.default_field_template)
 
                     if not field_template:
                         return False
-
-                    field_template_config = {
-                        'uuid': field_template.uuid,
-                        'name': field_template.name,
-                    }
+                else:
+                    subscription.default_field_template = []
 
                 if self.repo_type == 'local':
                     detections_to_sync = Detection.get_by_detection_id(
@@ -901,6 +899,7 @@ class DetectionRepository(base.BaseDocument):
                                 email_template=detection.email_template,
                                 status=detection.status,
                                 source=input_config,
+                                field_templates=subscription.default_field_template,
                                 assess_rule=True
                             )
                             new_detection.save()
