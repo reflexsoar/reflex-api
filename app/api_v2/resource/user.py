@@ -402,8 +402,6 @@ class UserList(Resource):
     def post(self, current_user):
         ''' Creates a new user '''
 
-        print(api.payload)
-
         # Check to see if the user already exists
         user = User.get_by_email(api.payload['email'])
         if user:
