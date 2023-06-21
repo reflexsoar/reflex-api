@@ -981,7 +981,8 @@ class DetectionFilters(Resource):
             1: 'Threshold',
             2: 'Metric',
             3: 'Field Mismatch',
-            5: 'Indicator Match'
+            5: 'Indicator Match',
+            6: 'Data Source Monitoring'
         }
 
         filters['rule_type'] = [{'name': rule_type_names[bucket.key], 'value': bucket.key, 'count': bucket.doc_count} for bucket in detections.aggregations.rule_type.buckets]
