@@ -981,7 +981,8 @@ class DetectionFilters(Resource):
             1: 'Threshold',
             2: 'Metric',
             3: 'Field Mismatch',
-            5: 'Indicator Match'
+            5: 'Indicator Match',
+            6: 'Data Source Monitoring'
         }
 
         filters['rule_type'] = [{'name': rule_type_names[bucket.key], 'value': bucket.key, 'count': bucket.doc_count} for bucket in detections.aggregations.rule_type.buckets]
@@ -1387,6 +1388,17 @@ class ParseSigma(Resource):
 
         #sigma_parser = SigmaParser()
         #detection = sigma_parser.parse(sigma_rule)
+
+        sev_map = {
+            1: 1,
+            2: 30,
+            3: 60,
+            4: 90   
+        }
+
+        # Set the default risk score based on the severity field
+        if hasattr(detection, 'severity'):
+            detection.risk_score = sev_map[detection.severity]
 
         return detection
 

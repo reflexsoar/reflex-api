@@ -72,7 +72,8 @@ mod_repo_subscription_sync_settings = api.model('DetectionRepositorySubscription
 mod_repo_subscribe = api.model('DetectionRepositorySubscribe', {
     'sync_interval': fields.Integer,
     'sync_settings': fields.Nested(mod_repo_subscription_sync_settings),
-    'default_input': fields.String()
+    'default_input': fields.String() ,
+    'default_field_template': fields.String(),
 })
 
 mod_detection_add = api.model('DetectionRepositoryAddDetections', {
@@ -226,13 +227,43 @@ class DetectionRepositoryDetails(Resource):
         return {'message': 'Repository deleted'}, 200
 
 
+@api.route('/<string:uuid>/sync_local_subscribers')
+class DetectionRepositorySyncLocalSubscribers(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('sync_local_subscribers')
+    def post(self, current_user, uuid):
+        '''
+        Forces a sync of the repository for all local subscribers.  The user
+        must have the sync_local_subscribers permission to perform this action
+        and must be a member of the default organization.
+        '''
+
+        if not current_user.is_default_org:
+            api.abort(403, 'You do not have permission to sync local subscribers')
+
+        # Get the repository
+        repository = DetectionRepository.get_by_uuid(uuid)
+
+        # Locate all the local subscriptions for this repository
+        subscriptions = DetectionRepositorySubscription.get_by_repository(uuid=uuid)
+
+        # Sync the repository for each local subscriber
+        for subscription in subscriptions:
+            repository.sync(organization=subscription.organization,
+                            subscription=subscription)
+            
+        return {'message': 'Syncing repository'}, 200
+
+
 @api.route('/<string:uuid>/sync')
 class DetectionRepositorySync(Resource):
 
     @api.doc(security="Bearer")
     @token_required
     @user_has('subscribe_detection_repository')
-    def post    (self, current_user, uuid):
+    def post(self, current_user, uuid):
         '''Forces a sync of the repository'''
         repository = DetectionRepository.get_by_uuid(uuid)
 
@@ -327,12 +358,17 @@ class DetectionRepositorySubscribe(Resource):
             sync_interval = data['sync_interval']
             sync_settings = data['sync_settings']
             default_input = None
+            default_field_template = None
             if 'default_input' in data:
                 default_input = data['default_input']
+
+            if 'default_field_template' in data:
+                default_field_template = data['default_field_template']
             
             subscription = repository.subscribe(sync_interval=sync_interval,
                                                 sync_settings=sync_settings,
-                                                default_input=default_input)
+                                                default_input=default_input,
+                                                default_field_template=default_field_template)
         except ValueError as e:
             api.abort(400, str(e))
 
@@ -542,6 +578,10 @@ class DetectionRepositoryList(Resource):
             # If the detection is from a repository sync, remove it from the list as sharing
             # detections from a repo in another repo is not supported
             data['detections'] = [d.detection_id for d in detections if d.from_repo_sync is not True]
+
+        # Set the default risk score if one is not provided
+        if 'risk_score' not in data:
+            data['risk_score'] = 50
 
         existing_repo = DetectionRepository.get_by_name(name=data['name'], organization=data['organization'])
         if existing_repo:

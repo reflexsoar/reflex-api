@@ -611,6 +611,7 @@ class DetectionRepositorySubscription(base.BaseDocument):
     # The UUID of the default input for any detections created from this
     # repository subscription
     default_input = Keyword()
+    default_field_template = Keyword()  # The UUID of the default field template
 
     class Index:
         name = "reflex-detection-repository-subscriptions"
@@ -720,7 +721,8 @@ class DetectionRepository(base.BaseDocument):
         '''
         return DetectionRepositorySubscription.get_by_repository(self.uuid)
 
-    def subscribe(self, sync_settings, sync_interval=60, default_input=None):
+    def subscribe(self, sync_settings, sync_interval=60, default_input=None,
+                  default_field_template=None):
         '''
         Creates a subscription for this repository
         '''
@@ -732,6 +734,7 @@ class DetectionRepository(base.BaseDocument):
                 sync_interval=sync_interval,
                 sync_settings=sync_settings,
                 default_input=default_input,
+                default_field_template=default_field_template,
                 last_sync=datetime.datetime.utcnow(),
                 last_sync_status='pending',
                 active=True
@@ -807,12 +810,13 @@ class DetectionRepository(base.BaseDocument):
 
         return self.read_only
 
-    def sync(self, organization):
+    def sync(self, organization, subscription=None):
         ''' Synchronizes the repository if it is a local repository '''
 
         # Get the configuration for the repository sync via the subscription
-        subscription = DetectionRepositorySubscription.get_by_repository(
-            self.uuid, organization=organization)
+        if not subscription:
+            subscription = DetectionRepositorySubscription.get_by_repository(
+                self.uuid, organization=organization)
 
         if subscription:
 
@@ -840,6 +844,16 @@ class DetectionRepository(base.BaseDocument):
                         'language': '',
                         'name': _input.name,
                     }
+
+                if subscription.default_field_template:
+                    
+                    field_template = FieldMappingTemplate.get_by_uuid(
+                        subscription.default_field_template)
+
+                    if not field_template:
+                        return False
+                else:
+                    subscription.default_field_template = []
 
                 if self.repo_type == 'local':
                     detections_to_sync = Detection.get_by_detection_id(
@@ -885,6 +899,7 @@ class DetectionRepository(base.BaseDocument):
                                 email_template=detection.email_template,
                                 status=detection.status,
                                 source=input_config,
+                                field_templates=subscription.default_field_template,
                                 assess_rule=True
                             )
                             new_detection.save()
