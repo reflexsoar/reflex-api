@@ -80,12 +80,11 @@ def redistribute_detections(organization=None):
             for i in range(0,len(detection_sets)):
                 for detection in detection_sets[i]:
                     if detection.active:
-                        if detection.assigned_agent != agents[i].uuid:                            
+                        if detection.assigned_agent != agents[i].uuid:
                             detection.assigned_agent = agents[i].uuid
                             detection.save(skip_update_by=True, refresh=True)
-        else:
+        #else:
             # If there are no agents set all assigned_agents to None
-            for detection in detections:
-                detection.assigned_agent = None
-                detection.save(skip_update_by=True, refresh=True)
-                    
+            #for detection in detections:
+                #detection.assigned_agent = None
+                #detection.save(skip_update_by=True, refresh=True)
