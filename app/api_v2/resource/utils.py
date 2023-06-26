@@ -3,7 +3,7 @@ import datetime
 import ipaddress
 from functools import lru_cache
 import requests
-from ..model import Agent, Detection, Tag
+from ..model import Agent, Detection, Tag, UpdateByQuery
 
 def time_since(start_time, message, format="s"):
     '''
@@ -78,13 +78,31 @@ def redistribute_detections(organization=None):
                 detection_sets = list(chunks(detections, math.ceil(len(detections)/len(agents))))
 
             for i in range(0,len(detection_sets)):
-                for detection in detection_sets[i]:
-                    if detection.active:
-                        if detection.assigned_agent != agents[i].uuid:
-                            detection.assigned_agent = agents[i].uuid
-                            detection.save(skip_update_by=True, refresh=True)
-        #else:
-            # If there are no agents set all assigned_agents to None
-            #for detection in detections:
-                #detection.assigned_agent = None
-                #detection.save(skip_update_by=True, refresh=True)
+
+                # Fix for slow agent redistribution, looping through each
+                # detection was a bottleneck
+                uuids = [detection.uuid for detection in detection_sets[i]]
+
+                update_by_query = UpdateByQuery(index=Detection._index._name)
+                update_by_query = update_by_query.filter("terms", uuid=uuids)
+                update_by_query = update_by_query.script(
+                    source=f"ctx._source.assigned_agent = '{agents[i].uuid}'"
+                )
+
+                # Wait for a refresh to make sure the changes are available for the next function
+                update_by_query.params(wait_for_completion=True)
+
+                update_by_query.execute()
+
+        else:
+
+            update_by_query = UpdateByQuery(index=Detection._index._name)
+            update_by_query = update_by_query.filter("term", organization=organization)
+            update_by_query = update_by_query.script(
+                source="ctx._source.assigned_agent = null"
+            )
+
+            # Wait for a refresh to make sure the changes are available for the next function
+            update_by_query.params(wait_for_completion=True)
+
+            update_by_query.execute()

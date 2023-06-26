@@ -19,7 +19,8 @@ from ..model import (
     Input,
     MITRETactic,
     MITRETechnique,
-    DetectionRepository
+    DetectionRepository,
+    UpdateByQuery
 )
 from .shared import mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
@@ -1466,6 +1467,8 @@ class BulkEnableDetections(Resource):
 
         if detections:
 
+            detections_to_enable = []
+
             # Update each detection
             for detection in detections:
 
@@ -1477,16 +1480,31 @@ class BulkEnableDetections(Resource):
                 # the detection for now we will just check if the user is an admin or in
                 # the detection's organization
                 if current_user.is_default_org or current_user.organization == detection.organization:
-                    detection.update(active=True, refresh=True)
+                    detections_to_enable.append(detection.uuid)
 
                     # Track which organizations have updated detections so
                     # the detection workload can be redistributed
                     if detection.organization not in updated_orgs:
                         updated_orgs.append(detection.organization)
 
+            # Update the detections using a bulk update
+            if len(detections_to_enable) > 0:
+                update_by_query = UpdateByQuery(index=Detection._index._name)
+                update_by_query = update_by_query.filter("terms", uuid=detections_to_enable)
+
+                # Force a refresh
+                update_by_query = update_by_query.params(refresh=True)
+
+                update_by_query = update_by_query.script(
+                    source="ctx._source.active = params.active",
+                    params={"active": True})
+                update_by_query.execute()
+
             # Redistribute the detection workload for each organization
             for organization in updated_orgs:
                 redistribute_detections(organization)
+
+            detections = Detection.get_by_uuid(uuid=detections_to_enable, all_results=True)
 
             return detections
 
@@ -1579,6 +1597,8 @@ class BulkDisableDetections(Resource):
 
         if detections:
 
+            detections_to_disable = []
+
             # Update each detection
             for detection in detections:
 
@@ -1590,16 +1610,31 @@ class BulkDisableDetections(Resource):
                 # the detection for now we will just check if the user is an admin or in
                 # the detection's organization
                 if current_user.is_default_org() or current_user.organization == detection.organization:
-                    detection.update(active=False, refresh=True)
+                    detections_to_disable.append(detection.uuid)
 
                     # Track which organizations have updated detections so
                     # the detection workload can be redistributed
                     if detection.organization not in updated_orgs:
                         updated_orgs.append(detection.organization)
 
+            # Update the detections using a bulk update
+            if len(detections_to_disable) > 0:
+                update_by_query = UpdateByQuery(index=Detection._index._name)
+                update_by_query = update_by_query.filter("terms", uuid=detections_to_disable)
+
+                # Force a refresh
+                update_by_query = update_by_query.params(refresh=True)
+
+                update_by_query = update_by_query.script(
+                    source="ctx._source.active = params.active",
+                    params={"active": False})
+                update_by_query.execute()
+
             # Redistribute the detection workload for each organization
             for organization in updated_orgs:
                 redistribute_detections(organization)
+
+            detections = Detection.get_by_uuid(uuid=detections_to_disable, all_results=True)
 
             return detections
 
