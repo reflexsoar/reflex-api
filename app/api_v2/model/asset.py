@@ -19,6 +19,28 @@ VALID_ASSET_TYPES = ['user','group','host']
 VALID_USER_TYPES = ['local','domain','service','network','database']
 
 
+class SoftwareAsset(base.InnerDoc):
+    '''
+    Defines all the attributes that would typically reside on a software asset
+    '''
+
+    name = Keyword() # The name of the software
+    description = Keyword(fields={'text':Text()}) # The description of the software
+    version = Keyword() # The version of the software
+    publisher = Keyword() # The publisher of the software
+    first_seen = Date() # The first time the software was seen
+    last_seen = Date() # The last time the software was seen
+    risk_modifier = Integer() # The risk modifier of the software
+    sanctioned = Boolean() # Whether the software is sanctioned or not
+    computer_name = Keyword() # The computer name of the software
+
+    class Index:
+        name = 'reflex-software-assets'
+        settings = {
+            'refresh_interval': '5s',
+        }
+
+
 class OperatingSystem(base.InnerDoc):
     '''Defines all the attributes that would typically reside on an operating system asset'''
 

@@ -199,7 +199,7 @@ class AgentList(Resource):
             token = generate_token(str(
                 agent.uuid), 525600*5, token_type='agent', organization=current_user['organization'])
 
-            #redistribute_detections(agent.organization)
+            redistribute_detections(agent.organization)
 
             return {'message': 'Successfully created the agent.', 'uuid': str(agent.uuid), 'token': token}
         else:
