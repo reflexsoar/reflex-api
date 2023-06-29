@@ -176,6 +176,7 @@ class Event(base.BaseDocument):
     time_to_act = Float()
     time_to_close = Float()
     time_to_dismiss = Float()
+    time_to_detection = Float()
     event_rules = Keyword()
     raw_log = Text()
     sla_breach_time = Date() # The time the SLA was breached
