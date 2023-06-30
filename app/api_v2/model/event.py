@@ -143,6 +143,7 @@ class EventMetrics(InnerDoc):
     event_rule_duration = Float()
     auto_data_type_extraction = Boolean()
     first_touch = Date()
+    total_abandons = Integer()
     total_touches = Integer()
 
 
@@ -176,6 +177,7 @@ class Event(base.BaseDocument):
     time_to_act = Float()
     time_to_close = Float()
     time_to_dismiss = Float()
+    time_to_detection = Float()
     event_rules = Keyword()
     raw_log = Text()
     sla_breach_time = Date() # The time the SLA was breached
@@ -335,6 +337,30 @@ class Event(base.BaseDocument):
         Assigns a case to the event
         '''
         self.case = uuid
+        self.save()
+
+    def acknowledge(self, user):
+        '''
+        Acknowledges the event and sets the user that acknowledged it
+        '''
+        self.acknowledged = True
+        self.acknowledged_by = user.username
+        self.set_open()
+        self.save()
+
+    def unacknowledge(self):
+        '''
+        Unacknowledges the event
+        '''
+        self.acknowledged = False
+        self.acknowledged_by = None
+
+        # Set the initial value of total abandons if it doesn't exist
+        if not hasattr(self, 'total_abandons'):
+            self.total_abandons = 0
+
+        self.total_abandons += 1
+        self.set_new()
         self.save()
 
     def hash_event(self, data_types=['host', 'user', 'ip'], observables=[]):
