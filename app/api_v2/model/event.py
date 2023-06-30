@@ -339,6 +339,30 @@ class Event(base.BaseDocument):
         self.case = uuid
         self.save()
 
+    def acknowledge(self, user):
+        '''
+        Acknowledges the event and sets the user that acknowledged it
+        '''
+        self.acknowledged = True
+        self.acknowledged_by = user.username
+        self.set_open()
+        self.save()
+
+    def unacknowledge(self):
+        '''
+        Unacknowledges the event
+        '''
+        self.acknowledged = False
+        self.acknowledged_by = None
+
+        # Set the initial value of total abandons if it doesn't exist
+        if not hasattr(self, 'total_abandons'):
+            self.total_abandons = 0
+
+        self.total_abandons += 1
+        self.set_new()
+        self.save()
+
     def hash_event(self, data_types=['host', 'user', 'ip'], observables=[]):
         '''
         Generates an md5 signature of the event by combining the Events title
