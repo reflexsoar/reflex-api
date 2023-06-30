@@ -143,6 +143,7 @@ class EventMetrics(InnerDoc):
     event_rule_duration = Float()
     auto_data_type_extraction = Boolean()
     first_touch = Date()
+    total_abandons = Integer()
     total_touches = Integer()
 
 
