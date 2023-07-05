@@ -224,6 +224,8 @@ class AgentHeartbeat(Resource):
 
                 agent.update(last_heartbeat=datetime.datetime.utcnow(),
                              **api.payload, refresh=True)
+                
+                print(agent.uuid, api.payload['healthy'])
 
                 # If agent was previously healthy and is not now redistribute detections
                 if api.payload['healthy'] == False and last_agent_health == True:
