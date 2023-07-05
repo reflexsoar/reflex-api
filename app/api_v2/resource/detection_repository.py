@@ -163,6 +163,7 @@ class DetectionRepositoryDetails(Resource):
 
                     # Set the from_repo_sync flag to False for all detections that were synced from this repository
                     # and are in the removed_uuids list
+                    # TODO: Make this a bulk update - remember to refresh the index
                     for detection in detections:
                         detection.from_repo_sync = False
                         detection.save()
