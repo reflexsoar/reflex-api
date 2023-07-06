@@ -59,6 +59,7 @@ pysigma-backend-opensearch = "*"
 urllib3 = "*"
 psutil = "*"
 diskcache = "*"
+secure = "*"
 
 [requires]
 python_version = "3.8"

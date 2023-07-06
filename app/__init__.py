@@ -21,7 +21,6 @@ from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
 from elasticapm.contrib.flask import ElasticAPM
 
-
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
@@ -64,6 +63,15 @@ apm = ElasticAPM()
 ep = EventProcessor()
 memcached_client = MemcachedClient()
 notifier = Notifier()
+
+def security_headers(response):
+    '''
+    Set the security headers
+    '''
+    
+    # Add the X-Frames-Options header
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    return response
 
 def migrate(app, ALIAS, move_data=True, update_alias=True):
     '''
@@ -227,6 +235,7 @@ def create_app(environment='development'):
     cors.init_app(app)
     mail.init_app(app)
     cache.init_app(app)
+
     try:
         memcached_client.init_app(app)
     except Exception as e:
@@ -370,6 +379,8 @@ def create_app(environment='development'):
 
     from app.api_v2.resources import api_v2
     app.register_blueprint(api_v2)
+
+    app.after_request(security_headers)
 
     FLASK_BCRYPT.init_app(app)
 
