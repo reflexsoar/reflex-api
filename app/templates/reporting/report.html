@@ -168,6 +168,36 @@
     </div>
 </div>
 
+<div class="row row pb-3">
+    <div class="col">
+        <h2>Detections</h2>
+    </div>
+</div>
+<div class="row row pb-3">
+    <div class="col">
+        <h3 class="pb-3">Newly Added Detections</h3>
+        <p>The table below highlights any newly created detection rules within the organization.  Note times are currently in UTC.</p>
+        <table class="table">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Detection Name</th>
+                    <th scope="col">Description</th>
+                    <th scope="col">Creation Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for detection in report.detections %}
+                <tr>
+                    <td>{{detection.name}}</td>
+                    <td>{{detection.description}}</td>
+                    <td>{{detection.created_at}}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
 <div class="row pb-3">
     <h2 class="pb-3">Case Metrics</h2>
     <div class="col">

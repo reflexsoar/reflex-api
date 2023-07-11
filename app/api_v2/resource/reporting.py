@@ -8,7 +8,7 @@ from flask_restx import Resource, Namespace, fields
 from ..utils import default_org, token_required, user_has
 from .utils import check_ip_whois_io
 
-from ..model import Event, Organization, Case, Settings
+from ..model import Event, Organization, Case, Settings, Detection
 
 api = Namespace('Reporting', description='Reporting related operations', path='/reporting')
 
@@ -414,6 +414,12 @@ class Reporting(Resource):
 
         top_10_countries = [{'name': k, 'count': v} for k, v in sorted(countries.items(), key=lambda item: item[1], reverse=True)]
 
+        # Get a list of detections created in this period
+        detections = Detection.search()
+        detections = detections.filter('term', organization=organization_uuid)
+        detections = detections.filter('range', created_at=current_period)
+        detections = [d for d in detections.scan()]
+
         report = {
             'title': f'Monthly SOC Report for {organization.name}',
             'generated_on': datetime.datetime.utcnow().isoformat(),
@@ -442,6 +448,7 @@ class Reporting(Resource):
                 'top_10_domains': top_10_domains,
                 'top_10_countries': top_10_countries,
             },
+            'detections': detections,
             'events': {
                 'severity_by_hour_of_day': event_hours,
                 'this_period': {
