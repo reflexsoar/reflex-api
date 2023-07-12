@@ -1123,6 +1123,56 @@ class RemoveDetectionException(Resource):
             api.abort(404, f'Detection rule for UUID {uuid} not found')
 
 
+@api.route("/assess")
+class AssessDetections(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_bulk_detections)
+    @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
+    @token_required
+    @user_has('update_detection')
+    def post(self, current_user):
+        '''
+        Sets the assess_rule flag to True for multiple detections
+        '''
+
+        detections_to_update = []
+
+        detection_uuids = api.payload.get('detections')
+
+        detections = Detection.get_by_uuid(uuid=detection_uuids)
+
+        if detections:
+
+            detections_to_update = [d.uuid for d in detections]
+
+            # Bulk update the detections using the update_by_query API
+
+            # Build the query
+            update_by_query = UpdateByQuery(index=Detection._index._name)
+            update_by_query = update_by_query.filter(
+                'terms', uuid=detections_to_update)
+            
+            # Set slices to auto to allow for parallel processing
+            update_by_query = update_by_query.params(
+                slices='auto',
+                refresh=True)
+            
+            # Set the script to update the assess_rule flag
+            update_by_query = update_by_query.script(
+                source="ctx._source.assess_rule = true")
+            
+            # Execute the query
+            update_by_query.execute()
+
+            detections = Detection.get_by_uuid(uuid=detections_to_update)
+
+            return detections
+        
+        else:
+            api.abort(404, f'Detection rules not found')
+
+
 @api.route("/<uuid>/assess")
 class AssessDetection(Resource):
 
