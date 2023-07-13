@@ -216,7 +216,9 @@ mod_detection_details = api.model('DetectionDetails', {
     'email_template': fields.String,
     'test_script': fields.String,
     'test_script_safe': fields.Boolean,
-    'test_script_language': fields.String
+    'test_script_language': fields.String,
+    'is_hunting_rule': fields.Boolean,
+    'suppression_max_events': fields.Integer(default=0)
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
@@ -263,7 +265,9 @@ mod_create_detection = api.model('CreateDetection', {
     'email_template': fields.String,
     'test_script': fields.String,
     'test_script_safe': fields.Boolean,
-    'test_script_language': fields.String
+    'test_script_language': fields.String,
+    'is_hunting_rule': fields.Boolean,
+    'suppression_max_events': fields.Integer
 }, strict=True)
 
 mod_update_detection = api.model('UpdateDetection', {
@@ -312,7 +316,9 @@ mod_update_detection = api.model('UpdateDetection', {
     'email_template': fields.String,
     'test_script': fields.String,
     'test_script_safe': fields.Boolean,
-    'test_script_language': fields.String
+    'test_script_language': fields.String,
+    'is_hunting_rule': fields.Boolean,
+    'suppression_max_events': fields.Integer
 }, strict=True)
 
 mod_detection_list_paged = api.model('DetectionListPaged', {
@@ -365,8 +371,9 @@ mod_detection_export = api.model('DetectionExport', {
     'email_template': fields.String,
     'test_script': fields.String,
     'test_script_safe': fields.Boolean,
-    'test_script_language': fields.String(default='python')
-
+    'test_script_language': fields.String(default='python'),
+    'is_hunting_rule': fields.Boolean,
+    'suppression_max_events': fields.Integer
 })
 
 mod_exported_detections = api.model('ExportedDetections', {
@@ -1121,6 +1128,56 @@ class RemoveDetectionException(Resource):
             return detection
         else:
             api.abort(404, f'Detection rule for UUID {uuid} not found')
+
+
+@api.route("/assess")
+class AssessDetections(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_bulk_detections)
+    @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
+    @token_required
+    @user_has('update_detection')
+    def post(self, current_user):
+        '''
+        Sets the assess_rule flag to True for multiple detections
+        '''
+
+        detections_to_update = []
+
+        detection_uuids = api.payload.get('detections')
+
+        detections = Detection.get_by_uuid(uuid=detection_uuids)
+
+        if detections:
+
+            detections_to_update = [d.uuid for d in detections]
+
+            # Bulk update the detections using the update_by_query API
+
+            # Build the query
+            update_by_query = UpdateByQuery(index=Detection._index._name)
+            update_by_query = update_by_query.filter(
+                'terms', uuid=detections_to_update)
+            
+            # Set slices to auto to allow for parallel processing
+            update_by_query = update_by_query.params(
+                slices='auto',
+                refresh=True)
+            
+            # Set the script to update the assess_rule flag
+            update_by_query = update_by_query.script(
+                source="ctx._source.assess_rule = true")
+            
+            # Execute the query
+            update_by_query.execute()
+
+            detections = Detection.get_by_uuid(uuid=detections_to_update)
+
+            return detections
+        
+        else:
+            api.abort(404, f'Detection rules not found')
 
 
 @api.route("/<uuid>/assess")

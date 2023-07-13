@@ -304,6 +304,8 @@ class Detection(base.BaseDocument):
     average_query_time = Long()  # The average query time in milliseconds
     hits_over_time = Keyword() # A JSON string of the hits over time
     average_hits_per_day = Integer() # The average hits per day
+    is_hunting_rule = Boolean() # If true the rule is a hunting rule
+    suppression_max_events = Integer() # The maximum number of events to create per run
 
     class Index:
         name = "reflex-detections"

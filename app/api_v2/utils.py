@@ -467,7 +467,6 @@ def _check_token():
             except (jwt.DecodeError, jwt.InvalidTokenError) as e:
                 abort(401, 'Invalid access token.')
             except Exception as e:
-                print(e)
                 abort(401, 'Unknown token error.')
 
         except IndexError:
