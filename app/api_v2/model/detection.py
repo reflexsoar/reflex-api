@@ -305,7 +305,7 @@ class Detection(base.BaseDocument):
     hits_over_time = Keyword() # A JSON string of the hits over time
     average_hits_per_day = Integer() # The average hits per day
     is_hunting_rule = Boolean() # If true the rule is a hunting rule
-    supression_max_events = Integer() # The maximum number of events to create per run
+    suppression_max_events = Integer() # The maximum number of events to create per run
 
     class Index:
         name = "reflex-detections"

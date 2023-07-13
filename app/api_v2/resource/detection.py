@@ -218,7 +218,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'test_script_safe': fields.Boolean,
     'test_script_language': fields.String,
     'is_hunting_rule': fields.Boolean,
-    'supression_max_events': fields.Integer(default=0)
+    'suppression_max_events': fields.Integer(default=0)
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
@@ -267,7 +267,7 @@ mod_create_detection = api.model('CreateDetection', {
     'test_script_safe': fields.Boolean,
     'test_script_language': fields.String,
     'is_hunting_rule': fields.Boolean,
-    'supression_max_events': fields.Integer
+    'suppression_max_events': fields.Integer
 }, strict=True)
 
 mod_update_detection = api.model('UpdateDetection', {
@@ -318,7 +318,7 @@ mod_update_detection = api.model('UpdateDetection', {
     'test_script_safe': fields.Boolean,
     'test_script_language': fields.String,
     'is_hunting_rule': fields.Boolean,
-    'supression_max_events': fields.Integer
+    'suppression_max_events': fields.Integer
 }, strict=True)
 
 mod_detection_list_paged = api.model('DetectionListPaged', {
@@ -373,7 +373,7 @@ mod_detection_export = api.model('DetectionExport', {
     'test_script_safe': fields.Boolean,
     'test_script_language': fields.String(default='python'),
     'is_hunting_rule': fields.Boolean,
-    'supression_max_events': fields.Integer
+    'suppression_max_events': fields.Integer
 })
 
 mod_exported_detections = api.model('ExportedDetections', {
