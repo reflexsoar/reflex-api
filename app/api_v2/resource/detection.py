@@ -639,10 +639,16 @@ class DetectionList(Resource):
                 
                 if args.assess_rule and True in args.assess_rule:
                     assessments = detection_state.get_agent_assessments(args.agent)
-                    search = search.filter('terms', uuid=assessments)
+                    if assessments:
+                        search = search.filter('terms', uuid=assessments)
+                    else:
+                        search = search.filter('term', uuid='') # Force it to come back empty
                 else:
                     detections = detection_state.get_agent_detections(args.agent)
-                    search = search.filter('terms', uuid=detections)
+                    if detections:
+                        search = search.filter('terms', uuid=detections)
+                    else:
+                        search = search.filter('term', uuid='') # Force it to come back empty
 
             detections = list(search.scan())
 
