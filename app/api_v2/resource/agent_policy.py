@@ -124,8 +124,8 @@ class AgentPolicyDetails(Resource):
 
             policy.update(**api.payload, revision=policy.revision+1, refresh=True)
 
-            if 'roles' in api.payload:
-                redistribute_detections(organization=policy.organization)
+            #if 'roles' in api.payload:
+            #    redistribute_detections(organization=policy.organization)
 
             return policy
             
@@ -145,8 +145,8 @@ class AgentPolicyList(Resource):
     def post(self, user_in_default_org, current_user):
 
         policy = AgentPolicy(**api.payload)
-        if 'detector' in policy.roles:
-            redistribute_detections(organization=policy.organization)
+        #if 'detector' in policy.roles:
+        #    redistribute_detections(organization=policy.organization)
         policy.revision = 1
         policy.save()
         return policy
