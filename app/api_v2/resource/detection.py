@@ -1147,7 +1147,7 @@ class AssessDetections(Resource):
 
         detection_uuids = api.payload.get('detections')
 
-        detections = Detection.get_by_uuid(uuid=detection_uuids)
+        detections = Detection.get_by_uuid(uuid=detection_uuids, all_results=True)
 
         if detections:
 
