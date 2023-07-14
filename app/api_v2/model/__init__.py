@@ -82,7 +82,8 @@ from .detection import (
     DetectionRepositoryToken,
     DetectionRepository,
     DetectionRepositoryBundle,
-    DetectionRepositorySubscription
+    DetectionRepositorySubscription,
+    DetectionState
 )
 from .task import Task
 from .mitre import MITRETactic, MITRETechnique
@@ -132,6 +133,7 @@ __all__ = [
     DetectionRepositoryToken,
     DetectionRepository,
     DetectionRepositoryBundle,
+    DetectionState,
     Task,
     ThreatValue,
     MITRETactic,

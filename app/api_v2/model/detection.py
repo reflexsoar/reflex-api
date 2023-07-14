@@ -4,6 +4,7 @@ Contains all the logic for the Detection engine
 """
 
 import re
+import math
 import datetime
 
 from app.api_v2.model.utils import _current_user_id_or_none
@@ -22,7 +23,9 @@ from . import (
     FieldMappingTemplate,
     AttrList,
     UpdateByQuery,
-    Input
+    Input,
+    Agent,
+    Organization
 )
 
 from .inout import FieldMap
@@ -168,11 +171,12 @@ class SourceMonitorConfig(base.InnerDoc):
     source_lists = Keyword()
     excluded_sources = Keyword()
     excluded_source_lists = Keyword()
-    delta_change = Boolean() # True = delta change, False = absolute change
-    delta_window = Integer() # How far back to look for the delta
-    operator = Keyword() # The operator to use e.g. >, <, >=, <=, ==, !=
-    threshold = Integer() # The threshold e.g. 10 which is 10 items or 10%
-    threshold_as_percent = Boolean() # True = threshold is a percent, False = threshold is a value
+    delta_change = Boolean()  # True = delta change, False = absolute change
+    delta_window = Integer()  # How far back to look for the delta
+    operator = Keyword()  # The operator to use e.g. >, <, >=, <=, ==, !=
+    threshold = Integer()  # The threshold e.g. 10 which is 10 items or 10%
+    # True = threshold is a percent, False = threshold is a value
+    threshold_as_percent = Boolean()
 
 
 class DetectionLog(base.BaseDocument):
@@ -211,6 +215,7 @@ class DetectionScheduleDay(base.InnerDoc):
     custom = Boolean()
     hours = Nested(DetectionSchedulHourRange)
 
+
 class DetectionSchedule(base.InnerDoc):
     '''Defines what days and the hours of the day a detection should run'''
     monday = Object(DetectionScheduleDay)
@@ -220,6 +225,252 @@ class DetectionSchedule(base.InnerDoc):
     friday = Object(DetectionScheduleDay)
     saturday = Object(DetectionScheduleDay)
     sunday = Object(DetectionScheduleDay)
+
+
+class AgentDetectionState(base.InnerDoc):
+    '''
+    Contains details about the agent
+    '''
+
+    agent = Keyword()
+    detections = Keyword()
+    assessments = Keyword()
+
+
+class DetectionState(base.BaseDocument):
+    '''
+    A state tracking table for detections.  Determines what work each 
+    detection agent should perform.  Is updated periodically by the detection
+    workload scheduler.  When the DetectionState table has a status of 'PROCESSING'
+    no detections are available to agents. When the status is 'BALANCED' detections
+    are available to agents.
+    '''
+
+    status = Keyword()  # PROCESSING, BALANCED
+    last_updated = Date()  # The last time the status was updated
+    agents = Nested(AgentDetectionState)  # The agents assigned to detections
+
+    class Index:
+        name = "reflex-detections-state"
+        settings = {
+            "refresh_interval": "1s"
+        }
+
+    def _agent_has_work(self, agent_uuid):
+        '''
+        Returns true if the agent_uuid has any work assigned to it
+        '''
+
+        agent = next(
+            (agent for agent in self.agents if agent.agent == agent_uuid), None)
+
+        if agent is None:
+            return False
+
+        if not agent.detections or len(agent.detections) == 0:
+            return False
+
+        return True
+
+    def _detection_assigned(self, detection_uuid):
+        '''
+        Returns true if the detection_uuid is assigned to any agent
+        '''
+        for agent in self.agents:
+            if agent.detections and detection_uuid in agent.detections:
+                return True
+
+        return False
+
+    def _needs_rebalance(self, detections, agents):
+        '''
+        Returns True if certain conditions are met
+        '''
+
+        rebalance = False
+
+        # If a rule has been enabled since the last rebalance
+        # detections = Detection.get_by_organization(self.organization)
+        for detection in detections:
+
+            # If the detection is enabled and not assigned to an agent
+            if detection.active and not self._detection_assigned(detection.uuid):
+                rebalance = True
+                break
+
+            if not detection.active and self._detection_assigned(detection.uuid):
+                rebalance = True
+                break
+
+        active_rules = True if len(
+            [detection for detection in detections if detection.active]) > 0 else False
+
+        # Filter agents down to those that are detection agents
+        # agents = Agent.get_by_organization(self.organization)
+        agents = [agent for agent in agents if 'detector' in agent.roles]
+
+        for agent in agents:
+
+            # If an agent is unhealthy and has work assigned to it
+            if not agent.healthy and self._agent_has_work(agent.uuid):
+                rebalance = True
+                break
+
+            # If an agent is healthy and has no work assigned to it
+            if agent.healthy and not self._agent_has_work(agent.uuid) and active_rules:
+                rebalance = True
+                break
+
+        return rebalance
+
+    @classmethod
+    def _init_state(cls, organization: str):
+        '''
+        Initializes the state table
+        '''
+
+        state = cls(organization=organization,
+                    status='BALANCED',
+                    last_updated=None)
+        state.save(refresh=True)
+        return state
+
+    @classmethod
+    def get_by_organization(cls, organization: str):
+        '''
+        Returns the state for the organization
+        '''
+
+        state = cls.search().filter('term', organization=organization).execute()
+        if state and len(state) > 0:
+            return state[0]
+
+        return None
+    
+    def get_agent_assessments(self, agent_uuid: str):
+        '''
+        Returns the assessment UUIDs assigned to the agent
+        '''
+        if self.agents and len(self.agents) > 0:
+
+            agent = next(
+                (agent for agent in self.agents if agent.agent == agent_uuid), None)
+
+            if agent:
+                return agent.assessments
+
+        return []
+
+    def get_agent_detections(self, agent_uuid: str):
+        '''
+        Returns the detection UUIDs assigned to the agent
+        '''
+        if self.agents and len(self.agents) > 0:
+
+            agent = next(
+                (agent for agent in self.agents if agent.agent == agent_uuid), None)
+
+            if agent:
+                return agent.detections
+
+        return []
+
+    @classmethod
+    def check_state(cls):
+        '''
+        Checks the state for each organization in the system
+        '''
+
+        organizations = [org.uuid for org in Organization.search().scan()]
+
+        for organization in organizations:
+
+            state = cls.search().filter('term', organization=organization).execute()
+
+            if len(state) > 0:
+                state = state[0]
+
+            if not state:
+                state = cls._init_state(organization)
+
+            # Retrieve all detections
+            detections = Detection.get_by_organization(state.organization)
+
+            # Retrieve all agents
+            agents = Agent.get_by_organization(state.organization)
+
+            if state._needs_rebalance(detections=detections, agents=agents):
+
+                state.rebalance_detections(detections=detections, agents=agents)
+
+            state.assign_assessments(detections, agents)
+
+    def assign_assessments(self, detections, agents):
+        '''
+        Distributes any rules that are currently flagged as assess_rule equally
+        across all agents
+        '''
+
+        if detections:
+            assessments = [d.uuid for d in detections if d.assess_rule]
+
+            if len(agents) > 0 and len(assessments) > 0:
+
+                # Split the detections up into chunks based on the number of agents
+                chunk_size = math.ceil(len(assessments) / len(agents))
+
+                for i, agent in enumerate(agents):
+                    for a in self.agents:
+                        if a.agent == agent.uuid:
+                            a.assessments = assessments[i*chunk_size:(i+1)*chunk_size]
+                
+                self.save()
+
+    def rebalance_detections(self, detections, agents, force=False):
+        '''
+        Redistributes the detection workload to agents
+        '''
+
+        # Do not rebalance if the status is PROCESSING, a rebalance is already in progress
+        if self.status == 'PROCESSING' and not force:
+            return
+
+        if detections:
+
+            # Filter down to active detections
+            detections = [d for d in detections if d.active]
+
+            # Set the status to PROCESSING
+            self.status = 'PROCESSING'
+            self.save(refresh="wait_for")
+
+            # Retrieve all the agents
+            agents = Agent.get_by_organization(self.organization)
+
+            # Filter agents down to healthy detection agents
+            agents = [
+                agent for agent in agents if 'detector' in agent.roles and agent.healthy]
+
+            _agents = []
+
+            if len(agents) > 0:
+
+                # Split the detections up into chunks based on the number of agents
+                chunk_size = math.ceil(len(detections) / len(agents))
+
+                # Split up the detections evenly across the agents
+                for i, agent in enumerate(agents):
+                    _agents.append({
+                        'agent': agent.uuid,
+                        'detections': [detection.uuid for detection in detections[i * chunk_size:(i + 1) * chunk_size]]
+                    })
+
+            # Update the state table
+            self.agents = _agents
+        self.last_updated = datetime.datetime.utcnow()
+        self.status = 'BALANCED'
+        self.save(refresh="wait_for")
+
 
 class Detection(base.BaseDocument):
     '''
@@ -302,10 +553,11 @@ class Detection(base.BaseDocument):
     assess_rule = Boolean()  # If true the rule will be assessed for quality
     last_assessed = Date()  # When the rule was last assessed
     average_query_time = Long()  # The average query time in milliseconds
-    hits_over_time = Keyword() # A JSON string of the hits over time
-    average_hits_per_day = Integer() # The average hits per day
-    is_hunting_rule = Boolean() # If true the rule is a hunting rule
-    suppression_max_events = Integer() # The maximum number of events to create per run
+    hits_over_time = Keyword()  # A JSON string of the hits over time
+    average_hits_per_day = Integer()  # The average hits per day
+    is_hunting_rule = Boolean()  # If true the rule is a hunting rule
+    # The maximum number of events to create per run
+    suppression_max_events = Integer()
 
     class Index:
         name = "reflex-detections"
@@ -387,7 +639,7 @@ class Detection(base.BaseDocument):
         that follows the rule across any installation of the API
         '''
         response = cls.search(skip_org_check=True)
-        
+
         if isinstance(detection_id, AttrList):
             detection_id = [d for d in detection_id]
 
@@ -424,12 +676,16 @@ class Detection(base.BaseDocument):
         return response
 
     @classmethod
-    def get_by_organization(cls, organization):
+    def get_by_organization(cls, organization, active=None):
         '''
         Fetches a document by the organization field
         '''
         response = cls.search()
         response = response.filter('term', organization=organization)
+
+        if active in [True, False]:
+            response = response.filter('term', active=active)
+
         response = list(response.scan())
 
         if len(response) > 0:
@@ -592,7 +848,6 @@ class DetectionRepositorySubscriptionSyncSettings(base.InnerDoc):
     setup_guide = Boolean()
     testing_guide = Boolean()
     false_positives = Boolean()
-    
 
 
 class DetectionRepositorySubscription(base.BaseDocument):
@@ -602,10 +857,11 @@ class DetectionRepositorySubscription(base.BaseDocument):
     '''
 
     repository = Keyword()  # The UUID of the repository this subscription belongs to
-    synchronizing = Boolean()  # Whether or not the repository is currently being synchronized
+    # Whether or not the repository is currently being synchronized
+    synchronizing = Boolean()
     sync_interval = Integer()  # The sync interval for this subscription, in minutes
     last_sync = Date()  # The last time this repository was synced
-    next_sync = Date() # The next time this repository will be synced
+    next_sync = Date()  # The next time this repository will be synced
     last_sync_status = Keyword()  # The status of the last sync
     active = Boolean()  # Whether or not this subscription is active
     # The sync settings for this subscription
@@ -848,7 +1104,7 @@ class DetectionRepository(base.BaseDocument):
                     }
 
                 if subscription.default_field_template:
-                    
+
                     field_template = FieldMappingTemplate.get_by_uuid(
                         subscription.default_field_template)
 
@@ -910,7 +1166,7 @@ class DetectionRepository(base.BaseDocument):
                             existing_detection.name = detection.name
                             existing_detection.description = detection.description
                             existing_detection.tags = detection.tags
-                            
+
                             if existing_detection.query != detection.query:
                                 existing_detection.assess_rule = True
                                 existing_detection.query = detection.query
@@ -940,16 +1196,18 @@ class DetectionRepository(base.BaseDocument):
                     # Update the subscription with the last sync time
                     subscription.last_sync = datetime.datetime.utcnow()
                     subscription.last_sync_status = 'success'
-                    subscription.next_sync = datetime.datetime.utcnow() + datetime.timedelta(minutes=subscription.sync_interval)
+                    subscription.next_sync = datetime.datetime.utcnow(
+                    ) + datetime.timedelta(minutes=subscription.sync_interval)
                     subscription.synchronizing = False
                     subscription.save(refresh="wait_for")
 
                     # Check to see if any detections exist that are from_repo_sync
 
                     Detection._index.refresh()
-            
+
             else:
-                subscription.next_sync = datetime.datetime.utcnow() + datetime.timedelta(minutes=subscription.sync_interval)
+                subscription.next_sync = datetime.datetime.utcnow(
+                ) + datetime.timedelta(minutes=subscription.sync_interval)
                 subscription.synchronizing = False
                 subscription.save(refresh="wait_for")
 
@@ -1017,7 +1275,8 @@ class DetectionRepository(base.BaseDocument):
             # Set from_repo_sync to False for any detections that were in this repository but are not anymore
             # and have been synced to a tenant
             ubq = UpdateByQuery(index=Detection._index._name)
-            ubq = ubq.query('term', organization=self.organization) # TODO: MAYBE FIX THIS?
+            # TODO: MAYBE FIX THIS?
+            ubq = ubq.query('term', organization=self.organization)
             ubq = ubq.query('term', from_repo_sync=True)
             ubq = ubq.query('terms', detection_id=detections)
             ubq = ubq.script(source="ctx._source.from_repo_sync = false")
