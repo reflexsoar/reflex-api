@@ -31,7 +31,7 @@ from app.api_v2.model import (
         Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,
         MITRETechnique, EventView, NotificationChannel, Notification, FieldMappingTemplate,
         AgentLogMessage, EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
-        DetectionRepositoryToken, DetectionRepositorySubscription
+        DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState
 )
 
 from .defaults import (
@@ -128,7 +128,7 @@ def upgrade_indices(app):
         Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,MITRETechnique,
         EventView, NotificationChannel, Notification, FieldMappingTemplate, AgentLogMessage,
         EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
-        DetectionRepositoryToken, DetectionRepositorySubscription
+        DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState
         ]
 
     for model in models:
@@ -326,6 +326,12 @@ def create_app(environment='development'):
                 func=housekeeper.check_detection_repo_subscription_sync,
                 trigger="interval",
                 seconds=300
+            )
+
+            scheduler.add_job(
+                func=DetectionState.check_state,
+                trigger="interval",
+                seconds=app.config['DETECTION_STATE_REBALANCE_INTERVAL']
             )
 
             if app.config['EVENT_RULE_SILENT_CHECK_ENABLED']:

@@ -20,6 +20,7 @@ from ..model import (
     MITRETactic,
     MITRETechnique,
     DetectionRepository,
+    DetectionState,
     UpdateByQuery
 )
 from .shared import mod_pagination, ISO8601, mod_user_list
@@ -546,7 +547,7 @@ class DetectionList(Resource):
 
         args = detection_list_parser.parse_args()
 
-        if isinstance(current_user, Agent) and not args.assess_rule:
+        if isinstance(current_user, Agent):
             args.agent = current_user.uuid
 
         search = Detection.search()
@@ -627,7 +628,28 @@ class DetectionList(Resource):
 
         # If the agent parameter is provided do not page the results, load them all
         if 'agent' in args and args.agent not in (None, ''):
-            search = search.filter('term', assigned_agent=args.agent)
+           #search = search.filter('term', assigned_agent=args.agent)
+
+            # Filter to only detections that are assigned to the agent
+            # We dont have to define an org because the agent (current_user) 
+            # gets its search() calls filtered by org by default
+            detection_state = DetectionState.search().execute()
+            if detection_state and len(detection_state) > 0:
+                detection_state = detection_state[0]
+                
+                if args.assess_rule and True in args.assess_rule:
+                    assessments = detection_state.get_agent_assessments(args.agent)
+                    if assessments:
+                        search = search.filter('terms', uuid=assessments)
+                    else:
+                        search = search.filter('term', uuid='') # Force it to come back empty
+                else:
+                    detections = detection_state.get_agent_detections(args.agent)
+                    if detections:
+                        search = search.filter('terms', uuid=detections)
+                    else:
+                        search = search.filter('term', uuid='') # Force it to come back empty
+
             detections = list(search.scan())
 
             # Remove the fields the agent doesn't need such as guide, setup_guide, testing_guide
@@ -689,7 +711,7 @@ class DetectionList(Resource):
             detection.save(refresh=True)
 
             # Redistribute the detection workload for the organization
-            redistribute_detections(detection.organization)
+            # redistribute_detections(detection.organization)
 
             return detection
         else:
@@ -1347,13 +1369,13 @@ class DetectionDetails(Resource):
                     if 'slow-query-disable' in api.payload['warnings']:
                         api.payload['warnings'].remove('slow-query-disable')
 
-            if 'active' in api.payload and detection.active != api.payload['active']:
-                should_redistribute = True
+            # if 'active' in api.payload and detection.active != api.payload['active']:
+            #    should_redistribute = True
 
             detection.update(**api.payload, refresh=True)
 
-            if should_redistribute:
-                redistribute_detections(detection.organization)
+            # if should_redistribute:
+            #     redistribute_detections(detection.organization)
 
             return detection
         else:
@@ -1373,7 +1395,7 @@ class DetectionDetails(Resource):
             detection.delete(refresh=True)
 
             # Redistribute the detection workload for the organization
-            redistribute_detections(organization)
+            # redistribute_detections(organization)
 
             # If the detection was part of a repository, remove it from the repository
             if detection.repository:
@@ -1568,8 +1590,8 @@ class BulkEnableDetections(Resource):
                 update_by_query = UpdateByQuery(index=Detection._index._name)
                 update_by_query = update_by_query.filter("terms", uuid=detections_to_enable)
 
-                # Force a refresh
-                update_by_query = update_by_query.params(refresh=True)
+                # Force a refresh and use auto slices
+                update_by_query = update_by_query.params(refresh=True, slices="auto", wait_for_completion=True)
 
                 update_by_query = update_by_query.script(
                     source="ctx._source.active = params.active",
@@ -1577,8 +1599,8 @@ class BulkEnableDetections(Resource):
                 update_by_query.execute()
 
             # Redistribute the detection workload for each organization
-            for organization in updated_orgs:
-                redistribute_detections(organization)
+            # for organization in updated_orgs:
+            #    redistribute_detections(organization)
 
             detections = Detection.get_by_uuid(uuid=detections_to_enable, all_results=True)
 
@@ -1699,7 +1721,7 @@ class BulkDisableDetections(Resource):
                 update_by_query = update_by_query.filter("terms", uuid=detections_to_disable)
 
                 # Force a refresh
-                update_by_query = update_by_query.params(refresh=True)
+                update_by_query = update_by_query.params(refresh=True, slices="auto", wait_for_completion=True)
 
                 update_by_query = update_by_query.script(
                     source="ctx._source.active = params.active",
@@ -1707,8 +1729,8 @@ class BulkDisableDetections(Resource):
                 update_by_query.execute()
 
             # Redistribute the detection workload for each organization
-            for organization in updated_orgs:
-                redistribute_detections(organization)
+            # for organization in updated_orgs:
+            #    redistribute_detections(organization)
 
             detections = Detection.get_by_uuid(uuid=detections_to_disable, all_results=True)
 
