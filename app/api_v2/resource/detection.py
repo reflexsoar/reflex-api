@@ -1568,8 +1568,8 @@ class BulkEnableDetections(Resource):
                 update_by_query = UpdateByQuery(index=Detection._index._name)
                 update_by_query = update_by_query.filter("terms", uuid=detections_to_enable)
 
-                # Force a refresh
-                update_by_query = update_by_query.params(refresh=True)
+                # Force a refresh and use auto slices
+                update_by_query = update_by_query.params(refresh=True, slices="auto", wait_for_completion=True)
 
                 update_by_query = update_by_query.script(
                     source="ctx._source.active = params.active",
@@ -1699,7 +1699,7 @@ class BulkDisableDetections(Resource):
                 update_by_query = update_by_query.filter("terms", uuid=detections_to_disable)
 
                 # Force a refresh
-                update_by_query = update_by_query.params(refresh=True)
+                update_by_query = update_by_query.params(refresh=True, slices="auto", wait_for_completion=True)
 
                 update_by_query = update_by_query.script(
                     source="ctx._source.active = params.active",
