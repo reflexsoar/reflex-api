@@ -1172,7 +1172,7 @@ class AssessDetections(Resource):
             # Execute the query
             update_by_query.execute()
 
-            detections = Detection.get_by_uuid(uuid=detections_to_update)
+            detections = Detection.get_by_uuid(uuid=detections_to_update, all_results=True)
 
             return detections
         
