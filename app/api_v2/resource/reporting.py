@@ -417,6 +417,8 @@ class Reporting(Resource):
         # Get a list of detections created in this period
         detections = Detection.search()
         detections = detections.filter('term', organization=organization_uuid)
+        # Active only
+        detections = detections.filter('term', active=True)
         detections = detections.filter('range', created_at=current_period)
         detections = [d for d in detections.scan()]
 
