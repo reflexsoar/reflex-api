@@ -199,7 +199,7 @@ class AgentList(Resource):
             token = generate_token(str(
                 agent.uuid), 525600*5, token_type='agent', organization=current_user['organization'])
 
-            redistribute_detections(agent.organization)
+            #redistribute_detections(agent.organization)
 
             return {'message': 'Successfully created the agent.', 'uuid': str(agent.uuid), 'token': token}
         else:
@@ -227,12 +227,12 @@ class AgentHeartbeat(Resource):
                 
                 if 'detector' in agent.roles:
                     # If agent was previously healthy and is not now redistribute detections
-                    if api.payload['healthy'] == False and last_agent_health == True:
-                        redistribute_detections(organization=agent.organization)
+                    #if api.payload['healthy'] == False and last_agent_health == True:
+                    #    redistribute_detections(organization=agent.organization)
 
                     # If agent was previously unhealthy and is now healthy redistribute detections
-                    if api.payload['healthy'] == True and last_agent_health in [False, None]:
-                        redistribute_detections(organization=agent.organization)
+                    #if api.payload['healthy'] == True and last_agent_health in [False, None]:
+                    #    redistribute_detections(organization=agent.organization)
 
                 return {'message': 'Your heart still beats!'}
         else:
@@ -306,8 +306,8 @@ class AgentDetails(Resource):
 
             agent.update(**api.payload, refresh=True)
 
-            if 'roles' in api.payload:
-                redistribute_detections(organization=agent.organization)
+            #if 'roles' in api.payload:
+            #    redistribute_detections(organization=agent.organization)
 
             return agent
         else:
