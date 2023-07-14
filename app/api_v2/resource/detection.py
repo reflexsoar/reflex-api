@@ -474,7 +474,8 @@ mod_detection_filters = api.model('DetectionFilters', {
     'repository': fields.List(fields.Nested(mod_detection_repo_filter)),
     'warnings': fields.List(fields.Nested(mod_detection_warnings_filter)),
     'active': fields.List(fields.Nested(mod_detection_warnings_filter)),
-    'rule_type': fields.List(fields.Nested(mod_detection_warnings_filter))
+    'rule_type': fields.List(fields.Nested(mod_detection_warnings_filter)),
+    'assess_rule': fields.List(fields.Nested(mod_detection_warnings_filter))
 })
 
 mod_detection_uuids = api.model('DetectionUUIDs', {
@@ -519,7 +520,7 @@ detection_list_parser.add_argument(
 detection_list_parser.add_argument(
     'query__like', location='args', type=str, required=False)
 detection_list_parser.add_argument(
-    'assess_rule', location='args', type=xinputs.boolean, required=False, default=False)
+    'assess_rule', location='args', action="split", type=xinputs.boolean, required=False)
 detection_list_parser.add_argument(
     'rule_type', location='args', type=int, action='split', required=False)
 detection_list_parser.add_argument(
@@ -568,6 +569,9 @@ class DetectionList(Resource):
 
         if args.status and len(args.status) > 0 and args.status[0] != '':
             search = search.filter('terms', status=args.status)
+
+        if args.assess_rule:
+            search = search.filter('terms', assess_rule=args.assess_rule)
 
         if args.warnings and len(args.warnings) > 0:
             search = search.filter('terms', warnings=args.warnings)
@@ -620,9 +624,6 @@ class DetectionList(Resource):
         if args.tactics and len(args.tactics) > 0 and args.tactics != [""]:
             search = search.filter('nested', path='tactics', query={
                                    'terms': {'tactics.external_id': args.tactics}})
-            
-        if args.assess_rule:
-            search = search.filter('term', assess_rule=True)
 
         # If the agent parameter is provided do not page the results, load them all
         if 'agent' in args and args.agent not in (None, ''):
@@ -759,6 +760,9 @@ class DetectionUUIDsByFilter(Resource):
         if args.active:
             detections = detections.filter('terms', active=args.active)
 
+        if args.assess_rule:
+            detections = detections.filter('terms', assess_rule=args.assess_rule)
+
         if args.name__like:
             detections = detections.filter('wildcard', name=f"*{args.name__like}*")
 
@@ -856,6 +860,9 @@ class DetectionFilters(Resource):
         if args.active:
             detections = detections.filter('terms', active=args.active)
 
+        if args.assess_rule:
+            detections = detections.filter('terms', assess_rule=args.assess_rule)
+
         if args.name__like:
             detections = detections.filter('wildcard', name=f"*{args.name__like}*")
 
@@ -894,11 +901,11 @@ class DetectionFilters(Resource):
 
         # Aggregate for organization
         detections.aggs.bucket('organization', 'terms',
-                               field='organization', size=1000)
+                                    field='organization', size=1000)
 
         # Aggregate for repository
         detections.aggs.bucket('repository', 'terms',
-                               field='repository', size=1000)
+                                    field='repository', size=1000)
 
         # Aggregate for warnings
         detections.aggs.bucket('warnings', 'terms',
@@ -906,7 +913,11 @@ class DetectionFilters(Resource):
         
         # Aggregate for active
         detections.aggs.bucket('active', 'terms',
-                                 field='active', size=1000)
+                                    field='active', size=1000)
+        
+        # Aggregate for assess_rule
+        detections.aggs.bucket('assess_rule', 'terms',
+                                    field='assess_rule', size=1000)
         
         # Aggregator for rule_type
         detections.aggs.bucket('rule_type', 'terms',
@@ -955,7 +966,8 @@ class DetectionFilters(Resource):
             'status': [],
             'warnings': [],
             'active': [],
-            'rule_type': []
+            'rule_type': [],
+            'assess_rule': []
         }
 
         # Create a list of orgs with their uuid, name and count
@@ -1001,6 +1013,13 @@ class DetectionFilters(Resource):
         }
         
         filters['active'] = [{'name': active_names[str(bucket.key)], 'value': bucket.key, 'count': bucket.doc_count} for bucket in detections.aggregations.active.buckets]
+
+        assess_rule_names = {
+            'True': 'Yes',
+            'False': 'No'
+        }
+
+        filters['assess_rule'] = [{'name': assess_rule_names[str(bucket.key)], 'value': bucket.key, 'count': bucket.doc_count} for bucket in detections.aggregations.assess_rule.buckets]
 
         filters['repository'].append({
             'value': 'None',
@@ -1172,7 +1191,7 @@ class AssessDetections(Resource):
             # Execute the query
             update_by_query.execute()
 
-            detections = Detection.get_by_uuid(uuid=detections_to_update)
+            detections = Detection.get_by_uuid(uuid=detections_to_update, all_results=True)
 
             return detections
         
