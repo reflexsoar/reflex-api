@@ -147,14 +147,16 @@ class FieldMapList(Resource):
 
         templates = FieldMappingTemplate.search(skip_org_check=True)
 
-        if args.organization and user_in_default_org:
-            templates = templates.filter(
-                'bool',
-                should=[
-                    {'term': {'is_global': True}},
-                    {'term': {'organization': args.organization}}
-                ]
-            )
+        if user_in_default_org:
+            if args.organization:
+                templates = templates.filter(
+                    'bool',
+                    should=[
+                        {'term': {'is_global': True}},
+                        {'term': {'organization': args.organization}}
+                    ]
+                )
+            
         else:
             # Include global templates OR the users organization templates
             templates = templates.filter(
