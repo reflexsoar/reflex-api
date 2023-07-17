@@ -112,21 +112,27 @@ mod_notification_paged_list = api.model('NotificationPagedList', {
 })
 
 
-
+mod_notification_channel_test = api.model('NotificationChannelTest', {
+    'channel': fields.String,
+    'source': fields.String(default='event'),
+    'source_uuid': fields.String
+})
 
 @api.route("/test")
 class TestNotification(Resource):
 
     @api.doc(security="Bearer")
+    @api.expect(mod_notification_channel_test, skip_none=True)
     @token_required
-    def get(self, current_user):
+    def post(self, current_user):
         notification = Notification(
             sent=False,
-            channel='d89024dc-4660-4ed0-95ec-7b6e4fbb2531',
-            source_object_type='event',
-            source_object_uuid='87bd454a-01bd-409b-889a-14cd90ba30ec'
+            channel=api.payload['channel'],
+            source_object_type=api.payload['source'],
+            source_object_uuid=api.payload['source_uuid'],
         )
         notification.save()
+        return {'message': f"Test notification sent to {api.payload['channel']} - Notification ID: {notification.uuid}"}
 
 @api.route("/channel/<uuid>")
 class NotificationChannelDetails(Resource):
@@ -234,7 +240,7 @@ class NotificationChannelList(Resource):
     
     @api.doc(security="Bearer")
     @api.marshal_with(mod_notification_channel)
-    @api.expect(mod_create_notification_channel)
+    @api.expect(mod_create_notification_channel, validate=True)
     @token_required
     @check_org
     @user_has('create_notification_channel')
