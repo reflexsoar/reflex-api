@@ -60,6 +60,7 @@ urllib3 = "*"
 psutil = "*"
 diskcache = "*"
 secure = "*"
+markdown = "*"
 
 [requires]
 python_version = "3.8"

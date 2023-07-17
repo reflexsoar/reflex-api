@@ -1,13 +1,20 @@
 from datetime import datetime
 import logging
+import json
 import time
 import pymsteams
 import chevron
 import requests
+import smtplib
+import ssl
+import markdown
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from jinja2 import Environment
+from jinja2.exceptions import UndefinedError as JinjaUndefinedError
 from pdpyras import EventsAPISession
 from requests.exceptions import ConnectionError
-from app.api_v2.model import Notification, NotificationChannel, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE, Event, Case, Settings, Credential
+from app.api_v2.model import Notification, NotificationChannel, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE, Event, Case, Settings, Credential, Detection
 
 
 class Notifier(object):
@@ -107,7 +114,7 @@ class Notifier(object):
                     pass
 
 
-    def send_email(self, sender: str, users: list, subject: str, recipients: list = []):
+    def send_email(self, channel, notification):
         '''
         Sends an email to a target user
         '''
@@ -119,10 +126,64 @@ class Notifier(object):
         users = User.get_by_uuid(uuid=uuids)
         [recipients.append(u.email) for u in users]
         """
-        raise NotImplementedError
 
+        channel_config = channel.email_configuration
+        message_template = channel_config['message_template']
+        credential = Credential.get_by_uuid(channel_config['credential'])
+        if credential:
+            try:
+                secret = credential.decrypt(secret=self.app.config['MASTER_PASSWORD'])
+            except:
+                self.logger.error(f"Unable to decrypt credential {credential.uuid}")
+                notification.send_failed(message=f"Unable to decrypt credential {credential.uuid}")
 
-    
+            if hasattr(notification, 'source_object_type') and hasattr(notification, 'source_object_uuid'):
+                if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
+                    notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
+
+        subject = self.use_template(channel_config['subject'], notification.source_object_type, notification.source_object_uuid, skip_detection=True)
+
+        # Create the base message
+        try:
+            message = MIMEMultipart("alternative")
+            message["Subject"] = subject
+            message["From"] = channel_config['mail_from']
+            message["To"] = ','.join(channel_config['mail_to'])
+
+            # Create the plain-text and HTML version of your message
+            text = notification.message
+
+            part1 = MIMEText(text, "plain")
+            part2 = MIMEText(markdown.markdown(text), "html")
+
+            message.attach(part1)
+            message.attach(part2)
+
+            connection = smtplib.SMTP(channel_config['smtp_server'], channel_config['smtp_port'])
+
+            # If the mail server requires TLS
+            if 'use_tls' in channel_config and channel_config['use_tls']:
+                context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+
+                connection.ehlo()
+                connection.starttls(context=context)
+                connection.ehlo()
+                
+                if 'credential' in channel_config:
+                    connection.login(credential.username, secret)
+
+                connection.sendmail(channel_config['mail_from'], channel_config['mail_to'], message.as_string())
+            else:
+                
+                
+                if 'credential' in channel_config:
+                    connection.login(credential.username, secret)
+                connection.sendmail(channel_config['mail_from'], channel_config['mail_to'], message.as_string())
+        except Exception as e:
+            notification.send_failed(message=f"Unable to send email: {e}")
+        
+        notification.send_success()
+
 
     def get_channels(self, notification):
         '''
@@ -185,17 +246,37 @@ class Notifier(object):
 
         message = ""
         environment = Environment()
-        jinja_template = environment.from_string(template)
 
         if source_object_type in SOURCE_OBJECT_TYPE:
             source_object = None
             source_object = OBJECT_MAP[source_object_type].get_by_uuid(uuid=source_object_uuid)
-            if source_object:
-                message = jinja_template.render(source_object.to_dict())
+
+            if 'skip_detection' in kwargs and kwargs['skip_detection']:
+                pass
+
+            else:
+                if hasattr(source_object, 'detection_id'):
+                    detection = Detection.get_by_uuid(uuid=source_object.detection_id)
+                    if detection:
+                        if hasattr(detection, 'email_template'):
+                            template = detection.email_template
+
+            jinja_template = environment.from_string(template)
+                            
+            if source_object:                
+
+                source_dict = source_object.to_dict()
+                if 'raw_log' in source_dict:
+                    source_dict['raw_log'] = json.loads(source_dict['raw_log'])
+                try:
+                    message = jinja_template.render(source_dict)
+                except JinjaUndefinedError as e:
+                    message = template + "\n\n" + f"Error parsing source object: {str(e)}"
+
                 #message = chevron.render(template, source_object.to_dict())
                 return message
 
-        return template       
+        return template
 
     
     def send_pagerduty_api(self, channel, notification):
