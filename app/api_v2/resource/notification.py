@@ -90,7 +90,8 @@ mod_create_notification_channel = api.model('CreateNotificationChannel', {
     'rest_api_configuration': fields.Nested(mod_custom_api_configuration),
     'max_messages': fields.Integer,
     'backoff': fields.Integer,
-    'enabled': fields.Boolean
+    'enabled': fields.Boolean,
+    'is_global': fields.Boolean
 }, strict=True)
 
 mod_notification_channel = api.clone('NotificationChannelDetails', mod_create_notification_channel, {
@@ -110,7 +111,6 @@ mod_notification_paged_list = api.model('NotificationPagedList', {
     'notifications': fields.List(fields.Nested(mod_notification)),
     'pagination': fields.Nested(mod_pagination)
 })
-
 
 mod_notification_channel_test = api.model('NotificationChannelTest', {
     'channel': fields.String,
@@ -149,6 +149,9 @@ class NotificationChannelDetails(Resource):
         if api.payload['channel_type'] not in NOTIFICATION_CHANNEL_TYPES:
             api.abort(
                 400, f'Invalid channel type {api.payload["channel_type"]}.  Must be one of {NOTIFICATION_CHANNEL_TYPES}')
+            
+        if 'is_global' in api.payload and api.payload['is_global'] and not current_user.is_default_org:
+            api.abort(400, 'Only the default organization can create global notification channels')
 
         channel = None
         if 'organization' in api.payload:
@@ -251,6 +254,10 @@ class NotificationChannelList(Resource):
                 400, f'Invalid channel type {api.payload["channel_type"]}.  Must be one of {NOTIFICATION_CHANNEL_TYPES}')
 
         channel = None
+
+        if 'is_global' in api.payload and api.payload['is_global'] and not current_user.is_default_org:
+            api.abort(400, 'Only the default organization can create global notification channels')
+
         if 'organization' in api.payload:
             org = Organization.get_by_uuid(api.payload['organization'])
 

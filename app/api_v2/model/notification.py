@@ -133,6 +133,7 @@ class NotificationChannel(base.BaseDocument):
     enabled = Boolean()
     description = Keyword(fields={'Text': Text()})
     channel_type = Keyword()
+    is_global = Keyword()
     email_configuration = Nested(EmailNotification)
     slack_configuration = Nested(SlackWebhook)
     teams_configuration = Nested(TeamsWebhook)
