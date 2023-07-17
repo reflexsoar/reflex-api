@@ -90,7 +90,7 @@ def redistribute_detections(organization=None):
                 )
 
                 # Wait for a refresh to make sure the changes are available for the next function
-                update_by_query.params(wait_for_completion=True)
+                update_by_query.params(refresh=True, slices="auto", wait_for_completion=True)
 
                 update_by_query.execute()
 
@@ -103,6 +103,6 @@ def redistribute_detections(organization=None):
             )
 
             # Wait for a refresh to make sure the changes are available for the next function
-            update_by_query.params(wait_for_completion=True)
+            update_by_query.params(refresh=True, slices="auto", wait_for_completion=True)
 
             update_by_query.execute()
