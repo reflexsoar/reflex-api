@@ -133,6 +133,7 @@ class NotificationChannel(base.BaseDocument):
     enabled = Boolean()
     description = Keyword(fields={'Text': Text()})
     channel_type = Keyword()
+    is_global = Keyword()
     email_configuration = Nested(EmailNotification)
     slack_configuration = Nested(SlackWebhook)
     teams_configuration = Nested(TeamsWebhook)
@@ -165,6 +166,9 @@ class NotificationChannel(base.BaseDocument):
         Overrides the BaseDocument save() function and adds some checking on
         the channel_types
         '''
+
+        if not self.is_global:
+            self.is_global = False
 
         if self.channel_type not in NOTIFICATION_CHANNEL_TYPES:
             raise ValueError('Invalid channel type')
