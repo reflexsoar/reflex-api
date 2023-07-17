@@ -1117,16 +1117,6 @@ class DetectionRepository(base.BaseDocument):
                         'name': _input.name,
                     }
 
-                if subscription.default_field_template:
-
-                    field_template = FieldMappingTemplate.get_by_uuid(
-                        subscription.default_field_template)
-
-                    if not field_template:
-                        return False
-                else:
-                    subscription.default_field_template = []
-
                 if self.repo_type == 'local':
                     detections_to_sync = Detection.get_by_detection_id(
                         self.detections, repository=self.uuid)

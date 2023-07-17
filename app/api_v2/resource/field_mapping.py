@@ -95,7 +95,7 @@ class FieldMappingTemplateDetails(Resource):
         if template:
 
             if template.is_global and template.organization != current_user.organization:
-                api.abort(403, 'You cannot update a global Field Mapping Template that is not in your organization.')
+                api.abort(400, 'You cannot update a global Field Mapping Template that is not in your organization.')
 
             if 'name' in api.payload:
                 if user_in_default_org:
