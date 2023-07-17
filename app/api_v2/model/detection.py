@@ -1191,7 +1191,6 @@ class DetectionRepository(base.BaseDocument):
                             for sync_setting in sync_settings:
                                 if subscription.sync_settings[sync_setting] == True:
                                     if sync_setting == 'field_templates':
-
                                         # If the subscription has a default field template and the existing detection does not, set the default
                                         if existing_detection.field_templates == None and subscription.default_field_template != None:
                                             existing_detection.field_templates = subscription.default_field_template
