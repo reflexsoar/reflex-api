@@ -211,7 +211,7 @@ class Notifier(object):
 
                 # If the notification attemps to use a channel that is across the organizational bounds
                 # reject the notification
-                if notification.organization != channel.organization:
+                if notification.organization != channel.organization and not channel.is_global:
                     error_message = f"No channel found for notification {notification.uuid}"
                     errors.append(error_message)
                     self.logger.error(error_message)
