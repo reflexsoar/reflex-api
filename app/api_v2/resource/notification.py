@@ -37,6 +37,7 @@ mod_notification = api.model('NotificationDetails', {
     'source_object_uuid': fields.String,
     'message': fields.String,
     'title': fields.String,
+    'is_global': fields.Boolean
 })
 
 mod_email_configuration = api.model('EmailConfiguration', {
