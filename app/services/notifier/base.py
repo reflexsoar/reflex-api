@@ -159,19 +159,26 @@ class Notifier(object):
             message.attach(part1)
             message.attach(part2)
 
+            connection = smtplib.SMTP(channel_config['smtp_server'], channel_config['smtp_port'])
+
             # If the mail server requires TLS
             if 'use_tls' in channel_config and channel_config['use_tls']:
-                context = ssl.create_default_context()
+                context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+
+                connection.ehlo()
+                connection.starttls(context=context)
+                connection.ehlo()
                 
-                with smtplib.SMTP_SSL(channel_config['smtp_server'], channel_config['smtp_port'], context=context) as server:
-                    #if 'credential' in channel_config:
-                    #    server.login(channel_config['username'], secret)
-                    server.sendmail(channel_config['mail_from'], channel_config['mail_to'], message.as_string())
+                if 'credential' in channel_config:
+                    connection.login(credential.username, secret)
+
+                connection.sendmail(channel_config['mail_from'], channel_config['mail_to'], message.as_string())
             else:
-                with smtplib.SMTP(channel_config['smtp_server'], channel_config['smtp_port']) as server:
-                    #if 'credential' in channel_config:
-                    #    server.login(channel_config['username'], secret)
-                    server.sendmail(channel_config['mail_from'], channel_config['mail_to'], message.as_string())
+                
+                
+                if 'credential' in channel_config:
+                    connection.login(credential.username, secret)
+                connection.sendmail(channel_config['mail_from'], channel_config['mail_to'], message.as_string())
         except Exception as e:
             notification.send_failed(message=f"Unable to send email: {e}")
         
