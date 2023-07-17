@@ -94,6 +94,9 @@ class FieldMappingTemplateDetails(Resource):
 
         if template:
 
+            if template.is_global and template.organization != current_user.organization:
+                api.abort(403, 'You cannot update a global Field Mapping Template that is not in your organization.')
+
             if 'name' in api.payload:
                 if user_in_default_org:
                     if 'organization' in api.payload:
@@ -142,11 +145,25 @@ class FieldMapList(Resource):
 
         args = field_mapping_template_parser.parse_args()
 
-        templates = FieldMappingTemplate.search()
+        templates = FieldMappingTemplate.search(skip_org_check=True)
 
-        if user_in_default_org:
-            if args.organization:
-                templates = templates.filter('term', organization=args.organization)
+        if args.organization and user_in_default_org:
+            templates = templates.filter(
+                'bool',
+                should=[
+                    {'term': {'is_global': True}},
+                    {'term': {'organization': args.organization}}
+                ]
+            )
+        else:
+            # Include global templates OR the users organization templates
+            templates = templates.filter(
+                'bool',
+                should=[
+                    {'term': {'is_global': True}},
+                    {'term': {'organization': current_user.organization}}
+                ]
+            )
 
         if args.name__like:
             templates = templates.query('wildcard', name=f"*{args.name__like}*")

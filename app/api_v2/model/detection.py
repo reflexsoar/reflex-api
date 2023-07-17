@@ -25,7 +25,8 @@ from . import (
     UpdateByQuery,
     Input,
     Agent,
-    Organization
+    Organization,
+    Q
 )
 
 from .inout import FieldMap
@@ -701,7 +702,20 @@ class Detection(base.BaseDocument):
         # override templates with a lower priority in the event of a field name
         # collision
         if self.field_templates:
-            templates = FieldMappingTemplate.get_by_uuid(self.field_templates)
+            templates = FieldMappingTemplate.search(skip_org_check=True)
+
+            # The templates assigned to this detection but only if they belong to the same org
+            # or are flagged as global
+            templates = templates.filter(
+                'bool',
+                should=[
+                    Q('bool', must=[Q('term', is_global=True)]),
+                    Q('bool', must=[Q('term', organization=self.organization), Q('terms', uuid=self.field_templates)])
+                ]
+            )
+
+            templates = [t for t in templates.scan()]
+
             templates.sort(key=lambda x: x.priority, reverse=True)
             for template in templates:
                 for template_field in template.field_mapping:
