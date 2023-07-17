@@ -167,6 +167,9 @@ class NotificationChannel(base.BaseDocument):
         the channel_types
         '''
 
+        if not self.is_global:
+            self.is_global = False
+
         if self.channel_type not in NOTIFICATION_CHANNEL_TYPES:
             raise ValueError('Invalid channel type')
 

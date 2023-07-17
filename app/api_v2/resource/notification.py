@@ -41,7 +41,7 @@ mod_notification = api.model('NotificationDetails', {
 })
 
 mod_email_configuration = api.model('EmailConfiguration', {
-    'credential': fields.String,
+    'credential': fields.String(required=False),
     'smtp_server': fields.String,
     'smtp_port': fields.Integer,
     'use_tls': fields.Boolean,
@@ -244,7 +244,7 @@ class NotificationChannelList(Resource):
     
     @api.doc(security="Bearer")
     @api.marshal_with(mod_notification_channel)
-    @api.expect(mod_create_notification_channel, validate=True)
+    @api.expect(mod_create_notification_channel)
     @token_required
     @check_org
     @user_has('create_notification_channel')
