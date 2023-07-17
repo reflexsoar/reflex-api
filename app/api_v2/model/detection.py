@@ -1200,10 +1200,13 @@ class DetectionRepository(base.BaseDocument):
                             sync_settings = subscription.sync_settings.to_dict()
                             for sync_setting in sync_settings:
                                 if subscription.sync_settings[sync_setting] == True:
-                                    setattr(existing_detection,
-                                            sync_setting,
-                                            getattr(detection, sync_setting)
-                                            )
+                                    if sync_setting == 'field_templates':
+                                        existing_detection.field_templates = subscription.default_field_template
+                                    else:
+                                        setattr(existing_detection,
+                                                sync_setting,
+                                                getattr(detection, sync_setting)
+                                                )
 
                             existing_detection.save()
 
