@@ -1761,3 +1761,19 @@ class DetectionImport(Resource):
                 imported_detections.append(d)
 
         return imported_detections
+
+@api.route("/rebalance")
+class DetectionRebalance(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('update_detection')
+    def post(self, current_user):
+        '''
+        Redistributes the detection workload
+        '''
+        
+        if not current_user.is_default_org:
+            api.abort(400, 'You must be in the default organization to rebalance detections')
+
+        DetectionState.check_state()

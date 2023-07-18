@@ -308,6 +308,14 @@ class DetectionState(base.BaseDocument):
 
         # Filter agents down to those that are detection agents
         # agents = Agent.get_by_organization(self.organization)
+
+        # If an agent currently has assignments or detections but is not
+        # a detection agent
+        for agent in agents:
+            if self._agent_has_work(agent.uuid) and 'detector' not in agent.roles:
+                rebalance = True
+                break
+
         agents = [agent for agent in agents if 'detector' in agent.roles]
 
         for agent in agents:
