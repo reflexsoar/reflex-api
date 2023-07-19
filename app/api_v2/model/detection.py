@@ -1224,6 +1224,8 @@ class DetectionRepository(base.BaseDocument):
                 existing_detection = existing_detection[0]
                 if existing_detection.version < detection.version or ignore_versions:
 
+                    print(f"IGNORE VERSIONS: {ignore_versions} - Updating detection {existing_detection.name}({existing_detection.uuid}) from repository {self.name}, using source detection {detection.uuid} (version {detection.version} > {existing_detection.version})")
+
                     existing_detection.name = detection.name
                     existing_detection.description = detection.description
                     existing_detection.tags = detection.tags
