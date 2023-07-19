@@ -375,7 +375,7 @@ class DetectionRepositorySubscribe(Resource):
 
         # Sync the repository
         if subscription:
-            repository.sync(organization=subscription.organization)
+            repository.sync(organization=subscription.organization, ignore_versions=True)
 
         repository.check_subscription(organization=current_user.organization)
 

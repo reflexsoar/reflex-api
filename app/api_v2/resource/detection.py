@@ -1243,6 +1243,36 @@ class AssessDetection(Resource):
             api.abort(404, f'Detection rule for UUID {uuid} not found')
 
 
+def increase_version(detection, payload):
+    '''
+    Increases the version number if certain attributes will change
+    '''
+
+    # If the detection is from a repo sync force it to be version 0 so it
+    # gets updated regardless
+    if detection.from_repo_sync:
+        return 0
+    
+    attributes = ['name', 'description', 'risk_score', 'severity', 'rule_type',
+                  'tactics', 'techniques', 'threshold_config', 'new_terms_config',
+                  'guide', 'setup_guide', 'testing_guide', 'test_script', 
+                  'test_script_language', 'test_script_safe', 'metric_change_config',
+                  'indicator_match_config', 'field_mismatch_config',
+                  'source_monitor_config']
+    
+    # If any of the attributes listed are in the payload and differ from
+    # what the detection currently has then return True
+    if any([payload.get(attribute) != getattr(detection, attribute) for attribute in attributes]):
+        return detection.version + 1
+    
+    # If the detections query has changed then return True
+    query = payload.get('query')
+    if query and query['query'] != detection.query['query']:
+        return detection.version + 1
+    
+    return detection.version
+
+
 @api.route("/<uuid>")
 class DetectionDetails(Resource):
 
@@ -1291,13 +1321,16 @@ class DetectionDetails(Resource):
 
             settings = Settings.load(organization=detection.organization)
 
+            if 'version' in api.payload:
+                api.payload.pop('version')
+
             # Update the detection version number when the detection is saved and certain fields
             # are present in the update payoad
-            if any([field in api.payload for field in ['query', 'description', 'guide', 'title', 'setup_guide', 'testing_guide']]):
-                if hasattr(detection, 'version'):
-                    detection.version += 1
-                else:
-                    detection.version = 1
+            #if any([field in api.payload for field in ['query', 'description', 'guide', 'title', 'setup_guide', 'testing_guide']]):
+            #    if hasattr(detection, 'version'):
+            #        detection.version += 1
+            #    else:
+            #        detection.version = 1
 
             if 'warnings' not in api.payload:
                 if hasattr(detection, 'warnings'):
@@ -1319,7 +1352,7 @@ class DetectionDetails(Resource):
                 SLOW_QUERY = True
                 if api.payload['query_time_taken'] > SLOW_DETECTION_THRESHOLD:
                     SLOW_QUERY_DISABLE = True
-                WARNINGS = True
+                warnings = True
 
             try:
                 HIGH_VOLUME_THRESHOLD = settings.high_volume_threshold
@@ -1369,13 +1402,7 @@ class DetectionDetails(Resource):
                     if 'slow-query-disable' in api.payload['warnings']:
                         api.payload['warnings'].remove('slow-query-disable')
 
-            # if 'active' in api.payload and detection.active != api.payload['active']:
-            #    should_redistribute = True
-
-            detection.update(**api.payload, refresh=True)
-
-            # if should_redistribute:
-            #     redistribute_detections(detection.organization)
+            detection.update(**api.payload, refresh=True, version=increase_version(detection, api.payload))
 
             return detection
         else:
