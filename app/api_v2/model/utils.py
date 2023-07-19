@@ -90,7 +90,8 @@ def build_elastic_connection():
         'verify_certs': current_app.config['ELASTICSEARCH_CERT_VERIFY'],
         'use_ssl': current_app.config['ELASTICSEARCH_SCHEME'],
         'ssl_show_warn': current_app.config['ELASTICSEARCH_SHOW_SSL_WARN'],
-        'timeout': current_app.config['ELASTICSEARCH_TIMEOUT']
+        'timeout': current_app.config['ELASTICSEARCH_TIMEOUT'],
+        'maxsize': current_app.config['ELASTICSEARCH_MAX_CONNECTIONS']
     }
 
     username = current_app.config['ELASTICSEARCH_USERNAME']

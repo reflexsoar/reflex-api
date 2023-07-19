@@ -73,7 +73,8 @@ class ThreatListPoller(object):
             'verify_certs': self.app.config['ELASTICSEARCH_CERT_VERIFY'],
             'use_ssl': self.app.config['ELASTICSEARCH_SCHEME'],
             'ssl_show_warn': self.app.config['ELASTICSEARCH_SHOW_SSL_WARN'],
-            'timeout': self.app.config['ELASTICSEARCH_TIMEOUT']
+            'timeout': self.app.config['ELASTICSEARCH_TIMEOUT'],
+            'maxsize': self.app.config['ELASTICSEARCH_MAX_CONNECTIONS']
         }
 
         username = self.app.config['ELASTICSEARCH_USERNAME']

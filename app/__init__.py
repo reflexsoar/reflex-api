@@ -203,7 +203,8 @@ def build_elastic_connection(app):
         'verify_certs': app.config['ELASTICSEARCH_CERT_VERIFY'],
         'use_ssl': app.config['ELASTICSEARCH_SCHEME'],
         'ssl_show_warn': app.config['ELASTICSEARCH_SHOW_SSL_WARN'],
-        'timeout': app.config['ELASTICSEARCH_TIMEOUT']
+        'timeout': app.config['ELASTICSEARCH_TIMEOUT'],
+        'maxsize': app.config['ELASTICSEARCH_MAX_CONNECTIONS'],
     }
 
     username = app.config['ELASTICSEARCH_USERNAME'] if 'ELASTICSEARCH_USERNAME' in app.config else os.getenv('REFLEX_ES_USERNAME') if os.getenv('REFLEX_ES_USERNAME') else "elastic"
