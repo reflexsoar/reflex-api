@@ -1636,7 +1636,7 @@ class BulkEnableDetections(Resource):
                 update_by_query = update_by_query.params(refresh=True, slices="auto", wait_for_completion=True)
 
                 update_by_query = update_by_query.script(
-                    source="ctx._source.active = params.active; ctx_source.warnings = params.warnings",
+                    source="ctx._source.active = params.active; ctx._source.warnings = params.warnings",
                     params={"active": True, "warnings": []})
                 update_by_query.execute()
 
