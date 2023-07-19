@@ -1273,6 +1273,17 @@ def increase_version(detection, payload):
     return detection.version
 
 
+def add_warning(payload, warning):
+
+    if 'warnings' in payload:
+        if isinstance(payload['warnings'], list):
+            payload['warnings'].append(warning)
+    else:
+        payload['warnings'] = [warning]
+
+    return payload
+
+
 @api.route("/<uuid>")
 class DetectionDetails(Resource):
 
@@ -1346,8 +1357,9 @@ class DetectionDetails(Resource):
                 SLOW_DETECTION_THRESHOLD = settings.slow_detection_threshold
                 SLOW_DETECTION_WARNING_THRESHOLD = settings.slow_detection_warning_threshold
             except:
-                SLOW_DETECTION_WARNING_THRESHOLD = 1000
-                SLOW_DETECTION_THRESHOLD = 5000
+                SLOW_DETECTION_WARNING_THRESHOLD = 5000
+                SLOW_DETECTION_THRESHOLD = 25000
+                
             if 'query_time_taken' in api.payload and api.payload['query_time_taken'] > SLOW_DETECTION_WARNING_THRESHOLD:
                 SLOW_QUERY = True
                 if api.payload['query_time_taken'] > SLOW_DETECTION_THRESHOLD:
@@ -1373,7 +1385,10 @@ class DetectionDetails(Resource):
                 if 'warnings' not in api.payload:
                     if hasattr(detection, 'warnings'):
                         api.payload['warnings'] = detection.warnings
-                else:
+                    else:
+                        api.payload['warnings'] = []
+
+                if 'warnings' in api.payload and api.payload['warnings'] is None:
                     api.payload['warnings'] = []
                 
                 if SLOW_QUERY and 'slow-query' not in api.payload['warnings']:
@@ -1621,8 +1636,8 @@ class BulkEnableDetections(Resource):
                 update_by_query = update_by_query.params(refresh=True, slices="auto", wait_for_completion=True)
 
                 update_by_query = update_by_query.script(
-                    source="ctx._source.active = params.active",
-                    params={"active": True})
+                    source="ctx._source.active = params.active; ctx._source.warnings = params.warnings",
+                    params={"active": True, "warnings": []})
                 update_by_query.execute()
 
             # Redistribute the detection workload for each organization

@@ -1153,9 +1153,10 @@ class DetectionRepository(base.BaseDocument):
                 subscription.active = False
                 subscription.save(refresh=True)
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=1) as executor:
             for sub in subs:
-                executor.submit(start_sync, sub)
+                if sub.should_sync():
+                    executor.submit(start_sync, sub)
 
     def sync_rule(self, detection, organization, subscription, input_config, ignore_versions=False):
 
@@ -1315,7 +1316,7 @@ class DetectionRepository(base.BaseDocument):
                     detections_to_sync = Detection.get_by_detection_id(
                         self.detections, repository=self.uuid)
                     
-                    with ThreadPoolExecutor(max_workers=10) as executor:
+                    with ThreadPoolExecutor(max_workers=1) as executor:
                         for detection in detections_to_sync:
                             executor.submit(self.sync_rule, detection, organization, subscription, input_config, ignore_versions)
 
