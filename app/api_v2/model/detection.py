@@ -1315,7 +1315,7 @@ class DetectionRepository(base.BaseDocument):
                     detections_to_sync = Detection.get_by_detection_id(
                         self.detections, repository=self.uuid)
                     
-                    with ThreadPoolExecutor(max_workers=10) as executor:
+                    with ThreadPoolExecutor(max_workers=2) as executor:
                         for detection in detections_to_sync:
                             executor.submit(self.sync_rule, detection, organization, subscription, input_config, ignore_versions)
 
