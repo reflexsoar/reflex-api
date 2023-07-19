@@ -3,7 +3,7 @@
 Contains all the logic for the Detection engine
 """
 
-import re
+from concurrent.futures import ThreadPoolExecutor
 import math
 import datetime
 
@@ -178,6 +178,25 @@ class SourceMonitorConfig(base.InnerDoc):
     threshold = Integer()  # The threshold e.g. 10 which is 10 items or 10%
     # True = threshold is a percent, False = threshold is a value
     threshold_as_percent = Boolean()
+
+
+class RepositorySyncLog(base.BaseDocument):
+    '''
+    A log entry showing what happened during a repository sync
+    '''
+
+    repository_uuid = Keyword()  # the ID of the repository that was synced
+    level = Keyword()  # info, error, warning
+    detection_uuid = Keyword()  # the ID of the detection that was synced
+    subscription = Keyword()  # The subscription that was synced
+    message = Keyword(fields={'text': Text()})  # Any message related to the log
+    status = Keyword()  # success, failure, warning
+
+    class Index:
+        name = "reflex-repository-sync-log"
+        settings = {
+            "refresh_interval": "1s"
+        }
 
 
 class DetectionLog(base.BaseDocument):
@@ -935,6 +954,24 @@ class DetectionRepositorySubscription(base.BaseDocument):
         self.sync_settings.testing_guide = True
         self.sync_settings.false_positives = True
 
+    def should_sync(self):
+        '''
+        Determines if it is time to sync the repository based on the 
+        last_sync and sync_interval fields
+        '''
+
+        if not self.last_sync:
+            return True
+        
+        now = datetime.datetime.utcnow()
+        
+        # If the time (in minutes) between now and the last sync is greater than the sync interval
+        # then it is time to sync
+        if (now - self.last_sync).total_seconds() / 60 > self.sync_interval:
+            return True
+        
+        return False
+
     def save(self, *args, **kwargs):
         '''Override save to set the defaults on sync_settings if the field
         does not already exist with a value
@@ -1089,8 +1126,157 @@ class DetectionRepository(base.BaseDocument):
             self.__dict__['read_only'] = False
 
         return self.read_only
+    
+    @classmethod
+    def check_detection_repo_subscription_sync(cls):
+        '''
+        Checks all active detection repository subscriptions and synchronizes
+        them based on the configured sync interval
+        '''
 
-    def sync(self, organization, subscription=None):
+        print("Checking detection repository subscriptions for sync")
+
+        subs = DetectionRepositorySubscription.search()
+        subs = subs.filter('term', active=True)
+
+        # The sub must have a repository uuid
+        subs = subs.filter('exists', field='repository')
+
+        subs = subs.scan()
+
+        def start_sync(subscription):
+            repo = DetectionRepository.get_by_uuid(subscription.repository)
+            if repo:
+                if sub.should_sync():
+                    repo.sync(subscription.organization)
+            else:
+                subscription.active = False
+                subscription.save(refresh=True)
+
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            for sub in subs:
+                executor.submit(start_sync, sub)
+
+    def sync_rule(self, detection, organization, subscription, input_config, ignore_versions=False):
+
+        log_message_base = {
+            'organization': organization,
+            'repository_uuid': self.uuid,
+            'subscription': subscription.uuid,
+        }
+
+        try:
+        
+            existing_detection = Detection.get_by_detection_id(
+                                detection.detection_id, organization=organization)
+            if not existing_detection:
+                new_detection = Detection(
+                    name=detection.name,
+                    description=detection.description,
+                    tags=detection.tags,
+                    active=False,
+                    query=detection.query,
+                    detection_id=detection.detection_id,
+                    organization=organization,
+                    tactics=detection.tactics,
+                    techniques=detection.techniques,
+                    references=detection.references,
+                    rule_type=detection.rule_type,
+                    version=detection.version,
+                    risk_score=detection.risk_score,
+                    severity=detection.severity,
+                    interval=detection.interval,
+                    lookbehind=detection.lookbehind,
+                    last_run=datetime.datetime.utcfromtimestamp(
+                        40246871),
+                    mute_period=detection.mute_period,
+                    threshold_config=detection.threshold_config,
+                    metric_change_config=detection.metric_change_config,
+                    field_mismatch_config=detection.field_mismatch_config,
+                    new_terms_config=detection.new_terms_config,
+                    from_repo_sync=True,
+                    original_uuid=detection.uuid,
+                    signature_fields=detection.signature_fields,
+                    observable_fields=detection.observable_fields,
+                    guide=detection.guide,
+                    setup_guide=detection.setup_guide,
+                    testing_guide=detection.testing_guide,
+                    test_script=detection.test_script,
+                    test_script_language=detection.test_script_language,
+                    test_script_safe=detection.test_script_safe,
+                    email_template=detection.email_template,
+                    status=detection.status,
+                    source=input_config,
+                    field_templates=subscription.default_field_template,
+                    assess_rule=True
+                )
+                new_detection.save()
+                RepositorySyncLog(
+                    **log_message_base,
+                    detection_uuid=detection.uuid,
+                    status='success',
+                    message=f"Added new detection {new_detection.name}({new_detection.uuid}) from repository {self.name}, using source detection {detection.uuid}",
+                    level='info'
+                ).save()
+            else:
+
+                existing_detection = existing_detection[0]
+                if existing_detection.version < detection.version or ignore_versions:
+
+                    existing_detection.name = detection.name
+                    existing_detection.description = detection.description
+                    existing_detection.tags = detection.tags
+
+                    if existing_detection.query != detection.query:
+                        existing_detection.assess_rule = True
+                        existing_detection.query = detection.query
+
+                    existing_detection.tactics = detection.tactics
+                    existing_detection.techniques = detection.techniques
+                    existing_detection.references = detection.references
+                    existing_detection.rule_type = detection.rule_type
+                    existing_detection.version = detection.version
+                    existing_detection.from_repo_sync = True
+                    existing_detection.test_script = detection.test_script
+                    existing_detection.test_script_language = detection.test_script_language
+                    existing_detection.test_script_safe = detection.test_script_safe
+                    existing_detection.email_template = detection.email_template
+
+                    # Set all the attributes based on the sync settings
+                    sync_settings = subscription.sync_settings.to_dict()
+                    for sync_setting in sync_settings:
+                        if subscription.sync_settings[sync_setting] == True:
+                            if sync_setting == 'field_templates':
+                                # If the subscription has a default field template and the existing detection does not, set the default
+                                if existing_detection.field_templates == None and subscription.default_field_template != None:
+                                    existing_detection.field_templates = subscription.default_field_template
+                                elif subscription.default_field_template == None and detection.field_templates != None:
+                                    existing_detection.field_templates = detection.field_templates
+                            else:
+                                setattr(existing_detection,
+                                        sync_setting,
+                                        getattr(detection, sync_setting)
+                                        )
+
+                    existing_detection.save()
+                    RepositorySyncLog(
+                        **log_message_base,
+                        message=f"Updated detection {existing_detection.name} ({existing_detection.uuid}) from repository {self.name}",
+                        level="info",
+                        status="success"
+                    ).save()
+                    
+        except Exception as e:
+            RepositorySyncLog(
+                **log_message_base,
+                message=f"Error syncing detection {detection.name} ({detection.uuid}) from repository {self.name}: {e}",
+                level="error",
+                status="failed"
+            ).save()
+            return False
+
+
+    def sync(self, organization, subscription=None, ignore_versions=False):
         ''' Synchronizes the repository if it is a local repository '''
 
         # Get the configuration for the repository sync via the subscription
@@ -1128,7 +1314,12 @@ class DetectionRepository(base.BaseDocument):
                 if self.repo_type == 'local':
                     detections_to_sync = Detection.get_by_detection_id(
                         self.detections, repository=self.uuid)
-                    for detection in detections_to_sync:
+                    
+                    with ThreadPoolExecutor(max_workers=10) as executor:
+                        for detection in detections_to_sync:
+                            executor.submit(self.sync_rule, detection, organization, subscription, input_config, ignore_versions)
+
+                    """for detection in detections_to_sync:
                         existing_detection = Detection.get_by_detection_id(
                             detection.detection_id, organization=organization)
                         if not existing_detection:
@@ -1174,43 +1365,49 @@ class DetectionRepository(base.BaseDocument):
                             )
                             new_detection.save()
                         else:
+
                             existing_detection = existing_detection[0]
-                            existing_detection.name = detection.name
-                            existing_detection.description = detection.description
-                            existing_detection.tags = detection.tags
+                            if existing_detection.version < detection.version or ignore_versions:
 
-                            if existing_detection.query != detection.query:
-                                existing_detection.assess_rule = True
-                                existing_detection.query = detection.query
+                                print(f"Updating detection {existing_detection.name} from version {existing_detection.version} to {detection.version}")
 
-                            existing_detection.tactics = detection.tactics
-                            existing_detection.techniques = detection.techniques
-                            existing_detection.references = detection.references
-                            existing_detection.rule_type = detection.rule_type
-                            existing_detection.version = detection.version
-                            existing_detection.from_repo_sync = True
-                            existing_detection.test_script = detection.test_script
-                            existing_detection.test_script_language = detection.test_script_language
-                            existing_detection.test_script_safe = detection.test_script_safe
-                            existing_detection.email_template = detection.email_template
+                                existing_detection.name = detection.name
+                                existing_detection.description = detection.description
+                                existing_detection.tags = detection.tags
 
-                            # Set all the attributes based on the sync settings
-                            sync_settings = subscription.sync_settings.to_dict()
-                            for sync_setting in sync_settings:
-                                if subscription.sync_settings[sync_setting] == True:
-                                    if sync_setting == 'field_templates':
-                                        # If the subscription has a default field template and the existing detection does not, set the default
-                                        if existing_detection.field_templates == None and subscription.default_field_template != None:
-                                            existing_detection.field_templates = subscription.default_field_template
-                                        elif subscription.default_field_template == None and detection.field_templates != None:
-                                            existing_detection.field_templates = detection.field_templates
-                                    else:
-                                        setattr(existing_detection,
-                                                sync_setting,
-                                                getattr(detection, sync_setting)
-                                                )
+                                if existing_detection.query != detection.query:
+                                    existing_detection.assess_rule = True
+                                    existing_detection.query = detection.query
 
-                            existing_detection.save()
+                                existing_detection.tactics = detection.tactics
+                                existing_detection.techniques = detection.techniques
+                                existing_detection.references = detection.references
+                                existing_detection.rule_type = detection.rule_type
+                                existing_detection.version = detection.version
+                                existing_detection.from_repo_sync = True
+                                existing_detection.test_script = detection.test_script
+                                existing_detection.test_script_language = detection.test_script_language
+                                existing_detection.test_script_safe = detection.test_script_safe
+                                existing_detection.email_template = detection.email_template
+
+                                # Set all the attributes based on the sync settings
+                                sync_settings = subscription.sync_settings.to_dict()
+                                for sync_setting in sync_settings:
+                                    if subscription.sync_settings[sync_setting] == True:
+                                        if sync_setting == 'field_templates':
+                                            # If the subscription has a default field template and the existing detection does not, set the default
+                                            if existing_detection.field_templates == None and subscription.default_field_template != None:
+                                                existing_detection.field_templates = subscription.default_field_template
+                                            elif subscription.default_field_template == None and detection.field_templates != None:
+                                                existing_detection.field_templates = detection.field_templates
+                                        else:
+                                            setattr(existing_detection,
+                                                    sync_setting,
+                                                    getattr(detection, sync_setting)
+                                                    )
+
+                                existing_detection.save()
+                    """
 
                     # Update the subscription with the last sync time
                     subscription.last_sync = datetime.datetime.utcnow()
@@ -1221,7 +1418,6 @@ class DetectionRepository(base.BaseDocument):
                     subscription.save(refresh="wait_for")
 
                     # Check to see if any detections exist that are from_repo_sync
-
                     Detection._index.refresh()
 
             else:
