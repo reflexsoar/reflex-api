@@ -1366,15 +1366,15 @@ class DetectionDetails(Resource):
 
                 if api.payload['hits'] > HIGH_VOLUME_THRESHOLD:
                     HIGH_VOLUME_DISABLE = True
-                warnings = True
+                WARNINGS = True
 
             if warnings:
 
                 if 'warnings' not in api.payload:
                     if hasattr(detection, 'warnings'):
                         api.payload['warnings'] = detection.warnings
-                else:
-                    api.payload['warnings'] = []
+                    else:
+                        api.payload['warnings'] = []
                 
                 if SLOW_QUERY and 'slow-query' not in api.payload['warnings']:
                     api.payload['warnings'].append('slow-query')
