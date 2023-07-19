@@ -1357,8 +1357,8 @@ class DetectionDetails(Resource):
                 SLOW_DETECTION_THRESHOLD = settings.slow_detection_threshold
                 SLOW_DETECTION_WARNING_THRESHOLD = settings.slow_detection_warning_threshold
             except:
-                SLOW_DETECTION_WARNING_THRESHOLD = 1000
-                SLOW_DETECTION_THRESHOLD = 5000
+                SLOW_DETECTION_WARNING_THRESHOLD = 5000
+                SLOW_DETECTION_THRESHOLD = 25000
                 
             if 'query_time_taken' in api.payload and api.payload['query_time_taken'] > SLOW_DETECTION_WARNING_THRESHOLD:
                 SLOW_QUERY = True
