@@ -1373,8 +1373,8 @@ class DetectionDetails(Resource):
                 if 'warnings' not in api.payload:
                     if hasattr(detection, 'warnings'):
                         api.payload['warnings'] = detection.warnings
-                    else:
-                        api.payload['warnings'] = []
+                else:
+                    api.payload['warnings'] = []
                 
                 if SLOW_QUERY and 'slow-query' not in api.payload['warnings']:
                     api.payload['warnings'].append('slow-query')
