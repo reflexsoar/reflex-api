@@ -1273,6 +1273,17 @@ def increase_version(detection, payload):
     return detection.version
 
 
+def add_warning(payload, warning):
+
+    if 'warnings' in payload:
+        if isinstance(payload['warnings'], list):
+            payload['warnings'].append(warning)
+    else:
+        payload['warnings'] = [warning]
+
+    return payload
+
+
 @api.route("/<uuid>")
 class DetectionDetails(Resource):
 
@@ -1348,6 +1359,7 @@ class DetectionDetails(Resource):
             except:
                 SLOW_DETECTION_WARNING_THRESHOLD = 1000
                 SLOW_DETECTION_THRESHOLD = 5000
+                
             if 'query_time_taken' in api.payload and api.payload['query_time_taken'] > SLOW_DETECTION_WARNING_THRESHOLD:
                 SLOW_QUERY = True
                 if api.payload['query_time_taken'] > SLOW_DETECTION_THRESHOLD:
@@ -1366,7 +1378,7 @@ class DetectionDetails(Resource):
 
                 if api.payload['hits'] > HIGH_VOLUME_THRESHOLD:
                     HIGH_VOLUME_DISABLE = True
-                WARNINGS = True
+                warnings = True
 
             if warnings:
 
@@ -1375,6 +1387,9 @@ class DetectionDetails(Resource):
                         api.payload['warnings'] = detection.warnings
                     else:
                         api.payload['warnings'] = []
+
+                if 'warnings' in api.payload and api.payload['warnings'] is None:
+                    api.payload['warnings'] = []
                 
                 if SLOW_QUERY and 'slow-query' not in api.payload['warnings']:
                     api.payload['warnings'].append('slow-query')
