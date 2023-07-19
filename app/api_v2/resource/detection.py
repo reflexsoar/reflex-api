@@ -1419,7 +1419,10 @@ class DetectionDetails(Resource):
                     if 'slow-query-disable' in api.payload['warnings']:
                         api.payload['warnings'].remove('slow-query-disable')
 
-            detection.update(**api.payload, refresh=True, version=increase_version(detection, api.payload))
+            if isinstance(current_user, Agent):
+                detection.update(**api.payload, refresh=True)
+            else:
+                detection.update(**api.payload, refresh=True, version=increase_version(detection, api.payload))
 
             return detection
         else:
