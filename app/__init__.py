@@ -323,7 +323,7 @@ def create_app(environment='development'):
             )
 
             scheduler.add_job(
-                func=housekeeper.check_detection_repo_subscription_sync,
+                func=DetectionRepository.check_detection_repo_subscription_sync,
                 trigger="interval",
                 seconds=300
             )
