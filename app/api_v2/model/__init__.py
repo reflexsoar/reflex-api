@@ -83,7 +83,8 @@ from .detection import (
     DetectionRepository,
     DetectionRepositoryBundle,
     DetectionRepositorySubscription,
-    DetectionState
+    DetectionState,
+    RepositorySyncLog
 )
 from .task import Task
 from .mitre import MITRETactic, MITRETechnique
