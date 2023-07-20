@@ -664,7 +664,6 @@ class TestEventRQL(Resource):
                 events = search.execute()
            
             event_data = [json.loads(json.dumps(marshal(e, mod_event_rql))) for e in events]
-            print(event_data)
        
         try:
             organization = current_user.organization
