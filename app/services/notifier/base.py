@@ -298,7 +298,12 @@ class Notifier(object):
                 if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
                     notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
 
-            dedup_key = session.trigger(notification.message, "ReflexSOAR Notifications")
+            if notification.source_object_type == 'event':
+                event = Event.get_by_uuid(notification.source_object_uuid)
+                dedup_key = event.signature
+            else:
+                dedup_key = session.trigger(notification.message, "ReflexSOAR Notifications")
+                
             if dedup_key:
                 notification.send_success()
         else:
