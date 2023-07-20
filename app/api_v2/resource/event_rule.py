@@ -132,6 +132,9 @@ mod_event_rql = api.model('EventDetailsRQLFormatted', {
     'status': fields.Nested(mod_event_status),
     'tags': fields.List(fields.String),
     'observables': fields.List(fields.Nested(mod_observable_list)),
+    'organization': fields.String,
+    'detection_id': fields.String,
+    'risk_score': fields.Integer,
     'case': fields.String,
     'created_at': ISO8601(attribute='created_at'),
     'modified_at': ISO8601(attribute='updated_at'),
@@ -661,6 +664,7 @@ class TestEventRQL(Resource):
                 events = search.execute()
            
             event_data = [json.loads(json.dumps(marshal(e, mod_event_rql))) for e in events]
+            print(event_data)
        
         try:
             organization = current_user.organization
