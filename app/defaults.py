@@ -1,9 +1,42 @@
+import pathlib
+
 from datetime import datetime
 from uuid import uuid4
 from app.api_v2.model.user import Organization, User
 from app.api_v2.model.case import Case
 from app.api_v2.model.event import Event
+from app.api_v2.model.integration import Integration
 
+
+def load_integrations():
+    """
+    Loads all JSON files from the integrations folder and converts
+    them to Integration objects.  If the integration already exists
+    it will skip it.
+    """
+
+    # Walk the integrations folder and get a list of all the JSON files
+    # that are in the folder, the files can be in subfolders as well.
+
+    manifest_files = []
+    
+    ipath = pathlib.Path('app/integrations')
+
+    for integration_file in ipath.rglob("*.json"):
+        manifest_files.append(integration_file)
+
+    
+
+    # For each JSON file, load the JSON file and convert it to an Integration
+    # object.  If the integration already exists, skip it.
+    for manifest_file in manifest_files:
+
+        # Validate the JSON is valid
+        try:
+            Integration.load_manifest(manifest_file)
+        except Exception as e:
+            print(f'Error loading {manifest_file} - {e}')
+            continue
 
 def create_default_email_templates(cls, org_id, check_for_default=False):
 

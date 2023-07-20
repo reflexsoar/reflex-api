@@ -149,6 +149,8 @@ class Config(object):
 
     SHOW_SWAGGER = as_bool(os.getenv('REFLEX_SHOW_SWAGGER')) if os.getenv('REFLEX_SHOW_SWAGGER') else True
 
+    INTEGRATIONS_ENABLED = as_bool(os.getenv('REFLEX_INTEGRATIONS_ENABLED')) if os.getenv('REFLEX_INTEGRATIONS_ENABLED') else False
+
 
 class ProductionConfig(Config):
     ENV = 'production'

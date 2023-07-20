@@ -31,13 +31,15 @@ from app.api_v2.model import (
         Settings,Input,Organization,ObservableHistory,Task,Detection,DetectionLog,MITRETactic,
         MITRETechnique, EventView, NotificationChannel, Notification, FieldMappingTemplate,
         AgentLogMessage, EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
-        DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState, RepositorySyncLog
+        DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState, RepositorySyncLog,
+        Integration, IntegrationConfiguration
 )
 
 from .defaults import (
     create_default_case_status, create_admin_role, create_default_email_templates, create_default_organization, initial_settings, create_agent_role,
     create_default_closure_reasons, create_default_case_templates, create_default_data_types,
-    create_default_event_status, create_analyst_role,create_admin_user, set_install_uuid, send_telemetry
+    create_default_event_status, create_analyst_role,create_admin_user, set_install_uuid, send_telemetry,
+    load_integrations
 )
 
 from .upgrades import upgrades
@@ -129,7 +131,7 @@ def upgrade_indices(app):
         EventView, NotificationChannel, Notification, FieldMappingTemplate, AgentLogMessage,
         EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState,
-        RepositorySyncLog
+        RepositorySyncLog, Integration, IntegrationConfiguration
         ]
 
     for model in models:
@@ -269,6 +271,10 @@ def create_app(environment='development'):
     if not app.config['DISABLE_TELEMETRY']:
         set_install_uuid()
         send_telemetry()
+
+    if app.config['INTEGRATIONS_ENABLED']:
+        app.logger.info("Loading integrations")
+        load_integrations()
 
     if app.config['ELASTIC_APM_ENABLED']:
         app.config['ELASTIC_APM'] = {
