@@ -42,7 +42,7 @@ class Integration(Document):
     contributor = Keyword()  # The contributor of the integration
     license_name = Keyword()  # The license name of the integration
     enabled = Boolean()  # Whether the integration is enabled or not
-    manifest = Keyword()  # Contains a JSON string that defines what actions are available for the integration and what fields are required for each action
+    manifest = Object()  # Contains a JSON string that defines what actions are available for the integration and what fields are required for each action
     version = Keyword()  # The version of the integration
     logo = Keyword()  # Base64 encoded logo for the integration
 
@@ -71,7 +71,7 @@ class Integration(Document):
 
         # Check to see if an Integration object already exists for the product identifier
         integration = cls.search().filter(
-            'term', product_identifier=manifest['product_identifier']).execute()
+            'term', product_identifier=manifest['product_identifier']).filter('term', version=manifest['version']).execute()
         if integration:
             raise Exception(
                 f'WARNING - Integration with product identifier {manifest["product_identifier"]} already exists')
@@ -85,7 +85,7 @@ class Integration(Document):
             contributor=manifest['contributor'],
             license_name=manifest['license'],
             enabled=manifest['enabled'],
-            manifest=json.dumps(manifest['manifest']),
+            manifest=manifest['manifest'],
             version=manifest['version'],
             logo=manifest['logo']
         )

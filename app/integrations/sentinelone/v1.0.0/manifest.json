@@ -8,9 +8,50 @@
         "Justin Henderson <justin@hasecuritysolutions>"
     ],
     "license": "H&A Security Solutions - Premium Support",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "manifest": {
-        "actions": [],
+        "actions": [
+            {
+                "friendly_name": "Get Agent Details",
+                "description": "Get details about a SentinelOne agent",
+                "name": "get_agent_details",
+                "parameters": [
+                    {
+                        "name": "hostname",
+                        "type": "string",
+                        "required": true,
+                        "description": "The Hostname of the agent to get details for"
+                    }
+                ],
+                "run_from": "console"
+            },
+            {
+                "friendly_name": "Add Threat Note",
+                "description": "Add a note to a threat",
+                "name": "add_threat_note",
+                "parameters": [
+                    {
+                        "name": "ids",
+                        "type": "string",
+                        "required": true,
+                        "description": "The ID of the threat to add a note to"
+                    },
+                    {
+                        "name": "note",
+                        "type": "string",
+                        "required": true,
+                        "description": "The note to add to the threat"
+                    }
+                ],
+                "run_from": "console"
+            },
+            {
+                "freindly_name": "Poll Threats",
+                "description": "Poll for new threats",
+                "name": "poll_threats",
+                "run_from": "agent"
+            }
+        ],
         "configuration": {
             "api_key": {
                 "type": "string",

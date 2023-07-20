@@ -8,9 +8,22 @@
         "Justin Henderson <justin@hasecuritysolutions>"
     ],
     "license": "H&A Security Solutions - Premium Support",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "manifest": {
-        "actions": [],
+        "actions": [
+            {
+                "friendly_name": "Create Incident",
+                "name": "create_incident",
+                "description": "Create an incident in PagerDuty",
+                "source_object_type": "event"
+            },
+            {
+                "name": "resolve_incident",
+                "friendly_name": "Resolve Incident",
+                "description": "Resolve an incident in PagerDuty",
+                "source_object_type": "event"
+            }
+        ],
         "configuration": {
             "api_key": {
                 "type": "string",
