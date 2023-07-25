@@ -6,7 +6,17 @@ from app.api_v2.model.user import Organization, User
 from app.api_v2.model.case import Case
 from app.api_v2.model.event import Event
 from app.api_v2.model.integration import Integration
+from app.api_v2.model.detection import DetectionState
 
+
+def reset_detection_state():
+    """
+    Sets all detection states back to BALANCED on restart
+    """
+
+    for detection_state in DetectionState.search().scan():
+        detection_state.status = 'BALANCED'
+        detection_state.save()
 
 def load_integrations():
     """

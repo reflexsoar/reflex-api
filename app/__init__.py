@@ -39,7 +39,7 @@ from .defaults import (
     create_default_case_status, create_admin_role, create_default_email_templates, create_default_organization, initial_settings, create_agent_role,
     create_default_closure_reasons, create_default_case_templates, create_default_data_types,
     create_default_event_status, create_analyst_role,create_admin_user, set_install_uuid, send_telemetry,
-    load_integrations
+    load_integrations, reset_detection_state
 )
 
 from .upgrades import upgrades
@@ -275,6 +275,8 @@ def create_app(environment='development'):
     if app.config['INTEGRATIONS_ENABLED']:
         app.logger.info("Loading integrations")
         load_integrations()
+
+    reset_detection_state()
 
     if app.config['ELASTIC_APM_ENABLED']:
         app.config['ELASTIC_APM'] = {
