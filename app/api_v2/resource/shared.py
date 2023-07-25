@@ -244,7 +244,15 @@ mod_permissions = Model('Permissions', {
     'update_detection_repository': fields.Boolean,
     'delete_detection_repository': fields.Boolean,
     'share_detection_repository': fields.Boolean,
-    'subscribe_detection_repository': fields.Boolean
+    'subscribe_detection_repository': fields.Boolean,
+    'create_integration': fields.Boolean,
+    'update_integration': fields.Boolean,
+    'delete_integration': fields.Boolean,
+    'view_integrations': fields.Boolean,
+    'view_integrations_configurations': fields.Boolean,
+    'create_integration_configuration': fields.Boolean,
+    'update_integration_configuration': fields.Boolean,
+    'delete_integration_configuration': fields.Boolean
 }, strict=True)
 
 mod_user_list = Model('UserList', {
