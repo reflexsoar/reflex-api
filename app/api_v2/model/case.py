@@ -281,12 +281,18 @@ class CloseReason(base.BaseDocument):
         name = 'reflex-close-reasons'
 
     @classmethod
-    def get_by_name(self, title):
+    def get_by_name(self, title, organization=None):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = self.search().query('term', title=title).execute()
+        response = self.search()
+        response = response.filter('term', title=title)
+        
+        if organization:
+            response = response.filter('term', organization=organization)
+
+        response = response.execute()
         if response:
             usr = response[0]
             return usr
