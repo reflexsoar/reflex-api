@@ -1,6 +1,16 @@
 import json
 import dateutil.parser
+
 from flask_restx import Model, fields, reqparse
+from opensearch_dsl import AttrDict
+
+
+class AsAttrDict(fields.Raw):
+    ''' Converts an AttrDict to a normal Dict'''
+
+    def format(self, value):
+        if isinstance(value, AttrDict):
+            return value.to_dict()
 
 
 class ISO8601(fields.Raw):
