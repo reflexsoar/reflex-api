@@ -9,19 +9,16 @@ in an IntegrationConfiguration object.
 """
 
 import json
-import fnmatch
+import uuid
+from fnmatch import fnmatch
 from . import (
     base,
     Document,
     Keyword,
     Text,
     Boolean,
-    Float,
-    Integer,
-    Date,
     Object,
-    Nested,
-    Ip
+    Search
 )
 
 
@@ -34,6 +31,7 @@ class Integration(Document):
     object defines the configuration for the integration on a per tenant basis.
     """
 
+    uuid = Keyword()  # The unique identifier for the integration
     name = Keyword()  # The name of the integration
     product_identifier = Keyword()  # The a unique key that identifies the integration
     # The description of the integration
@@ -45,6 +43,8 @@ class Integration(Document):
     manifest = Object()  # Contains a JSON string that defines what actions are available for the integration and what fields are required for each action
     version = Keyword()  # The version of the integration
     logo = Keyword()  # Base64 encoded logo for the integration
+    tags = Keyword()
+    category = Keyword()
 
     class Index:
         name = 'reflex-integrations'
@@ -52,9 +52,60 @@ class Integration(Document):
             'refresh_interval': '5s',
         }
 
-    #@classmethod
-    #def _matches(cls, hit):
-    #    return fnmatch(hit["_index"], f'{cls._index._name}-*')
+    @classmethod
+    def search(cls, using=None, index=None, skip_org_check=False):
+        """
+        Creates an :class:`~elasticsearch_dsl.Search` instance that will search 
+        over this ``Document``
+        """
+        s = Search(using=cls._get_using(using),
+                   index=cls._default_index(index), doc_type=[cls])
+        return s
+
+    @classmethod
+    def _matches(cls, hit):
+        return fnmatch(hit["_index"], f'{cls.Index.name}-*')
+
+    @classmethod
+    def get(cls, uuid: str, **kwargs):
+        """
+        Finds the integration by the product_identifier
+        """
+
+        search = cls.search()
+        search = search.filter('term', product_identifier=uuid)
+        if kwargs:
+            for key, value in kwargs.items():
+                search = search.filter('term', **{key: value})
+        results = search.execute()
+
+        if results:
+            return results[0]
+
+        return None
+    
+
+    def get_action(self, action_uuid):
+        """
+        Returns the action configuration specified via the UUID
+        """
+        search = IntegrationConfiguration.search()
+        search = search.filter('term', uuid=action_uuid)
+        results = search.execute()
+
+        if results:
+            return results[0]
+        
+        return None
+    
+    def save(self, **kwargs):
+        '''
+        Overrides the default Document save() function and adds
+        audit fields created_at, updated_at and a default uuid field
+        '''
+        if not self.uuid:
+                    self.uuid = uuid.uuid4()
+        return super().save(**kwargs)
 
     @classmethod
     def load_manifest(cls, data):
@@ -76,6 +127,53 @@ class Integration(Document):
             raise Exception(
                 f'WARNING - Integration with product identifier {manifest["product_identifier"]} already exists')
 
+        # Validate that the manifest file contains the required fields
+        required_fields = [
+            'name',
+            'product_identifier',
+            'description',
+            'author',
+            'license',
+            'version',
+            'manifest'
+        ]
+        missing_fields = []
+        for field in required_fields:
+            if field not in manifest:
+                missing_fields.append(field)
+
+        if missing_fields:
+            raise Exception(
+                f'Manifest file is missing the following required fields: {missing_fields}')
+
+        # Validate that fields are the correct type
+        field_type_map = {
+            'name': str,
+            'product_identifier': str,
+            'description': str,
+            'author': str,
+            'license': str,
+            'version': str,
+            'manifest': dict,
+            'contributor': list,
+            'enabled': bool,
+            'logo': str,
+            'tags': list,
+            'category': list
+        }
+
+        invalid_fields = []
+        for field in manifest:
+            if field in field_type_map:
+                if not isinstance(manifest[field], field_type_map[field]):
+                    error = f"Field {field} is a {type(manifest[field])} but should be a {field_type_map[field]}"
+                    invalid_fields.append(error)
+
+        if invalid_fields:
+
+            raise Exception(
+                f'Manifest file contains the following fields with invalid types: {invalid_fields}')
+
         # Create the new Integration object
         integration = cls(
             name=manifest['name'],
@@ -87,20 +185,23 @@ class Integration(Document):
             enabled=manifest['enabled'],
             manifest=manifest['manifest'],
             version=manifest['version'],
-            logo=manifest['logo']
+            logo=manifest['logo'],
+            tags=manifest['tags'],
+            category=manifest['category']
         )
         integration.save()
 
 
-class IntegrationConfiguration(base.Document):
+class IntegrationConfiguration(base.BaseDocument):
     """
     Defines the configuration for an integration.  The configuration is stored as a JSON string
     """
 
     name = Keyword()  # The name of the integration
+    action = Keyword()  # The name of the action
     integration_uuid = Keyword()  # The UUID of the integration this configuration is for
     # Contains a JSON string that defines the configuration for the integration
-    configuration = Keyword()
+    configuration = Object()
 
     class Index:
         name = 'reflex-integration-configurations'

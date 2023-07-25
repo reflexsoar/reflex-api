@@ -1,18 +1,11 @@
 import re
 import base64
-import math
 import datetime
-import random
-import string
 import os
 import json
 import hashlib
-import fnmatch
 
 from app.api_v2.model.user import Organization
-import pyqrcode
-import time
-from io import BytesIO
 from zipfile import ZipFile
 #import pyminizip
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
@@ -94,7 +87,8 @@ from .resource import (
     ns_observable_v2,
     ns_asset_v2,
     ns_reporting_v2,
-    ns_detection_repository_v2
+    ns_detection_repository_v2,
+    ns_integration_v2
 )
 
 from .. import ep
@@ -154,6 +148,7 @@ api2.add_namespace(ns_observable_v2)
 api2.add_namespace(ns_asset_v2)
 api2.add_namespace(ns_reporting_v2)
 api2.add_namespace(ns_detection_repository_v2)
+api2.add_namespace(ns_integration_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
