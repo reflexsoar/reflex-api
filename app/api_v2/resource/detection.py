@@ -1246,12 +1246,10 @@ class AssessDetection(Resource):
 def increase_version(detection, payload):
     '''
     Increases the version number if certain attributes will change
+    If the detection is a repo_sync then force the version to 0 when
+    valid attributes are changed so that the source detection will always
+    be a higher version number
     '''
-
-    # If the detection is from a repo sync force it to be version 0 so it
-    # gets updated regardless
-    if detection.from_repo_sync:
-        return 0
     
     attributes = ['name', 'description', 'risk_score', 'severity', 'rule_type',
                   'tactics', 'techniques', 'threshold_config', 'new_terms_config',
@@ -1263,11 +1261,15 @@ def increase_version(detection, payload):
     # If any of the attributes listed are in the payload and differ from
     # what the detection currently has then return True
     if any([payload.get(attribute) != getattr(detection, attribute) for attribute in attributes]):
+        if detection.from_repo_sync:
+            return 0
         return detection.version + 1
     
     # If the detections query has changed then return True
     query = payload.get('query')
     if query and query['query'] != detection.query['query']:
+        if detection.from_repo_sync:
+            return 0
         return detection.version + 1
     
     return detection.version
@@ -1417,7 +1419,10 @@ class DetectionDetails(Resource):
                     if 'slow-query-disable' in api.payload['warnings']:
                         api.payload['warnings'].remove('slow-query-disable')
 
-            detection.update(**api.payload, refresh=True, version=increase_version(detection, api.payload))
+            if isinstance(current_user, Agent):
+                detection.update(**api.payload, refresh=True)
+            else:
+                detection.update(**api.payload, refresh=True, version=increase_version(detection, api.payload))
 
             return detection
         else:

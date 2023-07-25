@@ -51,6 +51,7 @@ class Config(object):
     ELASTICSEARCH_TIMEOUT = int(os.getenv('REFLEX_ES_TIMEOUT')) if os.getenv('REFLEX_ES_TIMEOUT') else 60
     ELASTICSEARCH_USERNAME = os.getenv('REFLEX_ES_USERNAME') if os.getenv('REFLEX_ES_USERNAME') else 'elastic'
     ELASTICSEARCH_PASSWORD = os.getenv('REFLEX_ES_PASSWORD') if os.getenv('REFLEX_ES_PASSWORD') else 'elastic'
+    ELASTICSEARCH_MAX_CONNECTIONS = int(os.getenv('REFLEX_ES_MAX_CONNECTIONS')) if os.getenv('REFLEX_ES_MAX_CONNECTIONS') else 25
 
     # THREAT POLLER CONFIGURATION
     THREAT_POLLER_INTERVAL = int(os.getenv('REFLEX_THREAT_LIST_POLLER_INTERVAL')) if os.getenv('REFLEX_THREAT_LIST_POLLER_INTERVAL') else 5*60
@@ -147,6 +148,8 @@ class Config(object):
     LOG_LEVEL = os.getenv('REFLEX_LOG_LEVEL') if os.getenv('REFLEX_LOG_LEVEL') else "ERROR"
 
     SHOW_SWAGGER = as_bool(os.getenv('REFLEX_SHOW_SWAGGER')) if os.getenv('REFLEX_SHOW_SWAGGER') else True
+
+    INTEGRATIONS_ENABLED = as_bool(os.getenv('REFLEX_INTEGRATIONS_ENABLED')) if os.getenv('REFLEX_INTEGRATIONS_ENABLED') else False
 
 
 class ProductionConfig(Config):
