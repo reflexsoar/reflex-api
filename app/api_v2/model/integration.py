@@ -33,6 +33,7 @@ class Integration(Document):
 
     uuid = Keyword()  # The unique identifier for the integration
     name = Keyword()  # The name of the integration
+    unique_name = Keyword()  # The unique name of the integration
     product_identifier = Keyword()  # The a unique key that identifies the integration
     # The description of the integration
     description = Keyword(fields={'text': Text()})
@@ -104,7 +105,9 @@ class Integration(Document):
         audit fields created_at, updated_at and a default uuid field
         '''
         if not self.uuid:
-                    self.uuid = uuid.uuid4()
+            self.uuid = uuid.uuid4()
+        if not self.unique_name:
+            self.unique_name = self.name.replace(' ', '_').lower()
         return super().save(**kwargs)
 
     @classmethod

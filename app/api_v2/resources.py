@@ -91,8 +91,6 @@ from .resource import (
     ns_integration_v2
 )
 
-from .. import ep
-
 show_swagger_docs = (os.getenv('REFLEX_SHOW_SWAGGER_DOCS', 'False').lower() == 'true')
 
 # Instantiate a new API object
@@ -149,6 +147,10 @@ api2.add_namespace(ns_asset_v2)
 api2.add_namespace(ns_reporting_v2)
 api2.add_namespace(ns_detection_repository_v2)
 api2.add_namespace(ns_integration_v2)
+
+# Register the integration base 
+from app.integrations.base import IntegrationApi as ns_integration_base_v2
+api2.add_namespace(ns_integration_base_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
