@@ -151,7 +151,7 @@ class NotificationChannelDetails(Resource):
             api.abort(
                 400, f'Invalid channel type {api.payload["channel_type"]}.  Must be one of {NOTIFICATION_CHANNEL_TYPES}')
             
-        if 'is_global' in api.payload and api.payload['is_global'] and not current_user.is_default_org:
+        if 'is_global' in api.payload and api.payload['is_global'] and not current_user.is_default_org():
             api.abort(400, 'Only the default organization can create global notification channels')
 
         channel = None
@@ -256,7 +256,7 @@ class NotificationChannelList(Resource):
 
         channel = None
 
-        if 'is_global' in api.payload and api.payload['is_global'] and not current_user.is_default_org:
+        if 'is_global' in api.payload and api.payload['is_global'] and not current_user.is_default_org():
             api.abort(400, 'Only the default organization can create global notification channels')
 
         if 'organization' in api.payload:

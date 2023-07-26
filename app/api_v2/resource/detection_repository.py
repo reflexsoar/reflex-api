@@ -241,7 +241,7 @@ class DetectionRepositorySyncLocalSubscribers(Resource):
         and must be a member of the default organization.
         '''
 
-        if not current_user.is_default_org:
+        if not current_user.is_default_org():
             api.abort(403, 'You do not have permission to sync local subscribers')
 
         # Get the repository

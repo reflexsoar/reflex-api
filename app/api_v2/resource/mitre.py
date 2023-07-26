@@ -219,7 +219,7 @@ class DetectionList(Resource):
         search = Detection.search()
 
         if args.organization:
-            if not current_user.is_default_org:
+            if not current_user.is_default_org():
                 search = search.filter('term', organization=current_user.organization)
             else:
                 search = search.filter('term', organization=args.organization)

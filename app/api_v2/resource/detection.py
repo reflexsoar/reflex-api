@@ -1624,7 +1624,7 @@ class BulkEnableDetections(Resource):
                 # TODO: Add a access check to make sure this user has access to update
                 # the detection for now we will just check if the user is an admin or in
                 # the detection's organization
-                if current_user.is_default_org or current_user.organization == detection.organization:
+                if current_user.is_default_org() or current_user.organization == detection.organization:
                     detections_to_enable.append(detection.uuid)
 
                     # Track which organizations have updated detections so
@@ -1820,7 +1820,7 @@ class DetectionRebalance(Resource):
         Redistributes the detection workload
         '''
         
-        if not current_user.is_default_org:
+        if not current_user.is_default_org():
             api.abort(400, 'You must be in the default organization to rebalance detections')
 
         DetectionState.check_state()
