@@ -2,7 +2,7 @@ import datetime
 from app.api_v2.model.threat import ThreatValue
 from ..utils import check_org, default_org, token_required, user_has, ip_approved, page_results
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
-from ..model import ThreatList, DataType
+from ..model import ThreatList, DataType, Q
 from .shared import ISO8601, mod_pagination
 from ... import ep
 
@@ -61,7 +61,8 @@ mod_list_list = api.model('ListView', {
     'case_sensitive': fields.Boolean,
     'flag_ioc': fields.Boolean,
     'flag_safe': fields.Boolean,
-    'flag_spotted': fields.Boolean
+    'flag_spotted': fields.Boolean,
+    'global_list': fields.Boolean(default=False)
 })
 
 mod_list_list_paged = api.model('ListViewPaged', {
@@ -85,7 +86,8 @@ mod_list_create = api.model('ListCreate', {
     'case_sensitive': fields.Boolean,
     'flag_ioc': fields.Boolean,
     'flag_safe': fields.Boolean,
-    'flag_spotted': fields.Boolean
+    'flag_spotted': fields.Boolean,
+    'global_list': fields.Boolean(default=False)
 })
 
 mod_list_values = api.model('ListValues', {
@@ -135,21 +137,21 @@ class ThreatListList(Resource):
 
         args = list_parser.parse_args()
 
-        lists = ThreatList.search()
+        lists = ThreatList.search(skip_org_check=True)
 
-        if args.data_type:
-            if user_in_default_org and args.organization:
-                data_type = DataType.get_by_name(name=args.data_type, organization=args.organization)
-            else:
-                data_type = DataType.get_by_name(name=args.data_type)
-            if data_type:
-                lists = lists.filter('term', data_type_uuid=data_type.uuid)
-
-        if user_in_default_org and args.organization:
+        # If the organization args are set and the user is not in the default org
+        if current_user.is_default_org() and args.organization:
             lists = lists.filter('term', organization=args.organization)
-
-        if args.name__like:
-            lists = lists.filter('wildcard', name=f"*{args.name__like}*")
+            
+        if not current_user.is_default_org():
+            # Search for the current_users organization or any global_list
+            lists = lists.filter(
+                'bool',
+                should=[
+                    Q('term', organization=current_user.organization),
+                    Q('term', global_list=True)
+                ]
+            )
 
         lists, total_results, pages = page_results(lists, args.page, args.page_size)
 
@@ -285,6 +287,11 @@ class ThreatListDetails(Resource):
         value_list = ThreatList.get_by_uuid(uuid=uuid)
 
         if value_list:
+
+            if 'global_list' in api.payload:
+                current_state = getattr(value_list, 'global_list')
+                if current_state != api.payload['global_list'] and not current_user.is_default_org():
+                    api.abort(403, 'You do not have permission to change the global_list setting.')
 
             if 'name' in api.payload:
                 l = ThreatList.get_by_name(name=api.payload['name'])
