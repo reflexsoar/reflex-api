@@ -1,1 +1,5 @@
-from .main import api as ReflexSoarV1
+from .main import reflexsoar
+
+__all__ = [
+    'reflexsoar'
+]

@@ -1,27 +1,27 @@
 
-# Load the manifest file so we can get the product_id and product_name
-import json
-import os
-import datetime
+from flask_restx import Resource, fields
 
-from uuid import uuid4
-from flask import request
-from flask_restx import Namespace, Resource, fields
-from flask_restx import inputs as xinputs
-from app.api_v2.model.case import CloseReason
+from app.integrations.base import IntegrationBase, IntegrationApi
 
-from app.api_v2.model.integration import Integration
-from app.api_v2.model.event import Event
-from app.api_v2.resource.shared import JSONField
 
-# Find the directory of the current file
-dir_path = os.path.dirname(os.path.realpath(__file__))
+mod_test = IntegrationApi.model('Test', {
+    'test': fields.String
+})
 
-# Load the manifest file
-with open(f"{dir_path}/manifest.json", "r") as f:
-    manifest = json.load(f)
 
-api = Namespace(f"{manifest['name']} - Integration", description=manifest['description'], path=f"/integration/{manifest['product_identifier']}/{manifest['version']}")
+class ReflexSOAR(IntegrationBase):
+
+    class TestResource(Resource):
+        path = "/test"
+
+        @IntegrationApi.expect(mod_test)
+        def get(self):
+            return "Hello World"
+
+
+reflexsoar = ReflexSOAR()
+
+'''
 
 mod_event_webhook_update_payload = api.model('EventWebhookUpdatePayload', {
     'action': fields.String,
@@ -36,7 +36,8 @@ mod_event_webhook_payload = api.model('EventWebhookPayload', {
     'update_payload': fields.Nested(mod_event_webhook_update_payload)
 })
 
-@api.route("/event_webhook/<string:action_uuid>")
+
+@r.api.route("/event_webhook/<string:action_uuid>")
 class EventWebhook(Resource):
 
     @api.expect(mod_event_webhook_payload)
@@ -44,11 +45,13 @@ class EventWebhook(Resource):
         """
         Search for a configuration by the product_identifer and the integration uuid
         """
-        integration = Integration.get(manifest['product_identifier'], version=manifest['version'])
+        integration = Integration.get(
+            manifest['product_identifier'], version=manifest['version'])
 
         if not integration:
-            api.abort(404, f"Integration {manifest['product_identifier']} not found")
-    
+            api.abort(
+                404, f"Integration {manifest['product_identifier']} not found")
+
         action = integration.get_action(action_uuid)
 
         if not action:
@@ -60,7 +63,8 @@ class EventWebhook(Resource):
                 ips = action.configuration.ip_restrictions
                 # Check to see if the request is coming from a valid IP address
                 if request.remote_addr not in ips:
-                    api.abort(403, f"Request from {request.remote_addr} is not allowed")
+                    api.abort(
+                        403, f"Request from {request.remote_addr} is not allowed")
 
             if hasattr(action.configuration, 'user_agent_restritions'):
 
@@ -68,13 +72,15 @@ class EventWebhook(Resource):
 
                 # Check to see if the request is coming from a valid User-Agent
                 if request.user_agent.string not in agents:
-                    api.abort(403, f"Request from {request.user_agent.string} is not allowed")
+                    api.abort(
+                        403, f"Request from {request.user_agent.string} is not allowed")
 
         if not 'action' in api.payload:
             api.abort(400, "Missing 'action' in payload")
 
-        if api.payload['action'] not in ['create','update']:
-            api.abort(400, f"Invalid 'action' in payload: {api.payload['action']}")
+        if api.payload['action'] not in ['create', 'update']:
+            api.abort(
+                400, f"Invalid 'action' in payload: {api.payload['action']}")
 
         if api.payload['action'] == 'create':
             pass
@@ -85,18 +91,21 @@ class EventWebhook(Resource):
             update_payload = api.payload.get('update_payload')
             if not update_payload:
                 api.abort(400, "Missing 'update_payload' in payload")
-            
+
             if 'action' not in update_payload:
                 api.abort(400, "Missing 'action' in update_payload")
 
             if update_payload['action'] not in ['comment', 'dismiss']:
-                api.abort(400, f"Invalid 'action' in update_payload: {update_payload['action']}")
+                api.abort(
+                    400, f"Invalid 'action' in update_payload: {update_payload['action']}")
 
             # Find the source event by the event_uuid
-            event = Event.get_by_uuid(update_payload['event_uuid'], organization=action.organization)
+            event = Event.get_by_uuid(
+                update_payload['event_uuid'], organization=action.organization)
 
             if not event:
-                api.abort(404, f"Event {update_payload['event_uuid']} not found")
+                api.abort(
+                    404, f"Event {update_payload['event_uuid']} not found")
 
             if update_payload['action'] == 'comment' and 'comment' in update_payload:
                 comment = {
@@ -119,14 +128,16 @@ class EventWebhook(Resource):
                 }
 
                 # Find the close reason
-                dismiss['reason'] = CloseReason.get_by_name(update_payload['status_name'], organization=action.organization)
-                
+                dismiss['reason'] = CloseReason.get_by_name(
+                    update_payload['status_name'], organization=action.organization)
+
                 if not dismiss['reason']:
-                    api.abort(404, f"Close Reason {update_payload['status_name']} not found")
+                    api.abort(
+                        404, f"Close Reason {update_payload['status_name']} not found")
 
                 if 'dismiss_comment' in update_payload:
                     dismiss['comment'] = update_payload['dismiss_comment']
-                
+
                 if 'advice' in update_payload:
                     dismiss['advice'] = update_payload['advice']
 
@@ -136,6 +147,8 @@ class EventWebhook(Resource):
 
 
 class Test(Resource):
-    
+
     def get(self):
         return "Test ReflexSOAR Integration"
+
+'''
