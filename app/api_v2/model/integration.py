@@ -36,6 +36,7 @@ class Integration(Document):
     unique_name = Keyword()  # The unique name of the integration
     product_identifier = Keyword()  # The a unique key that identifies the integration
     # The description of the integration
+    brief_description = Keyword(fields={'text': Text()})
     description = Keyword(fields={'text': Text()})
     author = Keyword()  # The author of the integration
     contributor = Keyword()  # The contributor of the integration
@@ -134,6 +135,7 @@ class Integration(Document):
         required_fields = [
             'name',
             'product_identifier',
+            'brief_description',
             'description',
             'author',
             'license',
@@ -153,6 +155,7 @@ class Integration(Document):
         field_type_map = {
             'name': str,
             'product_identifier': str,
+            'brief_description': str,
             'description': str,
             'author': str,
             'license': str,
@@ -181,6 +184,7 @@ class Integration(Document):
         integration = cls(
             name=manifest['name'],
             product_identifier=manifest['product_identifier'],
+            brief_description=manifest['brief_description'],
             description=manifest['description'],
             author=manifest['author'],
             contributor=manifest['contributor'],
@@ -201,10 +205,13 @@ class IntegrationConfiguration(base.BaseDocument):
     """
 
     name = Keyword()  # The name of the integration
-    action = Keyword()  # The name of the action
+    description = Keyword(fields={'text': Text()})  # The description of the integration
     integration_uuid = Keyword()  # The UUID of the integration this configuration is for
-    # Contains a JSON string that defines the configuration for the integration
-    configuration = Object()
+    # Contains a JSON string that defines the configuration for the integrations actions
+    # and any global settings
+    actions = Object()
+    global_settings = Object()
+    enabled = Boolean()  # Whether the integration is enabled or not
 
     class Index:
         name = 'reflex-integration-configurations'

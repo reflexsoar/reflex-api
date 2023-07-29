@@ -1,10 +1,15 @@
 {
     "name": "PagerDuty",
     "product_identifier": "9a326cfc-bda2-4372-b016-328391454225",
-    "description": "This integration allows you to create incidents in PagerDuty from ReflexSOAR.",
+    "brief_description": "This integration allows you to create incidents in PagerDuty from ReflexSOAR",
+    "description": "## Overview\nThis integration allows you to create incidents in PagerDuty from ReflexSOAR\n ## Use Cases\n - Creating Incidents",
     "author": "Brian Carroll <brian@hasecuritysolutions.com",
-    "tags": ["operations"],
-    "category": ["Operatations"],
+    "tags": [
+        "operations"
+    ],
+    "category": [
+        "Operatations"
+    ],
     "enabled": false,
     "contributor": [
         "Justin Henderson <justin@hasecuritysolutions>"
@@ -17,27 +22,54 @@
                 "friendly_name": "Create Incident",
                 "name": "create_incident",
                 "description": "Create an incident in PagerDuty",
-                "source_object_type": "event"
+                "source_object_type": "event",
+                "trigger": ["event_rule","manual"],
+                "configuration": {
+                    "incident_key_field": {
+                        "type": "str",
+                        "required": true,
+                        "default": "signature",
+                        "description": "The event field to use as the incident key when creating new incidents"
+                    },
+                    "from": {
+                        "type": "str",
+                        "required": true,
+                        "description": "The user to open the incident as"
+                    },
+                    "service_id": {
+                        "type": "str",
+                        "required": true,
+                        "description": "The service ID to open the incident under"
+                    }
+                }
             },
             {
-                "name": "resolve_incident",
-                "friendly_name": "Resolve Incident",
-                "description": "Resolve an incident in PagerDuty",
-                "source_object_type": "event"
+                "name": "incoming_event_webhook",
+                "friendly_name": "Incoming Webhook",
+                "description": "Receive updates from PagerDuty via an incoming webhook",
+                "source_object_type": "event",
+                "configuration": {
+                    "webhook_signature": {
+                        "type": "str",
+                        "required": false,
+                        "secret": true,
+                        "description": "The signature used to verify incoming webhooks"
+                    },
+                    "incident_key_field": {
+                        "type": "str",
+                        "required": true,
+                        "default": "signature",
+                        "description": "The event field to use as the incident key when creating new incidents"
+                    }
+                }
             }
         ],
         "configuration": {
-            "api_key": {
-                "type": "string",
+            "api_access_key": {
+                "type": "str",
                 "required": true,
                 "secret": true,
-                "description": "The API key for SentinelOne"
-            },
-            "api_url": {
-                "type": "string",
-                "required": true,
-                "secret": false,
-                "description": "The URL for the SentinelOne API"
+                "description": "The API Key required to connect to PagerDuty"
             }
         }
     },

@@ -1,6 +1,7 @@
 {
     "name": "SentinelOne",
     "product_identifier": "3706b78e-d55c-4b93-87f6-4c21a19c9bdb",
+    "brief_description": "A SentinelOne integration for ReflexSOAR",
     "description": "A SentinelOne integration for ReflexSOAR",
     "author": "Brian Carroll <brian@hasecuritysolutions.com",
     "tags": ["response","inventory","threat"],
@@ -20,7 +21,7 @@
                 "parameters": [
                     {
                         "name": "hostname",
-                        "type": "string",
+                        "type": "str",
                         "required": true,
                         "description": "The Hostname of the agent to get details for"
                     }
@@ -34,13 +35,13 @@
                 "parameters": [
                     {
                         "name": "ids",
-                        "type": "string",
+                        "type": "str",
                         "required": true,
                         "description": "The ID of the threat to add a note to"
                     },
                     {
                         "name": "note",
-                        "type": "string",
+                        "type": "str",
                         "required": true,
                         "description": "The note to add to the threat"
                     }
@@ -56,13 +57,13 @@
         ],
         "configuration": {
             "api_key": {
-                "type": "string",
+                "type": "str",
                 "required": true,
                 "secret": true,
                 "description": "The API key for SentinelOne"
             },
             "api_url": {
-                "type": "string",
+                "type": "str",
                 "required": true,
                 "secret": false,
                 "description": "The URL for the SentinelOne API"
