@@ -2,7 +2,7 @@
     "name": "SentinelOne",
     "product_identifier": "3706b78e-d55c-4b93-87f6-4c21a19c9bdb",
     "brief_description": "A SentinelOne integration for ReflexSOAR",
-    "description": "A SentinelOne integration for ReflexSOAR",
+    "description": "## Overview\nThe SentinelOne integration for ReflexSOAR allows for bi-directional communication between SOC teams and the SentinelOne management platform.  This integration allows for multiple actions ranging from collecting asset information, resolving threats, or active mitigation.\n## Use Cases\n- Collect asset inventory to enrich Detections with host information\n- Collect threats from the SentinelOne console to centralize alert triage",
     "author": "Brian Carroll <brian@hasecuritysolutions.com>",
     "tags": ["response","inventory","threat"],
     "category": ["Endpoint Detection"],
@@ -14,6 +14,55 @@
     "version": "1.0.1",
     "manifest": {
         "actions": [
+            {
+                "friendly_name": "Synchronize Inventory",
+                "description": "Synchronize the SentinelOne inventory with ReflexSOAR's Asset Inventory",
+                "name": "synchronize_inventory",
+                "run_from": "agent",
+                "configuration": {
+                    "sync_interval": {
+                        "type": "int",
+                        "required": true,
+                        "secret": false,
+                        "default": 60,
+                        "description": "The interval in minutes to synchronize the inventory"
+                    },
+                    "sync_mode": {
+                        "type": "str-select",
+                        "required": true,
+                        "secret": false,
+                        "description": "The mode to synchronize the inventory in.  A full sync will synchronize all assets, while an incremental sync will only synchronize assets that have changed since the last sync.",
+                        "default": "full",
+                        "options": [
+                            "full",
+                            "incremental"
+                        ]
+                    },
+                    "conflict_resolution": {
+                        "type": "str-select",
+                        "required": true,
+                        "secret": false,
+                        "description": "The method to use to resolve conflicts. A conflict occurs when an asset is found in SentinelOne and ReflexSOAR, but the asset has different information in each system.  The default is to use the information from SentinelOne.",
+                        "default": "sentinelone",
+                        "options": [
+                            "reflexsoar",
+                            "sentinelone"
+                        ]
+                    },
+                    "host_identifier": {
+                        "type": "str-select",
+                        "required": true,
+                        "secret": false,
+                        "description": "The method to use to identify hosts. The default is to use the hostname.",
+                        "default": "hostname",
+                        "options": [
+                            "hostname",
+                            "ip_address",
+                            "mac_address"
+                        ]
+                    }
+                }
+            },
             {
                 "friendly_name": "Get Agent Details",
                 "description": "Get details about a SentinelOne agent",
