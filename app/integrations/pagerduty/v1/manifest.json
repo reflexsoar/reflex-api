@@ -3,12 +3,12 @@
     "product_identifier": "9a326cfc-bda2-4372-b016-328391454225",
     "brief_description": "This integration allows you to create incidents in PagerDuty from ReflexSOAR",
     "description": "## Overview\nThis integration allows you to create incidents in PagerDuty from ReflexSOAR\n ## Use Cases\n - Creating Incidents",
-    "author": "Brian Carroll <brian@hasecuritysolutions.com",
+    "author": "Brian Carroll <brian@hasecuritysolutions.com>",
     "tags": [
         "operations"
     ],
     "category": [
-        "Operatations"
+        "Operations"
     ],
     "enabled": false,
     "contributor": [

@@ -3,9 +3,9 @@
     "product_identifier": "d67b4bf4-d904-4982-8008-db1dc3342a27",
     "brief_description": "A collection of Generic actions for ReflexSOAR",
     "description": "A collection of Generic actions for ReflexSOAR",
-    "author": "Brian Carroll <brian@hasecuritysolutions.com",
+    "author": "Brian Carroll <brian@hasecuritysolutions.com>",
     "tags": ["response","inventory","threat", "event"],
-    "category": ["Orchestartion", "Automation"],
+    "category": ["Orchestration", "Automation"],
     "enabled": false,
     "contributor": [
         "Justin Henderson <justin@hasecuritysolutions>"

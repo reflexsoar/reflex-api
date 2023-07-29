@@ -3,7 +3,7 @@
     "product_identifier": "3706b78e-d55c-4b93-87f6-4c21a19c9bdb",
     "brief_description": "A SentinelOne integration for ReflexSOAR",
     "description": "A SentinelOne integration for ReflexSOAR",
-    "author": "Brian Carroll <brian@hasecuritysolutions.com",
+    "author": "Brian Carroll <brian@hasecuritysolutions.com>",
     "tags": ["response","inventory","threat"],
     "category": ["Endpoint Detection"],
     "enabled": false,

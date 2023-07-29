@@ -27,6 +27,7 @@ mod_integration_details = api.model('IntegrationDetails', {
     'tags': fields.List(fields.String, default=[]),
     'category': fields.List(fields.String, default=[]),
     'product_identifier': fields.String,
+    'license_name': fields.String,
 })
 
 mod_integration_config_details = api.model('IntegrationConfigDetails', {
