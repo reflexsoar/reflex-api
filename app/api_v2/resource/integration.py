@@ -135,6 +135,78 @@ class IntegrationConfigList(Resource):
         return configuration
 
 
+@api.route("/<string:uuid>/configurations/<string:config_uuid>")
+class IntegrationConfigDetailResource(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_integration_config_details)
+    @token_required
+    #@user_has('view_integration_configuration')
+    def get(self, current_user, uuid, config_uuid):
+        """
+        Fetches the details of a single Integration Configuration
+        """
+
+        pass
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_integration_config_details)
+    @api.expect(mod_create_integration_config)
+    @token_required
+    #@user_has('modify_integration_configuration')
+    def put(self, current_user, uuid, config_uuid):
+        """
+        Updates a single Integration Configuration
+        """
+
+        # If the configuration contains the organization parameter and 
+        # it is different from the current_users organization, reject the 
+        # request, unless the user is_default_org
+        if 'organization' in api.payload:
+            if api.payload['organization'] != current_user.organization and not current_user.is_default_org:
+                api.abort(403, "Cannot modify configuration for another organization")
+
+        # Ensure that the integration exists
+        integration = Integration.get(uuid=uuid)
+        if not integration:
+            api.abort(404, "Integration not found")
+
+        # Ensure the configuration exists
+        configuration = IntegrationConfiguration.search()
+        configuration = configuration.filter('term', uuid=config_uuid)
+        configuration = configuration.filter('term', integration_uuid=uuid)
+        configuration = configuration.execute()
+
+        if not configuration:
+            api.abort(404, "Configuration not found")
+
+        # Ensure a configuration by the same name does not exist for the same
+        # organization
+        existing_config = IntegrationConfiguration.search()
+        existing_config = existing_config.filter('term', integration_uuid=uuid)
+
+        if current_user.is_default_org and 'organization' in api.payload:
+            existing_config = existing_config.filter('term', organization=api.payload['organization'])
+        else:
+            existing_config = existing_config.filter('term', organization=current_user.organization)
+
+        existing_config = existing_config.filter('term', name=api.payload['name'])
+        existing_config = existing_config.execute()
+
+        if existing_config and existing_config[0].uuid != config_uuid:
+            api.abort(409, "Configuration with the same name already exists")
+
+        # If the configuration contains no actions that are enabled, then
+        # we should not allow the configuration to be updated
+        if not any([a['enabled'] for a in api.payload['actions'].values()]):
+            api.abort(400, "Configuration must contain at least one enabled action")
+
+        # Update the configuration
+        configuration = configuration[0]
+        configuration.update(**api.payload)
+        
+        return configuration
+
 @api.route("")
 class IntegrationList(Resource):
 
