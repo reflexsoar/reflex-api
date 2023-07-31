@@ -18,6 +18,7 @@
                 "friendly_name": "Synchronize Inventory",
                 "description": "Synchronize the SentinelOne inventory with ReflexSOAR's Asset Inventory",
                 "name": "synchronize_inventory",
+                "type": "inventory",
                 "run_from": "agent",
                 "configuration": {
                     "sync_interval": {
@@ -64,6 +65,66 @@
                 }
             },
             {
+                "friendly_name": "Isolate Host",
+                "description": "Isolate a host from the network",
+                "name": "isolate_host",
+                "parameters": [
+                    {
+                        "name": "hostname",
+                        "type": "str",
+                        "required": true,
+                        "description": "The Hostname of the agent to isolate"
+                    }
+                ],
+                "type": "action",
+                "run_from": "console"
+            },
+            {
+                "friendly_name": "Reconnect Host",
+                "description": "Reconnect a host to the network",
+                "name": "reconnect_host",
+                "parameters": [
+                    {
+                        "name": "hostname",
+                        "type": "str",
+                        "required": true,
+                        "description": "The Hostname of the agent to reconnect"
+                    }
+                ],
+                "type": "action",
+                "run_from": "console"
+            },
+            {
+                "friendly_name": "Get Threat Details",
+                "description": "Get details about a SentinelOne threat",
+                "name": "get_threat_details",
+                "parameters": [
+                    {
+                        "name": "ids",
+                        "type": "str",
+                        "required": true,
+                        "description": "The ID of the threat to get details for"
+                    }
+                ],
+                "type": "action",
+                "run_from": "console"
+            },
+            {
+                "friendly_name": "Search Deep Visibility",
+                "description": "Search the Deep Visibility logs for a specific query",
+                "name": "search_deep_visibility",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "type": "str",
+                        "required": true,
+                        "description": "The query to search for"
+                    }
+                ],
+                "type": "action",
+                "run_from": "console"
+            },
+            {
                 "friendly_name": "Get Agent Details",
                 "description": "Get details about a SentinelOne agent",
                 "name": "get_agent_details",
@@ -75,6 +136,7 @@
                         "description": "The Hostname of the agent to get details for"
                     }
                 ],
+                "type": "action",
                 "run_from": "console"
             },
             {
@@ -95,13 +157,24 @@
                         "description": "The note to add to the threat"
                     }
                 ],
+                "type": "action",
                 "run_from": "console"
             },
             {
                 "friendly_name": "Poll Threats",
                 "description": "Poll for new threats",
                 "name": "poll_threats",
-                "run_from": "agent"
+                "run_from": "agent",
+                "type": "input",
+                "configuration": {
+                    "poll_interval": {
+                        "type": "int",
+                        "required": true,
+                        "secret": false,
+                        "default": 60,
+                        "description": "The interval in minutes to poll for new threats"
+                    }
+                }
             }
         ],
         "configuration": {
