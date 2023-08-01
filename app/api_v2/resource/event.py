@@ -424,8 +424,6 @@ class EventListAggregated(Resource):
 
                 search = search[start:end]
 
-                print(search.to_dict())
-
                 total_events = search.count()
                 pages = math.ceil(total_events / args.page_size)
 
