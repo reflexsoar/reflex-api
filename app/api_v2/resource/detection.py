@@ -1444,6 +1444,12 @@ class DetectionDetails(Resource):
                         )
                         event.save(refresh=True)
 
+            # If this rule is getting re-enabled, clear the warnings
+            if 'active' in api.payload and api.payload['active'] == True:
+                if detection.active == False:
+                    if 'warnings' in api.payload:
+                        api.payload['warnings'] = []
+
             if isinstance(current_user, Agent):
                 detection.update(**api.payload, refresh=True)
             else:
