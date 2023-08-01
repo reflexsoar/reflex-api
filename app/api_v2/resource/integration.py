@@ -319,7 +319,7 @@ class IntegrationConfigDetailResource(Resource):
         if not configuration:
             api.abort(404, "Configuration not found")
 
-        if configuration.enabled:
+        if hasattr(configuration,'enabled') and configuration.enabled:
             api.abort(409, "Cannot delete an enabled configuration")
 
         configuration = configuration[0]

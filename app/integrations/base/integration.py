@@ -52,10 +52,13 @@ class IntegrationBase(object):
         """
         configuration = IntegrationConfiguration.search()
         configuration = configuration.filter('term', uuid=configuration_uuid)
-        configuration = configuration.filter('term', integration_uuid=self.uuid)
+        configuration = configuration.filter('term', integration_uuid=self.product_identifier)
         configuration = configuration.execute()
 
-        return configuration        
+        if not configuration:
+            raise Exception(f"Configuration with UUID {configuration_uuid} not found")
+        
+        return configuration[0]
 
     def load_manifest(self):
         """
@@ -98,8 +101,7 @@ class IntegrationBase(object):
                 events = events.filter('terms', **{key: value})
             else:
                 events = events.filter('term', **{key: value})
-
-        print(json.dumps(events.to_dict(), indent=4, default=str))
+                
         results = events.scan()
         return [r for r in results]
     

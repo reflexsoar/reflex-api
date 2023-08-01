@@ -2,7 +2,7 @@
     "name": "PagerDuty",
     "product_identifier": "9a326cfc-bda2-4372-b016-328391454225",
     "brief_description": "This integration allows you to create incidents in PagerDuty from ReflexSOAR",
-    "description": "## Overview\nThis integration allows you to create incidents in PagerDuty from ReflexSOAR\n ## Use Cases\n - Creating Incidents",
+    "description": "## Overview\nThis integration allows you to create incidents in PagerDuty from ReflexSOAR\n ## Use Cases\n- Creating Incidents\n- Automatically closing incidents/events bi-directionally.\n## Incident Loop\nIn order for ReflexSOAR to trigger new incidents and receive Indicent Updates from PagerDuty you must configure both the `create_incident` and `incoming_event_webhook` actions.",
     "author": "Brian Carroll <brian@hasecuritysolutions.com>",
     "tags": [
         "operations"
@@ -41,12 +41,13 @@
                         "required": true,
                         "description": "The service ID to open the incident under"
                     }
-                }
+                },
+                "type": "action"
             },
             {
                 "name": "incoming_event_webhook",
                 "friendly_name": "Incoming Webhook",
-                "description": "Receive updates from PagerDuty via an incoming webhook",
+                "description": "Receive updates from PagerDuty via an incoming webhook. The webhook should make calls to the URL `https://<reflexsoar_url>/integrations/pagerduty/1.0.1/create_incident/{configuration_uuid}`.  Where the `configuration_uuid` is the UUID of the configuration that you create for this action.",
                 "source_object_type": "event",
                 "configuration": {
                     "webhook_signature": {
@@ -61,7 +62,8 @@
                         "default": "signature",
                         "description": "The event field to use as the incident key when creating new incidents"
                     }
-                }
+                },
+                "type": "webhook"
             }
         ],
         "configuration": {

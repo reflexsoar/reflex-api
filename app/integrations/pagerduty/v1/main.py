@@ -22,13 +22,17 @@ class PagerDuty(IntegrationBase):
         Creates an incident in PagerDuty
         """
 
-        # TODO: Grab the integration configuration
+        configuration = self.load_configuration(configuration_uuid)
 
-        # TODO: Move this to the integration configuration
-        pager_duty_api_key = ""
+        global_settings = configuration.global_settings.to_dict()
 
-        # TODO: Grab this from the integration configuration
-        incident_key_field = "signature"
+        create_incident_config = configuration.actions.create_incident
+        create_incident_config = create_incident_config.to_dict()
+
+        pager_duty_api_key = global_settings['api_access_key']
+        incident_key_field = create_incident_config['incident_key_field']
+        service_id = create_incident_config['service_id']
+        incident_from = create_incident_config['from']
 
         _events = self.load_events(uuid=events)
 
@@ -46,7 +50,7 @@ class PagerDuty(IntegrationBase):
             "Authorization": f"Token token={pager_duty_api_key}",
             "Content-Type": "application/json",
             "Accept": "application/vnd.pagerduty+json;version=2",
-            "From": "brian@hasecuritysolutions.com" # TODO: Move this to the integration configuration
+            "From": incident_from
         })
 
         # Iterate over the grouped events and create an incident for each
@@ -65,7 +69,7 @@ class PagerDuty(IntegrationBase):
                     "type": "incident",
                     "title": events[0].title,
                     "service": {
-                        "id": "", # TODO: Move this to the integration configuration
+                        "id": service_id,
                         "type": "service_reference"
                     },
                     "incident_key": incident_key,
@@ -128,10 +132,16 @@ Related Observables:\n
         @IntegrationApi.expect(mod_webhook_payload)
         def post(self, configuration_uuid):
             
-            # TODO: Grab the integration configuration
+            # Grab the integration configuration
+            config = pagerduty.load_configuration(configuration_uuid)
 
-            # TODO: Grab this from the integration configuration
-            incident_key_field = "signature"
+            if not config:
+                IntegrationApi.abort(404, "Configuration not found")
+
+            config = config.actions.incoming_event_webhook.to_dict()
+    
+            # Grab this from the integration configuration
+            incident_key_field = config["incident_key_field"]
 
             # Determine if the action is supported
             event_type = None
