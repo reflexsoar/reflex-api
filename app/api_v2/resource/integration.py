@@ -60,6 +60,20 @@ mod_integration_list = api.model('IntegrationList', {
     'integrations': fields.List(fields.Nested(mod_integration_details))
 })
 
+mod_configured_action = api.model('ConfiguredAction', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'parameters': fields.List(AsAttrDict),
+    'integration_uuid': fields.String,
+    'integration_name': fields.String,
+    'configuration_uuid': fields.String,
+    'configuration_name': fields.String
+})
+
+mod_configured_action_list = api.model('ConfiguredActionList', {
+    'actions': fields.List(fields.Nested(mod_configured_action))
+})
+
 @api.route("/<string:uuid>/configurations")
 class IntegrationConfigList(Resource):
 
@@ -431,3 +445,57 @@ class IntegrationConfigurationResource(Resource):
         config.save()
 
         return config
+    
+@api.route("/configured_actions")
+class ConfiguredActionsResource(Resource):
+
+    @api.doc(security='Bearer')
+    @api.marshal_with(mod_configured_action_list)
+    @token_required
+    #@user_has('view_integrations')
+    def get(self, current_user):
+        """
+        Returns a list of all configured actions that support adhoc execution for all
+        integrations.
+        """
+        
+        # Load all the integrations
+        integrations = Integration.search().scan()
+
+        configured_actions = []
+
+        for integration in integrations:
+
+            # Ensure that the integration configuration exists
+            configurations = IntegrationConfiguration.search()
+            configurations = configurations.filter('term', integration_uuid=integration.product_identifier)
+            configurations = configurations.filter('term', organization=current_user.organization)
+
+            # Only return enabled configurations
+            configurations = configurations.filter('term', enabled=True)
+            configurations = configurations.execute()
+
+            # Retrieve the configured actions
+            
+            for config in configurations:
+                for action in config.actions:
+                    action_settings = config.actions[action]
+                    if action_settings['enabled']:
+
+                        action_parameters = integration.get_action_parameters(action)
+                        adhoc_execution = integration.get_action_adhoc_execution(action)
+
+                        if adhoc_execution:
+
+                            configured_actions.append({
+                                "name": action,
+                                "parameters": action_parameters,
+                                "integration_uuid": integration.product_identifier,
+                                "integration_name": integration.name,
+                                "configuration_uuid": config.uuid,
+                                "configuration_name": config.name
+                            })
+
+        return {
+            "actions": configured_actions
+        }

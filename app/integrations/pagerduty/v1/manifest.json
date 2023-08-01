@@ -42,7 +42,8 @@
                         "description": "The service ID to open the incident under"
                     }
                 },
-                "type": "action"
+                "type": "action",
+                "adhoc_execution": true
             },
             {
                 "name": "incoming_event_webhook",

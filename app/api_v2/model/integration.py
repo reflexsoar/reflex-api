@@ -100,6 +100,34 @@ class Integration(Document):
         
         return None
     
+    def get_action_parameters(self, action):
+        """
+        Returns the action parameters for the specified action
+        """
+        # Fetch the action from the list of actions in the manifest
+        _action = next((a for a in self.manifest['actions'] if a['name'] == action), None)
+
+        if _action:
+            
+            if 'parameters' in _action:
+                return _action['parameters']
+        
+        return []
+    
+    def get_action_adhoc_execution(self, action):
+        """
+        Returns if the action supports adhoc_execution or not
+        """
+        # Fetch the action from the list of actions in the manifest
+        _action = next((a for a in self.manifest['actions'] if a['name'] == action), None)
+
+        if _action:
+            
+            if 'adhoc_execution' in _action:
+                return _action['adhoc_execution']
+        
+        return False
+    
     def save(self, **kwargs):
         '''
         Overrides the default Document save() function and adds
