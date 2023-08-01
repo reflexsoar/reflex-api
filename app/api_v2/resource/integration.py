@@ -135,6 +135,95 @@ class IntegrationConfigList(Resource):
         return configuration
 
 
+@api.route("/<string:uuid>/configurations/<string:config_uuid>/enable")
+class IntegrationConfigActivation(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_integration_config_details)
+    @token_required
+    #@user_has('modify_integration_configuration')
+    def post(self, current_user, uuid, config_uuid):
+        """
+        Activates an integration configuration
+        """
+
+        # Ensure that the integration exists
+        integration = Integration.get(uuid=uuid)
+        if not integration:
+            api.abort(404, "Integration not found")
+
+        # Ensure the configuration exists
+        configuration = IntegrationConfiguration.search()
+        configuration = configuration.filter('term', uuid=config_uuid)
+        configuration = configuration.filter('term', integration_uuid=uuid)
+        configuration = configuration.execute()
+
+        if not configuration:
+            api.abort(404, "Configuration not found")
+
+        configuration = configuration[0]
+
+        # Ensure the configuration belongs to the users organization unless
+        # the current user is_default_org
+        if not current_user.is_default_org and configuration.organization != current_user.organization:
+            api.abort(403, "You do not have permission to enable this configuration")
+
+        # Ensure that the configuration is not already active
+        if configuration.enabled:
+            api.abort(409, "Configuration is already enabled")
+
+        # Activate the configuration
+        configuration.enabled = True
+        configuration.save(refresh=True)
+
+        # Return the configuration
+        return configuration
+
+
+@api.route("/<string:uuid>/configurations/<string:config_uuid>/disable")
+class IntegrationConfigActivation(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_integration_config_details)
+    @token_required
+    #@user_has('modify_integration_configuration')
+    def post(self, current_user, uuid, config_uuid):
+        """
+        Activates an integration configuration
+        """
+
+        # Ensure that the integration exists
+        integration = Integration.get(uuid=uuid)
+        if not integration:
+            api.abort(404, "Integration not found")
+
+        # Ensure the configuration exists
+        configuration = IntegrationConfiguration.search()
+        configuration = configuration.filter('term', uuid=config_uuid)
+        configuration = configuration.filter('term', integration_uuid=uuid)
+        configuration = configuration.execute()
+
+        if not configuration:
+            api.abort(404, "Configuration not found")
+
+        configuration = configuration[0]
+
+        # Ensure the configuration belongs to the users organization unless
+        # the current user is_default_org
+        if not current_user.is_default_org and configuration.organization != current_user.organization:
+            api.abort(403, "You do not have permission to disable this configuration")
+
+        # Ensure that the configuration is not already active
+        if not configuration.enabled:
+            api.abort(409, "Configuration is already disabled")
+
+        # Activate the configuration
+        configuration.enabled = False
+        configuration.save(refresh=True)
+
+        # Return the configuration
+        return configuration
+
 @api.route("/<string:uuid>/configurations/<string:config_uuid>")
 class IntegrationConfigDetailResource(Resource):
 
@@ -206,6 +295,37 @@ class IntegrationConfigDetailResource(Resource):
         configuration.update(**api.payload)
         
         return configuration
+    
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_integration_config_details)
+    @token_required
+    #@user_has('delete_integration_configuration')
+    def delete(self, current_user, uuid, config_uuid):
+        """
+        Deletes a single Integration Configuration
+        """
+
+        # Ensure that the integration exists
+        integration = Integration.get(uuid=uuid)
+        if not integration:
+            api.abort(404, "Integration not found")
+
+        # Ensure the configuration exists
+        configuration = IntegrationConfiguration.search()
+        configuration = configuration.filter('term', uuid=config_uuid)
+        configuration = configuration.filter('term', integration_uuid=uuid)
+        configuration = configuration.execute()
+
+        if not configuration:
+            api.abort(404, "Configuration not found")
+
+        if configuration.enabled:
+            api.abort(409, "Cannot delete an enabled configuration")
+
+        configuration = configuration[0]
+        configuration.delete()
+
+        return {}
 
 @api.route("")
 class IntegrationList(Resource):
