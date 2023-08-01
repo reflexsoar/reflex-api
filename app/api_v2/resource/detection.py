@@ -14,6 +14,7 @@ from ..model import (
     Detection,
     Organization,
     Event,
+    EventStatus,
     Q,
     Agent,
     Input,
@@ -1419,6 +1420,36 @@ class DetectionDetails(Resource):
                     if 'slow-query-disable' in api.payload['warnings']:
                         api.payload['warnings'].remove('slow-query-disable')
 
+            # If the rule has been disabled due to high volume or slow query, create
+            # a new Event 
+            if 'active' in api.payload and api.payload['active'] == False:
+                if any([SLOW_QUERY_DISABLE, HIGH_VOLUME_DISABLE]):
+                    if detection.active == True:
+                        event = Event(
+                            organization=detection.organization,
+                            title=f'Detection Rule Disabled - {detection.name}',
+                            detection_id=detection.uuid,
+                            risk_score=80,
+                            severity=3,
+                            description=f'The detection rule {detection.name} has been disabled due to high volume or slow query.',
+                            tags=api.payload['warnings'],
+                            raw_log='{"message":"Detection rule disabled due to high volume or slow query."}',
+                            status=EventStatus.get_by_name(name='New', organization=detection.organization),
+                            tlp=1,
+                            reference=uuid4(),
+                            source='reflex-system',
+                            signature=detection.uuid,
+                            original_date=datetime.datetime.utcnow(),
+                            created_at=datetime.datetime.utcnow()
+                        )
+                        event.save(refresh=True)
+
+            # If this rule is getting re-enabled, clear the warnings
+            if 'active' in api.payload and api.payload['active'] == True:
+                if detection.active == False:
+                    if 'warnings' in api.payload:
+                        api.payload['warnings'] = []
+
             if isinstance(current_user, Agent):
                 detection.update(**api.payload, refresh=True)
             else:
@@ -1624,7 +1655,7 @@ class BulkEnableDetections(Resource):
                 # TODO: Add a access check to make sure this user has access to update
                 # the detection for now we will just check if the user is an admin or in
                 # the detection's organization
-                if current_user.is_default_org or current_user.organization == detection.organization:
+                if current_user.is_default_org() or current_user.organization == detection.organization:
                     detections_to_enable.append(detection.uuid)
 
                     # Track which organizations have updated detections so
@@ -1820,7 +1851,7 @@ class DetectionRebalance(Resource):
         Redistributes the detection workload
         '''
         
-        if not current_user.is_default_org:
+        if not current_user.is_default_org():
             api.abort(400, 'You must be in the default organization to rebalance detections')
 
         DetectionState.check_state()

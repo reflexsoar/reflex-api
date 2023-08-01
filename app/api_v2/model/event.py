@@ -190,6 +190,7 @@ class Event(base.BaseDocument):
     response_phase = Keyword() # The response phase that the event is in
     acknowledged = Boolean() # Has the event been acknowledged by an analyst
     acknowledged_by = Object() # The analyst that acknowledged the event
+    integration_attributes = Object() # Attributes used by integrations
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -215,6 +216,18 @@ class Event(base.BaseDocument):
         Event observables
         '''
         self.event_observables = value
+        self.save()
+
+    def add_integration_attribute(self, key, value):
+        '''
+        Adds an integration attribute to the event, e.g.
+        pagerduty.incident_id = 1234
+        pagerduty.integration_config = 1234
+        '''
+        if not self.integration_attributes:
+            self.integration_attributes = {}
+
+        self.integration_attributes[key] = value
         self.save()
 
     def append_event_rule_uuid(self, uuid):

@@ -1,0 +1,79 @@
+{
+    "name": "PagerDuty",
+    "product_identifier": "9a326cfc-bda2-4372-b016-328391454225",
+    "brief_description": "This integration allows you to create incidents in PagerDuty from ReflexSOAR",
+    "description": "## Overview\nThis integration allows you to create incidents in PagerDuty from ReflexSOAR\n ## Use Cases\n- Creating Incidents\n- Automatically closing incidents/events bi-directionally.\n## Incident Loop\nIn order for ReflexSOAR to trigger new incidents and receive Indicent Updates from PagerDuty you must configure both the `create_incident` and `incoming_event_webhook` actions.",
+    "author": "Brian Carroll <brian@hasecuritysolutions.com>",
+    "tags": [
+        "operations"
+    ],
+    "category": [
+        "Operations"
+    ],
+    "enabled": false,
+    "contributor": [
+        "Justin Henderson <justin@hasecuritysolutions>"
+    ],
+    "license": "H&A Security Solutions - Premium Support",
+    "version": "1.0.1",
+    "manifest": {
+        "actions": [
+            {
+                "friendly_name": "Create Incident",
+                "name": "create_incident",
+                "description": "Create an incident in PagerDuty",
+                "source_object_type": "event",
+                "trigger": ["event_rule","manual"],
+                "configuration": {
+                    "incident_key_field": {
+                        "type": "str",
+                        "required": true,
+                        "default": "signature",
+                        "description": "The event field to use as the incident key when creating new incidents"
+                    },
+                    "from": {
+                        "type": "str",
+                        "required": true,
+                        "description": "The user to open the incident as"
+                    },
+                    "service_id": {
+                        "type": "str",
+                        "required": true,
+                        "description": "The service ID to open the incident under"
+                    }
+                },
+                "type": "action"
+            },
+            {
+                "name": "incoming_event_webhook",
+                "friendly_name": "Incoming Webhook",
+                "description": "Receive updates from PagerDuty via an incoming webhook. The webhook should make calls to the URL `https://<reflexsoar_url>/integrations/pagerduty/1.0.1/create_incident/{configuration_uuid}`.  Where the `configuration_uuid` is the UUID of the configuration that you create for this action.",
+                "source_object_type": "event",
+                "configuration": {
+                    "webhook_signature": {
+                        "type": "str",
+                        "required": false,
+                        "secret": true,
+                        "description": "The signature used to verify incoming webhooks"
+                    },
+                    "incident_key_field": {
+                        "type": "str",
+                        "required": true,
+                        "default": "signature",
+                        "description": "The event field to use as the incident key when creating new incidents"
+                    }
+                },
+                "type": "webhook"
+            }
+        ],
+        "configuration": {
+            "api_access_key": {
+                "type": "str",
+                "required": true,
+                "secret": true,
+                "description": "The API Key required to connect to PagerDuty"
+            }
+        }
+    },
+    "logo": "data:image/png;base64,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"
+}

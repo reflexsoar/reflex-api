@@ -132,6 +132,16 @@ class ThreatValue(base.BaseDocument):
         desired intel value, responses are returned as a list of IntelValue
         objects
         '''
+
+        # TODO: Update this to allow global searches by checking if 
+        # the target list is global and if so, don't filter on the 
+        # current_users organization
+        # list = ThreatList.get_by_uuid(list_uuid)
+        # if list and list.global_list:
+        #     search = self.search(skip_org_check)
+        # else:
+        #     search = self.search()
+
         search = self.search()
         search = search.filter('term', list_uuid=list_uuid)
 
@@ -173,6 +183,7 @@ class ThreatList(base.BaseDocument):
     flag_ioc = Boolean()
     change_tlp = Boolean()
     new_tlp = Integer()
+    global_list = Boolean() # Is this a global list
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -199,7 +210,7 @@ class ThreatList(base.BaseDocument):
         # Only return results for manual lists
         if not self.url:
             search = ThreatValue.search()
-            search = search[0:5000]
+            search = search[0:10000]
             search = search.filter('term', list_uuid=self.uuid)
             return list(search.execute())
         else:

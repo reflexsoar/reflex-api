@@ -688,6 +688,14 @@ class Permission(InnerDoc):
     update_asset = Boolean()
     delete_asset = Boolean()
 
+    # Integration Permissions
+    create_integration = Boolean()
+    update_integration = Boolean()
+    delete_integration = Boolean()
+    create_integration_configuration = Boolean()
+    update_integration_configuration = Boolean()
+    delete_integration_configuratio = Boolean()
+
 
 class ServiceAccount(base.BaseDocument):
     '''

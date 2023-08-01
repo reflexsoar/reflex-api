@@ -1,8 +1,11 @@
 {
-    "name": "PagerDuty",
-    "product_identifier": "9a326cfc-bda2-4372-b016-328391454225",
-    "description": "This integration allows you to create incidents in PagerDuty from ReflexSOAR.",
-    "author": "Brian Carroll <brian@hasecuritysolutions.com",
+    "name": "SentinelOne",
+    "product_identifier": "3706b78e-d55c-4b93-87f6-4c21a19c9bdb",
+    "brief_description": "A SentinelOne integration for ReflexSOAR",
+    "description": "## Overview\nThe SentinelOne integration for ReflexSOAR allows for bi-directional communication between SOC teams and the SentinelOne management platform.  This integration allows for multiple actions ranging from collecting asset information, resolving threats, or active mitigation.\n## Use Cases\n- Collect asset inventory to enrich Detections with host information\n- Collect threats from the SentinelOne console to centralize alert triage",
+    "author": "Brian Carroll <brian@hasecuritysolutions.com>",
+    "tags": ["response","inventory","threat"],
+    "category": ["Endpoint Detection"],
     "enabled": false,
     "contributor": [
         "Justin Henderson <justin@hasecuritysolutions>"
@@ -12,27 +15,177 @@
     "manifest": {
         "actions": [
             {
-                "friendly_name": "Create Incident",
-                "name": "create_incident",
-                "description": "Create an incident in PagerDuty",
-                "source_object_type": "event"
+                "friendly_name": "Synchronize Inventory",
+                "description": "Synchronize the SentinelOne inventory with ReflexSOAR's Asset Inventory",
+                "name": "synchronize_inventory",
+                "type": "inventory",
+                "run_from": "agent",
+                "configuration": {
+                    "sync_interval": {
+                        "type": "int",
+                        "required": true,
+                        "secret": false,
+                        "default": 60,
+                        "description": "The interval in minutes to synchronize the inventory"
+                    },
+                    "sync_mode": {
+                        "type": "str-select",
+                        "required": true,
+                        "secret": false,
+                        "description": "The mode to synchronize the inventory in.  A full sync will synchronize all assets, while an incremental sync will only synchronize assets that have changed since the last sync.",
+                        "default": "full",
+                        "options": [
+                            "full",
+                            "incremental"
+                        ]
+                    },
+                    "conflict_resolution": {
+                        "type": "str-select",
+                        "required": true,
+                        "secret": false,
+                        "description": "The method to use to resolve conflicts. A conflict occurs when an asset is found in SentinelOne and ReflexSOAR, but the asset has different information in each system.  The default is to use the information from SentinelOne.",
+                        "default": "sentinelone",
+                        "options": [
+                            "reflexsoar",
+                            "sentinelone"
+                        ]
+                    },
+                    "host_identifier": {
+                        "type": "str-select",
+                        "required": true,
+                        "secret": false,
+                        "description": "The method to use to identify hosts. The default is to use the hostname.",
+                        "default": "hostname",
+                        "options": [
+                            "hostname",
+                            "ip_address",
+                            "mac_address"
+                        ]
+                    }
+                }
             },
             {
-                "name": "resolve_incident",
-                "friendly_name": "Resolve Incident",
-                "description": "Resolve an incident in PagerDuty",
-                "source_object_type": "event"
+                "friendly_name": "Isolate Host",
+                "description": "Isolate a host from the network",
+                "name": "isolate_host",
+                "parameters": [
+                    {
+                        "name": "hostname",
+                        "type": "str",
+                        "required": true,
+                        "description": "The Hostname of the agent to isolate"
+                    }
+                ],
+                "type": "action",
+                "run_from": "console"
+            },
+            {
+                "friendly_name": "Reconnect Host",
+                "description": "Reconnect a host to the network",
+                "name": "reconnect_host",
+                "parameters": [
+                    {
+                        "name": "hostname",
+                        "type": "str",
+                        "required": true,
+                        "description": "The Hostname of the agent to reconnect"
+                    }
+                ],
+                "type": "action",
+                "run_from": "console"
+            },
+            {
+                "friendly_name": "Get Threat Details",
+                "description": "Get details about a SentinelOne threat",
+                "name": "get_threat_details",
+                "parameters": [
+                    {
+                        "name": "ids",
+                        "type": "str",
+                        "required": true,
+                        "description": "The ID of the threat to get details for"
+                    }
+                ],
+                "type": "action",
+                "run_from": "console"
+            },
+            {
+                "friendly_name": "Search Deep Visibility",
+                "description": "Search the Deep Visibility logs for a specific query",
+                "name": "search_deep_visibility",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "type": "str",
+                        "required": true,
+                        "description": "The query to search for"
+                    }
+                ],
+                "type": "action",
+                "run_from": "console"
+            },
+            {
+                "friendly_name": "Get Agent Details",
+                "description": "Get details about a SentinelOne agent",
+                "name": "get_agent_details",
+                "parameters": [
+                    {
+                        "name": "hostname",
+                        "type": "str",
+                        "required": true,
+                        "description": "The Hostname of the agent to get details for"
+                    }
+                ],
+                "type": "action",
+                "run_from": "console"
+            },
+            {
+                "friendly_name": "Add Threat Note",
+                "description": "Add a note to a threat",
+                "name": "add_threat_note",
+                "parameters": [
+                    {
+                        "name": "ids",
+                        "type": "str",
+                        "required": true,
+                        "description": "The ID of the threat to add a note to"
+                    },
+                    {
+                        "name": "note",
+                        "type": "str",
+                        "required": true,
+                        "description": "The note to add to the threat"
+                    }
+                ],
+                "type": "action",
+                "run_from": "console"
+            },
+            {
+                "friendly_name": "Poll Threats",
+                "description": "Poll for new threats",
+                "name": "poll_threats",
+                "run_from": "agent",
+                "type": "input",
+                "configuration": {
+                    "poll_interval": {
+                        "type": "int",
+                        "required": true,
+                        "secret": false,
+                        "default": 60,
+                        "description": "The interval in minutes to poll for new threats"
+                    }
+                }
             }
         ],
         "configuration": {
             "api_key": {
-                "type": "string",
+                "type": "str",
                 "required": true,
                 "secret": true,
                 "description": "The API key for SentinelOne"
             },
             "api_url": {
-                "type": "string",
+                "type": "str",
                 "required": true,
                 "secret": false,
                 "description": "The URL for the SentinelOne API"

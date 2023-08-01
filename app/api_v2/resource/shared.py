@@ -1,6 +1,16 @@
 import json
 import dateutil.parser
+
 from flask_restx import Model, fields, reqparse
+from opensearch_dsl import AttrDict
+
+
+class AsAttrDict(fields.Raw):
+    ''' Converts an AttrDict to a normal Dict'''
+
+    def format(self, value):
+        if isinstance(value, AttrDict):
+            return value.to_dict()
 
 
 class ISO8601(fields.Raw):
@@ -234,7 +244,15 @@ mod_permissions = Model('Permissions', {
     'update_detection_repository': fields.Boolean,
     'delete_detection_repository': fields.Boolean,
     'share_detection_repository': fields.Boolean,
-    'subscribe_detection_repository': fields.Boolean
+    'subscribe_detection_repository': fields.Boolean,
+    'create_integration': fields.Boolean,
+    'update_integration': fields.Boolean,
+    'delete_integration': fields.Boolean,
+    'view_integrations': fields.Boolean,
+    'view_integrations_configurations': fields.Boolean,
+    'create_integration_configuration': fields.Boolean,
+    'update_integration_configuration': fields.Boolean,
+    'delete_integration_configuration': fields.Boolean
 }, strict=True)
 
 mod_user_list = Model('UserList', {

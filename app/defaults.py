@@ -241,7 +241,15 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         "create_asset": True,
         "view_assets": True,
         "update_asset": True,
-        "delete_asset": True
+        "delete_asset": True,
+        "create_integration": True,
+        "update_integration": True,
+        "delete_integration": True,
+        "view_integrations": True,
+        "view_integration_configurations": True,
+        "create_integration_configuration": True,
+        "update_integration_configuration": True,
+        "delete_integration_configuration": True
     }
 
     role_contents = {
@@ -279,6 +287,14 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["delete_detection_repository"] = True
                     perms["share_detection_repository"] = True
                     perms["subscribe_detection_repository"] = True
+                    perms["create_integration"] =  True
+                    perms["update_integration"] = True
+                    perms["view_integrations"] = True
+                    perms["delete_integration"] = True
+                    perms["view_integration_configurations"] = True
+                    perms["create_integration_configuration"] = True
+                    perms["update_integration_configuration"] = True
+                    perms["delete_integration_configuration"] = True
                 else:
                     perms['view_organizations'] = False
                     perms['add_organization'] = False
@@ -294,6 +310,14 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["update_detection_repository"] = False
                     perms["delete_detection_repository"] = False
                     perms["share_detection_repository"] = False
+                    perms["create_integration"] =  False
+                    perms["update_integration"] = False
+                    perms["view_integrations"] = False
+                    perms["delete_integration"] = False
+                    perms["view_integration_configurations"] = False
+                    perms["create_integration_configuration"] = False
+                    perms["update_integration_configuration"] = False
+                    perms["delete_integration_configuration"] = False
                 role = role[0]
                 role.permissions = perms
                 role.save()

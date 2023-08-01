@@ -194,7 +194,16 @@ mod_permissions = Model('Permissions', {
     'use_api': fields.Boolean,
     'create_service_account': fields.Boolean,
     'view_service_accounts': fields.Boolean,
-    'delete_service_account': fields.Boolean
+    'delete_service_account': fields.Boolean,
+    'view_integrations': fields.Boolean,
+    'create_integration': fields.Boolean,
+    'update_integration': fields.Boolean,
+    'delete_integration': fields.Boolean,
+    'view_integrations': fields.Boolean,
+    'view_integrations_configurations': fields.Boolean,
+    'create_integration_configuration': fields.Boolean,
+    'update_integration_configuration': fields.Boolean,
+    'delete_integration_configuration': fields.Boolean
 })
 
 mod_role_create = Model('RoleCreate', {
