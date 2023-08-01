@@ -364,7 +364,7 @@ class DetectionState(base.BaseDocument):
                 break
 
             # If an agent is unhealthy and has assessments assigned to it
-            if not agent.health and self._agent_has_assessments(agent.uuid):
+            if not agent.healthy and self._agent_has_assessments(agent.uuid):
                 rebalance = True
                 break
 
