@@ -10,10 +10,13 @@ import inspect
 import os
 import sys
 
+from .integration import integration_registry
+
 __all__ = [
     'IntegrationApi',
     'IntegrationBase',
-    'IntegrationJob'
+    'IntegrationJob',
+    'integration_registry'
 ]
 
 # Find the directory of the current file
@@ -22,6 +25,8 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 integrations_path = os.path.join(dir_path, '..')
 # Add the integrations directory to the path so we can import the integrations
 sys.path.append(integrations_path)
+
+loaded_integrations = {}
 
 # Loop through all the integrations in the integrations directory
 for _, name, _ in pkgutil.iter_modules([integrations_path]):
@@ -40,3 +45,5 @@ for _, name, _ in pkgutil.iter_modules([integrations_path]):
                 # Add the class to the __all__ list
                 __all__.append(cls)
 
+                # Add the class to the integrations dictionary
+                loaded_integrations[name] = cls

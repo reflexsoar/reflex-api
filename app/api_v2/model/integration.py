@@ -128,6 +128,18 @@ class Integration(Document):
         
         return False
     
+    def get_action_manifest(self, action):
+        """
+        Returns the entire manifest of the action
+        """
+        # Fetch the action from the list of actions in the manifest
+        _action = next((a for a in self.manifest['actions'] if a['name'] == action), None)
+
+        if _action:
+            return _action
+        
+        return None
+    
     def save(self, **kwargs):
         '''
         Overrides the default Document save() function and adds

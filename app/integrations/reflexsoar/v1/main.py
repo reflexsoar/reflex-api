@@ -11,6 +11,45 @@ mod_test = IntegrationApi.model('Test', {
 
 class ReflexSOAR(IntegrationBase):
 
+    def action_tag_event(self, events, tags):
+        """
+        Tags all observables in the events with the provided tags
+        """
+
+        # Fetch all the events based on the uuids
+        events = self.load_events(uuid=events)
+
+        if isinstance(events, list):
+            for event in events:
+                if event.tags:
+                    event.tags.extend(tags)
+                    
+                else:
+                    event.tags = tags
+                    event.tags = list(set(event.tags))
+                event.save()
+
+    def action_tag_all_observables(self, events, tags):
+        """
+        Tags all observables in the events with the provided tags
+        """
+
+        # Fetch all the events based on the uuids
+        events = self.load_events(uuid=events)
+
+        if isinstance(events, list):
+            for event in events:
+                for observable in event.observables:
+                    if observable.tags:
+                        observable.tags.extend(tags)
+                    else:
+                        observable.tags = tags
+                    observable.tags = list(set(observable.tags))
+                event.save()
+
+    def action_test(self):
+        print("HELLO WORLD THIS IS A TEST ACTION")
+
     class TestResource(Resource):
         path = "/test"
 

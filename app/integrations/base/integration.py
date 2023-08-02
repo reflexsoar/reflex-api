@@ -11,6 +11,8 @@ from app.api_v2.model import (
 
 from app.api_v2.model.integration import IntegrationConfiguration
 
+integration_registry = {}
+
 
 api = Namespace('Integrations', description="Exposes API endpoints for every integration that requires one", path="/integrations")
 
@@ -43,8 +45,34 @@ class IntegrationBase(object):
         self.license = self.manifest.get('license', '')
         self.configuration = self.manifest.get('configuration', {})
         self.unique_name = self.manifest.get('unique_name', f"{self.name}".replace(' ','_').lower())
+        self.actions = {}
 
         self.setup_routes()
+        self.register_integration()
+        self.register_actions()
+
+    def register_integration(self):
+        integration_registry[self.product_identifier] = self
+
+    def register_actions(self):
+        """
+        Locate any self method that starts with action_ and place it
+        in a dictionary of actions where the key is the function name
+        after action_
+        """
+        self.actions = {}
+        for name, method in inspect.getmembers(self):
+            if name.startswith('action_'):
+                self.actions[name.replace('action_', '')] = method
+
+    def run_action(self, action, *args, **kwargs):
+        """
+        Runs a specific action
+        """
+        if action not in self.actions:
+            raise ValueError(f"Action {action} not found")
+
+        return self.actions[action](*args, **kwargs)
 
     def load_configuration(self, configuration_uuid):
         """
@@ -91,7 +119,6 @@ class IntegrationBase(object):
         """
 
         events = self._events_to_list(events)
-        print(events)
 
     def load_events(self, **kwargs):
 
@@ -101,7 +128,7 @@ class IntegrationBase(object):
                 events = events.filter('terms', **{key: value})
             else:
                 events = events.filter('term', **{key: value})
-                
+
         results = events.scan()
         return [r for r in results]
     
