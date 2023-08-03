@@ -9,7 +9,8 @@ from app.api_v2.model import (
     Event
 )
 
-from app.api_v2.model.integration import IntegrationConfiguration
+from app.api_v2.model.integration import IntegrationConfiguration, IntegrationLog
+from app.api_v2.model.utils import IndexedDict
 
 integration_registry = {}
 
@@ -70,9 +71,88 @@ class IntegrationBase(object):
         Runs a specific action
         """
         if action not in self.actions:
+            self.log_message(f"Action {action} not found", kwargs.get('configuration_uuid'), kwargs.get('configuration_name'), level='ERROR', action=action)
             raise ValueError(f"Action {action} not found")
 
+        self.log_message(f"Running action {action}", kwargs.get('configuration_uuid'), kwargs.get('configuration_name'), action=action)
         return self.actions[action](*args, **kwargs)
+    
+    def flatten_dict(self, data):
+        """
+        Flattens a dictionary into a single level dictionary
+        """
+        return IndexedDict(data)
+    
+    def dict_as_markdown_table(self, data):
+        """
+        Converts a dictionary in to a markdown table with the first column as
+        keys and the second column as their value
+        """
+
+        # Always flatten the dictionary first
+        data = self.flatten_dict(data)
+
+        table = "Field | Value\n| --- | --- |\n"
+        for key, value in data.items():
+            table += f"| **{key}** | {value} |\n"
+
+        return table
+    
+    def log_message(self, message, configuration_uuid, configuration_name=None, level='INFO', action=None):
+        """
+        Logs a message to the integration log
+        """
+        log = IntegrationLog()
+        log.action = action
+        log.level = level
+        log.configuration_uuid = configuration_uuid
+        log.configuration_name = configuration_name
+        log.integration_uuid = self.product_identifier
+        log.integration_name = self.name
+        log.message = message
+        log.save()
+
+    def add_output_to_event(self, events, action, configuration, output, output_format='json'):
+        """
+        Creates an entry on the events integration_output field
+        """
+
+        entry = {
+            "action": action,
+            "integration_uuid": self.product_identifier,
+            "integration_name": self.name,
+            "configuration_name": configuration.name,
+            "configuration_uuid": configuration.uuid,
+            "output": output,
+            "output_format": output_format,
+            "created_at": datetime.utcnow().isoformat()+"Z",
+        }
+
+        query = UpdateByQuery(index=Event._index._name)
+        query = query.filter('terms', uuid=events)
+
+        # Using painless script
+        # Add the entry to the integration_output array if it already exists
+        # if it does not exist, create the array and add the entry
+        query = query.script(
+            source="""
+                if (ctx._source.containsKey('integration_output')) {
+                    ctx._source.integration_output.add(params.entry)
+                } else {
+                    ctx._source.integration_output = [params.entry]
+                }
+            """,
+            params={
+                "entry": entry
+            }
+        )
+
+        try:
+            query.execute()
+        except Exception as e:
+            self.log_message(f"Error adding output to event: {e}", configuration.uuid, configuration.name, level='ERROR')
+            raise e
+            
 
     def load_configuration(self, configuration_uuid):
         """
@@ -113,6 +193,17 @@ class IntegrationBase(object):
 
         return _events
     
+    def extract_observables_by_type(self, events, observable_data_type):
+        """
+        Returns the observables of a specific type from the events
+        """
+        observables = []
+        for event in events:
+            for observable in event.observables:
+                if observable['data_type'] == observable_data_type:
+                    observables.append(observable)
+        return observables
+    
     def close_event(self, events, reason, comment):
         """
         Closes the event
@@ -136,8 +227,6 @@ class IntegrationBase(object):
         """
         Sets the integration attribute for the event
         """
-
-        print(f"EVENTS: {events}")
 
         events = self._events_to_list(events)
 

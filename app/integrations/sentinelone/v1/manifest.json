@@ -99,7 +99,7 @@
                 },
                 "type": "action",
                 "run_from": "console",
-                "adhoc_execution": true,
+                "trigger": ["event_rule", "manual"],
                 "source_object_type": ["observable", "event"],
                 "observable_type": ["host"]
             },
@@ -116,7 +116,7 @@
                 },
                 "type": "action",
                 "run_from": "console",
-                "adhoc_execution": true,
+                "trigger": ["event_rule", "manual"],
                 "source_object_type": ["observable", "event"],
                 "observable_type": ["host"]
             },
@@ -133,7 +133,7 @@
                 },
                 "type": "action",
                 "run_from": "console",
-                "adhoc_execution": true,
+                "trigger": ["event_rule", "manual"],
                 "source_object_type": ["event"]
             },
             {
@@ -149,7 +149,7 @@
                 },
                 "type": "action",
                 "run_from": "console",
-                "adhoc_execution": true,
+                "trigger": ["event_rule", "manual"],
                 "source_object_type": [
                     "observable",
                     "event"
@@ -192,9 +192,23 @@
                 },
                 "type": "action",
                 "run_from": "console",
-                "adhoc_execution": true,
+                "trigger": ["event_rule", "manual"],
                 "source_object_type": ["observable", "event"],
-                "observable_type": ["host", "mac", "ip"]
+                "observable_type": ["host", "mac", "ip"],
+                "configuration": {
+                    "cache_results": {
+                        "type": "bool",
+                        "required": false,
+                        "default": true,
+                        "description": "Cache the results of this action"
+                    },
+                    "cache_expiry": {
+                        "type": "int",
+                        "required": false,
+                        "default": 3600,
+                        "description": "The amount of time to cache the results of this action for"
+                    }
+                }
             },
             {
                 "friendly_name": "Add Threat Note",
@@ -214,7 +228,7 @@
                 },
                 "type": "action",
                 "run_from": "console",
-                "adhoc_execution": true,
+                "trigger": ["event_rule", "manual"],
                 "source_object_type": ["event"]
             },
             {
@@ -231,7 +245,8 @@
                         "default": 60,
                         "description": "The interval in minutes to poll for new threats"
                     }
-                }
+                },
+                "trigger": ["schedule", "manual"]
             }
         ],
         "configuration": {

@@ -28,7 +28,7 @@
                         "description": "List of tags to add to the event"
                     }
                 },
-                "adhoc_execution": true,
+                "trigger": ["event_rule", "manual"],
                 "source_object_type": ["event"]
             },
             {

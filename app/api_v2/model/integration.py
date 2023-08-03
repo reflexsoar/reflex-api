@@ -21,6 +21,26 @@ from . import (
     Search
 )
 
+class IntegrationLog(base.BaseDocument):
+    """
+    Defines an integration log object that is used to track the status of
+    integration actions.
+    """
+
+    action = Keyword()  # The action that was performed
+    level = Keyword() # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    configuration_uuid = Keyword()  # The configuration that was used
+    configuration_name = Keyword()  # The name of the configuration
+    integration_uuid = Keyword()  # The integration that was used
+    integration_name = Keyword()  # The name of the integration
+    message = Keyword(fields={'text': Text()})  # The message that was returned
+
+    class Index:
+        name = 'reflex-integration-logs'
+        settings = {
+            'refresh_interval': '5s',
+        }
+
 
 class Integration(Document):
     """
@@ -113,20 +133,6 @@ class Integration(Document):
                 return _action['parameters']
         
         return []
-    
-    def get_action_adhoc_execution(self, action):
-        """
-        Returns if the action supports adhoc_execution or not
-        """
-        # Fetch the action from the list of actions in the manifest
-        _action = next((a for a in self.manifest['actions'] if a['name'] == action), None)
-
-        if _action:
-            
-            if 'adhoc_execution' in _action:
-                return _action['adhoc_execution']
-        
-        return False
     
     def get_action_manifest(self, action):
         """

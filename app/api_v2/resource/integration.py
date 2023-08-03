@@ -469,9 +469,6 @@ class RunActionResource(Resource):
         """
         Run an action against a set of events, cases, or observables
         """
-
-        print(api.payload)
-        print(integration_registry)
         
         try:
             integration = integration_registry[api.payload['integration_uuid']]
@@ -495,6 +492,7 @@ class RunActionResource(Resource):
 actions_parser = api.parser()
 actions_parser.add_argument('source_object_type', type=str, required=False, location='args', action="split")
 actions_parser.add_argument('observable_type', type=str, required=False, location='args', action="split")
+actions_parser.add_argument('trigger', type=str, required=False, location='args', default='manual')
     
 @api.route("/configured_actions")
 class ConfiguredActionsResource(Resource):
@@ -536,12 +534,8 @@ class ConfiguredActionsResource(Resource):
                     if action_settings['enabled']:
 
                         action_manifest = integration.get_action_manifest(action)
-                        print(action_manifest.to_dict())
-
-                        if 'adhoc_execution' not in action_manifest:
-                            continue
-
-                        if not action_manifest['adhoc_execution']:
+                        
+                        if 'trigger' in action_manifest and args.trigger not in action_manifest['trigger']:
                             continue
 
                         action_parameters = None

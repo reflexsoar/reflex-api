@@ -191,6 +191,7 @@ class Event(base.BaseDocument):
     acknowledged = Boolean() # Has the event been acknowledged by an analyst
     acknowledged_by = Object() # The analyst that acknowledged the event
     integration_attributes = Object() # Attributes used by integrations
+    integration_output = Object() # The output of the integration
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
