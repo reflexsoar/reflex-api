@@ -64,17 +64,17 @@ class SentinelOne(IntegrationBase):
         if hostname in [None, ""]:
             hostname = [
                 o.value for o in self.extract_observables_by_type(events, "host")]
-        if mac_address is None:
-            mac_address = [
-                o.value for o in self.extract_observables_by_type(events, "mac")]
-        if ip_address is None:
-            ip_address = [
-                o.value for o in self.extract_observables_by_type(events, "ip")]
+        #if mac_address is None:
+        #    mac_address = [
+        #        o.value for o in self.extract_observables_by_type(events, "mac")]
+        #if ip_address is None:
+        #    ip_address = [
+        #        o.value for o in self.extract_observables_by_type(events, "ip")]
 
         if not isinstance(hostname, list):
             hostname = [hostname]
 
-        url = f"{api_url}{endpoint}?computerName__contains={','.join(hostname)}&networkInterfaceGatewayMacAddress__contains={','.join(mac_address)}&networkInterfaceInet__contains={','.join(ip_address)}"
+        url = f"{api_url}{endpoint}?computerName__contains={','.join(hostname)}"
 
         print(url)
 
