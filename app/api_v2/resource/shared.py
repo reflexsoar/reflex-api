@@ -268,6 +268,16 @@ DEFAULT_ORG_ONLY_PERMISSIONS = [
     'update_service_account'
 ]
 
+mod_run_action = Model('RunAction', {
+    'action': fields.String(required=True, description="The action to run"),
+    'events': fields.List(fields.String, required=False, description="List of events to run the action against"),
+    'cases': fields.List(fields.String, required=False, description="List of cases to run the action against"),
+    'observables': fields.List(fields.String, required=False, description="List of observables to run the action against"),
+    'integration_uuid': fields.String(required=True, description="The UUID of the integration to run the action against"),
+    'configuration_uuid': fields.String(required=True, description="The UUID of the configuration to run the action against"),
+    'parameters': fields.Raw(required=False, description="Parameters to pass to the action")
+})
+
 pager_parser = reqparse.RequestParser()
 pager_parser.add_argument('page_size', location='args',
                           required=False, type=int, default=25)

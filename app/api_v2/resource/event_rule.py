@@ -14,7 +14,7 @@ from ..rql.parser import QueryParser
 from ..model import EventRule, Event, Task, CloseReason, Organization
 from ..model.exceptions import EventRuleFailure
 from ..utils import random_ending, token_required, user_has, check_org, log_event, default_org
-from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict, mod_user_list
+from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict, mod_user_list, mod_run_action
 from .event import mod_event_status
 from ... import ep
 
@@ -67,6 +67,7 @@ mod_event_rule_create = api.model('CreateEventRule', {
     'priority': fields.Integer,
     'notification_channels': fields.List(fields.String),
     'protected': fields.Boolean,
+    'integration_actions': fields.List(fields.Nested(mod_run_action))
 })
 
 mod_event_rule_list = api.model('EventRuleList', {
@@ -113,6 +114,7 @@ mod_event_rule_list = api.model('EventRuleList', {
     'tags': fields.List(fields.String),
     'high_volume_rule': fields.Boolean,
     'protected': fields.Boolean,
+    'integration_actions': fields.List(fields.Nested(mod_run_action))
 })
 
 mod_event_rule_list_paged = api.model('PagedEventRuleList', {

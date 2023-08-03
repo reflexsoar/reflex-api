@@ -2,7 +2,7 @@ import datetime
 
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 
-from .shared import mod_user_list, ISO8601, AsAttrDict
+from .shared import mod_user_list, ISO8601, AsAttrDict, mod_run_action
 from ..utils import token_required, user_has
 
 from ..model.integration import IntegrationConfiguration, Integration
@@ -448,15 +448,6 @@ class IntegrationConfigurationResource(Resource):
 
         return config
 
-mod_run_action = api.model('RunAction', {
-    'action': fields.String(required=True, description="The action to run"),
-    'events': fields.List(fields.String, required=False, description="List of events to run the action against"),
-    'cases': fields.List(fields.String, required=False, description="List of cases to run the action against"),
-    'observables': fields.List(fields.String, required=False, description="List of observables to run the action against"),
-    'integration_uuid': fields.String(required=True, description="The UUID of the integration to run the action against"),
-    'configuration_uuid': fields.String(required=True, description="The UUID of the configuration to run the action against"),
-    'parameters': fields.Raw(required=False, description="Parameters to pass to the action")
-})    
 
 @api.route("/run_action")
 class RunActionResource(Resource):
