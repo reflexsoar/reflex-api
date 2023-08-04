@@ -14,7 +14,8 @@ from ..rql.parser import QueryParser
 from ..model import EventRule, Event, Task, CloseReason, Organization
 from ..model.exceptions import EventRuleFailure
 from ..utils import random_ending, token_required, user_has, check_org, log_event, default_org
-from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict, mod_user_list, mod_run_action
+from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict, mod_user_list
+from .integration import mod_run_action
 from .event import mod_event_status
 from ... import ep
 
