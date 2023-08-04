@@ -1011,7 +1011,7 @@ class EventBulkDismiss(Resource):
             'data_type': 'data_type',
             'severity': 'severity',
             'event_rule': 'event_rules',
-            'source': 'source'
+            'source': 'source__keyword'
         }
 
         ubq = UpdateByQuery(index='reflex-events')
