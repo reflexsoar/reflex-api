@@ -1,0 +1,60 @@
+{
+    "name": "IPWhois.io",
+    "product_identifier": "9535a2b6-531e-4b7f-b57d-3a04368c9056",
+    "brief_description": "IP Geolocation API",
+    "description": "IP Geolocation API",
+    "author": "Brian Carroll <brian@hasecuritysolutions.com>",
+    "tags": ["observable", "event"],
+    "category": ["Enrichment"],
+    "enabled": false,
+    "contributor": [
+        "Justin Henderson <justin@hasecuritysolutions.com>"
+    ],
+    "license": "H&A Security Solutions - Premium Support",
+    "version": "1.0.0",
+    "manifest": {
+        "actions": [
+            {
+                "friendly_name": "IP Lookup",
+                "name": "ip_whois_lookup",
+                "description": "Looks up the WHOIS information on an IP address",
+                "tags": ["event", "observable"],
+                "target_object": "event",
+                "run_from": "console",
+                "parameters": {
+                    "ips": {
+                        "type": "str-multiple",
+                        "description": "List of IP addresses to look up",
+                        "default_options_from": "observables",
+                        "observable_data_type": "ip"
+                    }
+                },
+                "trigger": ["event_rule", "manual"],
+                "source_object_type": ["event","observable"],
+                "configuration": {
+                    "cache_results": {
+                        "type": "bool",
+                        "required": false,
+                        "default": true,
+                        "description": "Cache the results of this action"
+                    },
+                    "cache_expiry": {
+                        "type": "int",
+                        "required": false,
+                        "default": 3600,
+                        "description": "The amount of time to cache the results of this action for"
+                    }
+                }
+            }
+        ],
+        "configuration": {
+            "api_key": {
+                "type": "str",
+                "required": false,
+                "secret": true,
+                "description": "The API key for IPWhois.io"
+            }
+        }
+    },
+    "logo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAMAAAD04JH5AAAAP1BMVEVHcExlWpxlWpxlWpxlWpxlWpxlWpxlWpxlWpxlWpxlWpxlWpxlWpxlWpxlWpxlWpxlWpxlWpxlWpxlWpxlWpx4p5i/AAAAFHRSTlMA4yEw7gyL+AUV1k2cPsqtvGtaewKdNPUAAAsdSURBVHjatVvpYrQqDHUFRWQR3/9ZrxKEgKA4/S6/2mlHYtaTE2ia3JoXIlq601aRdbz9dZr7zXDenT/zndKhFYqbbe2m5t+sWQu6X2tQ24z+NvYbkewQbpenZOvg/5EOTJKtH/+8/bSIPVpUrdebL0S116fL+Ynck3XobJn/tP9IaPrQfdBWuZ1Cf1KJApDAjP9Bhpn7V+GEK7cBJacEE0Hb6PMDvucXFab/zSGuRzJjjTn2BFROzfm8LhinPV2wH/biGvjyizsYULLs/ScrbDps5y/a24CfApn9aVH1XYQV3ldiE3YKdHK+8iywBWax728ifDOEc2rRwW8jfLsHqYhVwaXgvuSCqSH6TwqwT6QbJAMp5GZ1aJDVXRSKGUnzuFrzISJ4ePhslUH5KUEHu5rTK8EeuzyVI/eqpbrqEGRB1wRHmwyR7z4//2cUVftTUu2KK/V7dgznGxJssO1eGzOrMoGu90Nn0wVHuN0VnICuwfF0sEyVE/ZV4eDCesMPZ3P8B+eFLwJQJrmUkmuXD3tRZQgS1DteDsaDc+JdHwUY5DIfG09TlMxkVyuA9XCXkliPEg7a9ckJ2Rare9RtZTRolGSaRR1IQ9pCvNBQgJ1z8Gwthv3XePtVXvlb9HVRAHm+mdcF0MXsYr/tgzBiLCWi9gIP55p7LVG6fJPgij2qc5aBiDRIS1knMHb3lSslpRJJsn6RwOt0QLE7Gooe7f/FFOCATaOTKVUJ8ewHG01ryNR7C8YvXQBEoDxNf8zLqL62fFvXVcugZRsc3uwACcnNA3HFyi45VsTBBXPxi9gaiRzfPqhLszHHTpNfZHovR1nrzQkKX2yEJkbY3mtE4uKJG+rnr5Gbu8XmBpxCX8rT+osK7HZx3N2RMpSuV5yi5lovSBUQg1DAqVeaCmKS1xpZcIN+LgNNK3TqcqBL7PNirBJgWLJ5UOkoF+xpCNxROKQV/VkA0NS9FtqPR1UK3o7lP0dGwOjh2Qj5lsCg2hepbC2ENzWxCqwTLrQCqK3ZOmDzWCbDk6aU39q4KNnkUAPV7gkRxM7vVJLrVqFuvz6ko8QPneVB1yYXgku+wKnY7eyvNTaA/0wVcHmVePS0WDux29k3KHbt98BKAbH7OApF8JdSektzn0VTnfqsAl62t2meKqxIAg+M2MuPXjCpxONZnAPLSrUogd8S/ajf2yY5ZZEIvIIvcpA1t6Jb6Vvu4qDaeZPtszMOCCDi0LWv4BsTq5Cu2IbmmBri8uzULUQx/yZMSU44V2zIpMPoEdjoYIBydje5GoEInqlbN0M4OWlM4DsQVEcVIRIAGQF+XIpMiOiyBbQ1z+B36gmL3TAGMWAEfr1g2QDgILkIZTmKN6q9hjkE2WQKkHFtyosBqGnyRdIKJ8jSxUJM4zgGz+84ZXNBAKd56GPKEZDBZLGArSKH7edj3/nwBXJ0Sups2UfPCS8FARzg7B5e0FMv20viH1omhGDtgOhv7d6880V5KaK2scjGmhExi58W3ZkTYSppIJSKUpfl2see7b8tEXM29wLK+ubpBdniqJf910XJnGEGKoswdXTLH/YPnM00FmhvM5UcoNXgxyvb/7SAkraemINxlGuZheiudZ90u/9x2bq16qdYKxPgM6F/3R/A3vaBdT0JOJdFVrX/g3WCanPigjogGxL8/Hf1ewTH69opKsI0bKp+fUqHgb40KKqmpcZzsKnnQ5W5BNfLeqzNcFGUgjds6N+gPEPlfVp5lfYPc6FEM6+k4OaiaWN2PBeuAeAcQK/q7a9cH+Q+AEBWcNYMMH9iL+kCBsqM1mXZLCDqeebbQ0OBeC66Fevc7pxVBn7ryeq5X5dl7WfPWg9ZAW7Q/oa743H2m/rXy1xcDPRYreDX/Hu5mYE29+bm3n/Psj6y3f6xyFQ4p7hL0MQseL710h9y21pIlG4Evw13AehTGKhH+xTYtGlrc67R5Hr/wwcew+DLgNATH5ezMa63TXN2gajmDjHoEYZP44+PGmh7pOarPZmuFADEYkyxt0ciiiYRf/MBTPHg0Y2DLhbnxZ1227Bnbssm6r79oADX18ajIwde5W3KIBp1cVusnAemShtYh4E3cbB67l0agvbB7hQlPWXtSx6cADjKOsCCRgr2a5MWwyAsgHd6iacethqai67RTw1owJ+0ZUerw3CrE1nAxbOVBcZN0EJuyKIDbkNP3ZRnYJ5z6WV7NFlnr9d387G6s/HnKiJB0CwPyxL5UXLy4rCUdQnzZGgDxEJ3mDOl2cduQYXedtsyw96hWXsS8kcbbJ3vkV+kzwP42fNRCN7GgwMSXjsBgEettT5p+/FiSXZ9aJlscIUevSiL0odO/mAispB47ZU7bY/GT85HG0Is6eMt4k5foeF2lD6wQ6DzCJdutjSFFECxXpbNqOD8RzjICynDN/GxCh1qAtQAnaV2Ny8aaV7P5VCa6xXgkIx9WY7sCLGzSMbkgmuQ9TYe5VlwGygjZv++VH9xvbZwkWg6OM3OThfPEOM/65LuKzZHzb80XPZlzxBi6JTL3kYDgQsJJRMNgtgJSN6/MB7+ofHTAzZFAIXNON4dUdihWpkBbXVF2BqSRPls4NBKjiuP2VmSIO7LJwDNbC+dB4WDhm1UUFx2S+fLgyLGEDXE/F/IxDxmiNypRU0f+/PtZB+nsUM9ki+mUG3lC2JLLRBi1yFKQ8vbrxPuEm+ejQBB0VuCjQJRSqLS2+i8FQ6bxkVh2liSgp9TOiSBPkPXe7M5VL+wHDvhT4lOnvEFmgylYDsyKqV0CLRVDbeBRaiPDsl1MQVAW99cHT5NpJLGcSVWgpBPXWpTj2OqEcj6aGQTzOYYyMPArhe1jLM/Mz2tzvfcGSfLZCIBwLHzXoBm5idZHw2tkMw+f3SLNsZOOsK/LYgeGMxFVm+48q3FQODYgzrCx+wBnpRDbRDBvyl6p8sPp45OttltclXNVptpuTxpGnOjW2erzOG/HMkCaLMfDM4uxUm7q7dHJsme4IjMRmV0Nvscf2X5AdiMxzivcNbApl2wjdAZERKzHQBks/D3BL+yyI3AeSoZ4TwwdZpP45mw2MbCkV78lQOGZ+F/+tiR49bOUUppKCZ6YV3xOONHwtue8EatnT+tljTBiWeYHLb9hfwHdsX4mopindzmcGH6od79sHbZHCA9zIBBnk5PIYhoHFw4xvM0gHsGI7O4yrwbtYPHhYGrG3DSzNA4vrvygxEsEhbu4DuAqmMjOIVAohlc8MDyUa4fZnCW7AfCeyRLQOj4PoSID0W0D+c6Nf1NAHeSNMQfPuyXHEFIDo/81Q0cIPVvdT0BwpEEA4i42S62uvKjAFchus6Keh2Sq88Q8RkQ/nLEu/vWmoSbFurEa3M4TuvgzwD1whtAvl53+DaMRHddDgzOxY1m1zqagIuKyw5fmiP2hMCscPaEuzeAqLpxUi+BWJtHZiUNLlF546XOClQAFVtG4VdoXHBNVd+46Ss80V/CIy99c6AGqi+7HE7zFo0eOD70UVdtchLyTxfgXibDnjjr+OP/DXp0g6KBfLz29Twbdyc8utcTY1QBkm6375fvHuazcASq49W1S62/XP3ryPCAQj4cXxjIj/cfb5c/cY6rP3Iglt/vf+aVwL9g2E+X3XKekDnGUXXX8KI0+uaPa1oUzfAcfc0Q+/OFx8I93KQptQW2AkIPahmbf7Oitnx/P3AAyv9n219HED2oW1+vUfx+7fcpO/sB/vZ21Y7/8fL1gwyWdSQPbODw56vfb+7Qb8RkqTA6nDOtfmz+/wX4nx+t+zlCQNf/f9n8PyMhA1fsY2N8AAAAAElFTkSuQmCC"
+}
