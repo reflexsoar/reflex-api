@@ -15,6 +15,23 @@
     "manifest": {
         "actions": [
             {
+                "friendly_name": "Add Tags to Event",
+                "name": "tag_event",
+                "description": "Add tags to an event",
+                "tags": ["event"],
+                "target_object": "event",
+                "run_from": "console",
+                "parameters": {
+                    "tags": {
+                        "type": "str-multiple",
+                        "default": [],
+                        "description": "List of tags to add to the event"
+                    }
+                },
+                "trigger": ["event_rule", "manual"],
+                "source_object_type": ["event"]
+            },
+            {
                 "friendly_name": "Event Webhook",
                 "name": "event_webhook",
                 "description": "Create or update an event in ReflexSOAR from an incoming webhook.",

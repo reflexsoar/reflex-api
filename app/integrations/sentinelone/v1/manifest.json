@@ -68,97 +68,168 @@
                 "friendly_name": "Isolate Host",
                 "description": "Isolate a host from the network",
                 "name": "isolate_host",
-                "parameters": [
-                    {
-                        "name": "hostname",
-                        "type": "str",
-                        "required": true,
+                "parameters": {
+                    "hostname": {
+                        "type": "str-select",
+                        "required": false,
+                        "default_options_from": "observables",
+                        "observable_data_type": "host",
                         "description": "The Hostname of the agent to isolate"
+                    },
+                    "mac": {
+                        "type": "str-select",
+                        "required": false,
+                        "default_options_from": "observables",
+                        "observable_data_type": "mac",
+                        "description": "The MAC Address of the agent to isolate"
+                    },
+                    "ip": {
+                        "type": "str-select",
+                        "required": false,
+                        "default_options_from": "observables",
+                        "observable_data_type": "ip",
+                        "description": "The Hostname of the agent to isolate"
+                    },
+                    "tag_on_success": {
+                        "type": "bool",
+                        "required": true,
+                        "default": true,
+                        "description": "Tag the host with the \"SentinelOne Isolated\" tag on success"
                     }
-                ],
+                },
                 "type": "action",
-                "run_from": "console"
+                "run_from": "console",
+                "trigger": ["event_rule", "manual"],
+                "source_object_type": ["observable", "event"],
+                "observable_type": ["host"]
             },
             {
                 "friendly_name": "Reconnect Host",
                 "description": "Reconnect a host to the network",
                 "name": "reconnect_host",
-                "parameters": [
-                    {
-                        "name": "hostname",
+                "parameters": {
+                    "hostname": {
                         "type": "str",
                         "required": true,
                         "description": "The Hostname of the agent to reconnect"
                     }
-                ],
+                },
                 "type": "action",
-                "run_from": "console"
+                "run_from": "console",
+                "trigger": ["event_rule", "manual"],
+                "source_object_type": ["observable", "event"],
+                "observable_type": ["host"]
             },
             {
                 "friendly_name": "Get Threat Details",
                 "description": "Get details about a SentinelOne threat",
                 "name": "get_threat_details",
-                "parameters": [
-                    {
-                        "name": "ids",
+                "parameters": {
+                    "ids": {
                         "type": "str",
                         "required": true,
                         "description": "The ID of the threat to get details for"
                     }
-                ],
+                },
                 "type": "action",
-                "run_from": "console"
+                "run_from": "console",
+                "trigger": ["event_rule", "manual"],
+                "source_object_type": ["event"]
             },
             {
                 "friendly_name": "Search Deep Visibility",
                 "description": "Search the Deep Visibility logs for a specific query",
                 "name": "search_deep_visibility",
-                "parameters": [
-                    {
-                        "name": "query",
+                "parameters": {
+                        "query": {
                         "type": "str",
                         "required": true,
                         "description": "The query to search for"
                     }
-                ],
+                },
                 "type": "action",
-                "run_from": "console"
+                "run_from": "console",
+                "trigger": ["event_rule", "manual"],
+                "source_object_type": [
+                    "observable",
+                    "event"
+                ],
+                "observable_type": [
+                    "ip",
+                    "domain",
+                    "url",
+                    "hash",
+                    "file",
+                    "host"
+                ]
             },
             {
                 "friendly_name": "Get Agent Details",
                 "description": "Get details about a SentinelOne agent",
                 "name": "get_agent_details",
-                "parameters": [
-                    {
-                        "name": "hostname",
-                        "type": "str",
-                        "required": true,
-                        "description": "The Hostname of the agent to get details for"
+                "parameters": {
+                    "hostname": {
+                        "type": "str-select",
+                        "required": false,
+                        "default_options_from": "observables",
+                        "observable_data_type": "host",
+                        "description": "The Hostname of the agent to isolate"
+                    },
+                    "mac": {
+                        "type": "str-select",
+                        "required": false,
+                        "default_options_from": "observables",
+                        "observable_data_type": "mac",
+                        "description": "The MAC Address of the agent to isolate"
+                    },
+                    "ip": {
+                        "type": "str-select",
+                        "required": false,
+                        "default_options_from": "observables",
+                        "observable_data_type": "ip",
+                        "description": "The Hostname of the agent to isolate"
                     }
-                ],
+                },
                 "type": "action",
-                "run_from": "console"
+                "run_from": "console",
+                "trigger": ["event_rule", "manual"],
+                "source_object_type": ["observable", "event"],
+                "observable_type": ["host", "mac", "ip"],
+                "configuration": {
+                    "cache_results": {
+                        "type": "bool",
+                        "required": false,
+                        "default": true,
+                        "description": "Cache the results of this action"
+                    },
+                    "cache_expiry": {
+                        "type": "int",
+                        "required": false,
+                        "default": 3600,
+                        "description": "The amount of time to cache the results of this action for"
+                    }
+                }
             },
             {
                 "friendly_name": "Add Threat Note",
                 "description": "Add a note to a threat",
                 "name": "add_threat_note",
-                "parameters": [
-                    {
-                        "name": "ids",
+                "parameters": {
+                    "ids": {
                         "type": "str",
                         "required": true,
                         "description": "The ID of the threat to add a note to"
                     },
-                    {
-                        "name": "note",
+                    "note": {
                         "type": "str",
                         "required": true,
                         "description": "The note to add to the threat"
                     }
-                ],
+                },
                 "type": "action",
-                "run_from": "console"
+                "run_from": "console",
+                "trigger": ["event_rule", "manual"],
+                "source_object_type": ["event"]
             },
             {
                 "friendly_name": "Poll Threats",
@@ -174,7 +245,8 @@
                         "default": 60,
                         "description": "The interval in minutes to poll for new threats"
                     }
-                }
+                },
+                "trigger": ["schedule", "manual"]
             }
         ],
         "configuration": {

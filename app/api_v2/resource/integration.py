@@ -6,6 +6,7 @@ from .shared import mod_user_list, ISO8601, AsAttrDict
 from ..utils import token_required, user_has
 
 from ..model.integration import IntegrationConfiguration, Integration
+from ...integrations.base import integration_registry
 
 api = Namespace('Integration', description="Integration operations", path="/integration")
 
@@ -58,6 +59,31 @@ mod_integration_config_list = api.model('IntegrationConfigList', {
 
 mod_integration_list = api.model('IntegrationList', {
     'integrations': fields.List(fields.Nested(mod_integration_details))
+})
+
+mod_configured_action = api.model('ConfiguredAction', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'friendly_name': fields.String,
+    'parameters': AsAttrDict,
+    'integration_uuid': fields.String,
+    'integration_name': fields.String,
+    'configuration_uuid': fields.String,
+    'configuration_name': fields.String
+})
+
+mod_configured_action_list = api.model('ConfiguredActionList', {
+    'actions': fields.List(fields.Nested(mod_configured_action))
+})
+
+mod_run_action = api.model('RunAction', {
+    'action': fields.String(required=True, description="The action to run"),
+    'events': fields.List(fields.String, required=False, description="List of events to run the action against"),
+    'cases': fields.List(fields.String, required=False, description="List of cases to run the action against"),
+    'observables': fields.List(fields.String, required=False, description="List of observables to run the action against"),
+    'integration_uuid': fields.String(required=True, description="The UUID of the integration to run the action against"),
+    'configuration_uuid': fields.String(required=True, description="The UUID of the configuration to run the action against"),
+    'parameters': fields.Raw(required=False, description="Parameters to pass to the action")
 })
 
 @api.route("/<string:uuid>/configurations")
@@ -431,3 +457,115 @@ class IntegrationConfigurationResource(Resource):
         config.save()
 
         return config
+
+
+@api.route("/run_action")
+class RunActionResource(Resource):
+
+    @api.doc(security='Bearer')
+    @api.expect(mod_run_action)
+    #@token_required
+    #@user_has('run_action')
+    def post(self):#, current_user):
+        """
+        Run an action against a set of events, cases, or observables
+        """
+        
+        try:
+            integration = integration_registry[api.payload['integration_uuid']]
+        except KeyError:
+            api.abort(400, "Integration not found")
+
+        # TODO: Validate that any of the target objects are accessible by this user or
+        # the integrations configuration organization
+
+        try:
+            integration.run_action(api.payload['action'],
+                                   events=api.payload['events'],
+                                   configuration_uuid=api.payload['configuration_uuid'],
+                                   **api.payload['parameters'])
+        except ValueError as e:
+            api.abort(400, f"Action not found: {e}")
+        except Exception as e:
+            api.abort(400, f"Error running action: {e}")
+
+    
+actions_parser = api.parser()
+actions_parser.add_argument('source_object_type', type=str, required=False, location='args', action="split")
+actions_parser.add_argument('observable_type', type=str, required=False, location='args', action="split")
+actions_parser.add_argument('trigger', type=str, required=False, location='args', default='manual')
+    
+@api.route("/configured_actions")
+class ConfiguredActionsResource(Resource):
+
+    @api.doc(security='Bearer')
+    @api.marshal_with(mod_configured_action_list)
+    @api.expect(actions_parser)
+    @token_required
+    #@user_has('view_integrations')
+    def get(self, current_user):
+        """
+        Returns a list of all configured actions that support adhoc execution for all
+        integrations.
+        """
+
+        # Parse the arguments
+        args = actions_parser.parse_args()
+        
+        # Load all the integrations
+        integrations = Integration.search().scan()
+
+        configured_actions = []
+
+        for integration in integrations:
+
+            # Ensure that the integration configuration exists
+            configurations = IntegrationConfiguration.search()
+            configurations = configurations.filter('term', integration_uuid=integration.product_identifier)
+            configurations = configurations.filter('term', organization=current_user.organization)
+
+            # Only return enabled configurations
+            configurations = configurations.filter('term', enabled=True)
+            configurations = [c for c in configurations.scan()]
+
+            # Retrieve the configured actions
+            for config in configurations:
+                for action in config.actions:
+                    action_settings = config.actions[action]
+                    if action_settings['enabled']:
+
+                        action_manifest = integration.get_action_manifest(action)
+                        
+                        if 'trigger' in action_manifest and args.trigger not in action_manifest['trigger']:
+                            continue
+
+                        action_parameters = None
+                        if 'parameters' in action_manifest:
+                            action_parameters = action_manifest['parameters']
+
+                        # Filter based on the args
+                        if args.source_object_type:
+                            
+                            # If none of the source object types match, then skip
+                            if not any([s in args.source_object_type for s in action_manifest['source_object_type']]):
+                                continue
+
+                        if args.observable_type:
+
+                            # If none of the observable types match, then skip
+                            if not any([s in args.observable_type for s in action_manifest['observable_types']]):
+                                continue
+
+                        configured_actions.append({
+                            "name": action,
+                            "friendly_name": action_manifest['friendly_name'],
+                            "parameters": action_parameters,
+                            "integration_uuid": integration.product_identifier,
+                            "integration_name": integration.name,
+                            "configuration_uuid": config.uuid,
+                            "configuration_name": config.name
+                        })
+
+        return {
+            "actions": configured_actions
+        }

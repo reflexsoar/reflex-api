@@ -32,7 +32,7 @@ from app.api_v2.model import (
         MITRETechnique, EventView, NotificationChannel, Notification, FieldMappingTemplate,
         AgentLogMessage, EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState, RepositorySyncLog,
-        Integration, IntegrationConfiguration
+        Integration, IntegrationConfiguration, IntegrationLog
 )
 
 from .defaults import (
@@ -131,7 +131,7 @@ def upgrade_indices(app):
         EventView, NotificationChannel, Notification, FieldMappingTemplate, AgentLogMessage,
         EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState,
-        RepositorySyncLog, Integration, IntegrationConfiguration
+        RepositorySyncLog, Integration, IntegrationConfiguration, IntegrationLog
         ]
 
     for model in models:

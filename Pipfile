@@ -61,6 +61,7 @@ psutil = "*"
 diskcache = "*"
 secure = "*"
 markdown = "*"
+requests-cache = "*"
 
 [requires]
 python_version = "3.8"

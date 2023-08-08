@@ -191,6 +191,7 @@ class Event(base.BaseDocument):
     acknowledged = Boolean() # Has the event been acknowledged by an analyst
     acknowledged_by = Object() # The analyst that acknowledged the event
     integration_attributes = Object() # Attributes used by integrations
+    integration_output = Object() # The output of the integration
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -618,6 +619,7 @@ class EventRule(base.BaseDocument):
     high_volume_rule = Boolean() # This flags true if the Event rule is too noisy
     tags = Keyword() # Descriptive tags for the event rule
     protected = Boolean() # If true, the event rule can only be modified by its creator
+    integration_actions = Keyword() # The integration actions to run when the event rule matches
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

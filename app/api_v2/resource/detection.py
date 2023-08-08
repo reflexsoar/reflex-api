@@ -1171,6 +1171,49 @@ class RemoveDetectionException(Resource):
         else:
             api.abort(404, f'Detection rule for UUID {uuid} not found')
 
+@api.route("/clear_warnings")
+class ClearDetectionWarnings(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_bulk_detections)
+    @api.marshal_with(mod_detection_details, as_list=True, skip_none=True)
+    @token_required
+    @user_has('update_detection')
+    def post(self, current_user):
+        '''
+        Clears the warning flag for multiple detections
+        '''
+
+        detections_to_update = []
+
+        detection_uuids = api.payload.get('detections')
+
+        detections = Detection.get_by_uuid(uuid=detection_uuids, all_results=True)
+
+        if detections:
+
+            detections_to_update = [d.uuid for d in detections]
+
+            # Bulk update the detections using the update_by_query API
+
+            # Build the query
+            update_by_query = UpdateByQuery(index=Detection._index._name)
+            update_by_query = update_by_query.filter(
+                'terms', uuid=detections_to_update)
+            update_by_query = update_by_query.script(
+                source="ctx._source.warnings = []")
+
+            # Execute the query
+            update_by_query.execute()
+
+            # Refresh the index
+            Detection._index.refresh()
+
+            # Get the updated detections
+            detections = Detection.get_by_uuid(uuid=detections_to_update, all_results=True)
+
+            return detections
+
 
 @api.route("/assess")
 class AssessDetections(Resource):
@@ -1317,7 +1360,7 @@ class DetectionDetails(Resource):
         should_redistribute = False
         forbidden_user_fields = ['query_time_taken', 'total_hits', 'last_hit', 'last_run',
                                  'created_at', 'created_by', 'updated_at', 'updated_by',
-                                 'time_taken', 'warnings', 'version', 'running',
+                                 'time_taken', 'version', 'running',
                                  'assigned_agent', 'assess_rule', 'hits_over_time',
                                  'average_hits_per_day', 'last_assessed', 'average_query_time']
 
@@ -1346,9 +1389,25 @@ class DetectionDetails(Resource):
             #    else:
             #        detection.version = 1
 
+            print(api.payload)
+
             if 'warnings' not in api.payload:
                 if hasattr(detection, 'warnings'):
                     api.payload['warnings'] = detection.warnings
+                else:
+                    api.payload['warnings'] = []
+
+            if api.payload['warnings'] is None:
+                api.payload['warnings'] = []
+
+            print(api.payload)
+
+            _warnings = ['slow-query', 'slow-query-disable', 'high-volume', 'high-volume-disable']
+
+            # Remove _warnings from api.payload['warnings']
+            api.payload['warnings'] = [warning for warning in api.payload['warnings'] if warning not in _warnings]
+
+            print(api.payload)
 
             SLOW_QUERY = False
             HIGH_VOLUME = False
@@ -1384,41 +1443,21 @@ class DetectionDetails(Resource):
                 warnings = True
 
             if warnings:
-
-                if 'warnings' not in api.payload:
-                    if hasattr(detection, 'warnings'):
-                        api.payload['warnings'] = detection.warnings
-                    else:
-                        api.payload['warnings'] = []
-
-                if 'warnings' in api.payload and api.payload['warnings'] is None:
-                    api.payload['warnings'] = []
                 
-                if SLOW_QUERY and 'slow-query' not in api.payload['warnings']:
+                # Add the warning to the payload
+                if SLOW_QUERY:
                     api.payload['warnings'].append('slow-query')
-                else:
-                    if 'slow-query' in api.payload['warnings']:
-                        api.payload['warnings'].remove('slow-query')
 
-                if HIGH_VOLUME and 'high-volume' not in api.payload['warnings']:
+                if HIGH_VOLUME:
                     api.payload['warnings'].append('high-volume')
-                else:
-                    if 'high-volume' in api.payload['warnings']:
-                        api.payload['warnings'].remove('high-volume')
 
-                if HIGH_VOLUME_DISABLE and 'high-volume-disable' not in api.payload['warnings']:
+                if HIGH_VOLUME_DISABLE:
                     api.payload['warnings'].append('high-volume-disable')
                     api.payload['active'] = False
-                else:
-                    if 'high-volume-disable' in api.payload['warnings']:
-                        api.payload['warnings'].remove('high-volume-disable')
 
-                if SLOW_QUERY_DISABLE and 'slow-query-disable' not in api.payload['warnings']:
+                if SLOW_QUERY_DISABLE:
                     api.payload['warnings'].append('slow-query-disable')
                     api.payload['active'] = False
-                else:
-                    if 'slow-query-disable' in api.payload['warnings']:
-                        api.payload['warnings'].remove('slow-query-disable')
 
             # If the rule has been disabled due to high volume or slow query, create
             # a new Event 

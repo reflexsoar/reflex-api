@@ -14,10 +14,10 @@ from app.api_v2.model.user import Organization
 from app.api_v2.model.case import Case
 from flask import current_app
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
-from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus, EventComment
+from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus
 from ..model.exceptions import EventRuleFailure
 from ..utils import token_required, user_has, log_event
-from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged, mod_user_list, ValueCount
+from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged, mod_user_list, ValueCount, AsAttrDict
 from ... import ep, memcached_client
 
 api = Namespace('Events', description='Event related operations', path='/event')
@@ -166,6 +166,7 @@ mod_event_details = api.model('EventDetails', {
     'response_phase': fields.String,
     'acknowledged': fields.Boolean,
     'acknowledged_by': fields.Nested(mod_user_list),
+    'integration_output': fields.List(AsAttrDict)
 })
 
 mod_observable_update = api.model('ObservableUpdate', {
@@ -1010,7 +1011,7 @@ class EventBulkDismiss(Resource):
             'data_type': 'data_type',
             'severity': 'severity',
             'event_rule': 'event_rules',
-            'source': 'source'
+            'source': 'source__keyword'
         }
 
         ubq = UpdateByQuery(index='reflex-events')

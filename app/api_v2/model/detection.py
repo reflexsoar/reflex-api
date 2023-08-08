@@ -291,6 +291,22 @@ class DetectionState(base.BaseDocument):
             return False
 
         return True
+    
+    def _agent_has_assessments(self, agent_uuid):
+        '''
+        Returns true if the agent_uuid has any assessments assigned to it
+        '''
+
+        agent = next(
+            (agent for agent in self.agents if agent.agent == agent_uuid), None)
+        
+        if agent is None:
+            return False
+        
+        if not agent.assessments or len(agent.assessments) == 0:
+            return False
+        
+        return True
 
     def _detection_assigned(self, detection_uuid):
         '''
@@ -325,6 +341,9 @@ class DetectionState(base.BaseDocument):
         active_rules = True if len(
             [detection for detection in detections if detection.active]) > 0 else False
 
+        rules_needing_assessment = True if len(
+            [detection for detection in detections if detection.assess_rule]) > 0 else False
+
         # Filter agents down to those that are detection agents
         # agents = Agent.get_by_organization(self.organization)
 
@@ -344,8 +363,18 @@ class DetectionState(base.BaseDocument):
                 rebalance = True
                 break
 
+            # If an agent is unhealthy and has assessments assigned to it
+            if not agent.healthy and self._agent_has_assessments(agent.uuid):
+                rebalance = True
+                break
+
             # If an agent is healthy and has no work assigned to it
             if agent.healthy and not self._agent_has_work(agent.uuid) and active_rules:
+                rebalance = True
+                break
+
+            # If an agent is healthy and has no assessments assigned to it
+            if agent.healthy and not self._agent_has_assessments(agent.uuid) and rules_needing_assessment:
                 rebalance = True
                 break
 
