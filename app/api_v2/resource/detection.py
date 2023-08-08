@@ -1389,8 +1389,6 @@ class DetectionDetails(Resource):
             #    else:
             #        detection.version = 1
 
-            print(api.payload)
-
             if 'warnings' not in api.payload:
                 if hasattr(detection, 'warnings'):
                     api.payload['warnings'] = detection.warnings
@@ -1400,14 +1398,10 @@ class DetectionDetails(Resource):
             if api.payload['warnings'] is None:
                 api.payload['warnings'] = []
 
-            print(api.payload)
-
             _warnings = ['slow-query', 'slow-query-disable', 'high-volume', 'high-volume-disable']
 
             # Remove _warnings from api.payload['warnings']
             api.payload['warnings'] = [warning for warning in api.payload['warnings'] if warning not in _warnings]
-
-            print(api.payload)
 
             SLOW_QUERY = False
             HIGH_VOLUME = False
