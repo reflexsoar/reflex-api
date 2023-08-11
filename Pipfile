@@ -62,6 +62,7 @@ diskcache = "*"
 secure = "*"
 markdown = "*"
 requests-cache = "*"
+pydantic = "*"
 
 [requires]
 python_version = "3.8"

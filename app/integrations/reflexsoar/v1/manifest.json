@@ -15,8 +15,31 @@
     "manifest": {
         "actions": [
             {
+                "friendly_name": "Add Observable to Intel List",
+                "name": "add_to_intel_list",
+                "type": "action",
+                "description": "Add an observables value to an Intel List",
+                "tags": ["intel"],
+                "target_object": "intel_list",
+                "run_from": "console",
+                "parameters": {
+                    "observable_value": {
+                        "type": "str",
+                        "default": "",
+                        "description": "The value of the observable to add to the list"
+                    },
+                    "intel_list": {
+                        "type": "str-select",
+                        "default_options_from": "intel_list",
+                        "description": "The list to add the observable to",
+                        "multiple": false
+                    }
+                }  
+            },
+            {
                 "friendly_name": "Add Tags to Event",
                 "name": "tag_event",
+                "type": "action",
                 "description": "Add tags to an event",
                 "tags": ["event"],
                 "target_object": "event",
@@ -34,6 +57,7 @@
             {
                 "friendly_name": "Event Webhook",
                 "name": "event_webhook",
+                "type": "webhook",
                 "description": "Create or update an event in ReflexSOAR from an incoming webhook.",
                 "tags": ["event"],
                 "target_object": "event",
@@ -56,6 +80,7 @@
             {
                 "friendly_name": "Case Webhook",
                 "name": "case_webhook",
+                "type": "webhook",
                 "description": "Create or update a case in ReflexSOAR from an incoming webhook",
                 "tags": ["case"],
                 "target_object": "case",

@@ -17,6 +17,7 @@
             {
                 "friendly_name": "IP Lookup",
                 "name": "ip_whois_lookup",
+                "type": "action",
                 "description": "Looks up the WHOIS information on an IP address",
                 "tags": ["event", "observable"],
                 "target_object": "event",

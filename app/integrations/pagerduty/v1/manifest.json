@@ -24,6 +24,7 @@
                 "description": "Create an incident in PagerDuty",
                 "source_object_type": "event",
                 "trigger": ["event_rule","manual"],
+                "run_from": "console",
                 "configuration": {
                     "incident_key_field": {
                         "type": "str",
@@ -63,7 +64,8 @@
                         "description": "The event field to use as the incident key when creating new incidents"
                     }
                 },
-                "type": "webhook"
+                "type": "webhook",
+                "run_from": "console"
             }
         ],
         "configuration": {
