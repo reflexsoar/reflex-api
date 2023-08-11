@@ -258,7 +258,7 @@ class Notifier(object):
                 if hasattr(source_object, 'detection_id'):
                     detection = Detection.get_by_uuid(uuid=source_object.detection_id)
                     if detection:
-                        if hasattr(detection, 'email_template'):
+                        if hasattr(detection, 'email_template') and detection.email_template != "":
                             template = detection.email_template
 
             jinja_template = environment.from_string(template)
