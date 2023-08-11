@@ -404,8 +404,6 @@ class Notifier(object):
         channel_config = channel.rest_api_configuration
         session = requests.Session()
         session.headers.update(channel_config.headers)
-        print(channel_config.headers)
-        print(session.headers)
         
         if hasattr(notification, 'source_object_type') and hasattr(notification, 'source_object_uuid'):
             if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
