@@ -14,7 +14,6 @@ class IPWhoisIO(IntegrationBase):
         if not events:
             raise ValueError(f"Could not find event with UUID {events}")
 
-        use_bulk = False
         api_key = None
 
         # fetch the API key from the configuration
