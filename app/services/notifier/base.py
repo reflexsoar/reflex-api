@@ -195,7 +195,7 @@ class Notifier(object):
         channel = NotificationChannel.search()
         channel = channel.filter('term', uuid=notification.channel)
         channel = channel.filter('term', enabled=True)
-        channels = channel.execute()
+        channels = [c for c in channel.scan()]
 
         errors = []
         _channels = []

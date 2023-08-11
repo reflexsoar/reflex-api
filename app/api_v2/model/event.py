@@ -634,7 +634,13 @@ class EventRule(base.BaseDocument):
         Creates a notification for the event rule
         '''
         if self.notification_channels and len(self.notification_channels) > 0:
+
+            # TODO: Add a security check here to make sure only event rules that belong to the organization
+            #       can create notifications on the organization.  A global channel just means it can
+            #       be used to relay any organizations events, not that any organization can use it freely
+
             for channel in self.notification_channels:
+                    
                 notification = Notification(
                     sent=False,
                     channel=channel,
