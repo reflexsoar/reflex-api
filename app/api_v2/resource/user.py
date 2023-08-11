@@ -157,7 +157,6 @@ class TestScopedUserList(Resource):
         ''' TEST SCOPED GET REQUESTS '''
 
         users = User.scoped_search()
-        print(len(users))
 
         return {
             'users': users,
