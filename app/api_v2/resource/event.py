@@ -1791,41 +1791,6 @@ class BulkDeleteEvent(Resource):
 
         return {'message': 'Successfully deleted Events.'}, 200
 
-"""
-@api.route("/<uuid>/update_case")
-class EventUpdateCase(Resource):
-
-    @api.doc(security="Bearer")
-    @api.marshal_with(mod_event_update_case)
-    @api.response('200', 'Success')
-    @token_required
-    @user_has('update_event')
-    def put(self, uuid, current_user):
-
-        if 'action' in api.payload:
-            action = api.payload.pop('action')
-
-            if action in ['remove','transfer']:
-
-                event = Event.get_by_uuid()
-
-                if action == 'remove':
-                    
-                    event.remove_from_case()
-
-                if action == 'transfer':
-                    if 'target_case_uuid' in api.payload:
-                        event.set_case()
-                    else:
-                        api(400, 'Missing target case details.')
-            
-                print('a')
-            else:
-                api.abort(400, 'Missing or invalid action.')
-        else:
-            api.abort(400, 'Missing or invalid action.')
-"""
-
 
 event_bulk_select_parser = api.parser()
 event_bulk_select_parser.add_argument('status', location='args', default=[
