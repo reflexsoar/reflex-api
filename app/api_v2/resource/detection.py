@@ -209,6 +209,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'updated_by': fields.Nested(mod_user_list, skip_none=True),
     'repository': fields.List(fields.String),
     'daily_schedule': fields.Boolean,
+    'schedule_timezone': fields.String(default='Etc/GMT'),
     'schedule': fields.Nested(mod_detection_schedule),
     'assess_rule': fields.Boolean,
     'hits_over_time': fields.String,

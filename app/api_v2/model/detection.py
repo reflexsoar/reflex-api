@@ -607,6 +607,7 @@ class Detection(base.BaseDocument):
     repository = Keyword()  # The UUID of the repositories this rule is associated to
     daily_schedule = Boolean()  # If false the detection will always run
     schedule = Nested(DetectionSchedule)
+    schedule_timezone = Keyword()  # The timezone offset in hours
     assess_rule = Boolean()  # If true the rule will be assessed for quality
     last_assessed = Date()  # When the rule was last assessed
     average_query_time = Long()  # The average query time in milliseconds
