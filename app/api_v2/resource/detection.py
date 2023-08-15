@@ -67,13 +67,15 @@ mod_detection_exception_list = api.model('DetectionExceptionList', {
 
 mod_threshold_config = api.model('ThesholdConfig', {
     'threshold': fields.Integer,
-    'key_field': fields.String,
+    'key_field': fields.List(fields.String),
     'operator': fields.String,
     'dynamic': fields.Boolean,
     'discovery_period': fields.Integer,
     'recalculation_period': fields.Integer,
     'per_field': fields.Boolean,
-    'max_events': fields.Integer
+    'max_events': fields.Integer,
+    'mode': fields.String(default="count", enum=["count", "terms", "cardinality"]),
+    'threshold_field': fields.String,
 }, strict=True)
 
 mod_metric_change_config = api.model('MetricChangeConfig', {
@@ -139,6 +141,7 @@ mod_detection_schedule_hour_range = api.model('DetectionScheduleHourRange', {
 
 mod_detection_schedule_day = api.model('DetectionScheduleDay', {
     'custom': fields.Boolean,
+    'active': fields.Boolean,
     'hours': fields.List(fields.Nested(mod_detection_schedule_hour_range))
 })
 
@@ -265,6 +268,7 @@ mod_create_detection = api.model('CreateDetection', {
     'include_source_meta_data': fields.Boolean(default=False),
     'daily_schedule': fields.Boolean(required=False),
     'schedule': fields.Nested(mod_detection_schedule, required=False),
+    'schedule_timezone': fields.String(default='Etc/GMT'),
     'email_template': fields.String,
     'test_script': fields.String,
     'test_script_safe': fields.Boolean,
@@ -311,6 +315,7 @@ mod_update_detection = api.model('UpdateDetection', {
     'status': fields.String(default='Draft', required=False, enum=VALID_DETECTION_STATUS),
     'daily_schedule': fields.Boolean(required=False),
     'schedule': fields.Nested(mod_detection_schedule, required=False),
+    'schedule_timezone': fields.String(default='Etc/GMT'),
     'assess_rule': fields.Boolean,
     'hits_over_time': fields.String,
     'average_hits_per_day': fields.Integer,
