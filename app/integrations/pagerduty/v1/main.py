@@ -17,7 +17,8 @@ mod_test = IntegrationApi.model('Test', {
 
 class PagerDuty(IntegrationBase):
 
-    def create_incident(self, events, configuration_uuid):
+
+    def action_create_incident(self, events, configuration_uuid, *args, **kwargs):
         """
         Creates an incident in PagerDuty
         """
