@@ -90,7 +90,7 @@ from .task import Task
 from .mitre import MITRETactic, MITRETechnique
 from .notification import EmailNotificationTemplate, NotificationChannel, Notification, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE
 from .asset import Asset, UserAsset, GroupAsset, ComputerAsset, NetworkInterface, OperatingSystem
-from .integration import Integration, IntegrationConfiguration, IntegrationLog
+from .integration import Integration, IntegrationConfiguration, IntegrationLog, IntegrationActionQueue
 
 VERSION = (2, 0, 0)
 __version__ = VERSION
@@ -158,5 +158,6 @@ __all__ = [
     VALID_DATA_TYPES,
     Integration,
     IntegrationConfiguration,
-    IntegrationLog
+    IntegrationLog,
+    IntegrationActionQueue
 ]

@@ -14,6 +14,7 @@ from app.services.housekeeper import HouseKeeper
 from app.services.event_processor import EventProcessor
 from app.services.mitre import MITREAttack
 from app.services.notifier import Notifier
+from app.services.action_runner import ActionRunner
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_mail import Mail
@@ -32,7 +33,7 @@ from app.api_v2.model import (
         MITRETechnique, EventView, NotificationChannel, Notification, FieldMappingTemplate,
         AgentLogMessage, EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState, RepositorySyncLog,
-        Integration, IntegrationConfiguration, IntegrationLog
+        Integration, IntegrationConfiguration, IntegrationLog, IntegrationActionQueue
 )
 
 from .defaults import (
@@ -131,7 +132,8 @@ def upgrade_indices(app):
         EventView, NotificationChannel, Notification, FieldMappingTemplate, AgentLogMessage,
         EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState,
-        RepositorySyncLog, Integration, IntegrationConfiguration, IntegrationLog
+        RepositorySyncLog, Integration, IntegrationConfiguration, IntegrationLog,
+        IntegrationActionQueue
         ]
 
     for model in models:
@@ -373,6 +375,9 @@ def create_app(environment='development'):
         notifier.init_app(app)
         notifier.set_log_level(app.config['NOTIFIER']['LOG_LEVEL'])
         scheduler.add_job(func=notifier.check_notifications, trigger="interval", seconds=app.config['NOTIFIER']['POLL_INTERVAL'])
+
+    action_runner = ActionRunner()
+    scheduler.add_job(func=action_runner.run, trigger="date", run_date=datetime.datetime.now())
 
     if not app.config['EVENT_PROCESSOR']['DISABLED']:
         try:

@@ -264,3 +264,24 @@ class IntegrationConfiguration(base.BaseDocument):
         settings = {
             'refresh_interval': '5s',
         }
+
+class IntegrationActionQueue(base.BaseDocument):
+    """
+    Defines a queue of actions that need to be processed by the ActionRunner
+    """
+
+    action = Keyword()  # The action that was performed
+    level = Keyword() # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    configuration_uuid = Keyword()  # The configuration that was used
+    integration_uuid = Keyword()  # The integration that was used
+    parameters = Object() # The parameters that were passed to the action
+    message = Keyword(fields={'text': Text()})  # The message that was returned
+    status = Keyword() # The status of the action 
+    from_event_rule = Boolean() # Whether the action was triggered from an event rule or not
+    events = Keyword()
+
+    class Index:
+        name = 'reflex-integration-action-queue'
+        settings = {
+            'refresh_interval': '5s',
+        }
