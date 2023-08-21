@@ -38,8 +38,8 @@ from app.api_v2.model import (
     Event,
     ObservableHistory,
     UpdateByQuery,
+    IntegrationActionQueue
 )
-from ...integrations.base import integration_registry
 from app.api_v2.model.user import Organization
 from .errors import KafkaConnectionFailure
 
@@ -1214,8 +1214,18 @@ class EventWorker(Process):
                         # If the event rule has integration actions, run them using a thread pool
                         if hasattr(rule, 'integration_actions'):
                             for action in rule.integration_actions:
-                                thread = threading.Thread(target=self.run_action, args=(action, raw_event))
-                                thread.start()
+                                action_queue = IntegrationActionQueue(
+                                    action=action['action'],
+                                    configuration_uuid=action['configuration_uuid'],
+                                    integration_uuid=action['integration_uuid'],
+                                    parameters=action['parameters'],
+                                    from_event_rule=True,
+                                    status='pending',
+                                    events=[raw_event['uuid']]
+                                )
+                                action_queue.save()
+                            #thread = threading.Thread(target=self.run_actions, args=(rule.integration_actions, raw_event))
+                            #thread.start()
 
                 except Exception as e:
                     self.logger.error(f"Failed to process rule {rule.uuid} ({rule.name}). Reason: {e}")
@@ -1278,47 +1288,3 @@ class EventWorker(Process):
                     return None
 
         return raw_event
-    
-    def run_action(self, action, event):
-        '''
-        Runs an action against an event
-        '''
-        max_attempts = 5
-
-        uuid = event['uuid']
-
-        # Look to see if the event has been indexed yet
-        attempts = 0
-        while attempts != max_attempts:
-            attempts += 1
-            try:
-                event = Event.get_by_uuid(uuid)
-                if event:
-                    break
-                time.sleep(5)
-            except Exception as e:
-                self.logger.error(f"Error fetching event: {e}")
-                time.sleep(5)                
-
-        if attempts == max_attempts:
-            return
-        
-        try:
-            integration = integration_registry[action['integration_uuid']]
-        except KeyError:
-            return
-        
-        # Ensure that there are no conflict errors in the index before running the action
-        time.sleep(1)
-        try:
-            integration.run_action(action['action'],
-                                   events=[event],
-                                   configuration_uuid=action['configuration_uuid'],
-                                   **action['parameters'].to_dict(),
-                                   skip_load=True)
-        except ValueError as e:
-            self.logger.warning(f"Action not found: {e}")
-        except Exception as e:
-            self.logger.error(f"Error running action: {e}")
-        
-        print(action)
