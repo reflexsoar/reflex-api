@@ -193,6 +193,23 @@ class IntegrationBase(object):
 
         return _events
     
+    def get_value_from_source_field(self, source_field, event):
+        """
+        Returns the value of a source field from an event
+        """
+
+        try:
+            event.raw_log = json.loads(event.raw_log)
+        except json.JSONDecodeError:
+            pass
+
+        # Flatten the event
+        event = self.flatten_dict(event.to_dict())
+
+        if source_field in event:
+            return event[source_field]
+        return None    
+    
     def extract_observables_by_type(self, events, observable_data_type):
         """
         Returns the observables of a specific type from the events
