@@ -34,7 +34,7 @@ class SentinelOne(IntegrationBase):
         action_name = "get_agent_details"
 
         configuration = self.load_configuration(configuration_uuid)
-        if not 'skip_load' in kwargs or not kwargs['skip_load']:
+        if not 'from_event_rule' in kwargs or not kwargs['from_event_rule']:
             events = self.load_events(uuid=events)
 
         if not configuration:
@@ -98,8 +98,6 @@ class SentinelOne(IntegrationBase):
         url = f"{api_url}{endpoint}?computerName__contains={','.join(hostname)}"
 
         if len(hostname) > 0:
-
-            print(f"Getting agent details from {url}")
 
             response = s.get(url)
 

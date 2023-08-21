@@ -35,7 +35,7 @@ class PagerDuty(IntegrationBase):
         service_id = create_incident_config['service_id']
         incident_from = create_incident_config['from']
 
-        if 'skip_load' in kwargs and kwargs['skip_load']:
+        if 'from_event_rule' in kwargs and kwargs['from_event_rule']:
             _events = events
         else:
             _events = self.load_events(uuid=events)
@@ -105,12 +105,6 @@ Related Observables:\n
                             'url': incident['html_url']
                         }
                     })
-
-        
-
-        # If the incident is rejected due to the incident_key already existing on
-        # an open incident, update the Event with the integration_config UUID
-        pass
 
     class CreateIncident(Resource):
 
