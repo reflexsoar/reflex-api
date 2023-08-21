@@ -24,11 +24,13 @@
                 "run_from": "console",
                 "parameters": {
                     "observable_value": {
+                        "label": "Observable Value",
                         "type": "str",
                         "default": "",
                         "description": "The value of the observable to add to the list"
                     },
                     "intel_list": {
+                        "label": "Intel List",
                         "type": "str-select",
                         "default_options_from": "intel_list",
                         "description": "The list to add the observable to",
@@ -46,6 +48,7 @@
                 "run_from": "console",
                 "parameters": {
                     "tags": {
+                        "label": "Tags",
                         "type": "str-multiple",
                         "default": [],
                         "description": "List of tags to add to the event"
@@ -64,12 +67,14 @@
                 "run_from": "console",
                 "configuration": {
                     "ip_restrictions": {
+                        "label": "IP Restrictions",
                         "type": "text",
                         "delimeted": ",",
                         "default": "",
                         "description": "Comma delimeted list of IP addresses to allow. Leave blank to allow all."
                     },
                     "user_agent_restrictions": {
+                        "label": "User Agent Restrictions",
                         "type": "text",
                         "delimeted": ",",
                         "default": "",
@@ -87,12 +92,14 @@
                 "run_from": "console",
                 "configuration": {
                     "ip_restrictions": {
+                        "label": "IP Restrictions",
                         "type": "text",
                         "delimeted": ",",
                         "default": "",
                         "description": "Comma delimeted list of IP addresses to allow. Leave blank to allow all."
                     },
                     "user_agent_restrictions": {
+                        "label": "User Agent Restrictions",
                         "type": "text",
                         "delimeted": ",",
                         "default": "",

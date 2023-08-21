@@ -24,6 +24,7 @@
                 "run_from": "console",
                 "parameters": {
                     "ips": {
+                        "label": "IP Addresses",
                         "type": "str-multiple",
                         "description": "List of IP addresses to look up",
                         "default_options_from": "observables",
@@ -34,12 +35,14 @@
                 "source_object_type": ["event","observable"],
                 "configuration": {
                     "cache_results": {
+                        "label": "Cache Results",
                         "type": "bool",
                         "required": false,
                         "default": true,
                         "description": "Cache the results of this action"
                     },
                     "cache_expiry": {
+                        "label": "Cache Expiry (seconds)",
                         "type": "int",
                         "required": false,
                         "default": 3600,
@@ -50,6 +53,7 @@
         ],
         "configuration": {
             "api_key": {
+                "label": "API Key",
                 "type": "str",
                 "required": false,
                 "secret": true,

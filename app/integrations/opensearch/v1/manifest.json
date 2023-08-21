@@ -25,13 +25,15 @@
                 "description": "Polls an index for new data",
                 "configuration": {
                     "index": {
+                        "label": "Index Pattern",
                         "type": "str",
                         "required": true,
                         "secret": false,
                         "default": "",
-                        "description": "The index to poll"
+                        "description": "The index pattern to poll"
                     },
                     "poll_interval": {
+                        "label": "Poll Interval (seconds)",
                         "type": "int",
                         "required": true,
                         "secret": false,
@@ -39,6 +41,7 @@
                         "description": "The interval in minutes to poll for new data"
                     },
                     "search_filter": {
+                        "label": "Search Filter (lucene)",
                         "type": "str",
                         "required": true,
                         "secret": false,
@@ -56,6 +59,7 @@
         ],
         "configuration": {
             "authentication_method": {
+                "label": "Authentication Method",
                 "type": "str-select",
                 "required": true,
                 "secret": false,
@@ -67,6 +71,7 @@
                 ]
             },
             "username": {
+                "label": "Username",
                 "type": "str",
                 "required": true,
                 "secret": true,
@@ -74,6 +79,7 @@
                 "description": "The username to use for authentication.  If using API Auth, this is the API Key"
             },
             "password": {
+                "label": "Password",
                 "type": "str",
                 "required": true,
                 "secret": true,

@@ -27,17 +27,20 @@
                 "run_from": "console",
                 "configuration": {
                     "incident_key_field": {
+                        "label": "Incident Key Field",
                         "type": "str",
                         "required": true,
                         "default": "signature",
                         "description": "The event field to use as the incident key when creating new incidents"
                     },
                     "from": {
+                        "label": "Source User",
                         "type": "str",
                         "required": true,
                         "description": "The user to open the incident as"
                     },
                     "service_id": {
+                        "label": "Service ID",
                         "type": "str",
                         "required": true,
                         "description": "The service ID to open the incident under"
@@ -52,12 +55,14 @@
                 "source_object_type": "event",
                 "configuration": {
                     "webhook_signature": {
+                        "label": "Webhook Signature",
                         "type": "str",
                         "required": false,
                         "secret": true,
                         "description": "The signature used to verify incoming webhooks"
                     },
                     "incident_key_field": {
+                        "label": "Incident Key Field",
                         "type": "str",
                         "required": true,
                         "default": "signature",
@@ -70,6 +75,7 @@
         ],
         "configuration": {
             "api_access_key": {
+                "label": "API Access Key",
                 "type": "str",
                 "required": true,
                 "secret": true,

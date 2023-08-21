@@ -22,6 +22,7 @@
                 "run_from": "agent",
                 "configuration": {
                     "sync_interval": {
+                        "label": "Synchronization Interval (minutes)",
                         "type": "int",
                         "required": true,
                         "secret": false,
@@ -29,6 +30,7 @@
                         "description": "The interval in minutes to synchronize the inventory"
                     },
                     "sync_mode": {
+                        "label": "Synchronization Mode",
                         "type": "str-select",
                         "required": true,
                         "secret": false,
@@ -40,6 +42,7 @@
                         ]
                     },
                     "conflict_resolution": {
+                        "label": "Conflict Resolution",
                         "type": "str-select",
                         "required": true,
                         "secret": false,
@@ -51,6 +54,7 @@
                         ]
                     },
                     "host_identifier": {
+                        "label": "Host Identifier",
                         "type": "str-select",
                         "required": true,
                         "secret": false,
@@ -70,6 +74,7 @@
                 "name": "isolate_host",
                 "parameters": {
                     "hostname": {
+                        "label": "Hostname",
                         "type": "str-select",
                         "required": false,
                         "default_options_from": "observables",
@@ -77,6 +82,7 @@
                         "description": "The Hostname of the agent to isolate"
                     },
                     "mac": {
+                        "label": "MAC Address",
                         "type": "str-select",
                         "required": false,
                         "default_options_from": "observables",
@@ -84,6 +90,7 @@
                         "description": "The MAC Address of the agent to isolate"
                     },
                     "ip": {
+                        "label": "IP Address",
                         "type": "str-select",
                         "required": false,
                         "default_options_from": "observables",
@@ -91,6 +98,7 @@
                         "description": "The Hostname of the agent to isolate"
                     },
                     "tag_on_success": {
+                        "label": "Tag On Success",
                         "type": "bool",
                         "required": true,
                         "default": true,
@@ -109,6 +117,7 @@
                 "name": "reconnect_host",
                 "parameters": {
                     "hostname": {
+                        "label": "Hostname",
                         "type": "str",
                         "required": true,
                         "description": "The Hostname of the agent to reconnect"
@@ -126,6 +135,7 @@
                 "name": "get_threat_details",
                 "parameters": {
                     "ids": {
+                        "label": "Threat ID",
                         "type": "str",
                         "required": true,
                         "description": "The ID of the threat to get details for"
@@ -142,6 +152,7 @@
                 "name": "search_deep_visibility",
                 "parameters": {
                         "query": {
+                        "label": "Query",
                         "type": "str",
                         "required": true,
                         "description": "The query to search for"
@@ -169,6 +180,7 @@
                 "name": "get_agent_details",
                 "parameters": {
                     "hostname": {
+                        "label": "Hostnames",
                         "type": "str-select",
                         "required": false,
                         "default_options_from": "observables",
@@ -176,6 +188,7 @@
                         "description": "The Hostname of the agent to isolate"
                     },
                     "mac": {
+                        "label": "MAC Addresses",
                         "type": "str-select",
                         "required": false,
                         "default_options_from": "observables",
@@ -183,11 +196,33 @@
                         "description": "The MAC Address of the agent to isolate"
                     },
                     "ip": {
+                        "label": "IP Addresses",
                         "type": "str-select",
                         "required": false,
                         "default_options_from": "observables",
                         "observable_data_type": "ip",
                         "description": "The Hostname of the agent to isolate"
+                    },
+                    "hostname_source_fields": {
+                        "label": "Hostname Source Fields",
+                        "type": "str-multiple",
+                        "required": false,
+                        "default": [],
+                        "description": "A source field to fetch the hostnames from"
+                    },
+                    "mac_source_fields": {
+                        "label": "MAC Source Fields",
+                        "type": "str-multiple",
+                        "required": false,
+                        "default": [],
+                        "description": "A source field to fetch the MAC addresses from"
+                    },
+                    "ip_source_fields": {
+                        "label": "IP Source Fields",
+                        "type": "str-multiple",
+                        "required": false,
+                        "default": [],
+                        "description": "A source field to fetch the IP addresses from"
                     }
                 },
                 "type": "action",
@@ -197,12 +232,14 @@
                 "observable_type": ["host", "mac", "ip"],
                 "configuration": {
                     "cache_results": {
+                        "label": "Cache Results",
                         "type": "bool",
                         "required": false,
                         "default": true,
                         "description": "Cache the results of this action"
                     },
                     "cache_expiry": {
+                        "label": "Cache Expiry (seconds)",
                         "type": "int",
                         "required": false,
                         "default": 3600,
@@ -216,11 +253,13 @@
                 "name": "add_threat_note",
                 "parameters": {
                     "ids": {
+                        "label": "Threat ID",
                         "type": "str",
                         "required": true,
                         "description": "The ID of the threat to add a note to"
                     },
                     "note": {
+                        "label": "Note",
                         "type": "str",
                         "required": true,
                         "description": "The note to add to the threat"
@@ -239,6 +278,7 @@
                 "type": "input",
                 "configuration": {
                     "poll_interval": {
+                        "label": "Poll Interval (minutes)",
                         "type": "int",
                         "required": true,
                         "secret": false,
@@ -251,12 +291,14 @@
         ],
         "configuration": {
             "api_key": {
+                "label": "API Key",
                 "type": "str",
                 "required": true,
                 "secret": true,
                 "description": "The API key for SentinelOne"
             },
             "api_url": {
+                "label": "API URL",
                 "type": "str",
                 "required": true,
                 "secret": false,
