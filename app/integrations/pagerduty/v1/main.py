@@ -35,15 +35,19 @@ class PagerDuty(IntegrationBase):
         service_id = create_incident_config['service_id']
         incident_from = create_incident_config['from']
 
-        _events = self.load_events(uuid=events)
+        if 'skip_load' in kwargs and kwargs['skip_load']:
+            _events = events
+        else:
+            _events = self.load_events(uuid=events)
 
         # Group all the events by the incident_key_field
         grouped_events = {}
 
         for event in _events:
-            if event[incident_key_field] not in grouped_events:
-                grouped_events[event[incident_key_field]] = []
-            grouped_events[event[incident_key_field]].append(event)
+            key_value = self.get_value_from_source_field(incident_key_field, event)
+            if key_value not in grouped_events:
+                grouped_events[key_value] = []
+            grouped_events[key_value].append(event)
 
         # Create a new session to use for the PagerDuty API calls
         session = Session()
