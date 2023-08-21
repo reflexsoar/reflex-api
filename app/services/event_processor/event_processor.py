@@ -35,9 +35,11 @@ from app.api_v2.model import (
     Task,
     ThreatList,
     Q,
+    Event,
     ObservableHistory,
-    UpdateByQuery
+    UpdateByQuery,
 )
+from ...integrations.base import integration_registry
 from app.api_v2.model.user import Organization
 from .errors import KafkaConnectionFailure
 
@@ -709,43 +711,6 @@ class EventWorker(Process):
                     self.status.value = 'IDLE'
                     time.sleep(1)
 
-                """    
-                if self.event_queue.empty():
-                    queue_empty = True
-
-                    if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
-                        self.logger.debug('QUEUE EMPTY - Reloading interval has expired, reloading meta information')
-                        self.reload_meta_info(clear_reload_flag=True)
-
-                    if self.should_restart.is_set():
-                        self.reload_meta_info(clear_reload_flag=True)
-
-                    if self.should_exit.is_set():
-                        self.logger.debug('Exiting due to should_exit flag being set')
-                        exit()
-
-                    # Only sleep if not holding on to events
-                    if len(_events) == 0:
-                        time.sleep(1)
-                else:
-                    # Reload all the event rules and other meta information if the refresh timer
-                    # has expired
-                    if (datetime.datetime.utcnow() - self.last_meta_refresh).total_seconds() > self.config['META_DATA_REFRESH_INTERVAL']:
-                        self.logger.debug('QUEUE NOT EMPTY - Reloading interval has expired, reloading meta information')
-                        self.reload_meta_info(clear_reload_flag=True)
-
-                    # Interrupt this flow if the worker is scheduled for restart
-                    if self.should_restart.is_set():
-                        self.reload_meta_info(clear_reload_flag=True)
-
-                    while not self.event_queue.empty() or len(_events) >= self.config["ES_BULK_SIZE"]:
-                        _event = self.event_queue.get()
-                        _event['metrics'] = {
-                                'event_processing_dequeue': datetime.datetime.utcnow()
-                            }
-                        _events.append(_event)
-                """
-
             if len(_events) >= self.config["ES_BULK_SIZE"] or queue_empty:
                 self.status.value = 'PROCESSING'
                 self.events_in_processing.value = len(_events)
@@ -803,12 +768,6 @@ class EventWorker(Process):
                         self.logger.error(f"Failed to index retro events: {result}")
                         for item in result[1]:
                             self.logger.error(f"Failed to index retro event: {item}")
-                    #for ok, action in streaming_bulk(client=connection, actions=self.prepare_retro_events(retro_apply_event_rule), refresh=False):
-                    #    if ok == False:
-                    #        self.logger.error(f"Failed to index retro event: {action}")
-                    #    else:
-                    #        self.logger.debug(f"Added {len(retro_apply_event_rule)} retro events")
-                    #    pass
 
                     self.events = [e for e in self.events if e not in chain(bulk_dismiss, add_to_case, task_end, retro_apply_event_rule)]
 
@@ -819,16 +778,6 @@ class EventWorker(Process):
                         for item in result[1]:
                             self.logger.error(f"Failed to index retro event: {item}")
 
-                    #for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_events(self.events), refresh=False):
-                    #    if ok == False:
-                    #        self.logger.error(f"Failed to index event: {action}")
-                    #    else:
-                    #        self.logger.debug(f"Pushed {len(self.events)} events")
-                    #    pass
-
-                    # Update Cases
-                    #for ok, action in streaming_bulk(client=connection, chunk_size=self.config['ES_BULK_SIZE'], actions=self.prepare_case_updates(self.events)):
-                    #    pass
                 except EXC_BULK_INDEX_ERROR as e:
                     self.logger.error(f"Bulk index error: {e}")
 
@@ -1261,6 +1210,13 @@ class EventWorker(Process):
                         raw_event = self.mutate_event(rule, raw_event)
                         if hasattr(rule, 'notification_channels'):
                             rule.create_notification(organization=raw_event['organization'], source_object_type='event', source_object_uuid=raw_event['uuid'])
+
+                        # If the event rule has integration actions, run them using a thread pool
+                        if hasattr(rule, 'integration_actions'):
+                            for action in rule.integration_actions:
+                                thread = threading.Thread(target=self.run_action, args=(action, raw_event))
+                                thread.start()
+
                 except Exception as e:
                     self.logger.error(f"Failed to process rule {rule.uuid} ({rule.name}). Reason: {e}")
             raw_event['metrics']['event_rule_end'] = datetime.datetime.utcnow()
@@ -1322,3 +1278,47 @@ class EventWorker(Process):
                     return None
 
         return raw_event
+    
+    def run_action(self, action, event):
+        '''
+        Runs an action against an event
+        '''
+        max_attempts = 5
+
+        uuid = event['uuid']
+
+        # Look to see if the event has been indexed yet
+        attempts = 0
+        while attempts != max_attempts:
+            attempts += 1
+            try:
+                event = Event.get_by_uuid(uuid)
+                if event:
+                    break
+                time.sleep(5)
+            except Exception as e:
+                self.logger.error(f"Error fetching event: {e}")
+                time.sleep(5)                
+
+        if attempts == max_attempts:
+            return
+        
+        try:
+            integration = integration_registry[action['integration_uuid']]
+        except KeyError:
+            return
+        
+        # Ensure that there are no conflict errors in the index before running the action
+        time.sleep(1)
+        try:
+            integration.run_action(action['action'],
+                                   events=[event],
+                                   configuration_uuid=action['configuration_uuid'],
+                                   **action['parameters'].to_dict(),
+                                   skip_load=True)
+        except ValueError as e:
+            self.logger.warning(f"Action not found: {e}")
+        except Exception as e:
+            self.logger.error(f"Error running action: {e}")
+        
+        print(action)
