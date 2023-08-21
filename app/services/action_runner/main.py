@@ -106,4 +106,3 @@ class ActionRunner(object):
                 action.update(status='complete')
 
             time.sleep(1)
-            print("ActionRunner waiting for actions...")
