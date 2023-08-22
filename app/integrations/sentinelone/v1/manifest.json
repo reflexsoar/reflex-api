@@ -37,8 +37,14 @@
                         "description": "The mode to synchronize the inventory in.  A full sync will synchronize all assets, while an incremental sync will only synchronize assets that have changed since the last sync.",
                         "default": "full",
                         "options": [
-                            "full",
-                            "incremental"
+                            {
+                                "label": "Full",
+                                "value": "full"
+                            },
+                            {
+                                "label": "Incremental",
+                                "value": "incremental"
+                            }
                         ]
                     },
                     "conflict_resolution": {
@@ -49,8 +55,14 @@
                         "description": "The method to use to resolve conflicts. A conflict occurs when an asset is found in SentinelOne and ReflexSOAR, but the asset has different information in each system.  The default is to use the information from SentinelOne.",
                         "default": "sentinelone",
                         "options": [
-                            "reflexsoar",
-                            "sentinelone"
+                            {
+                                "label": "SentinelOne",
+                                "value": "sentinelone"
+                            },
+                            {
+                                "label": "ReflexSOAR",
+                                "value": "reflexsoar"
+                            }
                         ]
                     },
                     "host_identifier": {
@@ -61,9 +73,18 @@
                         "description": "The method to use to identify hosts. The default is to use the hostname.",
                         "default": "hostname",
                         "options": [
-                            "hostname",
-                            "ip_address",
-                            "mac_address"
+                            {
+                                "label": "Hostname",
+                                "value": "hostname"
+                            },
+                            {
+                                "label": "MAC Address",
+                                "value": "mac"
+                            },
+                            {
+                                "label": "IP Address",
+                                "value": "ip"
+                            }
                         ]
                     }
                 }

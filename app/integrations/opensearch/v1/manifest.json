@@ -66,8 +66,14 @@
                 "default": "basic",
                 "description": "The authentication method to use",
                 "options": [
-                    "basic",
-                    "api_auth"
+                    {
+                        "label": "Basic Authentication",
+                        "value": "basic"
+                    },
+                    {
+                        "label": "API Key",
+                        "value": "api_key"
+                    }
                 ]
             },
             "username": {

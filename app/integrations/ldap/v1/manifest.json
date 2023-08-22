@@ -16,13 +16,13 @@
         "Justin Henderson <justin@hasecuritysolutions.com>"
     ],
     "license": "H&A Security Solutions - Premium Support",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "manifest": {
         "actions": [
             {
-                "friendly_name": "Synchronize LDAP Users",
+                "friendly_name": "Synchronize LDAP",
                 "name": "sync_ldap_users",
-                "description": "Polls an LDAP server for a list of users",
+                "description": "Polls an LDAP server for a list of objects.  This action will run from an `agent`, so at least one agent must exist with the `runner` role.",
                 "configuration": {
                     "search_base": {
                         "label": "Search Base",
@@ -47,23 +47,78 @@
                         "secret": false,
                         "default": ["sAMAccountName", "mail", "displayName", "memberOf"],
                         "description": "The attributes to return"
+                    },
+                    "target": {
+                        "label": "Synchronization Target",
+                        "type": "str-select",
+                        "required": true,
+                        "secret": false,
+                        "default": "inventory-user",
+                        "description": "The target to synchronize values to",
+                        "options": [
+                            {
+                                "label": "Intel List",
+                                "value": "intel-list"
+                            },
+                            {
+                                "label": "Computer Inventory",
+                                "value": "inventory-computer"
+                            },
+                            {
+                                "label": "User Inventory",
+                                "value": "inventory-user"
+                            },
+                            {
+                                "label": "Group Inventory",
+                                "value": "inventory-group"
+                            }
+                        ]
+                    },
+                    "intel_list": {
+                        "label": "Intel List",
+                        "type": "str-select",
+                        "required": false,
+                        "secret": false,
+                        "default": "",
+                        "description": "The Intel List to synchronize to",
+                        "conditions": [
+                            {
+                                "field": "target",
+                                "operator": "eq",
+                                "value": "intel-list"
+                            }
+                        ]
+                    },
+                    "generate_intel_list": {
+                        "label": "Generate Intel List",
+                        "type": "bool",
+                        "required": false,
+                        "secret": false,
+                        "default": false,
+                        "description": "Whether to generate the Intel List if it does not exist",
+                        "conditions": [
+                            {
+                                "field": "target",
+                                "operator": "eq",
+                                "value": "intel-list"
+                            }
+                        ]
                     }
                 },
                 "run_from": "agent",
                 "type": "inventory",
                 "trigger": [
-                    "schedule",
-                    "manual"
+                    "schedule"
                 ]
             }
         ],
         "configuration": {
             "server": {
-                "label": "LDAP Servers",
-                "type": "str-multiple",
+                "label": "LDAP Server",
+                "type": "str",
                 "required": true,
                 "secret": false,
-                "default": [],
+                "default": "127.0.0.1",
                 "description": "The LDAP server to connect to"
             },
             "port": {
@@ -76,7 +131,7 @@
             },
             "ca_cert": {
                 "label": "CA Certificate",
-                "type": "str",
+                "type": "text",
                 "required": false,
                 "secret": false,
                 "default": "",
@@ -87,8 +142,8 @@
                 "type": "str",
                 "required": true,
                 "secret": false,
-                "default": "",
-                "description": "The username to use"
+                "default": "Administrator",
+                "description": "The username to use.  Enter the CER file contents here"
             },
             "password": {
                 "label": "Password",
