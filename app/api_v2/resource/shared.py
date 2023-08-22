@@ -252,7 +252,11 @@ mod_permissions = Model('Permissions', {
     'view_integrations_configurations': fields.Boolean,
     'create_integration_configuration': fields.Boolean,
     'update_integration_configuration': fields.Boolean,
-    'delete_integration_configuration': fields.Boolean
+    'delete_integration_configuration': fields.Boolean,
+    'create_sso_provider': fields.Boolean,
+    'update_sso_provider': fields.Boolean,
+    'delete_sso_provider': fields.Boolean,
+    'view_sso_providers': fields.Boolean,
 }, strict=True)
 
 mod_user_list = Model('UserList', {

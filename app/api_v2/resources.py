@@ -88,7 +88,8 @@ from .resource import (
     ns_asset_v2,
     ns_reporting_v2,
     ns_detection_repository_v2,
-    ns_integration_v2
+    ns_integration_v2,
+    ns_sso_v2
 )
 
 show_swagger_docs = (os.getenv('REFLEX_SHOW_SWAGGER_DOCS', 'False').lower() == 'true')
@@ -147,6 +148,7 @@ api2.add_namespace(ns_asset_v2)
 api2.add_namespace(ns_reporting_v2)
 api2.add_namespace(ns_detection_repository_v2)
 api2.add_namespace(ns_integration_v2)
+api2.add_namespace(ns_sso_v2)
 
 # Register the integration base 
 from app.integrations.base import IntegrationApi as ns_integration_base_v2

@@ -249,7 +249,11 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         "view_integration_configurations": True,
         "create_integration_configuration": True,
         "update_integration_configuration": True,
-        "delete_integration_configuration": True
+        "delete_integration_configuration": True,
+        "create_sso_provider": True,
+        "update_sso_provider": True,
+        "delete_sso_provider": True,
+        "view_sso_providers": True
     }
 
     role_contents = {
@@ -295,6 +299,10 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["create_integration_configuration"] = True
                     perms["update_integration_configuration"] = True
                     perms["delete_integration_configuration"] = True
+                    perms["create_sso_provider"] = True
+                    perms["update_sso_provider"] = True
+                    perms["delete_sso_provider"] = True
+                    perms["view_sso_providers"] = True
                 else:
                     perms['view_organizations'] = False
                     perms['add_organization'] = False
@@ -318,6 +326,10 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["create_integration_configuration"] = False
                     perms["update_integration_configuration"] = False
                     perms["delete_integration_configuration"] = False
+                    perms["create_sso_provider"] = True
+                    perms["update_sso_provider"] = True
+                    perms["delete_sso_provider"] = True
+                    perms["view_sso_providers"] = True
                 role = role[0]
                 role.permissions = perms
                 role.save()
@@ -412,7 +424,11 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         "create_asset": False,
         "view_assets": True,
         "update_asset": False,
-        "delete_asset": False
+        "delete_asset": False,
+        "create_sso_provider": False,
+        "update_sso_provider": False,
+        "delete_sso_provider": False,
+        "view_sso_providers": False
     }
 
     role_contents = {

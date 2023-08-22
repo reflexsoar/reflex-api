@@ -694,7 +694,13 @@ class Permission(InnerDoc):
     delete_integration = Boolean()
     create_integration_configuration = Boolean()
     update_integration_configuration = Boolean()
-    delete_integration_configuratio = Boolean()
+    delete_integration_configuration = Boolean()
+
+    # SSO Permissions
+    create_sso_provider = Boolean()
+    update_sso_provider = Boolean()
+    delete_sso_provider = Boolean()
+    view_sso_providers = Boolean()
 
 
 class ServiceAccount(base.BaseDocument):
