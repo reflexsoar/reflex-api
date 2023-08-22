@@ -115,7 +115,7 @@ mod_event_rule_list = api.model('EventRuleList', {
     'tags': fields.List(fields.String),
     'high_volume_rule': fields.Boolean,
     'protected': fields.Boolean,
-    'integration_actions': fields.List(AsAttrDict(mod_run_action))
+    'integration_actions': fields.List(AsAttrDict)
 })
 
 mod_event_rule_list_paged = api.model('PagedEventRuleList', {
