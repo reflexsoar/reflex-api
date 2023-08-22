@@ -63,6 +63,7 @@ secure = "*"
 markdown = "*"
 requests-cache = "*"
 pydantic = "*"
+python3-saml = "*"
 
 [requires]
 python_version = "3.8"
