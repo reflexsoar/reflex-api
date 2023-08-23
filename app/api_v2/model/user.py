@@ -70,6 +70,9 @@ class User(base.BaseDocument):
     auth_realm = Keyword() # Which authentication realm to log in to
     otp_secret = Keyword()
     mfa_enabled = Boolean()
+    local_auth = Boolean()
+    sso_auth = Boolean()
+    from_sso_auto_provision = Boolean()
     watched_cases = Keyword() # What cases is the user currently watching
     notification_settings = Object(UserNotificationSettings)
     hide_product_updates = Boolean()
@@ -237,22 +240,11 @@ class User(base.BaseDocument):
         }, current_app.config['SECRET_KEY'])
 
         return _access_token
-
+    
     @property
-    def permissions(self):
-        return [
-            k for k in self.role.permissions.__dict__
-            if k not in [
-                '_sa_instance_state',
-                'created_at',
-                'modified_at',
-                'created_by',
-                'modified_by',
-                'uuid',
-                'id'
-            ]
-            and self.role.permissions.__dict__[k] is True
-        ]
+    def roles(self):
+        ''' Returns a list of all the roles the user is a member of '''
+        return [r for r in Role.search().filter('term', members=self.uuid).scan()]
 
     def create_password_reset_token(self):
         _token = jwt.encode({
@@ -325,6 +317,27 @@ class User(base.BaseDocument):
         '''
 
         raise NotImplementedError
+    
+    @property
+    def permissions(self):
+        '''
+        Returns a list of all the users permissions
+        '''
+
+        role = Role.search().query('term', members=self.uuid).scan()
+
+        # If there is more than one role assigned to the user
+        # merge the permissions together such that any permission that is true
+        # overrides false
+        permissions = {}
+        for r in role:
+            for p in r.permissions:
+                if p not in permissions:
+                    permissions[p] = r.permissions[p]
+                else:
+                    if r.permissions[p] is True:
+                        permissions[p] = r.permissions[p]
+        return permissions
 
     def has_right(self, permission):
         '''
@@ -332,11 +345,9 @@ class User(base.BaseDocument):
         permissions to perform an API action
         '''
 
-        role = Role.search().query('term', members=self.uuid).execute()
-        if role:
-            role = role[0]
+        permissions = self.permissions
 
-        if hasattr(role.permissions, permission) and getattr(role.permissions, permission):
+        if permission in permissions and permissions[permission]:
             return True
         return False
 
@@ -381,6 +392,9 @@ class User(base.BaseDocument):
             self.locked = False
             self.failed_logons = 0
             self.save()
+
+    def load_roles(self):
+        self.role = [r for r in Role.search().filter('term', members=self.uuid).scan()]
 
     def load_role(self):
         self.role = Role.get_by_member(self.uuid)
@@ -702,6 +716,12 @@ class Permission(InnerDoc):
     delete_sso_provider = Boolean()
     view_sso_providers = Boolean()
 
+    # SSO Mapping Policies
+    create_sso_mapping_policy = Boolean()
+    update_sso_mapping_policy = Boolean()
+    delete_sso_mapping_policy = Boolean()
+    view_sso_mapping_policies = Boolean()
+
 
 class ServiceAccount(base.BaseDocument):
     '''
@@ -842,7 +862,7 @@ class Role(base.BaseDocument):
                 self.members.append(user_id)
             else:
                 self.members = [user_id]
-        self.save()
+        self.save(refresh=True)
 
     def remove_user_from_role(self, user_id):
         '''
@@ -853,7 +873,7 @@ class Role(base.BaseDocument):
         else:
             if self.members is not None and user_id in self.members:
                 self.members.remove(user_id)
-        self.save()
+        self.save(refresh=True)
 
     @classmethod
     def get_by_member(self, uuid):
@@ -879,6 +899,12 @@ class Role(base.BaseDocument):
             user = response[0]
             return user
         return response
+    
+    @classmethod
+    def get_by_organization(self, organization):
+        response = self.search().query(
+            'term', organization=organization).scan()
+        return [r for r in response]
 
 
 class ExpiredToken(base.BaseDocument):
