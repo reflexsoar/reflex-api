@@ -151,6 +151,17 @@ class Config(object):
 
     INTEGRATIONS_ENABLED = as_bool(os.getenv('REFLEX_INTEGRATIONS_ENABLED')) if os.getenv('REFLEX_INTEGRATIONS_ENABLED') else False
 
+    SSO_BASE_URL = os.getenv('REFLEX_SSO_BASE_URL') if os.getenv('REFLEX_SSO_BASE_URL') else 'https://localhost'
+    if SSO_BASE_URL.endswith('/'):
+        SSO_BASE_URL = SSO_BASE_URL[:-1]
+    SSO_FORCE_HTTPS = as_bool(os.getenv('REFLEX_SSO_FORCE_HTTPS')) if os.getenv('REFLEX_SSO_FORCE_HTTPS') else False
+
+    X_FORWARDED_FOR = int(as_bool(os.getenv('REFLEX_X_FORWARDED_FOR'))) if os.getenv('REFLEX_X_FORWARDED_FOR') else 0
+    X_FORWARDED_PROTO = int(as_bool(os.getenv('REFLEX_X_FORWARDED_PROTO'))) if os.getenv('REFLEX_X_FORWARDED_PROTO') else 0
+    X_FORWARDED_HOST = int(as_bool(os.getenv('REFLEX_X_FORWARDED_HOST'))) if os.getenv('REFLEX_X_FORWARDED_HOST') else 0
+    X_FORWARDED_PORT = int(as_bool(os.getenv('REFLEX_X_FORWARDED_PORT'))) if os.getenv('REFLEX_X_FORWARDED_PORT') else 0
+    X_FORWARDED_PREFIX = int(as_bool(os.getenv('REFLEX_X_FORWARDED_PREFIX'))) if os.getenv('REFLEX_X_FORWARDED_PREFIX') else 0
+
 
 class ProductionConfig(Config):
     ENV = 'production'
