@@ -140,8 +140,14 @@ def init_saml_auth(req, settings):
 
 
 def prepare_flask_request(request):
+
+    https_on = 'on' if request.scheme == 'https' else 'off'
+
+    if current_app.config['SSO_FORCE_HTTPS']:
+        https_on = 'on'
+
     return {
-        'https': 'on' if request.scheme == 'https' else 'off',
+        'https': https_on,
         'http_host': request.host,
         'script_name': request.path,
         'get_data': request.args.copy(),
@@ -169,16 +175,11 @@ class SSOACS(Resource):
         if 'AuthNRequestID' in session:
             request_id = session['AuthNRequestID']
 
-        print(request_id)
-
         auth.process_response(request_id=request_id)
         errors = auth.get_errors()
         not_auth_warn = not auth.is_authenticated()
 
-        print(errors)
-
-        if len(errors) != -1:  # TURN THIS BACK TO 0 AFTER TESTING THIS WHOLE THING
-            print("NO ERRORS")
+        if len(errors) == 0:  # TURN THIS BACK TO 0 AFTER TESTING THIS WHOLE THING
             if 'AuthNRequestID' in session:
                 del session['AuthNRequestID']
 
@@ -191,7 +192,7 @@ class SSOACS(Resource):
             if 'RelayState' in request.form and self_url != request.form['RelayState']:
 
                 # TODO: Set this back to RelayState
-                response = make_response(redirect("https://bc-dev-reflex.siemasaservice.com/#/dashboard"))
+                response = make_response(redirect(f"{current_app.config['SSO_BASE_URL']}/#/dashboard"))
 
                 # TODO: SECURITY CHECK: This is probably not the best way to do this
                 response.set_cookie('access_token', access_token)
@@ -200,9 +201,9 @@ class SSOACS(Resource):
                 return response
         elif auth.get_settings().is_debug_active():
             error_reason = auth.get_last_error_reason()
-            print(error_reason)
+            current_app.logger.error(error_reason)
             
-        return "OK"
+        return redirect(f"{current_app.config['SSO_BASE_URL']}/#/login")
 
 @api.route('/ssostart')
 class SSOStart(Resource):
@@ -217,8 +218,6 @@ class SSOStart(Resource):
             org_uuid = user.organization
             # Get the users logon domain
             logon_domain = user.email.split('@')[1]
-
-            print(logon_domain)
 
             provider = SSOProvider.get_by_logon_domain(logon_domain)
 
