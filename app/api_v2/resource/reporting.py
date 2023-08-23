@@ -66,14 +66,13 @@ class Reporting(Resource):
         else:
             timezone = args.utc_offset
 
-        if not timezone.startswith('-'):
+        if timezone[0] not in ['+', '-']:
             timezone = '+' + timezone
 
         report_days = args.days
         soc_start_hour = args.soc_start_hour
         soc_end_hour = args.soc_end_hour
         base_url = "http://localhost:8080"
-        #####
 
         if timezone.startswith('-'):
             offset = int(timezone[1:3])*-1
@@ -88,7 +87,7 @@ class Reporting(Resource):
         previous_period = {
             'gte': datetime.datetime.utcnow() - datetime.timedelta(days=report_days*2),
             'lt': datetime.datetime.utcnow() - datetime.timedelta(days=report_days),
-            'time_zone': f'{timezone}:00'
+            'time_zone': f'{timezone}'
         }
 
         organization = Organization.get_by_uuid(organization_uuid)
