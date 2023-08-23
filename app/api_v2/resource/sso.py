@@ -5,7 +5,28 @@ from .shared import mod_pagination, ISO8601, mod_user_list
 
 api = Namespace('SSO', description='Reflex SSO Management', path='/sso')
 
+
+
+mod_sso_advanced_security_settings = api.model('SSOAdvancedSecuritySettings', {
+    'name_id_encrypted': fields.Boolean,
+    'authn_requests_signed': fields.Boolean,
+    'logout_requests_signed': fields.Boolean,
+    'logout_response_signed': fields.Boolean,
+    'signin_metadata': fields.Boolean,
+    'want_messages_signed': fields.Boolean,
+    'want_assertions_signed': fields.Boolean,
+    'want_name_id': fields.Boolean,
+    'want_name_id_encrypted': fields.Boolean,
+    'want_assertions_encrypted': fields.Boolean,
+    'allow_single_label_domains': fields.Boolean,
+    'signature_algorithm': fields.Boolean,
+    'digest_algorithm': fields.String,
+    'reject_deprecated_algorithms': fields.String,
+    'want_attribute_statement': fields.Boolean
+})
+
 mod_create_sso_provider = api.model('CreateSSOProvider', {
+    'uuid': fields.String,
     'name': fields.String,
     'description': fields.String,
     'enabled': fields.Boolean,
@@ -17,7 +38,8 @@ mod_create_sso_provider = api.model('CreateSSOProvider', {
     'default_role': fields.String,
     'logon_domains': fields.List(fields.String),
     'acs_url': fields.String,
-    'slo_url': fields.String
+    'slo_url': fields.String,
+    'security': fields.Nested(mod_sso_advanced_security_settings)
 })
 
 mod_sso_provider = api.model('SSOProvider', {
@@ -39,6 +61,7 @@ mod_sso_provider = api.model('SSOProvider', {
     'created_by': fields.Nested(mod_user_list),
     'updated_by': fields.Nested(mod_user_list),
     'active': fields.Boolean,
+    'security': fields.Nested(mod_sso_advanced_security_settings)
 })
 
 mod_sso_provider_list = api.model('SSOProviderList', {
@@ -113,6 +136,10 @@ class SSOProviderList(Resource):
         # Check if the name is already in use
         if SSOProvider.name_exists(api.payload['name']):
             api.abort(400, "A SSO provider with that name already exists")
+
+        # Check if the uuid is already in use
+        if SSOProvider.uuid_exists(api.payload['uuid']):
+            api.abort(400, "An unexpected error occurred")
         
         provider = SSOProvider(**api.payload, active=False)
         provider.save()
