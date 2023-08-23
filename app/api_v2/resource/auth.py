@@ -1,7 +1,7 @@
 import datetime
 from flask import make_response, request, current_app, session, redirect
 from flask_restx import Resource, Namespace, fields
-from ..model import User, ExpiredToken, Settings, SSOProvider
+from ..model import User, ExpiredToken, Settings, SSOProvider, RoleMappingPolicy, Role
 from ..utils import log_event, token_required, check_password_reset_token, ip_approved
 
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
@@ -74,6 +74,11 @@ class Login(Resource):
 
         if not user:
             api.abort(401, 'Incorrect username or password')
+
+        if not user.roles:
+            log_event(organization=user.organization, event_type="Authentication", source_user=user.username,
+                      source_ip=request.remote_addr, message="User is not assigned any roles.", status="Failed")
+            api.abort(401, 'User has not been assigned a role.')
 
         if user.check_password(api.payload['password']):
 
@@ -169,7 +174,6 @@ class SSOACS(Resource):
         req = prepare_flask_request(request)
 
         auth = init_saml_auth(req, settings)
-
         
         request_id = None
         if 'AuthNRequestID' in session:
@@ -184,6 +188,50 @@ class SSOACS(Resource):
                 del session['AuthNRequestID']
 
             user = User.get_by_email(auth.get_nameid())
+
+            # Fetch the users role mapping policies
+
+            role_mapping = RoleMappingPolicy.search()
+            role_mapping = role_mapping.filter('term', organization=user.organization)
+            role_mapping = role_mapping.filter('term', active=True)
+            role_mapping = [r for r in role_mapping.scan()]
+            
+            policy_match = False
+            sso_asserted_roles = []
+            if role_mapping:
+                for policy in role_mapping:
+                    if policy_match:
+                        break
+                    for mapping in policy.role_mappings:
+                        attribute_value = auth.get_attribute(mapping.attribute)
+                        role = mapping.check_match(attribute_value)
+                        if role:
+                            sso_asserted_roles.append(role)
+                            policy_match = True
+
+            
+            # Load all the roles for the organization
+            roles = Role.get_by_organization(user.organization)
+
+            # If sso_asserted_roles contains a role that the user is not already a member of
+            # add the user
+            for role in roles:
+                if role.uuid in sso_asserted_roles and user.uuid not in role.members:
+                    role.add_user_to_role(user.uuid)
+
+            # If the user is a member of a role that is not in sso_asserted_roles remove them
+            # from the role
+            for role in roles:
+                if role.members:
+                    if role.uuid not in sso_asserted_roles and user.uuid in role.members:
+                        role.remove_user_from_role(user.uuid)
+
+            # If the user now has no roles
+            if not user.roles:
+                log_event(organization=user.organization, event_type="SSO Authentication", source_user=user.username,
+                      source_ip=request.remote_addr, message="User is not assigned any roles.", status="Failed")
+                return redirect(f"{current_app.config['SSO_BASE_URL']}/#/login")
+
             access_token = user.create_access_token()
             refresh_token = user.create_refresh_token(
                 request.user_agent.string.encode('utf-8'))

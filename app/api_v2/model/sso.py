@@ -2,6 +2,8 @@
 Contains the models for SSO configurations
 """
 
+import re
+
 from flask import current_app
 from . import (
     base,
@@ -9,8 +11,69 @@ from . import (
     Text,
     Boolean,
     InnerDoc,
-    Object
+    Object,
+    Nested
 )
+
+
+class RoleMapping(InnerDoc):
+
+    attribute = Keyword()
+    value = Keyword()
+    role = Keyword()
+
+    def check_match(self, value):
+        """
+        Checks to see if the value matches the role mapping
+        """
+
+        _search_pattern = self.value
+        if '*' in _search_pattern:
+            _search_pattern = _search_pattern.replace('*', '.+')
+        
+        _search_pattern = re.compile(_search_pattern, re.IGNORECASE)
+
+        if isinstance(value, list):
+            for v in value:
+                if _search_pattern.match(v):
+                    return self.role
+                
+        elif isinstance(value, str):
+            if _search_pattern.match(value):
+                return self.role
+
+        return None
+
+class RoleMappingPolicy(base.BaseDocument):
+
+    name = Keyword(fields={'text': Text()})
+    role_mappings = Nested(RoleMapping)
+    active = Boolean()
+
+    class Index:
+        name = 'reflex-sso-role-mapping-policies'
+        settings = {
+            'refresh_interval': '1s'
+        }
+
+    @classmethod
+    def name_exists(cls, name):
+        '''
+        Checks to make sure the name of the realm is unique
+        '''
+        search = cls.search()
+
+        # Filter by the name
+        search = search.filter('term', name=name)
+
+        # Execute the search
+        results = search.execute()
+
+        # If we have results, return the first one
+        if results:
+            return results[0].uuid
+        
+        return None
 
 
 class SSOAdvancedSecuritySettings(InnerDoc):
@@ -89,9 +152,9 @@ class SSOProvider(base.BaseDocument):
 
         # If we have results, return the first one
         if results:
-            return True
+            return results[0].uuid
         
-        return False
+        return None
     
     @classmethod
     def name_exists(self, name):
@@ -108,9 +171,9 @@ class SSOProvider(base.BaseDocument):
 
         # If we have results, return the first one
         if results:
-            return True
+            return results[0].uuid
         
-        return False
+        return None
 
     @classmethod
     def get_by_logon_domain(cls, logon_domain):

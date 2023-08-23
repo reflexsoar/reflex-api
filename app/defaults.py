@@ -253,7 +253,11 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         "create_sso_provider": True,
         "update_sso_provider": True,
         "delete_sso_provider": True,
-        "view_sso_providers": True
+        "view_sso_providers": True,
+        'create_sso_mapping_policy': True,
+        'view_sso_mapping_policies': True,
+        'update_sso_mapping_policy': True,
+        'delete_sso_mapping_policy': True
     }
 
     role_contents = {
@@ -303,6 +307,10 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["update_sso_provider"] = True
                     perms["delete_sso_provider"] = True
                     perms["view_sso_providers"] = True
+                    perms["create_sso_mapping_policy"] = True
+                    perms["update_sso_mapping_policy"] = True
+                    perms["delete_sso_mapping_policy"] = True
+                    perms["view_sso_mapping_policies"] = True
                 else:
                     perms['view_organizations'] = False
                     perms['add_organization'] = False
@@ -330,6 +338,10 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["update_sso_provider"] = True
                     perms["delete_sso_provider"] = True
                     perms["view_sso_providers"] = True
+                    perms["create_sso_mapping_policy"] = True
+                    perms["update_sso_mapping_policy"] = True
+                    perms["delete_sso_mapping_policy"] = True
+                    perms["view_sso_mapping_policies"] = True
                 role = role[0]
                 role.permissions = perms
                 role.save()
@@ -428,7 +440,11 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         "create_sso_provider": False,
         "update_sso_provider": False,
         "delete_sso_provider": False,
-        "view_sso_providers": False
+        "view_sso_providers": False,
+        'create_sso_mapping_policy': False,
+        'view_sso_mapping_policies': False,
+        'update_sso_mapping_policy': False,
+        'delete_sso_mapping_policy': False
     }
 
     role_contents = {
