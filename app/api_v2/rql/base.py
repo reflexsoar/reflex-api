@@ -20,6 +20,9 @@ def get_nested_field(message: dict, field: str):
     '''
 
     if isinstance(field, str):
+        if field in message:
+            return message[field]
+        
         args = field.split('.')
     else:
         args = field
