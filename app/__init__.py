@@ -21,6 +21,7 @@ from flask_mail import Mail
 from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
 from elasticapm.contrib.flask import ElasticAPM
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
@@ -404,5 +405,12 @@ def create_app(environment='development'):
     app.after_request(security_headers)
 
     FLASK_BCRYPT.init_app(app)
+
+    app.wsgi_app = ProxyFix(app.wsgi_app,
+                            x_proto=app.config['X_FORWARDED_PROTO'],
+                            x_host=app.config['X_FORWARDED_HOST'],
+                            x_prefix=app.config['X_FORWARDED_PREFIX'],
+                            x_port=app.config['X_FORWARDED_PORT'],
+                            x_for=app.config['X_FORWARDED_FOR'])
 
     return app
