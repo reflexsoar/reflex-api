@@ -15,6 +15,24 @@
     "manifest": {
         "actions": [
             {
+                "friendly_name": "Send Notification via Channel",
+                "name": "send_notification",
+                "type": "action",
+                "description": "Send a notification via a notification channel",
+                "tags": ["notification"],
+                "target_object": "notification_channel",
+                "run_from": "console",
+                "parameters": {
+                    "notification_channel": {
+                        "label": "Notification Channel",
+                        "type": "str-select",
+                        "default_options_from": "notification_channel",
+                        "description": "The notification channel to use.",
+                        "multiple": false
+                    }
+                }
+            },
+            {
                 "friendly_name": "Add Observable to Intel List",
                 "name": "add_to_intel_list",
                 "type": "action",
