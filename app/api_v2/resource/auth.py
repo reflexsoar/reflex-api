@@ -1,6 +1,8 @@
 import datetime
 from flask import make_response, request, current_app, session, redirect
 from flask_restx import Resource, Namespace, fields
+
+from app.api_v2.resource.utils import generate_random_password
 from ..model import User, ExpiredToken, Settings, SSOProvider, RoleMappingPolicy, Role
 from ..utils import log_event, token_required, check_password_reset_token, ip_approved
 
@@ -179,7 +181,11 @@ class SSOACS(Resource):
         if 'AuthNRequestID' in session:
             request_id = session['AuthNRequestID']
 
-        auth.process_response(request_id=request_id)
+        if request_id:
+            auth.process_response(request_id=request_id)
+        else:
+            auth.process_response()
+
         errors = auth.get_errors()
         not_auth_warn = not auth.is_authenticated()
 
@@ -188,6 +194,65 @@ class SSOACS(Resource):
                 del session['AuthNRequestID']
 
             user = User.get_by_email(auth.get_nameid())
+
+            if not user:
+                if provider.auto_provision_users:
+                    # Get the 
+                    # Print all the attributes provided by the IdP
+                    attributes = auth.get_attributes()
+                    attribute_errors = []
+                    wanted_attributes = {
+                        'first_name': None,
+                        'last_name': None,
+                        'email': None,
+                        'username': None
+                    }
+                    for wanted_attribute in wanted_attributes:
+                        if wanted_attribute in attributes:
+                            wanted_attributes[wanted_attribute] = attributes[wanted_attribute][0]
+                        else:
+                            attribute_errors.append(wanted_attribute)
+
+                    if attribute_errors:
+                        log_event(organization=provider.organization, event_type="SSO Authentication", source_user=auth.get_nameid(),
+                            source_ip=request.remote_addr, message=f"User does not exist. Auto provisioning failed, missing attributes: {attribute_errors}", status="Failed")
+                        return redirect(f"{current_app.config['SSO_BASE_URL']}/#/login", 401)
+                    
+                    # Check to see if the username is already in use
+                    if User.get_by_username(wanted_attributes['username']):
+                        log_event(organization=provider.organization, event_type="SSO Authentication", source_user=wanted_attributes['username'],
+                            source_ip=request.remote_addr, message=f"User does not exist. Auto provisioning failed, username already in use.", status="Failed")
+                        return redirect(f"{current_app.config['SSO_BASE_URL']}/#/login", 401)
+                    
+                    # Check to see if the email is already in use
+                    if User.get_by_email(wanted_attributes['email']):
+                        log_event(organization=provider.organization, event_type="SSO Authentication", source_user=wanted_attributes['username'],
+                            source_ip=request.remote_addr, message=f"User does not exist. Auto provisioning failed, email already in use.", status="Failed")
+                        return redirect(f"{current_app.config['SSO_BASE_URL']}/#/login", 401)
+                    
+                    # Create the user
+                    user = User(
+                        username=wanted_attributes['username'],
+                        first_name=wanted_attributes['first_name'],
+                        last_name=wanted_attributes['last_name'],
+                        email=wanted_attributes['email'],
+                        organization=provider.organization,
+                        mfa_enabled=False,
+                        from_sso_auto_provision=True,
+                        locked=False
+                    )
+                    user.set_password(generate_random_password())
+                    user.deleted = False
+                    user.save(refresh="wait_for")
+
+                    role = Role.get_by_uuid(provider.default_role)
+                    if role:
+                        role.add_user_to_role(user.uuid)
+                    
+                else:
+                    log_event(organization=provider.organization, event_type="SSO Authentication", source_user=user.username,
+                      source_ip=request.remote_addr, message="User does not exist.", status="Failed")
+                    return redirect(f"{current_app.config['SSO_BASE_URL']}/#/login", 401)
 
             # Fetch the users role mapping policies
 
@@ -208,7 +273,6 @@ class SSOACS(Resource):
                         if role:
                             sso_asserted_roles.append(role)
                             policy_match = True
-
             
             # Load all the roles for the organization
             roles = Role.get_by_organization(user.organization)
@@ -230,6 +294,12 @@ class SSOACS(Resource):
             if not user.roles:
                 log_event(organization=user.organization, event_type="SSO Authentication", source_user=user.username,
                       source_ip=request.remote_addr, message="User is not assigned any roles.", status="Failed")
+                return redirect(f"{current_app.config['SSO_BASE_URL']}/#/login")
+            
+            # If the user is locked
+            if user.locked:
+                log_event(organization=user.organization, event_type="SSO Authentication", source_user=user.username,
+                      source_ip=request.remote_addr, message="User account is locked.", status="Failed")
                 return redirect(f"{current_app.config['SSO_BASE_URL']}/#/login")
 
             access_token = user.create_access_token()
@@ -261,16 +331,22 @@ class SSOStart(Resource):
         # TODO: Check the email address is valid and get the organization ID
         # Redirect the user to the SSO URL for the organization
         user = User.get_by_email(api.payload['email'])
+
+        # Get the users logon domain
         if user:
-
-            org_uuid = user.organization
-            # Get the users logon domain
             logon_domain = user.email.split('@')[1]
+        else:
+            logon_domain = api.payload['email'].split('@')[1]
 
-            provider = SSOProvider.get_by_logon_domain(logon_domain)
+        if not logon_domain:
+            api.abort(401, 'Unauthorized.')
 
-            if not provider:
-                api.abort(401, 'Unauthorized.')
+        provider = SSOProvider.get_by_logon_domain(logon_domain)
+
+        if not provider:
+            api.abort(401, 'Unauthorized.')
+        
+        if user or provider.auto_provision_users:
 
             settings = provider.get_sso_settings()
 

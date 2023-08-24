@@ -91,6 +91,7 @@ mod_user_self = api.model('UserSelf', {
     'organization': fields.String,
     'default_org': fields.Boolean,
     'permissions': fields.Nested(mod_permissions),
+    'last_logon': ISO8601
 })
 
 mod_user_create_success = api.model('UserCreateSuccess', {
@@ -587,7 +588,6 @@ class UserDetails(Resource):
                 user.update(**api.payload)
 
             user.load_roles()
-            print(user.role)
 
             return user
         else:

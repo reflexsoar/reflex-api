@@ -6,25 +6,24 @@ from .shared import mod_pagination, ISO8601, mod_user_list
 api = Namespace('SSO', description='Reflex SSO Management', path='/sso')
 
 mod_sso_advanced_security_settings = api.model('SSOAdvancedSecuritySettings', {
-    'name_id_encrypted': fields.Boolean,
-    'authn_requests_signed': fields.Boolean,
-    'logout_requests_signed': fields.Boolean,
-    'logout_response_signed': fields.Boolean,
-    'signin_metadata': fields.Boolean,
-    'want_messages_signed': fields.Boolean,
-    'want_assertions_signed': fields.Boolean,
-    'want_name_id': fields.Boolean,
-    'want_name_id_encrypted': fields.Boolean,
-    'want_assertions_encrypted': fields.Boolean,
-    'allow_single_label_domains': fields.Boolean,
-    'signature_algorithm': fields.String,
-    'digest_algorithm': fields.String,
-    'reject_deprecated_algorithms': fields.Boolean,
-    'want_attribute_statement': fields.Boolean
+    'name_id_encrypted': fields.Boolean(default=False),
+    'authn_requests_signed': fields.Boolean(default=False),
+    'logout_requests_signed': fields.Boolean(default=False),
+    'logout_response_signed': fields.Boolean(default=False),
+    'signin_metadata': fields.Boolean(default=False),
+    'want_messages_signed': fields.Boolean(default=False),
+    'want_assertions_signed': fields.Boolean(default=False),
+    'want_name_id': fields.Boolean(default=True),
+    'want_name_id_encrypted': fields.Boolean(default=False),
+    'want_assertions_encrypted': fields.Boolean(default=False),
+    'allow_single_label_domains': fields.Boolean(default=False),
+    'signature_algorithm': fields.String(default='http://www.w3.org/2001/04/xmldsig-more#rsa-sha256'),
+    'digest_algorithm': fields.String(default='http://www.w3.org/2001/04/xmlenc#sha256'),
+    'reject_deprecated_algorithms': fields.Boolean(default=True),
+    'want_attribute_statement': fields.Boolean(default=True)
 })
 
-mod_create_sso_provider = api.model('CreateSSOProvider', {
-    'uuid': fields.String,
+mod_update_sso_provider = api.model('UpdateSSOProvider', {
     'name': fields.String,
     'description': fields.String,
     'enabled': fields.Boolean,
@@ -38,6 +37,10 @@ mod_create_sso_provider = api.model('CreateSSOProvider', {
     'acs_url': fields.String,
     'slo_url': fields.String,
     'security': fields.Nested(mod_sso_advanced_security_settings)
+})
+
+mod_create_sso_provider = api.clone('CreateSSOProvider', mod_update_sso_provider, {
+    'uuid': fields.String
 })
 
 mod_sso_provider = api.model('SSOProvider', {
@@ -102,6 +105,46 @@ class SSOProviderDeactivate(Resource):
             api.abort(404, "Could not find a SSO provider")
 
         provider.update(active=False)
+
+        return provider
+
+@api.route("/provider/<uuid>")
+class SSOProviderDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_sso_provider)
+    @ip_approved
+    @token_required
+    @user_has('view_sso_provider')
+    def get(self, current_user, uuid):
+        ''' Returns a SSO provider'''
+
+        provider = SSOProvider.get_by_uuid(uuid)
+
+        if not provider:
+            api.abort(404, "Could not find a SSO provider")
+
+        return provider
+    
+    @api.doc(security="Bearer")
+    @api.expect(mod_update_sso_provider, validate=True)
+    @api.marshal_with(mod_sso_provider)
+    @ip_approved
+    @token_required
+    @user_has('update_sso_provider')
+    def put(self, current_user, uuid):
+        ''' Updates a SSO provider'''
+
+        provider = SSOProvider.get_by_uuid(uuid)
+
+        if not provider:
+            api.abort(404, "Could not find a SSO provider")
+
+        existing_uuid = SSOProvider.name_exists(api.payload['name'])
+        if existing_uuid and existing_uuid != uuid:
+            api.abort(400, "A SSO provider with that name already exists")
+
+        provider.update(**api.payload)
 
         return provider
 
