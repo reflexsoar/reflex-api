@@ -1858,7 +1858,7 @@ class HuntingQuery(Resource):
     @token_required
     def post(self, current_user):
 
-        search = Search(index='winlogbeat-*')
+        search = Search(index='reflex-events-*')
         search = search.query('query_string', query=api2.payload['query'])
         results = search.execute()
         return results.to_dict()
