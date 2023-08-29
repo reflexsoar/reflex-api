@@ -91,6 +91,14 @@
                 "secret": true,
                 "default": "",
                 "description": "The password to use for authentication. If using API Auth, this is the API Secret"
+            },
+            "hosts": {
+                "label": "Hosts",
+                "type": "str-multiple",
+                "required": true,
+                "secret": false,
+                "default": [],
+                "description": "The Opensearch nodes that the integration should connect to"
             }
         }
     },
