@@ -75,11 +75,13 @@ def register_integrations():
             for _, cls in inspect.getmembers(mod, inspect.isclass):
                 # If the class is a subclass of IntegrationBase
                 if issubclass(cls, IntegrationBase):
-                    # Add the class to the __all__ list
-                    loaded_classes.append(cls)
+                    
+                    if cls not in loaded_classes:
+                        # Add the class to the __all__ list
+                        loaded_classes.append(cls)
 
-                    # Add the class to the integrations dictionary
-                    loaded_integrations[name] = cls
+                        # Add the class to the integrations dictionary
+                        loaded_integrations[name] = cls
 
     print(f"Loaded {len(loaded_classes)} integrations")
     load_integrations()
