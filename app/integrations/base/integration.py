@@ -344,7 +344,7 @@ class IntegrationBase(object):
                 "lang": "painless",
                 "params": {
                     "comment": comment,
-                    "created_by": f"{created_by} via {self.__class__.__name__} integration",
+                    "created_by": f"{self.__class__.__name__} integration",
                     "created_at": datetime.utcnow()
                 }
             }
