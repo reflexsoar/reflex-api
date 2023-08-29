@@ -177,6 +177,8 @@ class Config(object):
     FILE_STORAGE_S3_SECRET = os.getenv('REFLEX_FILE_STORAGE_S3_SECRET') if os.getenv('REFLEX_FILE_STORAGE_S3_SECRET') else None
     FILE_STORAGE_S3_LOCATION = os.getenv('REFLEX_FILE_STORAGE_S3_LOCATION') if os.getenv('REFLEX_FILE_STORAGE_S3_LOCATION') else None
 
+    INTEGRATION_LOADER_INTERVAL = int(os.getenv('REFLEX_INTEGRATION_LOADER_INTERVAL')) if os.getenv('REFLEX_INTEGRATION_LOADER_INTERVAL') else 1
+
 
 class ProductionConfig(Config):
     ENV = 'production'

@@ -15,6 +15,7 @@ from app.services.event_processor import EventProcessor
 from app.services.mitre import MITREAttack
 from app.services.notifier import Notifier
 from app.services.action_runner import ActionRunner
+from app.integrations.base.loader import register_integrations
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_mail import Mail
@@ -42,7 +43,7 @@ from .defaults import (
     create_default_case_status, create_admin_role, create_default_email_templates, create_default_organization, initial_settings, create_agent_role,
     create_default_closure_reasons, create_default_case_templates, create_default_data_types,
     create_default_event_status, create_analyst_role,create_admin_user, set_install_uuid, send_telemetry,
-    load_integrations, reset_detection_state
+     reset_detection_state
 )
 
 from .upgrades import upgrades
@@ -278,7 +279,11 @@ def create_app(environment='development'):
 
     if app.config['INTEGRATIONS_ENABLED']:
         app.logger.info("Loading integrations")
-        load_integrations()
+        register_integrations()
+        
+
+        # Reload integrations every N minutes
+        scheduler.add_job(func=register_integrations, trigger="interval", seconds=app.config['INTEGRATION_LOADER_INTERVAL']*60)
 
     reset_detection_state()
 
