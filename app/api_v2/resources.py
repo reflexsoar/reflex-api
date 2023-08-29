@@ -830,8 +830,10 @@ class CloseReasonList(Resource):
         close_reasons = CloseReason.search()
         close_reasons = close_reasons.exclude('term', enabled=False)
 
-        if args.organization:
+        if args.organization and current_user.is_default_org:
             close_reasons = close_reasons.filter('term', organization=args.organization)
+        else:
+            close_reasons = close_reasons.filter('term', organization=current_user.organization)
         
         if args.title:
             close_reasons = close_reasons.filter('match', title=args.title)
