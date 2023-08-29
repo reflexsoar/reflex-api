@@ -1,4 +1,5 @@
 from flask_restx import Resource, fields
+from app.api_v2.model.case import CloseReason
 
 from app.integrations.base import IntegrationBase, IntegrationApi
 
@@ -17,6 +18,11 @@ mod_test = IntegrationApi.model('Test', {
 
 class PagerDuty(IntegrationBase):
 
+    def __init__(self):
+
+        super().__init__()
+
+        self.incident_ids = {}
 
     def action_create_incident(self, events, configuration_uuid, *args, **kwargs):
         """
@@ -90,7 +96,6 @@ Related Observables:\n
                 }
             }
 
-            
             # Try to create a new incident in PagerDuty
             response = session.post("https://api.pagerduty.com/incidents", json=incident_body)
             if response.status_code == 201:
@@ -99,12 +104,21 @@ Related Observables:\n
 
                 # For all of the events for this incident_key update the events using
                 # set the pagerduty.incident_key attribute
-                pagerduty.set_event_integration_attribute(events, attributes={'pagerduty': {
-                            'incident_key': incident_key,
-                            'incident_id': incident['id'],
-                            'url': incident['html_url']
-                        }
-                    })
+                #pagerduty.set_event_integration_attribute(events, attributes={'pagerduty': {
+                #            'incident_key': incident_key,
+                #            'incident_id': incident['id'],
+                #            'url': incident['html_url']
+                #        }
+                #    })
+                incident_id = incident.get('id', None)
+                if incident_id:
+                    if incident_id in self.incident_ids:
+                        self.incident_ids[incident_id].append(incident_key)
+                    else:
+                        self.incident_ids[incident_id] = [incident_key]
+
+                    comment = f"""**PagerDuty Incident Created**\n\n**Incident ID:** {incident['id']}\n**Incident URL:** [{incident['html_url']}]({incident['html_url']})"""
+                    pagerduty.add_event_comment(events, comment, incident_from)
 
     class CreateIncident(Resource):
 
@@ -141,6 +155,7 @@ Related Observables:\n
     
             # Grab this from the integration configuration
             incident_key_field = config["incident_key_field"]
+            
 
             # Determine if the action is supported
             event_type = None
@@ -159,24 +174,49 @@ Related Observables:\n
 
                 if event_type == "incident.annotated":
 
-                    event_filter = {
-                        "integration_attributes__pagerduty__incident_id__keyword": pd_event["data"]["incident"]["id"]
-                    }
+                    incident_id = pagerduty.incident_ids.get(pd_event["data"]["incident"]["id"], None)
 
-                    events = pagerduty.load_events(**event_filter)
-                    pagerduty.add_event_comment(events, pd_event["data"]["content"], pd_event["agent"]["summary"])
+                    if incident_id:
+
+                        event_filter = {
+                            incident_key_field: incident_id
+                        }
+
+                        events = pagerduty.load_events(**event_filter)
+                        print(events)
+                        pagerduty.add_event_comment(events, pd_event["data"]["content"], pd_event["agent"]["summary"])
 
                 if event_type == "incident.resolved":
 
                     event_filter = {
                         incident_key_field: pd_event["data"]["incident_key"],
-                        "integration_attributes__pagerduty__incident_id__keyword": pd_event["data"]["id"]
+                        "status__name__keyword": ["New","Open"]
                     }
 
                     events = pagerduty.load_events(**event_filter)
-                    pass
+                    
+                    close_reason_payload = {
+                        'reason': None,
+                        'comment': 'Incident resolved in PagerDuty'
+                    }
+
                     # Fetch the configuration parameters from the integration configuration
                     # which tell us which Closure Reason to use
+
+                    if 'default_close_reason' in config:
+                        default_close_reason = config['default_close_reason']
+                        close_reason = CloseReason.get_by_uuid(default_close_reason)
+                        if close_reason:
+                            close_reason_payload['dismiss_reason'] = close_reason.title
+
+                    if 'default_close_comment' in config:
+                        close_reason_payload['dismiss_comment'] = config['default_close_comment']
+
+                    success = pagerduty.close_event(events, **close_reason_payload)
+                    
+                    if success:
+                        del pagerduty.incident_ids[incident_id]
+                    
 
         def verify(self):
             # Verify the webhook is valid by checking the pagerduty
