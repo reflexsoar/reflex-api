@@ -162,6 +162,21 @@ class Config(object):
     X_FORWARDED_PORT = int(as_bool(os.getenv('REFLEX_X_FORWARDED_PORT'))) if os.getenv('REFLEX_X_FORWARDED_PORT') else 0
     X_FORWARDED_PREFIX = int(as_bool(os.getenv('REFLEX_X_FORWARDED_PREFIX'))) if os.getenv('REFLEX_X_FORWARDED_PREFIX') else 0
 
+    FILE_STORAGE_MODE = os.getenv('REFLEX_FILE_STORAGE_MODE') if os.getenv('REFLEX_FILE_STORAGE_MODE') else 'local'
+    FILE_STORAGE_LOCAL_PATH = os.getenv('REFLEX_FILE_STORAGE_LOCAL_PATH') if os.getenv('REFLEX_FILE_STORAGE_LOCAL_PATH') else 'uploads/'
+    """
+    Certain files will exist in sub-folders of the local path, this is a list of those sub-folders
+    uploads/case - Contains all attachments related to cases
+    uploads/observable - Contains files attached to events
+    uploads/agent - Contains agent installers
+    uploads/user/<uuid> - Contains user profile images and other user specific files
+    """
+
+    FILE_STORAGE_S3_BUCKET = os.getenv('REFLEX_FILE_STORAGE_S3_BUCKET') if os.getenv('REFLEX_FILE_STORAGE_S3_BUCKET') else None
+    FILE_STORAGE_S3_KEY = os.getenv('REFLEX_FILE_STORAGE_S3_KEY') if os.getenv('REFLEX_FILE_STORAGE_S3_KEY') else None
+    FILE_STORAGE_S3_SECRET = os.getenv('REFLEX_FILE_STORAGE_S3_SECRET') if os.getenv('REFLEX_FILE_STORAGE_S3_SECRET') else None
+    FILE_STORAGE_S3_LOCATION = os.getenv('REFLEX_FILE_STORAGE_S3_LOCATION') if os.getenv('REFLEX_FILE_STORAGE_S3_LOCATION') else None
+
 
 class ProductionConfig(Config):
     ENV = 'production'
