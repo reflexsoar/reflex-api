@@ -8,6 +8,7 @@ from app.api_v2.model import (
     UpdateByQuery,
     Event
 )
+from app.api_v2.model.case import CloseReason
 
 from app.api_v2.model.integration import IntegrationConfiguration, IntegrationLog
 from app.api_v2.model.utils import IndexedDict
@@ -226,7 +227,46 @@ class IntegrationBase(object):
         Closes the event
         """
 
-        events = self._events_to_list(events)
+        try:
+
+            events = self._events_to_list(events)
+
+            query = UpdateByQuery(index=Event._index._name)
+            query = query.filter('terms', uuid=[event.uuid for event in events])
+
+            if reason is None:
+                reason = 'Other'
+            else:
+                reason = CloseReason.get_by_uuid(reason)
+                if reason is None:
+                    reason = 'Other'
+
+            # Using painless script
+            # Close the event
+            script = {
+                "source": """
+                    ctx._source.status.name = 'Dismissed';
+                    ctx._source.status.closed = true;
+                    ctx._source.dismissed_at = params.dismissed_at;
+                    ctx._source.dismissed_by = params.dismissed_by;
+                    ctx._source.dismiss_reason = params.reason;
+                    ctx._source.dismiss_comment = params.comment;
+                """,
+                "lang": "painless",
+                "params": {
+                    "reason": reason,
+                    "comment": comment,
+                    "dismissed_at": datetime.utcnow(),
+                    "dismissed_by": {'username': f"{self.__class__.__name__} integration"}
+                }
+            }
+            
+            query = query.script(**script)
+            query.execute()
+        except Exception:
+            return False
+        return True
+
 
     def load_events(self, **kwargs):
 
