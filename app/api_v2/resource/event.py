@@ -1294,6 +1294,11 @@ class EventComment(Resource):
     def get(self, uuid, current_user):
 
         event = Event.get_by_uuid(uuid)
+
+        # TODO: Fetch these from the reflex-comments index instead using the events
+        # UUID as the parent parameter
+        # comments = Comment.get_by_parent(event.uuid, sort_by='created_at', asc=False)
+        
         event.comments.sort(key = lambda x: x['created_at'], reverse=True)
 
         if not event:
