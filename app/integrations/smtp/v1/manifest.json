@@ -1,0 +1,64 @@
+{
+    "name": "SMTP",
+    "product_identifier": "",
+    "brief_description": "Basic SMTP email actions",
+    "description": "Basic SMTP email actions",
+    "author": "Brian Carroll <brian@hasecuritysolutions.com>",
+    "tags": ["event"],
+    "category": ["Operations","Email", "Automation"],
+    "enabled": false,
+    "contributor": [
+        "Justin Henderson <justin@hasecuritysolutions.com>"
+    ],
+    "license": "H&A Security Solutions - Premium Support",
+    "version": "1.0.0",
+    "manifest": {
+        "actions": [
+            {
+                "friendly_name": "Poll Mailbox",
+                "name": "smtp_poll_mailbox",
+                "type": "action",
+                "description": "Polls a mailbox for messages and ingests them in to the Events queue as Events or Cases as case updates.",
+                "tags": ["event", "case"],
+                "target_object": "event",
+                "run_from": "console",
+                "parameters": {
+                    
+                },
+                "trigger": ["schedule", "manual"],
+                "source_object_type": ["event","case"],
+                "configuration": {
+                    "email_address": {
+                        "label": "Email Address",
+                        "type": "str",
+                        "description": "The email address of the mailbox"
+                    },
+                    "username": {
+
+                    },
+                    "password": {
+
+                    },
+                    "server": {
+
+                    },
+                    "pop3_or_imap": {
+
+                    },
+                    "server_port": {
+
+                    },
+                    "poll_interval": {
+
+                    }
+                }
+            },
+            {
+                "friendly_name": "Send e-mail"
+            }
+        ],
+        "configuration": {
+        }
+    },
+    "logo": ""
+}
