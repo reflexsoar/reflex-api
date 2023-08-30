@@ -378,6 +378,13 @@ class DetectionState(base.BaseDocument):
                 rebalance = True
                 break
 
+        agent_inventory = [a.uuid for a in Agent.get_by_organization(self.organization)]
+        # If the agent no longer exists
+        for agent in self.agents:
+            if agent.agent not in agent_inventory:
+                rebalance = True
+                break
+
         return rebalance
 
     @classmethod
