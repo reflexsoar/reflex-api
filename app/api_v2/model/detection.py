@@ -350,11 +350,11 @@ class DetectionState(base.BaseDocument):
         # If an agent currently has assignments or detections but is not
         # a detection agent
         for agent in agents:
-            if self._agent_has_work(agent.uuid) and 'detector' not in agent.roles:
+            if self._agent_has_work(agent.uuid) and 'detector' not in agent.merged_roles:
                 rebalance = True
                 break
 
-        agents = [agent for agent in agents if 'detector' in agent.roles]
+        agents = [agent for agent in agents if 'detector' in agent.merged_roles]
 
         for agent in agents:
 
@@ -513,7 +513,7 @@ class DetectionState(base.BaseDocument):
 
             # Filter agents down to healthy detection agents
             agents = [
-                agent for agent in agents if 'detector' in agent.roles and agent.healthy]
+                agent for agent in agents if 'detector' in agent.merged_roles and agent.healthy]
 
             _agents = []
 
