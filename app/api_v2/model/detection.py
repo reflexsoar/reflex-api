@@ -1232,6 +1232,7 @@ class DetectionRepository(base.BaseDocument):
                     metric_change_config=detection.metric_change_config,
                     field_mismatch_config=detection.field_mismatch_config,
                     new_terms_config=detection.new_terms_config,
+                    indicator_match_config=detection.indicator_match_config,
                     from_repo_sync=True,
                     original_uuid=detection.uuid,
                     signature_fields=detection.signature_fields,
