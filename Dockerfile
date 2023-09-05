@@ -12,7 +12,7 @@ ENV REFLEX_API_PORT=80
 
 WORKDIR /
 RUN apt-get update \
-&& apt-get install -y --no-install-recommends git curl htop \
+&& apt-get install -y --no-install-recommends git curl htop pkg-config libxml2-dev libxmlsec1-dev libxmlsec1-openssl \
 && mkdir instance \
 && pip install --upgrade pip \
 && pip install pipenv \
