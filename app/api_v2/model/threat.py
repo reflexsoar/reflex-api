@@ -136,13 +136,15 @@ class ThreatValue(base.BaseDocument):
         # TODO: Update this to allow global searches by checking if 
         # the target list is global and if so, don't filter on the 
         # current_users organization
-        # list = ThreatList.get_by_uuid(list_uuid)
-        # if list and list.global_list:
-        #     search = self.search(skip_org_check)
-        # else:
-        #     search = self.search()
+        _list = ThreatList.search(skip_org_check=True)
+        _list = _list.filter('term', uuid=list_uuid)
+        _list = _list.execute()
+        if len(_list) > 0 and _list[0].global_list:
+            search = self.search(skip_org_check=True)
+        else:
+            search = self.search()
 
-        search = self.search()
+        search = self.search(skip_org_check=True)
         search = search.filter('term', list_uuid=list_uuid)
 
         if values:

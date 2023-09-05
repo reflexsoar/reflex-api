@@ -195,7 +195,7 @@ class Notifier(object):
         channel = NotificationChannel.search()
         channel = channel.filter('term', uuid=notification.channel)
         channel = channel.filter('term', enabled=True)
-        channels = channel.execute()
+        channels = [c for c in channel.scan()]
 
         errors = []
         _channels = []
@@ -258,7 +258,7 @@ class Notifier(object):
                 if hasattr(source_object, 'detection_id'):
                     detection = Detection.get_by_uuid(uuid=source_object.detection_id)
                     if detection:
-                        if hasattr(detection, 'email_template'):
+                        if hasattr(detection, 'email_template') and detection.email_template != "":
                             template = detection.email_template
 
             jinja_template = environment.from_string(template)
@@ -404,8 +404,6 @@ class Notifier(object):
         channel_config = channel.rest_api_configuration
         session = requests.Session()
         session.headers.update(channel_config.headers)
-        print(channel_config.headers)
-        print(session.headers)
         
         if hasattr(notification, 'source_object_type') and hasattr(notification, 'source_object_uuid'):
             if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:

@@ -25,6 +25,7 @@ from .asset import api as ns_asset_v2
 from .reporting import api as ns_reporting_v2
 from .detection_repository import api as ns_detection_repository_v2
 from .integration import api as ns_integration_v2
+from .sso import api as ns_sso_v2
 
 __all__ = [
     'ns_playbook_v2',
@@ -54,5 +55,6 @@ __all__ = [
     'ns_detection_repository_v2',
     'ns_integration_v2',
     'mod_pagination',
-    'ISO8601'
+    'ISO8601',
+    'ns_sso_v2'
 ]

@@ -14,12 +14,15 @@ from app.services.housekeeper import HouseKeeper
 from app.services.event_processor import EventProcessor
 from app.services.mitre import MITREAttack
 from app.services.notifier import Notifier
+from app.services.action_runner import ActionRunner
+from app.integrations.base.loader import register_integrations
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_mail import Mail
 from flask_caching import Cache
 from apscheduler.schedulers.background import BackgroundScheduler
 from elasticapm.contrib.flask import ElasticAPM
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
@@ -32,14 +35,15 @@ from app.api_v2.model import (
         MITRETechnique, EventView, NotificationChannel, Notification, FieldMappingTemplate,
         AgentLogMessage, EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState, RepositorySyncLog,
-        Integration, IntegrationConfiguration, IntegrationLog
+        Integration, IntegrationConfiguration, IntegrationLog, IntegrationActionQueue, SSOProvider,
+        RoleMappingPolicy
 )
 
 from .defaults import (
     create_default_case_status, create_admin_role, create_default_email_templates, create_default_organization, initial_settings, create_agent_role,
     create_default_closure_reasons, create_default_case_templates, create_default_data_types,
     create_default_event_status, create_analyst_role,create_admin_user, set_install_uuid, send_telemetry,
-    load_integrations, reset_detection_state
+     reset_detection_state
 )
 
 from .upgrades import upgrades
@@ -131,7 +135,8 @@ def upgrade_indices(app):
         EventView, NotificationChannel, Notification, FieldMappingTemplate, AgentLogMessage,
         EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState,
-        RepositorySyncLog, Integration, IntegrationConfiguration, IntegrationLog
+        RepositorySyncLog, Integration, IntegrationConfiguration, IntegrationLog,
+        IntegrationActionQueue, SSOProvider, RoleMappingPolicy
         ]
 
     for model in models:
@@ -274,7 +279,11 @@ def create_app(environment='development'):
 
     if app.config['INTEGRATIONS_ENABLED']:
         app.logger.info("Loading integrations")
-        load_integrations()
+        register_integrations()
+        
+
+        # Reload integrations every N minutes
+        scheduler.add_job(func=register_integrations, trigger="interval", seconds=app.config['INTEGRATION_LOADER_INTERVAL']*60)
 
     reset_detection_state()
 
@@ -374,6 +383,9 @@ def create_app(environment='development'):
         notifier.set_log_level(app.config['NOTIFIER']['LOG_LEVEL'])
         scheduler.add_job(func=notifier.check_notifications, trigger="interval", seconds=app.config['NOTIFIER']['POLL_INTERVAL'])
 
+    action_runner = ActionRunner()
+    scheduler.add_job(func=action_runner.run, trigger="date", run_date=datetime.datetime.now())
+
     if not app.config['EVENT_PROCESSOR']['DISABLED']:
         try:
             ep.init_app(app)
@@ -399,5 +411,12 @@ def create_app(environment='development'):
     app.after_request(security_headers)
 
     FLASK_BCRYPT.init_app(app)
+
+    app.wsgi_app = ProxyFix(app.wsgi_app,
+                            x_proto=app.config['X_FORWARDED_PROTO'],
+                            x_host=app.config['X_FORWARDED_HOST'],
+                            x_prefix=app.config['X_FORWARDED_PREFIX'],
+                            x_port=app.config['X_FORWARDED_PORT'],
+                            x_for=app.config['X_FORWARDED_FOR'])
 
     return app

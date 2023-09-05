@@ -118,7 +118,7 @@ class BaseDocument(Document):
             self.created_by = utils._current_user_id_or_none()
 
         if not self.uuid:
-            self.uuid = uuid.uuid4()
+            self.uuid = str(uuid.uuid4())
 
         if self.__class__.__name__ == 'Organization' and not self.organization:
             self.organization = self.uuid

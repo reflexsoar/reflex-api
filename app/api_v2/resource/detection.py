@@ -67,13 +67,15 @@ mod_detection_exception_list = api.model('DetectionExceptionList', {
 
 mod_threshold_config = api.model('ThesholdConfig', {
     'threshold': fields.Integer,
-    'key_field': fields.String,
+    'key_field': fields.List(fields.String),
     'operator': fields.String,
     'dynamic': fields.Boolean,
     'discovery_period': fields.Integer,
     'recalculation_period': fields.Integer,
     'per_field': fields.Boolean,
-    'max_events': fields.Integer
+    'max_events': fields.Integer,
+    'mode': fields.String(default="count", enum=["count", "terms", "cardinality"]),
+    'threshold_field': fields.String,
 }, strict=True)
 
 mod_metric_change_config = api.model('MetricChangeConfig', {
@@ -139,6 +141,7 @@ mod_detection_schedule_hour_range = api.model('DetectionScheduleHourRange', {
 
 mod_detection_schedule_day = api.model('DetectionScheduleDay', {
     'custom': fields.Boolean,
+    'active': fields.Boolean,
     'hours': fields.List(fields.Nested(mod_detection_schedule_hour_range))
 })
 
@@ -209,6 +212,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'updated_by': fields.Nested(mod_user_list, skip_none=True),
     'repository': fields.List(fields.String),
     'daily_schedule': fields.Boolean,
+    'schedule_timezone': fields.String(default='Etc/GMT'),
     'schedule': fields.Nested(mod_detection_schedule),
     'assess_rule': fields.Boolean,
     'hits_over_time': fields.String,
@@ -264,6 +268,7 @@ mod_create_detection = api.model('CreateDetection', {
     'include_source_meta_data': fields.Boolean(default=False),
     'daily_schedule': fields.Boolean(required=False),
     'schedule': fields.Nested(mod_detection_schedule, required=False),
+    'schedule_timezone': fields.String(default='Etc/GMT'),
     'email_template': fields.String,
     'test_script': fields.String,
     'test_script_safe': fields.Boolean,
@@ -310,6 +315,7 @@ mod_update_detection = api.model('UpdateDetection', {
     'status': fields.String(default='Draft', required=False, enum=VALID_DETECTION_STATUS),
     'daily_schedule': fields.Boolean(required=False),
     'schedule': fields.Nested(mod_detection_schedule, required=False),
+    'schedule_timezone': fields.String(default='Etc/GMT'),
     'assess_rule': fields.Boolean,
     'hits_over_time': fields.String,
     'average_hits_per_day': fields.Integer,
@@ -467,6 +473,12 @@ mod_detection_active_filter = api.model('DetectionActiveFilter', {
     'count': fields.Integer
 })
 
+mod_detection_severity_filter = api.model('DetectionSeverityFilter', {
+    'value': fields.Integer,
+    'name': fields.String,
+    'count': fields.Integer
+})
+
 mod_detection_filters = api.model('DetectionFilters', {
     'tags': fields.List(fields.Nested(mod_detection_tag_filter)),
     'tactics': fields.List(fields.Nested(mod_detection_tactic_filter)),
@@ -477,7 +489,8 @@ mod_detection_filters = api.model('DetectionFilters', {
     'warnings': fields.List(fields.Nested(mod_detection_warnings_filter)),
     'active': fields.List(fields.Nested(mod_detection_warnings_filter)),
     'rule_type': fields.List(fields.Nested(mod_detection_warnings_filter)),
-    'assess_rule': fields.List(fields.Nested(mod_detection_warnings_filter))
+    'assess_rule': fields.List(fields.Nested(mod_detection_warnings_filter)),
+    'severity': fields.List(fields.Nested(mod_detection_severity_filter))
 })
 
 mod_detection_uuids = api.model('DetectionUUIDs', {
@@ -529,6 +542,8 @@ detection_list_parser.add_argument(
     'max_average_hits_per_day', location='args', type=int, required=False, default=0)
 detection_list_parser.add_argument(
     'min_average_hits_per_day', location='args', type=int, required=False, default=0)
+detection_list_parser.add_argument(
+    'severity', location='args', type=int, action='split', required=False)
 
 @api.route("")
 class DetectionList(Resource):
@@ -577,6 +592,9 @@ class DetectionList(Resource):
 
         if args.warnings and len(args.warnings) > 0:
             search = search.filter('terms', warnings=args.warnings)
+
+        if args.severity and len(args.severity) > 0:
+            search = search.filter('terms', severity=args.severity)
 
         if args.repository and len(args.repository) > 0 and args.repository[0] != '':
             if 'None' in args.repository:
@@ -851,6 +869,9 @@ class DetectionFilters(Resource):
         if args.status and len(args.status) > 0 and args.status != [""]:
             detections = detections.filter('terms', status=args.status)
 
+        if args.severity and len(args.severity) > 0:
+            detections = detections.filter('terms', severity=args.severity)
+
         if args.repository and len(args.repository) > 0 and args.repository[0] != '':
             if 'None' in args.repository:
                 # If the user has selected None filter for detections with no value for repository
@@ -946,6 +967,10 @@ class DetectionFilters(Resource):
         detections.aggs.bucket('rule_type', 'terms',
                                     field='rule_type', size=1000)
 
+        # Aggregrator for severity
+        detections.aggs.bucket('severity', 'terms',
+                                    field='severity', min_doc_count=0, size=5)
+
         # Set size to 0
         detections = detections[0:0].execute()
 
@@ -964,6 +989,10 @@ class DetectionFilters(Resource):
         # Get all the technique keys so we can find their associated external_ids
         technique_keys = [
             bucket.key for bucket in detections.aggregations.techniques.technique_names.buckets]
+        
+        # Get all the severity keys so we can find their associated names
+        severity_keys = [
+            bucket.key for bucket in detections.aggregations.severity.buckets]
 
         # Get the names for the keys we found
         _orgs = Organization.get_by_uuid(org_keys, all_results=True)
@@ -990,7 +1019,8 @@ class DetectionFilters(Resource):
             'warnings': [],
             'active': [],
             'rule_type': [],
-            'assess_rule': []
+            'assess_rule': [],
+            'severity': []
         }
 
         # Create a list of orgs with their uuid, name and count
@@ -1043,6 +1073,16 @@ class DetectionFilters(Resource):
         }
 
         filters['assess_rule'] = [{'name': assess_rule_names[str(bucket.key)], 'value': bucket.key, 'count': bucket.doc_count} for bucket in detections.aggregations.assess_rule.buckets]
+
+        severity_names = {
+            0: 'Informational',
+            1: 'Low',
+            2: 'Medium',
+            3: 'High',
+            4: 'Critical'
+        }
+
+        filters['severity'] = [{'name': severity_names[bucket.key], 'value': bucket.key, 'count': bucket.doc_count} for bucket in detections.aggregations.severity.buckets]
 
         filters['repository'].append({
             'value': 'None',

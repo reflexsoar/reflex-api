@@ -5,7 +5,7 @@ from uuid import uuid4
 from app.api_v2.model.user import Organization, User
 from app.api_v2.model.case import Case
 from app.api_v2.model.event import Event
-from app.api_v2.model.integration import Integration
+
 from app.api_v2.model.detection import DetectionState
 
 
@@ -17,36 +17,6 @@ def reset_detection_state():
     for detection_state in DetectionState.search().scan():
         detection_state.status = 'BALANCED'
         detection_state.save()
-
-def load_integrations():
-    """
-    Loads all JSON files from the integrations folder and converts
-    them to Integration objects.  If the integration already exists
-    it will skip it.
-    """
-
-    # Walk the integrations folder and get a list of all the JSON files
-    # that are in the folder, the files can be in subfolders as well.
-
-    manifest_files = []
-    
-    ipath = pathlib.Path('app/integrations')
-
-    for integration_file in ipath.rglob("*.json"):
-        manifest_files.append(integration_file)
-
-    
-
-    # For each JSON file, load the JSON file and convert it to an Integration
-    # object.  If the integration already exists, skip it.
-    for manifest_file in manifest_files:
-
-        # Validate the JSON is valid
-        try:
-            Integration.load_manifest(manifest_file)
-        except Exception as e:
-            print(f'Error loading {manifest_file} - {e}')
-            continue
 
 def create_default_email_templates(cls, org_id, check_for_default=False):
 
@@ -249,7 +219,15 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         "view_integration_configurations": True,
         "create_integration_configuration": True,
         "update_integration_configuration": True,
-        "delete_integration_configuration": True
+        "delete_integration_configuration": True,
+        "create_sso_provider": True,
+        "update_sso_provider": True,
+        "delete_sso_provider": True,
+        "view_sso_providers": True,
+        'create_sso_mapping_policy': True,
+        'view_sso_mapping_policies': True,
+        'update_sso_mapping_policy': True,
+        'delete_sso_mapping_policy': True
     }
 
     role_contents = {
@@ -295,6 +273,14 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["create_integration_configuration"] = True
                     perms["update_integration_configuration"] = True
                     perms["delete_integration_configuration"] = True
+                    perms["create_sso_provider"] = True
+                    perms["update_sso_provider"] = True
+                    perms["delete_sso_provider"] = True
+                    perms["view_sso_providers"] = True
+                    perms["create_sso_mapping_policy"] = True
+                    perms["update_sso_mapping_policy"] = True
+                    perms["delete_sso_mapping_policy"] = True
+                    perms["view_sso_mapping_policies"] = True
                 else:
                     perms['view_organizations'] = False
                     perms['add_organization'] = False
@@ -318,6 +304,14 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["create_integration_configuration"] = False
                     perms["update_integration_configuration"] = False
                     perms["delete_integration_configuration"] = False
+                    perms["create_sso_provider"] = True
+                    perms["update_sso_provider"] = True
+                    perms["delete_sso_provider"] = True
+                    perms["view_sso_providers"] = True
+                    perms["create_sso_mapping_policy"] = True
+                    perms["update_sso_mapping_policy"] = True
+                    perms["delete_sso_mapping_policy"] = True
+                    perms["view_sso_mapping_policies"] = True
                 role = role[0]
                 role.permissions = perms
                 role.save()
@@ -412,7 +406,15 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         "create_asset": False,
         "view_assets": True,
         "update_asset": False,
-        "delete_asset": False
+        "delete_asset": False,
+        "create_sso_provider": False,
+        "update_sso_provider": False,
+        "delete_sso_provider": False,
+        "view_sso_providers": False,
+        'create_sso_mapping_policy': False,
+        'view_sso_mapping_policies': False,
+        'update_sso_mapping_policy': False,
+        'delete_sso_mapping_policy': False
     }
 
     role_contents = {

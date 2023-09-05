@@ -56,7 +56,7 @@ mod_user_full = api.model('UserFull', {
     'disabled': fields.Boolean,
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
-    'role': fields.Nested(mod_user_role_no_perms)
+    'role': fields.List(fields.Nested(mod_user_role_no_perms))
 })
 
 mod_user_brief = api.model('UserBrief', {
@@ -74,16 +74,24 @@ mod_user_role_no_members = api.model('UserRole', {
     'description': fields.String
 })
 
+mod_user_role_brief = api.model('UserRoleBrief', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'description': fields.String
+})
+
 mod_user_self = api.model('UserSelf', {
     'uuid': fields.String,
     'username': fields.String,
     'first_name': fields.String,
     'last_name': fields.String,
     'email': fields.String,
-    'role': fields.Nested(mod_user_role_no_members),
+    'role': fields.List(fields.Nested(mod_user_role_brief)),
     'mfa_enabled': fields.Boolean,
     'organization': fields.String,
-    'default_org': fields.Boolean
+    'default_org': fields.Boolean,
+    'permissions': fields.Nested(mod_permissions),
+    'last_logon': ISO8601
 })
 
 mod_user_create_success = api.model('UserCreateSuccess', {
@@ -99,7 +107,7 @@ mod_user_create = api.model('UserCreate', {
     'first_name': fields.String(required=True),
     'last_name': fields.String(required=True),
     'locked': fields.Boolean,
-    'role_uuid': fields.String(required=True)
+    'role_uuid': fields.List(fields.String(required=True))
 }, strict=True)
 
 mod_user_list_paged = api.model('UserListPaged', {
@@ -137,7 +145,7 @@ class UserInfo(Resource):
         if isinstance(current_user, User):
             role = Role.get_by_member(current_user.uuid)
             organization = Organization.get_by_uuid(current_user.organization)
-            current_user.role = role
+            current_user.role = current_user.roles
             current_user.default_org = organization.default_org
 
         return current_user
@@ -157,7 +165,6 @@ class TestScopedUserList(Resource):
         ''' TEST SCOPED GET REQUESTS '''
 
         users = User.scoped_search()
-        print(len(users))
 
         return {
             'users': users,
@@ -377,11 +384,12 @@ class UserList(Resource):
 
         users = users.sort(sort_by)
 
-        users = users.execute()
-        [user.load_role() for user in users]
+        users = [r for r in users.scan()]
+        [user.load_roles() for user in users]
+
 
         response = {
-            'users': list(users),
+            'users': users,
             'pagination': {
                 'total_results': total_results,
                 'pages': pages,
@@ -407,7 +415,7 @@ class UserList(Resource):
         if user:
             api.abort(409, "User with this e-mail already exists.")
         else:
-            user_role = api.payload.pop('role_uuid')
+            
 
             if api.payload.get('organization') == None and hasattr(current_user, 'default_org') and current_user.default_org:
                 api.abort(400, "Organization is required.")
@@ -418,23 +426,27 @@ class UserList(Resource):
             if 'organization' in api.payload and hasattr(current_user, 'default_org') and not current_user.default_org:
                 api.payload.pop('organization')
 
-            role = Role.get_by_uuid(uuid=user_role)
+            roles_to_modify = []
+            if 'role_uuid' in api.payload:
+                user_role = api.payload.pop('role_uuid')
+                role = Role.get_by_uuid(uuid=user_role)
 
-            # Check that the target role is part of the target organization
-            if api.payload.get('organization'):
-                if role.organization != api.payload.get('organization'):
-                    api.abort(
-                        400, "Role is not part of the target organization.")
+                # Check that the target role is part of the target organization
+                for r in role:
+                    if r.organization == api.payload.get('organization'):
+                        roles_to_modify.append(r)
 
             user_password = api.payload.pop('password')
             user = User(**api.payload)
             user.set_password(user_password)
             user.deleted = False
+
+            if roles_to_modify:
+                for role in roles_to_modify:
+                    role.add_user_to_role(user.uuid)
+                user.role = roles_to_modify
+            
             user.save()
-
-            role.add_user_to_role(user.uuid)
-
-            user.role = role
 
             return {'message': 'Successfully created the user.', 'user': user}
 
@@ -551,14 +563,23 @@ class UserDetails(Resource):
             # Update the users role if a role update is triggered
             if 'role_uuid' in api.payload and api.payload['role_uuid'] is not None:
 
-                # Remove them from their old role
-                old_role = Role.get_by_member(uuid=user.uuid)
-                new_role = Role.get_by_uuid(uuid=api.payload['role_uuid'])
-                if old_role != new_role:
-                    new_role.add_user_to_role(user_id=user.uuid)
-                    old_role.remove_user_from_role(user_id=user.uuid)
-                    user.load_role()
-                    return user
+                role_uuid = api.payload.pop('role_uuid')
+
+                # Get the users current roles
+                current_roles = user.roles
+                new_roles = Role.get_by_uuid(role_uuid, all_results=True)
+
+                appended_roles = []
+                
+                remove_from = [r for r in current_roles if r.uuid not in role_uuid]
+                add_to = [r for r in new_roles if r not in current_roles]
+
+                for role in add_to:
+                    role.add_user_to_role(user_id=user.uuid)
+                    appended_roles.append(role)
+
+                for role in remove_from:
+                    role.remove_user_from_role(user_id=user.uuid)
 
             if modified:
                 user.save()
@@ -566,7 +587,8 @@ class UserDetails(Resource):
             if len(api.payload) > 0:
                 user.update(**api.payload)
 
-            user.load_role()
+            user.load_roles()
+
             return user
         else:
             api.abort(404, 'User not found.')

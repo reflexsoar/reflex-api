@@ -1,0 +1,222 @@
+{
+    "name": "Zscaler ZIA",
+    "product_identifier": "022a3b8a-6959-451b-ad60-b19fb6196856",
+    "brief_description": "Provides automatic response actions to Zscaler Internet Access",
+    "description": "Provides automatic response actions to Zscaler Internet Access",
+    "author": "Brian Carroll <brian@hasecuritysolutions.com>",
+    "tags": ["events","observables","alpha"],
+    "category": ["Operations","Proxy", "Response","Web Traffic"],
+    "enabled": false,
+    "contributor": [
+        "Justin Henderson <justin@hasecuritysolutions.com>"
+    ],
+    "license": "H&A Security Solutions - Premium Support",
+    "version": "1.0.0",
+    "manifest": {
+        "actions": [
+            {
+                "name": "add_user_to_group",
+                "friendly_name": "Add User to Group",
+                "description": "Can be used to change a user's permissions based on group permissions.",
+                "type": "action",
+                "run_from": "console",
+                "trigger": ["event_rule", "manual"],
+                "configuration": {
+                    "default_group": {
+                        "label": "Default Group",
+                        "description": "OPTIONAL: The default group to add users to.",
+                        "type": "str",
+                        "default": "",
+                        "required": false
+                    }
+                },
+                "parameters": {
+                    "username": {
+                        "label": "Username",
+                        "description": "The user to add to the group",
+                        "type": "str",
+                        "default": "",
+                        "required": true
+                    
+                    },
+                    "group_name": {
+                        "label": "Group Name",
+                        "description": "The group the user should be added to",
+                        "type": "str",
+                        "default": "",
+                        "required": true
+                    
+                    }
+                }
+            },
+            {
+                "name": "remove_user_from_group",
+                "friendly_name": "Remove User from Group",
+                "description": "Can be used to change a user's permissions based on group permissions.",
+                "type": "action",
+                "run_from": "console",
+                "trigger": ["event_rule", "manual"],
+                "configuration": {
+                    "default_group": {
+                        "label": "Default Group",
+                        "description": "OPTIONAL: The default group to add users to.",
+                        "type": "str",
+                        "default": "",
+                        "required": false
+                    }
+                },
+                "parameters": {
+                    "username": {
+                        "label": "Username",
+                        "description": "The user to remove from the group.",
+                        "type": "str",
+                        "default": "",
+                        "required": true
+                    
+                    },
+                    "group_name": {
+                        "label": "Group Name",
+                        "description": "The group the user should be removed from.",
+                        "type": "str",
+                        "default": "",
+                        "required": true
+                    
+                    }
+                }
+            },
+            {
+                "name": "add_url_to_blocklist",
+                "friendly_name": "Add URL to Blocklist",
+                "description": "Add a URL to the blocklist",
+                "type": "action",
+                "run_from": "console",
+                "trigger": ["event_rule", "manual"],
+                "parameters": {
+                    "url": {
+                        "label": "URL",
+                        "description": "The URL to add to the blocklist.",
+                        "type": "str",
+                        "default": "",
+                        "required": true
+                    
+                    }
+                }
+            },
+            {
+                "name": "remove_url_from_blocklist",
+                "friendly_name": "Remove URL from Blocklist",
+                "description": "Remove URL from to the blocklist.",
+                "type": "action",
+                "run_from": "console",
+                "trigger": ["event_rule", "manual"],
+                "parameters": {
+                    "url": {
+                        "label": "URL",
+                        "description": "The URL to be removed from blocklist.",
+                        "type": "str",
+                        "default": "",
+                        "required": true
+                    
+                    }
+                }
+            },
+            {
+                "name": "add_url_to_category",
+                "friendly_name": "Add URL to Category",
+                "description": "Add a URL to a URL category",
+                "type": "action",
+                "run_from": "console",
+                "trigger": ["event_rule", "manual"],
+                "parameters": {
+                    "url": {
+                        "label": "URL",
+                        "description": "The URL to add to the category.",
+                        "type": "str",
+                        "default": "",
+                        "required": true
+                    
+                    },
+                    "category": {
+                        "label": "Category",
+                        "description": "The category to add the URL to.",
+                        "type": "str",
+                        "default": "",
+                        "required": true
+                    
+                    }
+                }
+            },
+            {
+                "name": "remove_url_from_category",
+                "friendly_name": "Remove URL from Category",
+                "description": "Remove a URL from a URL category.",
+                "type": "action",
+                "run_from": "console",
+                "trigger": ["event_rule", "manual"],
+                "parameters": {
+                    "url": {
+                        "label": "URL",
+                        "description": "The URL to remove from the category.",
+                        "type": "str",
+                        "default": "",
+                        "required": true
+                    
+                    },
+                    "category": {
+                        "label": "Category",
+                        "description": "The category to remove the URL from.",
+                        "type": "str",
+                        "default": "",
+                        "required": true
+                    
+                    }
+                }
+            },
+            {
+                "name": "poll_alerts",
+                "friendly_name": "Poll Alerts",
+                "description": "Polls the Zscaler API for alerts.",
+                "type": "action",
+                "run_from": "console",
+                "trigger": ["schedule"],
+                "parameters": {
+                }
+            }
+        ],
+        "configuration": {
+            "api_key": {
+                "label": "API Key",
+                "description": "Zscaler API Key.",
+                "secret": true,
+                "type": "str",
+                "default": "",
+                "value": ""
+            },
+            "api_url": {
+                "label": "API URL",
+                "description": "Zscaler API URL.",
+                "type": "str",
+                "default": "",
+                "value": ""
+            },
+            "username": {
+                "label": "Username",
+                "description": "Zscaler username authorized to use the Zscaler ZIA API.",
+                "type": "str",
+                "default": "",
+                "value": ""
+            },
+            "password": {
+                "label": "Password",
+                "description": "Zscaler Password.",
+                "secret": true,
+                "type": "str",
+                "default": "",
+                "value": ""
+            }
+        }
+    },
+    "logo": "data:image/png;base64,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"
+}
+
+

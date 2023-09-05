@@ -24,19 +24,23 @@
                 "description": "Create an incident in PagerDuty",
                 "source_object_type": "event",
                 "trigger": ["event_rule","manual"],
+                "run_from": "console",
                 "configuration": {
                     "incident_key_field": {
+                        "label": "Incident Key Field",
                         "type": "str",
                         "required": true,
                         "default": "signature",
                         "description": "The event field to use as the incident key when creating new incidents"
                     },
                     "from": {
+                        "label": "Source User",
                         "type": "str",
                         "required": true,
                         "description": "The user to open the incident as"
                     },
                     "service_id": {
+                        "label": "Service ID",
                         "type": "str",
                         "required": true,
                         "description": "The service ID to open the incident under"
@@ -51,23 +55,41 @@
                 "source_object_type": "event",
                 "configuration": {
                     "webhook_signature": {
+                        "label": "Webhook Signature",
                         "type": "str",
                         "required": false,
                         "secret": true,
-                        "description": "The signature used to verify incoming webhooks"
+                        "description": "The signature used to verify incoming webhooks."
                     },
                     "incident_key_field": {
+                        "label": "Incident Key Field",
                         "type": "str",
                         "required": true,
                         "default": "signature",
-                        "description": "The event field to use as the incident key when creating new incidents"
+                        "description": "The event field to use as the incident key when creating new incidents."
+                    },
+                    "default_close_reason": {
+                        "label": "Default Close Reason",
+                        "type": "str-select",
+                        "default_options_from": "close_reasons",
+                        "required": false,
+                        "description": "OPTIONAL: The default reason to use when closing incidents via PagerDuty."
+                    },
+                    "default_closure_comment": {
+                        "label": "Default Closure Comment",
+                        "type": "str",
+                        "required": false,
+                        "default": "",
+                        "description": "OPTIONAL: The default comment to use when closing incidents via PagerDuty."
                     }
                 },
-                "type": "webhook"
+                "type": "webhook",
+                "run_from": "console"
             }
         ],
         "configuration": {
             "api_access_key": {
+                "label": "API Access Key",
                 "type": "str",
                 "required": true,
                 "secret": true,

@@ -331,11 +331,11 @@ class HouseKeeper(object):
 
         # Create a list of rules with hits > N
         rules_with_high_hits = [
-            b.key for b in results.aggregations.event_rules.buckets if b.doc_count > self.event_rule_high_volume_count]
+            b.key for b in results.aggregations.event_rules.buckets if b.doc_count > self.event_rule_high_volume_hits]
 
         # Create a list of rules with hits < N
         rules_withlow_hits = [
-            b.key for b in results.aggregations.event_rules.buckets if b.doc_count < self.event_rule_high_volume_count]
+            b.key for b in results.aggregations.event_rules.buckets if b.doc_count < self.event_rule_high_volume_hits]
 
         # Find all rules that have hits > N and are still enabled and set the high_volume_rule flag
         search = EventRule.search()

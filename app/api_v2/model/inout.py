@@ -89,6 +89,21 @@ class FieldMappingTemplate(base.BaseDocument):
             user = response[0]
             return user
         return response
+    
+    @classmethod
+    def get_global_templates(self):
+        '''
+        Returns all the global templates
+        '''
+        response = self.search()
+
+        response = response.filter('term', is_global=True)
+
+        # Set size to 0 to return all results
+        response = response[0:0]
+
+        response = response.scan()
+        return [template for template in response]
 
 
 class Input(base.BaseDocument):

@@ -142,6 +142,9 @@ class ThreatListList(Resource):
         # If the organization args are set and the user is not in the default org
         if current_user.is_default_org() and args.organization:
             lists = lists.filter('term', organization=args.organization)
+
+        if args.name__like:
+            lists = lists.filter('wildcard', name=args.name__like+"*")
             
         if not current_user.is_default_org():
             # Search for the current_users organization or any global_list

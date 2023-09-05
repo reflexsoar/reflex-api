@@ -1,0 +1,65 @@
+{
+    "version": "2023.09.00-RC2",
+    "sections": [
+        {
+            "title": "Features",
+            "items": [
+                {
+                    "title": "Single Sign-on (SSO) - Beta",
+                    "description": "Single Sign-on using SAML is now supported.  Identity Providers can be configured in your Organizations settings page under Authentication."
+                },
+                {
+                    "title": "Event Queue Export",
+                    "description": "A new Export Wizard has been added to allow users to export the Event Queue to a CSV or NDJSON file.  This will allow users to view the Event Queue in a spreadsheet and to perform analysis on the data.  The Export Wizard can be accessed from the Event Queue page by clicking the Export button.",
+                    "img": "https://via.placeholder.com/150"
+                },
+                {
+                    "title": "Notification Channels - Beta",
+                    "description": "Notification Channels allow users to configure ReflexSOAR to send notifications to external systems.  Currently supported Notification Channels are:\n- Email\n- Slack\n- Microsoft Teams\n- Webhook\n- PagerDuty"
+                },
+                {
+                    "title": "Integrations - Beta",
+                    "description": "Integrations allow users to configure ReflexSOAR to interact with external systems.  Currently supported Integrations are:\n- SentinelOne\n- Zscaler ZIA\n- IPWhois.io\n- PagerDuty\n- LDAP"
+                },
+                {
+                    "title": "Service Accounts",
+                    "description": "ReflexSOAR now supports long living API access tokens in the form of Service Accounts. Each service account has specific permissions, this is useful for remotely interacting with ReflexSOAR through external automations."
+                }
+            ]
+        },
+        {
+            "title": "Improvements",
+            "items": [
+                {
+                    "title": "UX Changes",
+                    "description": "Overall the User Interface is being improved to better support screen real estate and to make it easier to use.  Users will notice that the breadcrumb navigation has moved, all pager headers and sub-headers are now higher on the page to free up space.  Pages with multiple sub-pages now used tabbed navigation under the page header."
+                },
+                {
+                    "title": "Detection Rules",
+                    "description": "Detection rules now support daily schedules\n- The daily schedule will allow the rule only to run on certain days and during certain windows.\n- Each day can have up to 5 different time windows."
+                },
+                {
+                    "title": "MITRE ATT&CK Coverage",
+                    "description": "A MITRE ATT&CK coverage map is available to determine what MITRE ATT&CK Tactics & Techniques have Detections\n- When creating Inputs, users can also opt to tag MITRE Data Sources on the input, these will show up on the MITRE ATT&CK coverage map as well to highlight that the data exists to cover the Tactic or Technique"
+                },
+                {
+                    "title": "Threshold Rule Changes",
+                    "description": "- Threshold rules now support multiple key fields, this is useful for alarming on a finer criteria, e.g. user on computer fails to log in N times.\n- Threshold rules now require configuring a `mode`.  Valid options are `count`, `terms`, `cardinality`.\n    - A `count` threshold will evaluate the threshold against the number of documents matching the detections base query\n    - A `terms` threshold will evaluate the threshold on a per key field term\n    - A `cardinality` threshold will evaluate the threshold against the number of unique terms of the key field\n- Threshold rules can have their threshold evaluated on any of the key fields by defining the `threshold_field` value, if `threshold_field` is empty and there is **one** key field, the `threshold_field` is automatically set to the key field, if there is more than one key field and `threshold_field` is empty it is set to the last key field."
+                },
+                {
+                    "title": "Indicator Match Rules",
+                    "description": "- Indicator Match rules can now be linked to Global Intel lists allowing the Global Organization a method for providing a single Intel source for multiple sub-organizations/tenants."
+                }
+            ]
+        },
+        {
+            "title": "Bug Fixes",
+            "items": [
+                {
+                    "title": "Too many to list",
+                    "description": "There have been many bug fixes, they can all be tracked at https://github.com/reflexsoar/reflex-api"
+                }
+            ]
+        }
+    ]
+}

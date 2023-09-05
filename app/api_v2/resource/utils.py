@@ -4,6 +4,14 @@ import ipaddress
 from functools import lru_cache
 import requests
 from ..model import Agent, Detection, Tag, UpdateByQuery
+import random
+import string
+
+def generate_random_password(length=32):
+    '''
+    Generates a random password
+    '''
+    return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
 
 def time_since(start_time, message, format="s"):
     '''

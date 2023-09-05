@@ -556,7 +556,8 @@ class Event(base.BaseDocument):
             event_as_dict['observables'] = {}
             for i in range(0, len(observables)):
                 event_as_dict['observables'][i] = observables[i]
-        event_as_dict['raw_log'] = json.loads(event_as_dict['raw_log'])
+        if 'raw_log' in event_as_dict:
+            event_as_dict['raw_log'] = json.loads(event_as_dict['raw_log'])
         indexed_event = IndexedDict(event_as_dict)
         return indexed_event
     
@@ -634,7 +635,13 @@ class EventRule(base.BaseDocument):
         Creates a notification for the event rule
         '''
         if self.notification_channels and len(self.notification_channels) > 0:
+
+            # TODO: Add a security check here to make sure only event rules that belong to the organization
+            #       can create notifications on the organization.  A global channel just means it can
+            #       be used to relay any organizations events, not that any organization can use it freely
+
             for channel in self.notification_channels:
+                    
                 notification = Notification(
                     sent=False,
                     channel=channel,

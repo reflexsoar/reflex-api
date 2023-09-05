@@ -350,11 +350,11 @@ class DetectionState(base.BaseDocument):
         # If an agent currently has assignments or detections but is not
         # a detection agent
         for agent in agents:
-            if self._agent_has_work(agent.uuid) and 'detector' not in agent.roles:
+            if self._agent_has_work(agent.uuid) and 'detector' not in agent.merged_roles:
                 rebalance = True
                 break
 
-        agents = [agent for agent in agents if 'detector' in agent.roles]
+        agents = [agent for agent in agents if 'detector' in agent.merged_roles]
 
         for agent in agents:
 
@@ -375,6 +375,13 @@ class DetectionState(base.BaseDocument):
 
             # If an agent is healthy and has no assessments assigned to it
             if agent.healthy and not self._agent_has_assessments(agent.uuid) and rules_needing_assessment:
+                rebalance = True
+                break
+
+        agent_inventory = [a.uuid for a in Agent.get_by_organization(self.organization)]
+        # If the agent no longer exists
+        for agent in self.agents:
+            if agent.agent not in agent_inventory:
                 rebalance = True
                 break
 
@@ -506,7 +513,7 @@ class DetectionState(base.BaseDocument):
 
             # Filter agents down to healthy detection agents
             agents = [
-                agent for agent in agents if 'detector' in agent.roles and agent.healthy]
+                agent for agent in agents if 'detector' in agent.merged_roles and agent.healthy]
 
             _agents = []
 
@@ -607,6 +614,7 @@ class Detection(base.BaseDocument):
     repository = Keyword()  # The UUID of the repositories this rule is associated to
     daily_schedule = Boolean()  # If false the detection will always run
     schedule = Nested(DetectionSchedule)
+    schedule_timezone = Keyword()  # The timezone offset in hours
     assess_rule = Boolean()  # If true the rule will be assessed for quality
     last_assessed = Date()  # When the rule was last assessed
     average_query_time = Long()  # The average query time in milliseconds
@@ -1224,6 +1232,7 @@ class DetectionRepository(base.BaseDocument):
                     metric_change_config=detection.metric_change_config,
                     field_mismatch_config=detection.field_mismatch_config,
                     new_terms_config=detection.new_terms_config,
+                    indicator_match_config=detection.indicator_match_config,
                     from_repo_sync=True,
                     original_uuid=detection.uuid,
                     signature_fields=detection.signature_fields,
