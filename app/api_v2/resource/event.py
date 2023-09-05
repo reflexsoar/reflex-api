@@ -1,3 +1,5 @@
+import csv
+import io
 import base64
 import copy
 import math
@@ -12,7 +14,7 @@ from uuid import uuid4
 from app.api_v2.model.system import ObservableHistory, Settings
 from app.api_v2.model.user import Organization
 from app.api_v2.model.case import Case
-from flask import current_app
+from flask import current_app, make_response
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus
 from ..model.exceptions import EventRuleFailure
@@ -197,6 +199,20 @@ mod_queue_stats = api.model('QueueStats', {
     'respawns': fields.Integer,
     'worker_count': fields.Integer,
     'dead_workers': fields.Integer
+})
+
+mod_event_filter_time_range = api.model('EventFilterTimeRange', {
+    'start': fields.String,
+    'end': fields.String
+})
+
+mod_event_export_params = api.model('EventExportParams', {
+    'report_name': fields.String,
+    'fields': fields.List(fields.String),
+    'statuses': fields.List(fields.String),
+    'severities': fields.List(fields.Integer),
+    'date_range': fields.Nested(mod_event_filter_time_range),
+    'as_json': fields.Boolean,
 })
 
 event_list_parser = api.parser()
@@ -589,6 +605,60 @@ def fetch_observables_from_history(observables, organization=None):
         
 
     return _observables
+
+
+@api.route('/export')
+class EventExport(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_event_export_params)
+    @token_required
+    @user_has('view_events')
+    def post(self, current_user):
+        """
+        Exports the events based on the provided filters
+        """
+
+        events = Event.search()
+        events = events[:0]
+
+        events = events.filter('terms', status__name__keyword=api.payload['statuses'])
+        events = events.filter('terms', severity=api.payload['severities'])
+        events = events.filter('range', original_date={'gte': api.payload['date_range']['start'], 'lte': api.payload['date_range']['end']})
+
+        # Only export the required fields
+        events = events.source(api.payload['fields'])
+
+        # Make sure the user only gets their own events
+        events = events.filter('term', organization=current_user.organization)
+
+        events = events.scan()
+
+        report_name = "events"
+        if 'report_name' in api.payload and api.payload['report_name'] != "":
+            report_name = api.payload['report_name']
+
+            # Strip out any non-alphanumeric characters and replace spaces with underscores
+            report_name = ''.join(e for e in report_name if e.isalnum() or e == ' ')
+
+
+        if api.payload['as_json']:
+            # Returns as new line delimited JSON
+            data = '\n'.join([json.dumps(event.to_dict(), default=str) for event in events])
+            return make_response(data, 200, {'Content-Type': 'application/json', 'Content-Disposition': f'attachment; filename={report_name}.json'})
+        
+        else:
+            # Returns as CSV
+
+            try:
+                output = io.StringIO()
+                writer = csv.DictWriter(output, fieldnames=api.payload['fields'])
+                writer.writeheader()
+                [writer.writerow(event.as_indexed_dict()) for event in events]
+
+                return make_response(output.getvalue(), 200, {'Content-Type': 'text/csv', 'Content-Disposition': f'attachment; filename={report_name}.csv'})
+            except Exception as e:
+                return {'message': f'Failed to export events. {e}'}, 500
 
 
 @api.route('/<uuid>/observables/<value>')
