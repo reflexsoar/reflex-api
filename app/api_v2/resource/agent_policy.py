@@ -55,6 +55,37 @@ mod_agent_policy = api.model('AgentPolicy', {
     'priority': fields.Integer(default=1)
 }, strict=True)
 
+mod_policy_roles = api.model('AgentPolicyRoles', {
+    'detector': fields.Nested(mod_detector_config),
+    'poller': fields.Nested(mod_poller_config),
+    'runner': fields.Nested(mod_runner_config)
+})
+
+mod_policy_settings = api.model('AgentPolicySettings', {
+    'health_check_interval': fields.Integer,
+    'logging_level': fields.String(default='ERROR'),
+    'max_intel_db_size': fields.Integer,
+    'disable_event_cache_check': fields.Boolean(default=False),
+    'event_realert_ttl': fields.Integer(default=3600)
+})
+
+mod_agent_policy_v2 = api.model('AgentPolicyV2', {
+    'uuid': fields.String,
+    'name': fields.String,
+    'organization': fields.String,
+    'description': fields.String,
+    'roles': fields.List(fields.String, default=[]),
+    'role_settings': fields.Nested(mod_policy_roles),
+    'settings': fields.Nested(mod_policy_settings),
+    'tags': fields.List(fields.String, default=[]),
+    'priority': fields.Integer(default=1),
+    'revision': fields.Integer,
+    'created_at': ISO8601,
+    'updated_at': ISO8601,
+    'created_by': fields.Nested(mod_user_list),
+    'updated_by': fields.Nested(mod_user_list)
+})
+
 mod_agent_policy_detailed = api.clone('AgentPolicyDetailed', mod_agent_policy, {
     'uuid': fields.String,
     'revision': fields.Integer,

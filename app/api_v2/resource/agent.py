@@ -13,7 +13,7 @@ from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
 from ..utils import check_org, token_required, user_has, ip_approved, page_results, generate_token, default_org
 from .agent_group import mod_agent_group_list
-from .agent_policy import mod_agent_policy_detailed
+from .agent_policy import mod_agent_policy_detailed, mod_agent_policy_v2
 from ..schemas import mod_input_list
 
 api = Namespace(
@@ -290,6 +290,50 @@ class AgentInputs(Resource):
             return {'inputs': _inputs}
         else:
             api.abort(404, "Agent not found.")
+
+@api.route("/<uuid>/policy")
+class AgentPolicy(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_agent_policy_v2)
+    @token_required
+    @user_has('view_agents')
+    def get(self, uuid, current_user):
+        ''' Returns the policy for an Agent '''
+        agent = Agent.get_by_uuid(uuid=uuid)
+        if agent:
+
+            policy = {
+                'uuid': agent._policy.uuid,
+                'name': agent._policy.name,
+                'description': agent._policy.description,
+                'organization': agent._policy.organization,
+                'roles': agent._policy.roles,
+                'role_settings': {
+                    'detector': agent._policy.detector_config,
+                    'poller': agent._policy.poller_config,
+                    'runner': agent._policy.runner_config,
+                },
+                'settings': {
+                    'health_check_interval': agent._policy.health_check_interval,
+                    'logging_level': agent._policy.logging_level,
+                    'max_intel_db_size': agent._policy.max_intel_db_size,
+                    'disable_event_cache_check': agent._policy.disable_event_cache_check,
+                    'event_realert_ttl': agent._policy.event_realert_ttl
+                },
+                'tags': agent._policy.tags,
+                'priority': agent._policy.priority,
+                'revision': agent._policy.revision,
+                'created_at': agent._policy.created_at,
+                'updated_at': agent._policy.updated_at,
+                'created_by': agent._policy.created_by,
+                'updated_by': agent._policy.updated_by
+            }
+
+            return policy
+        else:
+            api.abort(404, "Agent not found.")
+
 
 @api.route("/<uuid>")
 class AgentDetails(Resource):
