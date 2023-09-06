@@ -17,6 +17,7 @@ RUN apt-get update \
 && mkdir instance \
 && pip install --upgrade pip \
 && pip install pipenv \
+&& [ $(uname -m) = "aarch64" ] && cp -f Pipfile-arm64.lock Pipfile.lock || true \
 && pipenv install \
 && pipenv install tzdata
 
