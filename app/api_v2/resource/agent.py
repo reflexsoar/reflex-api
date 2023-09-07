@@ -1,6 +1,8 @@
 import datetime
 from flask import request
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
+
+from app.api_v2.model.integration import IntegrationConfiguration, Integration
 from ..model import (
     Agent,
     AgentLogMessage,
@@ -334,6 +336,101 @@ class AgentPolicy(Resource):
         else:
             api.abort(404, "Agent not found.")
 
+
+@api.route("/policy/outputs")
+class AgentPolicyOutputs(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('view_agents')
+    def get(self, current_user):
+        '''Returns configuration details about all the outputs that are configured
+        for an Agent to use
+        '''
+
+        # If the current_user is not an agent, return an empty list
+        if not isinstance(current_user, Agent):
+            return {
+                "outputs": []
+            }
+
+        search = IntegrationConfiguration.search()
+        search = search.filter('term', organization=current_user.organization)
+        search = search.filter('term', enabled=True)
+        results = [r for r in search.scan()]
+
+        integrations = Integration.search()
+        integrations = integrations.filter('terms', product_identifier=[r.integration_uuid for r in results])
+        integrations = [i for i in integrations.scan()]
+
+        outputs = []
+        for result in results:
+            integration = next((i for i in integrations if i.product_identifier == result.integration_uuid), None)
+            if integration:
+                for action in result.actions:
+                    action_manifest = integration.get_action_manifest(action)
+                    if action_manifest.type == 'output':
+                        _action = result.actions[action].to_dict()
+                        if _action['enabled']:
+                            action_config = {
+                                'integration': integration.product_identifier,
+                                'name': action,
+                                'description': action_manifest.description,
+                                'settings': _action
+                            }
+                            outputs.append(action_config)
+        
+        return {
+            "outputs": outputs
+        }
+    
+@api.route("/policy/inputs")
+class AgentPolicyInputs(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('view_agents')
+    def get(self, current_user):
+        '''Returns configuration details about all the outputs that are configured
+        for an Agent to use
+        '''
+
+        # If the current_user is not an agent, return an empty list
+        if not isinstance(current_user, Agent):
+            return {
+                "outputs": []
+            }
+
+        search = IntegrationConfiguration.search()
+        search = search.filter('term', organization=current_user.organization)
+        search = search.filter('term', enabled=True)
+        results = [r for r in search.scan()]
+
+
+        integrations = Integration.search()
+        integrations = integrations.filter('terms', product_identifier=[r.integration_uuid for r in results])
+        integrations = [i for i in integrations.scan()]
+
+        outputs = []
+        for result in results:
+            integration = next((i for i in integrations if i.product_identifier == result.integration_uuid), None)
+            if integration:
+                for action in result.actions:
+                    action_manifest = integration.get_action_manifest(action)
+                    if action_manifest.type == 'input':
+                        _action = result.actions[action].to_dict()
+                        if _action['enabled']:
+                            action_config = {
+                                'integration': integration.product_identifier,
+                                'name': action,
+                                'description': action_manifest.description,
+                                'settings': _action
+                            }
+                            outputs.append(action_config)
+        
+        return {
+            "inputs": outputs
+        }
 
 @api.route("/<uuid>")
 class AgentDetails(Resource):
