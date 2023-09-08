@@ -348,12 +348,6 @@ class AgentPolicyOutputs(Resource):
         for an Agent to use
         '''
 
-        # If the current_user is not an agent, return an empty list
-        if not isinstance(current_user, Agent):
-            return {
-                "outputs": []
-            }
-
         search = IntegrationConfiguration.search()
         search = search.filter('term', organization=current_user.organization)
         search = search.filter('term', enabled=True)
@@ -374,6 +368,10 @@ class AgentPolicyOutputs(Resource):
                         if _action['enabled']:
                             action_config = {
                                 'integration': integration.product_identifier,
+                                "integration_name": integration.name,
+                                'configuration_name': result.name,
+                                'configuration_uuid': result.uuid,
+                                "value": f"{integration.product_identifier}|{result.uuid}|{action}",
                                 'name': action,
                                 'description': action_manifest.description,
                                 'settings': _action
@@ -395,12 +393,6 @@ class AgentPolicyInputs(Resource):
         for an Agent to use
         '''
 
-        # If the current_user is not an agent, return an empty list
-        if not isinstance(current_user, Agent):
-            return {
-                "outputs": []
-            }
-
         search = IntegrationConfiguration.search()
         search = search.filter('term', organization=current_user.organization)
         search = search.filter('term', enabled=True)
@@ -411,7 +403,7 @@ class AgentPolicyInputs(Resource):
         integrations = integrations.filter('terms', product_identifier=[r.integration_uuid for r in results])
         integrations = [i for i in integrations.scan()]
 
-        outputs = []
+        inputs = []
         for result in results:
             integration = next((i for i in integrations if i.product_identifier == result.integration_uuid), None)
             if integration:
@@ -422,14 +414,18 @@ class AgentPolicyInputs(Resource):
                         if _action['enabled']:
                             action_config = {
                                 'integration': integration.product_identifier,
+                                "integration_name": integration.name,
+                                'configuration_name': result.name,
+                                'configuration_uuid': result.uuid,
+                                "value": f"{integration.product_identifier}|{result.uuid}|{action}",
                                 'name': action,
                                 'description': action_manifest.description,
                                 'settings': _action
                             }
-                            outputs.append(action_config)
+                            inputs.append(action_config)
         
         return {
-            "inputs": outputs
+            "inputs": inputs
         }
 
 @api.route("/<uuid>")

@@ -139,6 +139,12 @@
                                 "value": "basic"
                             }
                         ]
+                    },
+                    "advanced_config": {
+                        "label": "Advanced Configuration",
+                        "type": "text",
+                        "required": false,
+                        "description": "Advanced configuration options for the output as additional JSON"
                     }
                 }
             }
