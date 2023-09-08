@@ -28,13 +28,19 @@
                 "trigger": ["schedule", "manual"],
                 "source_object_type": ["event","case"],
                 "configuration": {
-                    
                     "log_name": {
                         "label": "Log Name",
                         "type": "str",
                         "required": false,
                         "default": "event",
-                        "description": "The name of the log to send the data to"
+                        "description": "The name of the log"
+                    },
+                    "envelope": {
+                        "label": "Envelope",
+                        "type": "str",
+                        "required": false,
+                        "default": "",
+                        "description": "Whether or not to wrap the data in an envelope.  Example my.envelope"
                     },
                     "hostname": {
                         "label": "Hostname",
