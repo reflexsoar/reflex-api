@@ -274,21 +274,21 @@ class SSOACS(Resource):
                             sso_asserted_roles.append(role)
                             policy_match = True
             
-            # Load all the roles for the organization
-            roles = Role.get_by_organization(user.organization)
+                # Load all the roles for the organization
+                roles = Role.get_by_organization(user.organization)
 
-            # If sso_asserted_roles contains a role that the user is not already a member of
-            # add the user
-            for role in roles:
-                if role.uuid in sso_asserted_roles and user.uuid not in role.members:
-                    role.add_user_to_role(user.uuid)
+                # If sso_asserted_roles contains a role that the user is not already a member of
+                # add the user
+                for role in roles:
+                    if role.uuid in sso_asserted_roles and user.uuid not in role.members:
+                        role.add_user_to_role(user.uuid)
 
-            # If the user is a member of a role that is not in sso_asserted_roles remove them
-            # from the role
-            for role in roles:
-                if role.members:
-                    if role.uuid not in sso_asserted_roles and user.uuid in role.members:
-                        role.remove_user_from_role(user.uuid)
+                # If the user is a member of a role that is not in sso_asserted_roles remove them
+                # from the role
+                for role in roles:
+                    if role.members:
+                        if role.uuid not in sso_asserted_roles and user.uuid in role.members:
+                            role.remove_user_from_role(user.uuid)
 
             # If the user now has no roles
             if not user.roles:

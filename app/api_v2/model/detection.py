@@ -3,6 +3,7 @@
 Contains all the logic for the Detection engine
 """
 
+import json
 from concurrent.futures import ThreadPoolExecutor
 import math
 import datetime
@@ -817,6 +818,9 @@ class Detection(base.BaseDocument):
 
         current_user = _current_user_id_or_none()
 
+        if isinstance(data, str):
+            data = json.loads(data)
+
         # Don't preserve the UUID by default
         if not preserve_uuid:
             data.pop('uuid', None)
@@ -831,6 +835,7 @@ class Detection(base.BaseDocument):
             if not repository_uuid:
                 raise ValueError(
                     "Repository ID is required when creating a detection from a repository")
+            
             data['from_repo_sync'] = True
             data['repository'] = repository_uuid
 

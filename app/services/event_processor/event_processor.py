@@ -1212,18 +1212,18 @@ class EventWorker(Process):
                             rule.create_notification(organization=raw_event['organization'], source_object_type='event', source_object_uuid=raw_event['uuid'])
 
                         # If the event rule has integration actions, run them using a thread pool
-                        if hasattr(rule, 'integration_actions'):
-                            for action in rule.integration_actions:
-                                action_queue = IntegrationActionQueue(
-                                    action=action['action'],
-                                    configuration_uuid=action['configuration_uuid'],
-                                    integration_uuid=action['integration_uuid'],
-                                    parameters=action['parameters'],
-                                    from_event_rule=True,
-                                    status='pending',
-                                    events=[raw_event['uuid']]
-                                )
-                                action_queue.save()
+                        #if hasattr(rule, 'integration_actions'):
+                            #for action in rule.integration_actions:
+                                #action_queue = IntegrationActionQueue(
+                                    #action=action['action'],
+                                    #configuration_uuid=action['configuration_uuid'],
+                                    #integration_uuid=action['integration_uuid'],
+                                    #parameters=action['parameters'],
+                                    #from_event_rule=True,
+                                    #status='pending',
+                                    #events=[raw_event['uuid']]
+                                #)
+                                #action_queue.save()
                             #thread = threading.Thread(target=self.run_actions, args=(rule.integration_actions, raw_event))
                             #thread.start()
 

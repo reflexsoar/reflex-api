@@ -1,6 +1,7 @@
 import os
 import json
 import inspect
+from typing import List
 from uuid import uuid4
 from datetime import datetime
 from flask_restx import Namespace, Resource
@@ -9,7 +10,7 @@ from app.api_v2.model import (
     Event
 )
 from app.api_v2.model.case import CloseReason
-
+from app.api_v2.model.threat import ThreatList
 from app.api_v2.model.integration import IntegrationConfiguration, IntegrationLog
 from app.api_v2.model.utils import IndexedDict
 
@@ -352,6 +353,27 @@ class IntegrationBase(object):
             query = query.script(**script)
 
             query.execute()
+
+    def create_intel_list(self, list_name: str, list_type: str, data_type: str, values: List[str]) -> str:
+        """
+        Creates an Intel List and returns the UUID
+        """
+
+        if list_type not in ['values','regex','csv']:
+            raise ValueError(f"Invalid list type {list_type}")
+
+        tl = ThreatList(
+            name=list_name,
+            description=f"Created by {self.__class__.__name__} integration",
+            type=list_type,
+            data_type_name=data_type,
+        )
+
+        tl.save()
+
+        tl.set_values(values)
+        
+        return tl.uuid
 
     def setup_routes(self):
         """

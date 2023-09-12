@@ -1907,6 +1907,10 @@ class DetectionImport(Resource):
         imported_detections = []
 
         if 'detections' in api.payload:
+
+            if not isinstance(api.payload['detections'], list):
+                api.payload['detections'] = [api.payload['detections']]
+                
             for detection in api.payload['detections']:
                 d = Detection.create_from_json(detection)
                 imported_detections.append(d)

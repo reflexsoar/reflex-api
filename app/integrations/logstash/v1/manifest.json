@@ -1,0 +1,156 @@
+{
+    "name": "Logstash",
+    "product_identifier": "f6f65705-587f-4759-92b0-33696b1f240f",
+    "brief_description": "An output for sending data to Logstash instance",
+    "description": "An output for sending data to Logstash instance",
+    "author": "Brian Carroll <brian@hasecuritysolutions.com>",
+    "tags": ["output","logging"],
+    "category": ["Output","Log Operations"],
+    "enabled": false,
+    "contributor": [
+        "Justin Henderson <justin@hasecuritysolutions.com>"
+    ],
+    "license": "H&A Security Solutions - Premium Support",
+    "version": "1.0.0",
+    "manifest": {
+        "actions": [
+            {
+                "friendly_name": "Send Logs",
+                "name": "send_logs",
+                "type": "output",
+                "description": "Defines an output configuration that accepts data and sends it to a logstash instance.",
+                "tags": ["log", "event", "data"],
+                "target_object": "event",
+                "run_from": "agent",
+                "parameters": {
+                    
+                },
+                "trigger": ["schedule", "manual"],
+                "source_object_type": ["event","case"],
+                "configuration": {
+                    "log_name": {
+                        "label": "Log Name",
+                        "type": "str",
+                        "required": false,
+                        "default": "event",
+                        "description": "The name of the log"
+                    },
+                    "envelope": {
+                        "label": "Envelope",
+                        "type": "str",
+                        "required": false,
+                        "default": "",
+                        "description": "Whether or not to wrap the data in an envelope.  Example my.envelope"
+                    },
+                    "hostname": {
+                        "label": "Hostname",
+                        "type": "str-multiple",
+                        "options": [],
+                        "required": true,
+                        "description": "The remote system or systems to send the data to"
+                    },
+                    "port": {
+                        "label": "Port",
+                        "type": "int",
+                        "required": true,
+                        "default": 80,
+                        "description": "The port to send the data to"
+                    },
+                    "protocol": {
+                        "label": "Protocol",
+                        "type": "str-select",
+                        "required": true,
+                        "default": "http",
+                        "options": [{
+                            "label": "http",
+                            "value": "http"
+                        },
+                        {
+                            "label": "tcp",
+                            "value": "tcp"
+                        },
+                        {
+                            "label": "udp",
+                            "value": "udp"
+                        }],
+                        "description": "The protocol to use when sending data to the remote system"
+                    },
+                    "verify_ssl": {
+                        "label": "Verify SSL",
+                        "type": "bool",
+                        "required": false,
+                        "default": true,
+                        "description": "Whether or not to verify the SSL certificate of the remote system"
+                    },
+                    "client_cert": {
+                        "label": "Client Certificate",
+                        "type": "str",
+                        "required": false,
+                        "description": "The path to the client certificate to use when sending data to the remote system"
+                    },
+                    "client_key": {
+                        "label": "Client Key",
+                        "type": "str",
+                        "required": false,
+                        "description": "The path to the client key to use when sending data to the remote system"
+                    },
+                    "auth_method": {
+                        "label": "Authentication Method",
+                        "type": "str-select",
+                        "required": false,
+                        "default": "None",
+                        "options": [{
+                            "label": "None",
+                            "value": "none"
+                        },
+                        {
+                            "label": "Basic",
+                            "value": "basic"
+                        },
+                        {
+                            "label": "Bearer Token",
+                            "value": "bearer"
+                        }],
+                        "description": "The authentication method to use when sending data to the remote system"
+                    },
+                    "username": {
+                        "label": "Username",
+                        "type": "str",
+                        "required": false,
+                        "description": "The username to authenticate with",
+                        "conditions": [
+                            {
+                                "field": "auth_method",
+                                "operator": "eq",
+                                "value": "basic"
+                            }
+                        ]
+                    },
+                    "password": {
+                        "label": "Password",
+                        "type": "str",
+                        "secret": true,
+                        "required": false,
+                        "description": "The password to authenticate with",
+                        "conditions": [
+                            {
+                                "field": "auth_method",
+                                "operator": "eq",
+                                "value": "basic"
+                            }
+                        ]
+                    },
+                    "advanced_config": {
+                        "label": "Advanced Configuration",
+                        "type": "text",
+                        "required": false,
+                        "description": "Advanced configuration options for the output as additional JSON"
+                    }
+                }
+            }
+        ],
+        "configuration": {
+        }
+    },
+    "logo": "data:image/png;base64,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"
+}
