@@ -94,9 +94,9 @@ class ThreatListPoller(object):
         lists = ThreatList.search()
         lists = lists.filter('exists', field='active')
         lists = lists.filter('match', active=True)
-        lists = lists.execute()
+        lists = [l for l in lists.scan()]
         if lists:
-            self.threat_lists = [l for l in lists]
+            self.threat_lists = lists
 
     def parse_data(self, data, list_format: str = "ip"):
         if list_format == 'ip':
@@ -112,7 +112,6 @@ class ThreatListPoller(object):
 
         try:
             
-
             for value in data:
 
                 if case_insensitive:
