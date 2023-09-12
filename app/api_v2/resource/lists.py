@@ -145,6 +145,9 @@ class ThreatListList(Resource):
 
         if args.name__like:
             lists = lists.filter('wildcard', name=args.name__like+"*")
+
+        if args.data_type:
+            lists = lists.filter('term', data_type_name=args.data_type)
             
         if not current_user.is_default_org():
             # Search for the current_users organization or any global_list
@@ -672,6 +675,14 @@ class AddValueToThreatList(Resource):
             else:
                 api.abort(400, {'message':'Values are required.'})
         else:
+
+            value_list = ThreatList.search(skip_org_check=True)
+            value_list = value_list.filter('term', uuid=uuid)
+            value_list = value_list.execute()
+
+            if value_list and value_list[0].organization != current_user.organization and value_list[0].global_list:
+                api.abort(400, 'You do not have permission to update this list.')
+
             api.abort(404, 'ThreatList not found.')
 
 
