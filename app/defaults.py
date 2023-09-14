@@ -227,7 +227,11 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         'create_sso_mapping_policy': True,
         'view_sso_mapping_policies': True,
         'update_sso_mapping_policy': True,
-        'delete_sso_mapping_policy': True
+        'delete_sso_mapping_policy': True,
+        'view_packages': True,
+        'create_package': True,
+        'update_package': True,
+        'delete_package': True
     }
 
     role_contents = {
@@ -281,6 +285,10 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["update_sso_mapping_policy"] = True
                     perms["delete_sso_mapping_policy"] = True
                     perms["view_sso_mapping_policies"] = True
+                    perms["view_packages"] = True
+                    perms["create_package"] = True
+                    perms["update_package"] = True
+                    perms["delete_package"] = True
                 else:
                     perms['view_organizations'] = False
                     perms['add_organization'] = False
@@ -312,6 +320,10 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["update_sso_mapping_policy"] = True
                     perms["delete_sso_mapping_policy"] = True
                     perms["view_sso_mapping_policies"] = True
+                    perms["view_packages"] = True
+                    perms["create_package"] = True
+                    perms["update_package"] = True
+                    perms["delete_package"] = True
                 role = role[0]
                 role.permissions = perms
                 role.save()
@@ -414,7 +426,11 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         'create_sso_mapping_policy': False,
         'view_sso_mapping_policies': False,
         'update_sso_mapping_policy': False,
-        'delete_sso_mapping_policy': False
+        'delete_sso_mapping_policy': False,
+        'view_packages': False,
+        'create_package': False,
+        'update_package': False,
+        'delete_package': False
     }
 
     role_contents = {
@@ -476,7 +492,8 @@ def create_agent_role(cls, org_id, check_for_default=False):
         "create_service_account": False,
         "view_service_accounts": False,
         "update_service_account": False,
-        "delete_service_account": False
+        "delete_service_account": False,
+        "view_packages": True
     }
 
     role_contents = {
