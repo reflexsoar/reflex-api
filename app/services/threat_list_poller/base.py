@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from app.api_v2.model.system import DataType
 from ...api_v2.model import ThreatList, ThreatValue
 import logging
@@ -49,8 +50,10 @@ class ThreatListPoller(object):
         
         self.app = app
         self.threat_lists = threat_lists
+        self.purge_state = {}
 
         self.session = requests.Session()
+        self.session.headers.update({"User-Agent": f"Reflex Intel Poller/{self.app.config['BUILD_VERSION']}"})
 
         self.memcached_config = memcached_config if memcached_config else None
         if self.memcached_config:
@@ -92,11 +95,12 @@ class ThreatListPoller(object):
 
     def refresh_lists(self):
         lists = ThreatList.search()
-        lists = lists.filter('exists', field='active')
+        #lists = lists.filter('exists', field='active')
+        lists = lists.filter('exists', field='poll_interval')
         lists = lists.filter('match', active=True)
-        lists = lists.execute()
+        lists = [l for l in lists.scan()]
         if lists:
-            self.threat_lists = [l for l in lists]
+            self.threat_lists = lists
 
     def parse_data(self, data, list_format: str = "ip"):
         if list_format == 'ip':
@@ -112,7 +116,6 @@ class ThreatListPoller(object):
 
         try:
             
-
             for value in data:
 
                 if case_insensitive:
@@ -251,6 +254,212 @@ class ThreatListPoller(object):
                 self.memcached_client.set(key, value.hashed_value)
         self.memcached_client.set('threat-poller-hydration','true',0)
 
+    def create_memcached_key(self, value, data_type, list_uuid, organization, case_insensitive=False):
+        '''
+        Creates a key for memcached based on the value and data type
+        '''
+        if case_insensitive:
+            if isinstance(value, str):
+                value = value.lower()
+
+        hasher = hashlib.md5()
+        if isinstance(value, str):
+            hasher.update(value.encode())
+        else:
+            self.logger.error(f'Value {value} is not a string and cannot be encoded.')
+        value = hasher.hexdigest()
+        
+        return f"{organization}:{list_uuid}:{data_type}:{value}"
+
+    def purge_expired_values(self, intel_list):
+        '''
+        Purges all values from memcached and the values index that are associated 
+        with a specific list and have expired
+        '''
+
+        try:
+            list_uuid = intel_list.uuid
+            list_name = intel_list.name
+
+            # Check to see 
+
+            if list_uuid not in self.purge_state:
+                self.purge_state[list_uuid] = True
+            else:
+                if self.purge_state[list_uuid] == True:
+                    self.logger.info(f"Already purging expired values for list {list_name} ({list_uuid})")
+                    return
+
+            self.logger.info(f"Purging expired values for list {list_name} ({list_uuid})")
+
+            # Create a new query to delete the values from the index
+            values = ThreatValue.search()
+            values = values.filter('term', list_uuid=list_uuid)
+            values = values.filter('exists', field='expire_at')
+            values = values.filter('range', expire_at={'lte': datetime.datetime.utcnow()})
+            values.params(requests_per_second=-1) 
+            values.delete()
+
+            # Do the same for memcached
+            values = ThreatValue.search()
+            values = values.filter('term', list_uuid=list_uuid)
+            values = values.filter('exists', field='expire_at')
+            values = values.filter('range', expire_at={'lte': datetime.datetime.utcnow()})
+            values = values.scan()
+
+            # Remove the values from memcached
+            for value in values:
+                key = self.create_memcached_key(value.value, value.data_type, value.list_uuid, value.organization)
+                self.memcached_client.delete(key)
+                value.delete()
+
+            self.purge_state[list_uuid] = False
+        except Exception as e:
+            self.logger.error(f"An error occurred while trying to purge expired values. {e}")
+            self.purge_state[list_uuid] = False
+
+    def process_list(self, l):
+        '''
+        Performs the polling of a single list
+        '''
+
+        do_poll = False
+        poll_uuid = str(uuid.uuid4())
+
+        #data_type = DataType.get_by_uuid(l.data_type_uuid)
+        data_type_name = l.data_type_name
+
+        if l.last_polled is not None:
+            time_since = datetime.datetime.utcnow() - l.last_polled
+            minutes_since = time_since.total_seconds()/60
+
+            # Default to 60 minutes if the list doesn't have a poll interval set
+            interval = 60
+            if l.poll_interval:
+                interval = l.poll_interval
+
+            if minutes_since > interval:
+                do_poll = True
+        else:
+            do_poll = True
+
+        if do_poll:
+            data_from_url = False
+            data = None
+            data_type_name = l.data_type_name
+            start_date = datetime.datetime.utcnow()
+            if l.url:
+                response = self.session.get(l.url)
+                self.logger.info(f'Polling {l.url}')
+
+                values = ThreatValue.search()
+                values = values.filter('term', poll_uuid=l.poll_uuid)
+
+                if response.status_code == 200:
+
+                    content_type = response.headers['Content-Type']
+                    data_from_url = True
+
+                    if content_type == 'application/zip':
+                        self.logger.info(f"Unzipping file from {l.url}")
+                        zip_file = zipfile.ZipFile(io.BytesIO(response.content))
+                        if len(zip_file.namelist()) > 1:
+                            self.logger.warning(f"ZIP file from {l.url} contains more than 1 file")
+                        else:
+                            if l.list_type == "csv":
+                                data = zip_file.read(zip_file.namelist()[0]).splitlines()
+                            else:
+                                data = [v.decode() for v in zip_file.read(zip_file.namelist()[0]).splitlines()]
+                    else:
+                        data = self.parse_data(response.text)
+                    
+                    if l.list_type == "csv":
+                        #data_type = 'generic'
+                        headers = [h.strip() for h in l.csv_headers.split(',')]
+                        
+                        entries = []
+                        for e in data:
+                            if isinstance(e, bytes):
+                                e = e.decode().strip()
+
+                            if not e.startswith('#'):
+                                entries.append(e)
+
+                        data = []
+                        for entry in entries:
+                            entry = entry.split(',') #TODO: Replace this with l.csv_delimiter
+                            _entry = {}
+                            if entry == ['']:
+                                continue
+
+                            for i in range(0,len(headers)-1):
+                                value = entry[i].strip()
+
+                                if not value:
+                                    value = ''
+                                else:
+                                    value = value.strip('"') #TODO: If l.remove_double_quotes
+
+                                _entry[headers[i]] = value 
+                                
+                            data.append(json.dumps(_entry))
+
+                        csv_header_map = l.csv_header_map.to_dict()
+                        values_to_push = []
+
+                        for entry in data:
+                            record_id = str(uuid.uuid4())
+                            entry = json.loads(entry)
+                            if isinstance(entry, dict):
+                                for key in entry:
+                                    _data_type = [d for d in csv_header_map if key in csv_header_map[d]]
+                                    value = entry[key]
+                                    if _data_type and value not in ('n/a',''):
+                                        [values_to_push.append(a) for a in self.generate_intel_value([value], _data_type[0], l.organization, l.uuid, l.name, l.poll_interval, record_id=record_id, poll_uuid=poll_uuid)]
+                        data = list(values_to_push)
+                        for ok,action in self.streaming_bulk(client=self.es_client, actions=data):
+                            if not ok:
+                                self.logger.warning(f"Failed to push to index. {action}")
+                            pass
+
+                        end_date = datetime.datetime.utcnow()
+                        time_taken = (end_date - start_date).total_seconds()
+
+                        l.polled(time_taken=time_taken, poll_uuid=poll_uuid)
+
+                    # Push the values from the URL to the list
+                    else:
+                        if data:
+                            data = list(self.extract_values(data, data_type_name))
+
+                            # Fetch all the current values in the index
+                            values = ThreatValue.search()
+                            values = values.filter('term', list_uuid=l.uuid)
+                            
+                            for ok,action in self.streaming_bulk(client=self.es_client, actions=self.generate_intel_value(data, data_type_name, l.organization, l.uuid, l.name, l.poll_interval, poll_uuid=poll_uuid)):
+                                if not ok:
+                                    self.logger.warning(f"Failed to push to index. {action}")
+                                pass
+
+                        end_date = datetime.datetime.utcnow()
+                        time_taken = (end_date - start_date).total_seconds()
+
+                        l.polled(time_taken=time_taken, poll_uuid=poll_uuid)
+
+                    end_date = datetime.datetime.utcnow()
+                    time_taken = (end_date - start_date).total_seconds()
+                    
+                else:
+                    print(response.__dict__)
+
+            if self.memcached_config and data:
+                self.logger.info(f'Pushing data to memcached')
+                if data_from_url and data:
+                    self.to_memcached(data, l.data_type_name, l.uuid, l.url, l.list_type, l.organization, ttl=l.poll_interval)
+                else:
+                    self.to_memcached(l.values, l.data_type_name, l.uuid, 'manual_list', l.list_type, l.organization, ttl=0)
+                    l.polled()
+
     def run(self):
         '''
         Fetches all available lists and for each list checks
@@ -269,147 +478,9 @@ class ThreatListPoller(object):
 
         self.logger.info('Fetching threat lists')
         self.refresh_lists()
-        for l in self.threat_lists:
 
-            do_poll = False
-            poll_uuid = str(uuid.uuid4())
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            executor.map(self.process_list, [l for l in self.threat_lists if l.active])
 
-            #data_type = DataType.get_by_uuid(l.data_type_uuid)
-            data_type_name = l.data_type_name
-
-            if l.last_polled is not None:
-                time_since = datetime.datetime.utcnow() - l.last_polled
-                minutes_since = time_since.total_seconds()/60
-
-                # Default to 60 minutes if the list doesn't have a poll interval set
-                interval = 60
-                if l.poll_interval:
-                    interval = l.poll_interval
-
-                if minutes_since > interval:
-                    do_poll = True
-            else:
-                do_poll = True
-
-            if do_poll:
-                data_from_url = False
-                data = None
-                data_type_name = l.data_type_name
-                start_date = datetime.datetime.utcnow()
-                if l.url:
-                    response = self.session.get(l.url)
-                    self.logger.info(f'Polling {l.url}')
-
-                    values = ThreatValue.search()
-                    values = values.filter('term', poll_uuid=l.poll_uuid)
-
-                    if response.status_code == 200:
-
-                        content_type = response.headers['Content-Type']
-                        data_from_url = True
-
-                        if content_type == 'application/zip':
-                            self.logger.info(f"Unzipping file from {l.url}")
-                            zip_file = zipfile.ZipFile(io.BytesIO(response.content))
-                            if len(zip_file.namelist()) > 1:
-                                self.logger.warning(f"ZIP file from {l.url} contains more than 1 file")
-                            else:
-                                if l.list_type == "csv":
-                                    data = zip_file.read(zip_file.namelist()[0]).splitlines()
-                                else:
-                                    data = [v.decode() for v in zip_file.read(zip_file.namelist()[0]).splitlines()]
-                        else:
-                            data = self.parse_data(response.text)
-                      
-                        if l.list_type == "csv":
-                            #data_type = 'generic'
-                            headers = [h.strip() for h in l.csv_headers.split(',')]
-                            
-                            entries = []
-                            for e in data:
-                                if isinstance(e, bytes):
-                                    e = e.decode().strip()
-
-                                if not e.startswith('#'):
-                                    entries.append(e)
-
-                            data = []
-                            for entry in entries:
-                                entry = entry.split(',') #TODO: Replace this with l.csv_delimiter
-                                _entry = {}
-                                if entry == ['']:
-                                    continue
-
-                                for i in range(0,len(headers)-1):
-                                    value = entry[i].strip()
-
-                                    if not value:
-                                        value = ''
-                                    else:
-                                        value = value.strip('"') #TODO: If l.remove_double_quotes
-
-                                    _entry[headers[i]] = value 
-                                    
-                                data.append(json.dumps(_entry))
-
-                            csv_header_map = l.csv_header_map.to_dict()
-                            values_to_push = []
-
-                            for entry in data:
-                                record_id = str(uuid.uuid4())
-                                entry = json.loads(entry)
-                                if isinstance(entry, dict):
-                                    for key in entry:
-                                        _data_type = [d for d in csv_header_map if key in csv_header_map[d]]
-                                        value = entry[key]
-                                        if _data_type and value not in ('n/a',''):
-                                            [values_to_push.append(a) for a in self.generate_intel_value([value], _data_type[0], l.organization, l.uuid, l.name, l.poll_interval, record_id=record_id, poll_uuid=poll_uuid)]
-                            data = list(values_to_push)
-                            for ok,action in self.streaming_bulk(client=self.es_client, actions=data):
-                                if not ok:
-                                    self.logger.warning(f"Failed to push to index. {action}")
-                                pass
-
-                            end_date = datetime.datetime.utcnow()
-                            time_taken = (end_date - start_date).total_seconds()
-
-                            l.polled(time_taken=time_taken, poll_uuid=poll_uuid)
-
-                        # Push the values from the URL to the list
-                        else:
-                            if data:
-                                data = list(self.extract_values(data, data_type_name))
-
-                                # Fetch all the current values in the index
-                                values = ThreatValue.search()
-                                values = values.filter('term', list_uuid=l.uuid)
-                                
-                                for ok,action in self.streaming_bulk(client=self.es_client, actions=self.generate_intel_value(data, data_type_name, l.organization, l.uuid, l.name, l.poll_interval, poll_uuid=poll_uuid)):
-                                    if not ok:
-                                        self.logger.warning(f"Failed to push to index. {action}")
-                                    pass
-
-                            end_date = datetime.datetime.utcnow()
-                            time_taken = (end_date - start_date).total_seconds()
-
-                            l.polled(time_taken=time_taken, poll_uuid=poll_uuid)
-
-                        # Remove the old values after pushing the new values
-                        try:
-                            values.delete()
-                        except Exception as e:
-                            self.logger.error(f"Failed to delete old values. {e}")
-
-                        end_date = datetime.datetime.utcnow()
-                        time_taken = (end_date - start_date).total_seconds()
-                        
-                    else:
-                        print(response.__dict__)
-
-                if self.memcached_config and data:
-                    self.logger.info(f'Pushing data to memcached')
-                    if data_from_url and data:
-                        self.to_memcached(data, l.data_type_name, l.uuid, l.url, l.list_type, l.organization, ttl=l.poll_interval)
-                    else:
-                        self.to_memcached(l.values, l.data_type_name, l.uuid, 'manual_list', l.list_type, l.organization, ttl=0)
-                        l.polled()
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            executor.map(self.purge_expired_values, self.threat_lists)

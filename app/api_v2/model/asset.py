@@ -1,4 +1,4 @@
-"""app/api_v2/model/repassetort.py
+"""app/api_v2/model/asset.py
 
 Contains the models for asset inventory component of Reflex
 """

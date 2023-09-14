@@ -36,7 +36,7 @@ from app.api_v2.model import (
         AgentLogMessage, EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState, RepositorySyncLog,
         Integration, IntegrationConfiguration, IntegrationLog, IntegrationActionQueue, SSOProvider,
-        RoleMappingPolicy
+        RoleMappingPolicy, Package
 )
 
 from .defaults import (
@@ -49,6 +49,7 @@ from .defaults import (
 from .upgrades import upgrades
 
 REFLEX_VERSION = '0.1.4'
+BUILD_VERSION = '2023.09.13-rc0'
 
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
@@ -136,7 +137,7 @@ def upgrade_indices(app):
         EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState,
         RepositorySyncLog, Integration, IntegrationConfiguration, IntegrationLog,
-        IntegrationActionQueue, SSOProvider, RoleMappingPolicy
+        IntegrationActionQueue, SSOProvider, RoleMappingPolicy, Package
         ]
 
     for model in models:
@@ -234,6 +235,7 @@ def create_app(environment='development'):
     app.config.from_object(app_config[os.getenv('FLASK_CONFIG', environment)])
     app.config.from_pyfile('application.conf', silent=True)
     app.config['ERROR_404_HELP'] = False
+    app.config['BUILD_VERSION'] = BUILD_VERSION
 
     #app.logger.propagate = False
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -309,7 +311,7 @@ def create_app(environment='development'):
                 }
 
             threat_list_poller = ThreatListPoller(app, memcached_config=memcached_config, log_level=app.config['THREAT_POLLER_LOG_LEVEL'])
-            scheduler.add_job(func=threat_list_poller.run, trigger="interval", seconds=app.config['THREAT_POLLER_INTERVAL'])
+            scheduler.add_job(func=threat_list_poller.run, trigger="interval", seconds=app.config['THREAT_POLLER_INTERVAL']*60) # Multiply by 60 to convert to minutes
 
         if not app.config['HOUSEKEEPER_DISABLED']:
             housekeeper = HouseKeeper(app, log_level=app.config['HOUSEKEEPER_LOG_LEVEL'])

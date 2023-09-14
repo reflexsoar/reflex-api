@@ -33,7 +33,8 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
         Search,
         Nested,
         Q,
-        UpdateByQuery
+        UpdateByQuery,
+        Binary
     )
 else:
     from elasticsearch_dsl.utils import AttrList
@@ -54,7 +55,8 @@ else:
         Search,
         Nested,
         Q,
-        UpdateByQuery
+        UpdateByQuery,
+        Binary
     )
 
 from .user import User, Role, ExpiredToken, Organization, ServiceAccount
@@ -92,6 +94,7 @@ from .notification import EmailNotificationTemplate, NotificationChannel, Notifi
 from .asset import Asset, UserAsset, GroupAsset, ComputerAsset, NetworkInterface, OperatingSystem
 from .integration import Integration, IntegrationConfiguration, IntegrationLog, IntegrationActionQueue
 from .sso import SSOProvider, RoleMappingPolicy
+from .package import Package
 
 VERSION = (2, 0, 0)
 __version__ = VERSION
@@ -163,4 +166,6 @@ __all__ = [
     IntegrationActionQueue,
     SSOProvider,
     RoleMappingPolicy,
+    Binary,
+    Package
 ]
