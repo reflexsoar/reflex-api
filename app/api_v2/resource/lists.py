@@ -46,6 +46,7 @@ mod_list_list = api.model('ListView', {
     'list_type': fields.String,
     'tag_on_match': fields.Boolean,
     'data_type': fields.Nested(mod_data_type_list),
+    'data_type_name': fields.String,
     'url': fields.String,
     'poll_interval': fields.Integer,
     'last_polled': ISO8601(attribute='last_polled'),
@@ -139,9 +140,11 @@ class ThreatListList(Resource):
 
         lists = ThreatList.search(skip_org_check=True)
 
+        organization = current_user.organization
+
         # If the organization args are set and the user is not in the default org
         if current_user.is_default_org() and args.organization:
-            lists = lists.filter('term', organization=args.organization)
+            organization = args.organization
 
         if args.name__like:
             lists = lists.filter('wildcard', name=args.name__like+"*")
@@ -149,12 +152,12 @@ class ThreatListList(Resource):
         if args.data_type:
             lists = lists.filter('term', data_type_name=args.data_type)
             
-        if not current_user.is_default_org():
-            # Search for the current_users organization or any global_list
+        if not current_user.is_default_org() and not args.organization:
+            # Search for the target organization or any global_list
             lists = lists.filter(
                 'bool',
                 should=[
-                    Q('term', organization=current_user.organization),
+                    Q('term', organization=organization),
                     Q('term', global_list=True)
                 ]
             )
@@ -198,11 +201,17 @@ class ThreatListList(Resource):
 
         value_list = ThreatList.get_by_name(name=api.payload['name'])
 
-        if value_list:
+        if value_list and value_list.organization == current_user.organization:
             api.abort(409, "ThreatList already exists.")
 
         if api.payload['list_type'] not in ['values', 'patterns', 'csv']:
             api.abort(400, "Invalid list type.")
+
+        if 'global_list' in api.payload and api.payload['global_list'] and not current_user.is_default_org():
+            api.abort(400, 'You do not have permission to set the global_list setting.')
+
+        if current_user.is_default_org() and 'organization' in api.payload and api.payload['organization'] != current_user.organization:
+            api.abort(400, 'global_list can only be set on the default organizations lists')
 
         # Remove any values entered by the user as they also want to pull
         # from a URL and the URL will overwrite their additions
@@ -297,7 +306,7 @@ class ThreatListDetails(Resource):
             if 'global_list' in api.payload:
                 current_state = getattr(value_list, 'global_list')
                 if current_state != api.payload['global_list'] and not current_user.is_default_org():
-                    api.abort(403, 'You do not have permission to change the global_list setting.')
+                    api.abort(400, 'You do not have permission to change the global_list setting.')
 
             if 'name' in api.payload:
                 l = ThreatList.get_by_name(name=api.payload['name'])
@@ -453,6 +462,11 @@ class IntelListStats(Resource):
         
         search_filters = []
 
+        organization = current_user.organization
+
+        if current_user.is_default_org() and args.organization:
+            organization = args.organization
+
         if args.value__like and args.value__like != '':
             search_filters.append({
                 'type': 'wildcard',
@@ -502,7 +516,31 @@ class IntelListStats(Resource):
                 'value': args.record_id
             })
 
-        search = ThreatValue.search()        
+        search = ThreatList.search(skip_org_check=True)
+
+        if not current_user.is_default_org() and not args.organization:
+            # Search for the target organization or any global_list
+            search = search.filter(
+                'bool',
+                should=[
+                    Q('term', organization=organization),
+                    Q('term', global_list=True)
+                ]
+            )
+
+        if args.list_name__like:
+            search = search.filter('wildcard', name="*"+args.list_name__like+"*")
+
+        if args.list:
+            search = search.filter('terms', uuid=args.list)
+
+        #search = search.filter('terms', uuid=[v['key'] for v in values.aggs.range.lists.buckets])
+        
+        lists = list(search.scan())
+
+        search = ThreatValue.search(skip_org_check=True)
+
+        search = search.filter('terms', list_uuid=[l.uuid for l in lists])
 
         # Apply all filters
         for _filter in search_filters:
@@ -528,13 +566,6 @@ class IntelListStats(Resource):
         search = search[0:0]
         
         values = search.execute()
-
-        search = ThreatList.search()
-
-        search = search.filter('terms', uuid=[v['key'] for v in values.aggs.range.lists.buckets])
-
-        search = search[0:args.top]
-        lists = list(search.scan())
 
         data = {}
 
@@ -579,17 +610,53 @@ class IntelListValues(Resource):
         args = list_value_parser.parse_args()
 
         lists = None
+        organization = current_user.organization
+
+        if current_user.is_default_org() and args.organization:
+            organization = args.organization
+
+        intel_list = ThreatList.search(skip_org_check=True)
+
+        if not current_user.is_default_org() and not args.organization:
+                # Search for the target organization or any global_list
+                intel_list = intel_list.filter(
+                    'bool',
+                    should=[
+                        Q('term', organization=organization),
+                        Q('term', global_list=True)
+                    ]
+                )
 
         if args.list_name__like:
-            intel_list = ThreatList.search()
+            intel_list = intel_list.filter('wildcard', name="*"+args.list_name__like+"*")
 
-            if user_in_default_org and args.organization:
-                intel_list = intel_list.filter('term', organization=args.organization)
-
-            intel_list = intel_list.filter('wildcard', name=args.list_name__like+"*")
-            lists = list(intel_list.scan())
+        if args.list:
+            intel_list = intel_list.filter('terms', uuid=args.list)
         
-        values = ThreatValue.search()
+        lists = list(intel_list.scan())
+
+        if len(lists) == 0:
+            return {
+                'values': [],
+                'pagination': {
+                    'total_results': 0,
+                    'pages': 1,
+                    'page': 1,
+                    'page_size': args['page_size']
+                }
+            }
+        
+        values = ThreatValue.search(skip_org_check=True)
+
+        if not current_user.is_default_org() and not args.organization:
+            # Search for the target organization or any global_list
+            values = values.filter(
+                'bool',
+                should=[
+                    Q('term', organization=organization),
+                    Q('terms', list_uuid=[l.uuid for l in lists])
+                ]
+            )
 
         if args.list:
             if lists:
