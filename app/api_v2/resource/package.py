@@ -20,7 +20,7 @@ mod_package_brief = api.model('PackageBrief', {
     'stop_command': fields.String(required=True, description='The Package Stop Command'),
     'install_command': fields.String(description='The Package Install Command'),
     'uninstall_command': fields.String(description='The Package Uninstall Command'),
-    'variables': fields.Nested(AsAttrDict, description='The Package Variables')
+    #'variables': fields.Nested(AsAttrDict)
 })
 
 mod_package_create = api.inherit('PackageCreate', mod_package_brief, {
