@@ -207,11 +207,12 @@ class ThreatListList(Resource):
         if api.payload['list_type'] not in ['values', 'patterns', 'csv']:
             api.abort(400, "Invalid list type.")
 
-        if 'global_list' in api.payload and api.payload['global_list'] and not current_user.is_default_org():
-            api.abort(400, 'You do not have permission to set the global_list setting.')
+        if 'global_list' in api.payload and api.payload['global_list']:
+            if not current_user.is_default_org():
+                api.abort(400, 'You do not have permission to set the global_list setting.')
 
-        if current_user.is_default_org() and 'organization' in api.payload and api.payload['organization'] != current_user.organization:
-            api.abort(400, 'global_list can only be set on the default organizations lists')
+            if current_user.is_default_org() and 'organization' in api.payload and api.payload['organization'] != current_user.organization:
+                api.abort(400, 'global_list can only be set on the default organizations lists')
 
         # Remove any values entered by the user as they also want to pull
         # from a URL and the URL will overwrite their additions
@@ -305,8 +306,12 @@ class ThreatListDetails(Resource):
 
             if 'global_list' in api.payload:
                 current_state = getattr(value_list, 'global_list')
-                if current_state != api.payload['global_list'] and not current_user.is_default_org():
-                    api.abort(400, 'You do not have permission to change the global_list setting.')
+                if current_state != api.payload['global_list']:
+                    if not current_user.is_default_org():
+                        api.abort(400, 'You do not have permission to change the global_list setting.')
+
+                    if current_user.is_default_org() and 'organization' in api.payload and api.payload['organization'] != current_user.organization:
+                        api.abort(400, 'global_list can only be set on the default organizations lists')
 
             if 'name' in api.payload:
                 l = ThreatList.get_by_name(name=api.payload['name'])
