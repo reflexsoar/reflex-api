@@ -72,6 +72,7 @@ class Integration(Document):
         name = 'reflex-integrations'
         settings = {
             'refresh_interval': '5s',
+            'index.mapping.total_fields.limit': 10000
         }
 
     @classmethod
