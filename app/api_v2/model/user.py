@@ -24,7 +24,8 @@ from . import (
     InnerDoc,
     base,
     utils,
-    Object
+    Object,
+    analyzer
 )
 
 FLASK_BCRYPT = Bcrypt()
@@ -50,13 +51,18 @@ class UserNotificationSettings(InnerDoc):
     product_updates = Boolean()
     only_watched_cases = Boolean()
 
+user_email_analyzer = analyzer('user_email_analyzer',
+    tokenizer='keyword',
+    filter=['lowercase']
+)
+
 class User(base.BaseDocument):
     '''
     A User of the Reflex system
     '''
 
-    email = Text(fields={'keyword':Keyword()})
-    username = Text(fields={'keyword':Keyword()})
+    email = Text(fields={'keyword':Keyword()}, analyzer=user_email_analyzer)
+    username = Text(fields={'keyword':Keyword()}, analyzer=user_email_analyzer)
     first_name = Text(fields={'keyword':Keyword()})
     last_name = Text(fields={'keyword':Keyword()})
     last_logon = Date()
@@ -84,6 +90,7 @@ class User(base.BaseDocument):
         settings = {
             'refresh_interval': '1s'
         }
+        version = "0.1.5"
 
     def get_access_scope_orgs(self):
         '''Returns the UUIDs of the organizations the user has access to'''
@@ -358,7 +365,7 @@ class User(base.BaseDocument):
         return response
 
     @classmethod
-    def get_by_username(self, username, as_text=False):
+    def get_by_username(self, username, as_text=True):
 
         field = 'username' if as_text else 'username__keyword'
         
@@ -374,9 +381,12 @@ class User(base.BaseDocument):
         return response
 
     @classmethod
-    def get_by_email(self, email):
+    def get_by_email(self, email, as_text=True):
+
+        field = 'email' if as_text else 'email__keyword'
+
         response = self.search().query(
-            'term', email__keyword=email)
+            'term', **{field: email})
         response= response.source(excludes=[])
         response = response.execute()
         if response:
