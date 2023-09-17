@@ -1,7 +1,7 @@
 {
     "name": "Microsoft - Infrastructure Feeds",
     "product_identifier": "2c61be9c-9015-4b1f-9b4d-ec5d3b78ce47",
-    "brief_description": "A ReflexSOAR plugin for continuously consuming information about Microsoft Azure and Office 365 domains and IPs for service endpoints.",
+    "brief_description": "Creates an Intel List of Microsoft Azure and Office 365 domains and IPs for service endpoints.",
     "description": "A ReflexSOAR plugin for continuously consuming information about Microsoft Azure and Office 365 domains and IPs for service endpoints.",
     "author": "Brian Carroll <brian@hasecuritysolutions.com>",
     "tags": [
@@ -20,9 +20,9 @@
     "manifest": {
         "actions": [
             {
-                "friendly_name": "Synchronize Service IPs",
-                "name": "sync_service_ips",
-                "description": "Creates and maintains Intel Lists of Microsoft Azure Service IPs",
+                "friendly_name": "Office365 Service Assets",
+                "name": "sync_office365_service_assets",
+                "description": "Creates and maintains Intel Lists of Microsoft Office 365 Service IPs and Domains",
                 "configuration": {
                     "poll_interval": {
                         "label": "Poll Interval (seconds)",
