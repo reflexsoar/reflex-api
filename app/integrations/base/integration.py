@@ -179,8 +179,11 @@ class IntegrationBase(object):
         dir_path = os.path.dirname(inspect.getfile(self.__class__))
         
         # Load the manifest file
-        with open(f"{dir_path}/manifest.json", "r") as f:
-            self.manifest = json.load(f)
+        try:
+            with open(f"{dir_path}/manifest.json", "r") as f:
+                self.manifest = json.load(f)
+        except FileNotFoundError:
+            pass
 
     def _events_to_list(self, events):
 
