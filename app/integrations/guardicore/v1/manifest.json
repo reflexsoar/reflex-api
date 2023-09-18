@@ -1,0 +1,335 @@
+{
+    "name": "Guardicore",
+    "product_identifier": "eafba191-a68b-4438-a7d0-3f561a24598a",
+    "brief_description": "Fetch Guardicore incident and asset information.  Adjust asset labels.",
+    "description": "Fetch Guardicore incident and asset information.  Adjust asset labels.",
+    "author": "Brian Carroll <brian@hasecuritysolutions.com>",
+    "tags": [
+        "event"
+    ],
+    "category": [
+        "Operations",
+        "Network",
+        "Segmentation",
+        "Response"
+    ],
+    "enabled": false,
+    "contributor": [
+        "Justin Henderson <justin@hasecuritysolutions.com>"
+    ],
+    "license": "H&A Security Solutions - Premium Support",
+    "version": "1.0.0",
+    "manifest": {
+        "actions": [
+            {
+                "name": "label_asset",
+                "friendly_name": "Label Asset",
+                "description": "Labels a Guardicore asset with a key and value",
+                "type": "action",
+                "run_from": "console",
+                "trigger": [
+                    "event_rule",
+                    "manual"
+                ],
+                "source_object_type": [
+                    "event",
+                    "asset"
+                ],
+                "parameters": {
+                    "key": {
+                        "label": "Key",
+                        "type": "str",
+                        "required": true,
+                        "secret": false,
+                        "description": "Key to label asset with"
+                    },
+                    "value": {
+                        "label": "Value",
+                        "type": "str",
+                        "required": true,
+                        "secret": false,
+                        "description": "Value to label asset with"
+                    },
+                    "asset_id": {
+                        "label": "Asset ID",
+                        "type": "str",
+                        "required": false,
+                        "secret": false,
+                        "description": "Asset ID to label"
+                    },
+                    "hostname": {
+                        "label": "Hostname",
+                        "type": "str",
+                        "required": false,
+                        "secret": false,
+                        "description": "Hostname to label"
+                    },
+                    "ip_address": {
+                        "label": "IP Address",
+                        "type": "str",
+                        "required": false,
+                        "secret": false,
+                        "description": "IP Address to label"
+                    }
+                }
+            },
+            {
+                "name": "remove_asset_label",
+                "friendly_name": "Remove Asset Label",
+                "description": "Removes a Guardicore asset label",
+                "type": "action",
+                "run_from": "console",
+                "trigger": [
+                    "event_rule",
+                    "manual"
+                ],
+                "source_object_type": [
+                    "event",
+                    "asset"
+                ],
+                "parameters": {
+                    "key": {
+                        "label": "Key",
+                        "type": "str",
+                        "required": true,
+                        "secret": false,
+                        "description": "Key to remove from asset"
+                    },
+                    "asset_id": {
+                        "label": "Asset ID",
+                        "type": "str",
+                        "required": false,
+                        "secret": false,
+                        "description": "Asset ID to remove label from"
+                    },
+                    "hostname": {
+                        "label": "Hostname",
+                        "type": "str",
+                        "required": false,
+                        "secret": false,
+                        "description": "Hostname to remove label from"
+                    },
+                    "ip_address": {
+                        "label": "IP Address",
+                        "type": "str",
+                        "required": false,
+                        "secret": false,
+                        "description": "IP Address to remove label from"
+                    }
+                }
+            },
+            {
+                "name": "run_insight_query",
+                "friendly_name": "Run Insight Query",
+                "description": "Runs a Guardicore Insight query",
+                "type": "action",
+                "run_from": "console",
+                "trigger": [
+                    "event_rule",
+                    "manual"
+                ],
+                "source_object_type": [
+                    "event",
+                    "asset"
+                ],
+                "parameters": {
+                    "query": {
+                        "label": "Query",
+                        "type": "str",
+                        "required": true,
+                        "secret": false,
+                        "description": "Insight query to run"
+                    },
+                    "timeout": {
+                        "label": "Timeout",
+                        "type": "int",
+                        "required": false,
+                        "secret": false,
+                        "default": 300,
+                        "description": "Timeout in seconds"
+                    },
+                    "add_label": {
+                        "label": "Add Label",
+                        "type": "bool",
+                        "required": false,
+                        "secret": false,
+                        "default": false,
+                        "description": "Add a label to the assets returned by the query"
+                    },
+                    "label_key": {
+                        "label": "Label Key",
+                        "type": "str",
+                        "required": false,
+                        "required-if": "label_value",
+                        "secret": false,
+                        "conditions": [
+                            {
+                                "field": "add_label",
+                                "operator": "eq",
+                                "value": true
+                            }
+                        ],
+                        "description": "Key to label assets with"
+                    },
+                    "label_value": {
+                        "label": "Label Value",
+                        "type": "str",
+                        "required": false,
+                        "required-if": "label_key",
+                        "secret": false,
+                        "conditions": [
+                            {
+                                "field": "add_label",
+                                "operator": "eq",
+                                "value": true
+                            }
+                        ],
+                        "description": "Value to label assets with"
+                    }
+                }
+            },
+            {
+                "name": "poll_incidents",
+                "friendly_name": "Poll Incidents",
+                "description": "Polls Guardicore for new incidents",
+                "type": "action",
+                "run_from": "console",
+                "trigger": [
+                    "event_rule",
+                    "manual"
+                ],
+                "source_object_type": [
+                    "event",
+                    "asset"
+                ],
+                "configuration": {
+                    "max_alerts": {
+                        "label": "Max Alerts",
+                        "type": "int",
+                        "required": false,
+                        "secret": false,
+                        "default": 100,
+                        "description": "Maximum number of alerts to return"
+                    },
+                    "incident_type": {
+                        "label": "Incident Type",
+                        "type": "str-multiple",
+                        "required": false,
+                        "secret": false,
+                        "default": [],
+                        "description": "Incident type to return"
+                    },
+                    "incident_severity": {
+                        "label": "Incident Severity",
+                        "type": "str-multiple",
+                        "required": false,
+                        "secret": false,
+                        "default": [],
+                        "description": "Incident severity to return"
+                    },
+                    "from_time": {
+                        "label": "From Time",
+                        "type": "str",
+                        "required": false,
+                        "secret": false,
+                        "default": "1 day ago",
+                        "description": "Time to start polling from"
+                    },
+                    "to_time": {
+                        "label": "To Time",
+                        "type": "str",
+                        "required": false,
+                        "secret": false,
+                        "default": "now",
+                        "description": "Time to stop polling at"
+                    },
+                    "cache_results": {
+                        "label": "Cache Results",
+                        "type": "bool",
+                        "required": false,
+                        "secret": false,
+                        "default": true,
+                        "description": "Cache results for 1 hour"
+                    },
+                    "cache_expiry": {
+                        "label": "Cache Expiry",
+                        "type": "int",
+                        "required": false,
+                        "secret": false,
+                        "default": 3600,
+                        "conditions": [
+                            {
+                                "field": "cache_results",
+                                "operator": "eq",
+                                "value": true
+                            }
+                        ],
+                        "description": "Cache expiry in seconds"
+                    }
+                }
+            },
+            {
+                "name": "get_assets_details",
+                "friendly_name": "Get Assets Details",
+                "description": "Gets details for a list of assets",
+                "type": "action",
+                "run_from": "console",
+                "trigger": [
+                    "event_rule",
+                    "manual"
+                ],
+                "source_object_type": [
+                    "event",
+                    "asset"
+                ],
+                "parameters": {
+                    "asset_ids": {
+                        "label": "Asset IDs",
+                        "type": "str-multiple",
+                        "required": false,
+                        "secret": false,
+                        "description": "IDs of the asset to get details for (Asset IDs start with vm)"
+                    },
+                    "hostnames": {
+                        "label": "Hostnames",
+                        "type": "str-multiple",
+                        "required": false,
+                        "secret": false,
+                        "description": "Hostname of the asset to get details for"
+                    },
+                    "ip_addresses": {
+                        "label": "IP Addresses",
+                        "type": "str-multiple",
+                        "required": false,
+                        "secret": false,
+                        "description": "IP addresses to get details for.  IP addresses take precedent over host names"
+                    }
+                }
+            }
+        ],
+        "configuration": {
+            "username": {
+                "label": "Username",
+                "type": "str",
+                "required": true,
+                "secret": false,
+                "description": "Username to connect to Guardicore API"
+            },
+            "password": {
+                "label": "Password",
+                "type": "str",
+                "required": true,
+                "secret": true,
+                "description": "Password to connect to Guardicore API"
+            },
+            "api_url": {
+                "label": "API URL",
+                "type": "str",
+                "required": true,
+                "secret": false,
+                "description": "URL to connect to Guardicore API"
+            }
+        }
+    },
+    "logo": "data:image/png;base64,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"
+}

@@ -4,8 +4,16 @@
     "brief_description": "A collection of Generic actions for ReflexSOAR",
     "description": "A collection of Generic actions for ReflexSOAR",
     "author": "Brian Carroll <brian@hasecuritysolutions.com>",
-    "tags": ["response","inventory","threat", "event"],
-    "category": ["Orchestration", "Automation"],
+    "tags": [
+        "response",
+        "inventory",
+        "threat",
+        "event"
+    ],
+    "category": [
+        "Orchestration",
+        "Automation"
+    ],
     "enabled": false,
     "contributor": [
         "Justin Henderson <justin@hasecuritysolutions>"
@@ -15,11 +23,75 @@
     "manifest": {
         "actions": [
             {
+                "friendly_name": "Read from file",
+                "name": "read_from_file",
+                "type": "input",
+                "description": "Reads data from a file line by line",
+                "tags": [
+                    "file",
+                    "input",
+                    "logs"
+                ],
+                "run_from": "agent",
+                "configuration": {
+                    "file_path": {
+                        "label": "File Path",
+                        "type": "str",
+                        "default": "",
+                        "description": "The path to the file to read from"
+                    },
+                    "line_break": {
+                        "label": "Line Break",
+                        "type": "str",
+                        "default": "\n",
+                        "description": "The line break character to use"
+                    },
+                    "format": {
+                        "label": "Format",
+                        "type": "str-select",
+                        "options": [
+                            {
+                                "label": "Plaintext",
+                                "value": "plaintext"
+                            },
+                            {
+                                "label": "JSON",
+                                "value": "json"
+                            },
+                            {
+                                "label": "CSV",
+                                "value": "csv"
+                            },
+                            {
+                                "label": "XML",
+                                "value": "xml"
+                            },
+                            {
+                                "label": "CEF",
+                                "value": "cef"
+                            }
+                        ],
+                        "default": "plaintext",
+                        "description": "The format of the file"
+                    },
+                    "outputs": {
+                        "label": "Outputs",
+                        "type": "str-multiple",
+                        "label_field": "label",
+                        "default": [],
+                        "default_options_from": "integration_outputs",
+                        "description": "The outputs to send the data to"
+                    }
+                }
+            },
+            {
                 "friendly_name": "Send Notification via Channel",
                 "name": "send_notification",
                 "type": "action",
                 "description": "Send a notification via a notification channel",
-                "tags": ["notification"],
+                "tags": [
+                    "notification"
+                ],
                 "target_object": "notification_channel",
                 "run_from": "console",
                 "parameters": {
@@ -37,7 +109,9 @@
                 "name": "add_to_intel_list",
                 "type": "action",
                 "description": "Add an observables value to an Intel List",
-                "tags": ["intel"],
+                "tags": [
+                    "intel"
+                ],
                 "target_object": "intel_list",
                 "run_from": "console",
                 "parameters": {
@@ -54,14 +128,16 @@
                         "description": "The list to add the observable to",
                         "multiple": false
                     }
-                }  
+                }
             },
             {
                 "friendly_name": "Add Tags to Event",
                 "name": "tag_event",
                 "type": "action",
                 "description": "Add tags to an event",
-                "tags": ["event"],
+                "tags": [
+                    "event"
+                ],
                 "target_object": "event",
                 "run_from": "console",
                 "parameters": {
@@ -72,15 +148,22 @@
                         "description": "List of tags to add to the event"
                     }
                 },
-                "trigger": ["event_rule", "manual"],
-                "source_object_type": ["event"]
+                "trigger": [
+                    "event_rule",
+                    "manual"
+                ],
+                "source_object_type": [
+                    "event"
+                ]
             },
             {
                 "friendly_name": "Event Webhook",
                 "name": "event_webhook",
                 "type": "webhook",
                 "description": "Create or update an event in ReflexSOAR from an incoming webhook.",
-                "tags": ["event"],
+                "tags": [
+                    "event"
+                ],
                 "target_object": "event",
                 "run_from": "console",
                 "configuration": {
@@ -105,7 +188,9 @@
                 "name": "case_webhook",
                 "type": "webhook",
                 "description": "Create or update a case in ReflexSOAR from an incoming webhook",
-                "tags": ["case"],
+                "tags": [
+                    "case"
+                ],
                 "target_object": "case",
                 "run_from": "console",
                 "configuration": {

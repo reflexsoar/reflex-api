@@ -154,16 +154,33 @@ class ObservableHits(Resource):
         results = search.execute()
         total_cases = results.aggregations.cases.value
 
+        
+
         threat_search = ThreatValue.search()
         threat_search = threat_search.filter('term', value=value)
-        threat_search = threat_search.filter('term', organization=current_user.organization)
+
+        if not current_user.is_default_org():
+            intel_lists = ThreatList.search(skip_org_check=True)
+            intel_lists = intel_lists.filter('term', active=True)
+            intel_lists = intel_lists.filter(
+                'bool',
+                should=[
+                    Q('term', organization=current_user.organization),
+                    Q('term', global_list=True)
+                ]
+            )
+            results = intel_lists.scan()
+            list_uuids = [l.uuid for l in results]
+            threat_search = threat_search.filter('terms', list_uuid=list_uuids)
+
         threat_search.aggs.bucket('lists', 'terms', field='list_uuid', size=1000)
+
         threat_results = threat_search.execute()
         lists = threat_results.aggregations.lists.buckets
 
         hits = {l.key: l.doc_count for l in lists}
 
-        list_data = ThreatList.search().filter('terms', uuid=[l.key for l in lists]).filter('term', active=True).scan()
+        list_data = ThreatList.search(skip_org_check=True).filter('terms', uuid=[l.key for l in lists]).filter('term', active=True).scan()
 
         def is_external_feed(l):
             return True if hasattr(l, 'url') and l.url else False

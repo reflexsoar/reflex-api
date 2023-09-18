@@ -367,7 +367,9 @@ class IntegrationList(Resource):
         """
 
         # Retrieves a list of available integrations
-        integrations = Integration.search().scan()
+        integrations = Integration.search()
+
+        integrations = integrations.scan()
 
         response = {
             'integrations': [i for i in integrations]

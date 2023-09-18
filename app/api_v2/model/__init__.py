@@ -34,7 +34,8 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
         Nested,
         Q,
         UpdateByQuery,
-        Binary
+        Binary,
+        analyzer
     )
 else:
     from elasticsearch_dsl.utils import AttrList
@@ -56,7 +57,8 @@ else:
         Nested,
         Q,
         UpdateByQuery,
-        Binary
+        Binary,
+        analyzer
     )
 
 from .user import User, Role, ExpiredToken, Organization, ServiceAccount
@@ -167,5 +169,6 @@ __all__ = [
     SSOProvider,
     RoleMappingPolicy,
     Binary,
-    Package
+    Package,
+    analyzer
 ]

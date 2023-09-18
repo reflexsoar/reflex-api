@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 import os
 import ssl
 import atexit
@@ -80,15 +81,18 @@ def security_headers(response):
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     return response
 
-def migrate(app, ALIAS, move_data=True, update_alias=True):
+def migrate(app, ALIAS, move_data=True, update_alias=True, version=None):
     '''
     Upgrades all the indices in the system when a new version is released
     that requires a schema change
     '''
 
-    es = connections.get_connection()
+    es = connections.get_connection()    
 
-    new_index = ALIAS+f"-{REFLEX_VERSION}"
+    if version:
+        new_index = ALIAS+f"-{version}"
+    else:
+        new_index = ALIAS+f"-{REFLEX_VERSION}"
 
     # Check to make sure the index hasn't already been upgraded
     if not es.indices.exists(index=new_index):
@@ -139,10 +143,18 @@ def upgrade_indices(app):
         RepositorySyncLog, Integration, IntegrationConfiguration, IntegrationLog,
         IntegrationActionQueue, SSOProvider, RoleMappingPolicy, Package
         ]
-
-    for model in models:
+    
+    def do_upgrade(model):
         ALIAS = model.Index.name
-        PATTERN = ALIAS+f"-{REFLEX_VERSION}"
+
+        index_version = None
+
+        if hasattr(model.Index, 'version'):
+            index_version = model.Index.version
+        else:
+            index_version = REFLEX_VERSION
+
+        PATTERN = ALIAS+f"-{index_version}"
 
         app.logger.info(f"Updating index template for {ALIAS}")
         index_template = model._index.as_template(ALIAS, PATTERN)
@@ -150,9 +162,12 @@ def upgrade_indices(app):
 
         if not model._index.exists():
             app.logger.info(f"Creating index {PATTERN}")
-            migrate(app, ALIAS, move_data=False)
+            migrate(app, ALIAS, move_data=False, version=index_version)
         else:
-            migrate(app, ALIAS)
+            migrate(app, ALIAS, version=index_version)
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        executor.map(do_upgrade, models)
 
 
 def setup_complete():
