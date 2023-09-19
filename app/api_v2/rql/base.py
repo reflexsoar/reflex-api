@@ -19,7 +19,15 @@ def get_nested_field(message: dict, field: str):
         value: The extracted value, may be the response from this function calling itself again
     '''
 
+    # Try to join the string again to check for flat keys
+    flat_key = '.'.join(field)
+    if flat_key in message:
+        return message[flat_key]
+
+    # If the field is a string, split it into a list
     if isinstance(field, str):
+
+        # If the field is a flat key, return the value
         if field in message:
             return message[field]
         
