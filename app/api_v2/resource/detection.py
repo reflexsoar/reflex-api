@@ -224,7 +224,8 @@ mod_detection_details = api.model('DetectionDetails', {
     'test_script_safe': fields.Boolean,
     'test_script_language': fields.String,
     'is_hunting_rule': fields.Boolean,
-    'suppression_max_events': fields.Integer(default=0)
+    'suppression_max_events': fields.Integer(default=0),
+    'required_fields': fields.List(fields.String, default=[])
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
@@ -381,7 +382,8 @@ mod_detection_export = api.model('DetectionExport', {
     'test_script_safe': fields.Boolean,
     'test_script_language': fields.String(default='python'),
     'is_hunting_rule': fields.Boolean,
-    'suppression_max_events': fields.Integer
+    'suppression_max_events': fields.Integer,
+    'required_fields': fields.List(fields.String, default=[])
 })
 
 mod_exported_detections = api.model('ExportedDetections', {
@@ -1413,7 +1415,9 @@ class DetectionDetails(Resource):
         detection = Detection.get_by_uuid(uuid=uuid)
         if detection:
 
-            if 'query' in api.payload and detection.query.query != api.payload['query']:
+            if 'query' in api.payload and detection.query.query != api.payload['query']['query']:
+                fields = detection.extract_fields_from_query(api.payload['query']['query'])
+                api.payload['required_fields'] = fields
                 api.payload['assess_rule'] = True
 
             settings = Settings.load(organization=detection.organization)
