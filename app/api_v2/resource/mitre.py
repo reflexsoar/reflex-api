@@ -46,7 +46,8 @@ mod_technique_details = api.model('MITRETechnique', {
     'external_id': fields.String,
     'external_id_parent': fields.String,
     'has_subs': fields.Boolean,
-    'is_sub': fields.Boolean,
+    'is_sub': fields.Boolean(attribute='is_sub_technique'),
+    'is_deprecated': fields.Boolean,
     'name': fields.String,
     'shortname': fields.String,
     'description': fields.String,
@@ -81,6 +82,7 @@ tactic_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 tactic_list_parser.add_argument(
     'page_size', type=int, location='args', default=25, required=False)
+
 
 @api.route("/tactic")
 class TacticList(Resource):
@@ -135,6 +137,9 @@ technique_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 technique_list_parser.add_argument(
     'page_size', type=int, location='args', default=25, required=False)
+technique_list_parser.add_argument(
+    'show_revoked', type=xinputs.boolean, location='args', default=False, required=False
+)
 
 @api.route("/technique")
 class TechniqueList(Resource):
@@ -170,6 +175,12 @@ class TechniqueList(Resource):
         if args.phase_names and len(args.phase_names) > 0 and args.phase_names != ['']:
             search = search.filter('terms', phase_names=args.phase_names)
 
+
+        if args.show_revoked:
+            search = search.filter('terms', is_revoked=[True, False])
+        else:
+            search = search.filter('term', is_revoked=False)
+
         # Sort by external_id
         search = search.sort('external_id')
 
@@ -182,7 +193,6 @@ class TechniqueList(Resource):
         technique_counts = {}
 
         for technique in techniques:
-            technique.is_sub = '.' in technique.external_id
             if technique.external_id_parent not in technique_counts:
                 technique_counts[technique.external_id_parent] = 0
             technique_counts[technique.external_id_parent] += 1
