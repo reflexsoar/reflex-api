@@ -1313,6 +1313,7 @@ class DetectionRepository(base.BaseDocument):
                     existing_detection.test_script_language = detection.test_script_language
                     existing_detection.test_script_safe = detection.test_script_safe
                     existing_detection.email_template = detection.email_template
+                    existing_detection.status = detection.status
 
                     # Set all the attributes based on the sync settings
                     sync_settings = subscription.sync_settings.to_dict()
