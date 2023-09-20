@@ -52,7 +52,7 @@ class MITRETechnique(base.BaseDocument):
         settings = {
             "refresh_interval": "1s"
         }
-        version = "1.0.5"
+        version = "0.1.5"
 
     mitre_id = Keyword(fields={'text':Text()}) # Example: x-mitre-tactic--2558fd61-8c75-4730-94c4-11926db2a263
     description = Keyword(fields={'text':Text()})
@@ -62,6 +62,9 @@ class MITRETechnique(base.BaseDocument):
     kill_chain_phases = Nested(MITREKillChainPhase)
     phase_names = Keyword(fields={'text':Text()}) # Example: defense-evasion
     data_sources = Keyword(fields={'text':Text()}) # Example: Process: OS API Execution
+    is_sub_technique = Boolean()
+    is_deprecated = Boolean()
+    is_revoked = Boolean()
 
     @property
     def external_id_parent(self):
