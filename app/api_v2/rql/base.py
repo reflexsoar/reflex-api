@@ -20,9 +20,10 @@ def get_nested_field(message: dict, field: str):
     '''
 
     # Try to join the string again to check for flat keys
-    flat_key = '.'.join(field)
-    if flat_key in message:
-        return message[flat_key]
+    if field:
+        flat_key = '.'.join(field)
+        if flat_key in message:
+            return message[flat_key]
 
     # If the field is a string, split it into a list
     if isinstance(field, str):

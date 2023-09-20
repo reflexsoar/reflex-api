@@ -8,8 +8,6 @@ Pusher queue of the EventPusher service.
 
 import re
 import os
-import sys
-import traceback
 import psutil
 import uuid
 import json
@@ -1210,8 +1208,8 @@ class EventWorker(Process):
 
                     if matched:
                         raw_event = self.mutate_event(rule, raw_event)
-                        #if hasattr(rule, 'notification_channels'):
-                        #    rule.create_notification(organization=raw_event['organization'], source_object_type='event', source_object_uuid=raw_event['uuid'])
+                        if hasattr(rule, 'notification_channels'):
+                            rule.create_notification(organization=raw_event['organization'], source_object_type='event', source_object_uuid=raw_event['uuid'])
 
                         # If the event rule has integration actions, run them using a thread pool
                         #if hasattr(rule, 'integration_actions'):
@@ -1231,12 +1229,6 @@ class EventWorker(Process):
 
                 except Exception as e:
                     self.logger.error(f"Failed to process rule {rule.uuid} ({rule.name}). Reason: {e}")
-                    # Print the line of the error and the traceback
-                    _, _, tb = sys.exc_info()
-                    traceback.print_tb(tb)
-                    tb_info = traceback.extract_tb(tb)
-                    filename, line, func, text = tb_info[-1]
-                    self.logger.error(f'An error occurred on line {line} in statement {text}')
                     
             raw_event['metrics']['event_rule_end'] = datetime.datetime.utcnow()
             raw_event['metrics']['event_rule_duration'] = (raw_event['metrics']['event_rule_end'] - raw_event['metrics']['event_rule_start']).total_seconds()
