@@ -1208,8 +1208,8 @@ class EventWorker(Process):
 
                     if matched:
                         raw_event = self.mutate_event(rule, raw_event)
-                        if hasattr(rule, 'notification_channels'):
-                            rule.create_notification(organization=raw_event['organization'], source_object_type='event', source_object_uuid=raw_event['uuid'])
+                        #if hasattr(rule, 'notification_channels'):
+                        #    rule.create_notification(organization=raw_event['organization'], source_object_type='event', source_object_uuid=raw_event['uuid'])
 
                         # If the event rule has integration actions, run them using a thread pool
                         #if hasattr(rule, 'integration_actions'):
