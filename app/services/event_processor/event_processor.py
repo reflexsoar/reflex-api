@@ -8,6 +8,8 @@ Pusher queue of the EventPusher service.
 
 import re
 import os
+import sys
+import traceback
 import psutil
 import uuid
 import json
@@ -1228,7 +1230,16 @@ class EventWorker(Process):
                             #thread.start()
 
                 except Exception as e:
-                    self.logger.error(f"Failed to process rule {rule.uuid} ({rule.name}). Reason: {e}")
+                    self.logger.error(f"Failed to process rule {rule.uuid} ({rule.name}). Reason: {e}", exc_info=True)
+                    # Add extra debugging the line, the traceback, etc.
+                    _, _, tb = sys.exc_info()
+                    traceback.print_tb(tb)  # Fixed format
+                    tb_info = traceback.extract_tb(tb)
+
+                    filename, line, func, text = tb_info[-1]
+                    self.logger.error(f'An error occurred on line {line} in statement {text}')
+                    
+
                     
             raw_event['metrics']['event_rule_end'] = datetime.datetime.utcnow()
             raw_event['metrics']['event_rule_duration'] = (raw_event['metrics']['event_rule_end'] - raw_event['metrics']['event_rule_start']).total_seconds()
