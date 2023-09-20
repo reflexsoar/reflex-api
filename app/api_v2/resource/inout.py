@@ -28,7 +28,8 @@ mod_input_list = api.model('InputList', {
     'field_mapping_templates': fields.List(fields.String),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
-    'mitre_data_sources': fields.List(fields.String),
+    'mitre_data_sources': fields.List(fields.String, default=[]),
+    'data_source_templates': fields.List(fields.String, default=[]),
     'updated_by': fields.String(attribute='updated_by'),
     'created_by': fields.String(attribute='created_by')
 })
@@ -53,7 +54,8 @@ mod_input_details = api.model('InputList', {
     'sigma_backend': fields.String,
     'sigma_pipeline': fields.String,
     'sigma_field_mapping': fields.String,
-    'mitre_data_sources': fields.List(fields.String),
+    'mitre_data_sources': fields.List(fields.String, default=[]),
+    'data_source_templates': fields.List(fields.String, default=[]),
     'updated_by': fields.String(attribute='updated_by'),
     'created_by': fields.String(attribute='created_by')
 })
