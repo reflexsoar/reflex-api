@@ -371,7 +371,7 @@ class User(base.BaseDocument):
         
         if isinstance(username, str):
             response = self.search().query(
-                'term', **{field: username}).execute()
+                'match', **{field: username}).execute()
             if response:
                 response = response[0]
 
@@ -386,8 +386,9 @@ class User(base.BaseDocument):
         field = 'email' if as_text else 'email__keyword'
 
         response = self.search().query(
-            'term', **{field: email})
+            'match', **{field: email})
         response= response.source(excludes=[])
+
         response = response.execute()
         if response:
             user = response[0]

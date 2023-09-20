@@ -44,6 +44,10 @@ mod_technique_details = api.model('MITRETechnique', {
     'uuid': fields.String,
     'mitre_id': fields.String,
     'external_id': fields.String,
+    'external_id_parent': fields.String,
+    'has_subs': fields.Boolean,
+    'is_sub': fields.Boolean(attribute='is_sub_technique'),
+    'is_deprecated': fields.Boolean,
     'name': fields.String,
     'shortname': fields.String,
     'description': fields.String,
@@ -79,6 +83,7 @@ tactic_list_parser.add_argument(
 tactic_list_parser.add_argument(
     'page_size', type=int, location='args', default=25, required=False)
 
+
 @api.route("/tactic")
 class TacticList(Resource):
 
@@ -97,7 +102,6 @@ class TacticList(Resource):
         args = tactic_list_parser.parse_args()
         
         search = MITRETactic.search()
-
         
         if args.name__like and not args.external_id__like:
             search = search.filter('wildcard', name=f"{args.name__like}*")
@@ -106,8 +110,10 @@ class TacticList(Resource):
             search = search.filter('wildcard', external_id=f"{args.external_id__like.upper()}*")
 
         if args.name__like and args.external_id__like:
-            search = search.filter('bool', should=[Q('wildcard', external_id__keyword=f"{args.external_id__like.upper()}*"), Q('wildcard', name=f"*{args.name__like}*")])
+            search = search.filter('bool', should=[Q('wildcard', external_id=f"{args.external_id__like.upper()}*"), Q('wildcard', name=f"*{args.name__like}*")])
 
+        # Sort by external_id
+        search = search.sort('external_id')
 
         search, total_results, pages = page_results(search, args.page, args.page_size)
         tactics = search.execute()
@@ -131,6 +137,9 @@ technique_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 technique_list_parser.add_argument(
     'page_size', type=int, location='args', default=25, required=False)
+technique_list_parser.add_argument(
+    'show_revoked', type=xinputs.boolean, location='args', default=False, required=False
+)
 
 @api.route("/technique")
 class TechniqueList(Resource):
@@ -152,23 +161,46 @@ class TechniqueList(Resource):
         search = MITRETechnique.search()
 
         if args.external_id:
-            search = search.filter('term', external_id__keyword=args.external_id)
+            search = search.filter('term', external_id=args.external_id)
 
         if args.name__like and not args.external_id__like:
             search = search.filter('wildcard', name=f"{args.name__like}*")
 
         if args.external_id__like and not args.name__like:
-            search = search.filter('wildcard', external_id__keyword=f"{args.external_id__like.upper()}*")
+            search = search.filter('wildcard', external_id=f"{args.external_id__like.upper()}*")
 
         if args.name__like and args.external_id__like:
-            search = search.filter('bool', should=[Q('wildcard', external_id__keyword=f"{args.external_id__like.upper()}*"), Q('wildcard', name=f"*{args.name__like}*")])
+            search = search.filter('bool', should=[Q('wildcard', external_id=f"{args.external_id__like.upper()}*"), Q('wildcard', name=f"*{args.name__like}*")])
 
         if args.phase_names and len(args.phase_names) > 0 and args.phase_names != ['']:
             search = search.filter('terms', phase_names=args.phase_names)
 
+
+        if args.show_revoked:
+            search = search.filter('terms', is_revoked=[True, False])
+        else:
+            search = search.filter('term', is_revoked=False)
+
+        # Sort by external_id
+        search = search.sort('external_id')
+
         search, total_results, pages = page_results(search, args.page, args.page_size)
         techniques = search.execute()
 
+        # Create a map of the number of times a techniques external_id_parent appears
+        # in the results.  This will be used to determine if a technique has sub-techniques
+        # or not.
+        technique_counts = {}
+
+        for technique in techniques:
+            if technique.external_id_parent not in technique_counts:
+                technique_counts[technique.external_id_parent] = 0
+            technique_counts[technique.external_id_parent] += 1
+
+        # Loop through the techniques and set the has_subs property
+        for technique in techniques:
+            technique.has_subs = technique_counts.get(technique.external_id, 0) > 1
+        
         return {
             'techniques': list(techniques),
             'pagination': {
@@ -226,7 +258,8 @@ class DetectionList(Resource):
 
         # Count the number of detections per techniques.external_id.  techniques.external_id is
         # nested under techniques
-        search.aggs.bucket('techniques', 'nested', path='techniques').bucket('external_ids', 'terms', field='techniques.external_id', size=1000)
+        search.aggs.bucket('techniques', 'nested', path='techniques').bucket('external_ids', 'terms', field='techniques.external_id', size=10000)
+        search.aggs.bucket('active', 'filter', filter={'term': {'active': True}}).bucket('techniques', 'nested', path='techniques').bucket('external_ids', 'terms', field='techniques.external_id', size=10000)
 
         # Set the size to 0 so we don't return any hits
         search = search[0:0]
@@ -238,13 +271,21 @@ class DetectionList(Resource):
         detection_mapping = {
             'techniques': {}
         }
+
+        technique_active_total = {}
+        # Create a lookup dictionary of the external_id and the count of active detections
+        for bucket in results.aggregations.active.techniques.external_ids.buckets:
+            technique_active_total[bucket.key] = bucket.doc_count
         
         for bucket in results.aggregations.techniques.external_ids.buckets:
             #detection_mapping['techniques'].append({
             #    'external_id': bucket.key,
             #    'count': bucket.doc_count
             #})
-            detection_mapping['techniques'][bucket.key] = bucket.doc_count
+            detection_mapping['techniques'][bucket.key] = {
+                'total': bucket.doc_count,
+                'active': technique_active_total.get(bucket.key, 0)
+            }
 
         return detection_mapping
 

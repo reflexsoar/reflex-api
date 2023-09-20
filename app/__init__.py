@@ -389,7 +389,7 @@ def create_app(environment='development'):
             scheduler.add_job(func=sla_monitor.check_event_slas, trigger="interval", seconds=app.config['SLAMONITOR_INTERVAL'])
 
         mattack = MITREAttack(app)
-        scheduler.add_job(func=mattack.download_framework, trigger="date", run_date=datetime.datetime.utcnow())
+        scheduler.add_job(func=mattack.download_framework, trigger="date", run_date=datetime.datetime.now())
         scheduler.add_job(func=mattack.download_framework, trigger="interval", seconds=app.config['MITRE_CONFIG']['POLL_INTERVAL'])
 
         scheduler.start()

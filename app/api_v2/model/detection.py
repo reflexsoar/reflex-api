@@ -3,6 +3,7 @@
 Contains all the logic for the Detection engine
 """
 
+import re
 import json
 from concurrent.futures import ThreadPoolExecutor
 import math
@@ -624,6 +625,7 @@ class Detection(base.BaseDocument):
     is_hunting_rule = Boolean()  # If true the rule is a hunting rule
     # The maximum number of events to create per run
     suppression_max_events = Integer()
+    required_fields = Keyword()  # A list of fields that must be present on the source event
 
     class Index:
         name = "reflex-detections"
@@ -698,6 +700,32 @@ class Detection(base.BaseDocument):
 
         super(Detection, self).save(**kwargs)
 
+    def extract_fields_from_query(self, query=None):
+        '''
+        Extracts the fields from a query and returns them as a list. Fields
+        are expected to be written like field_name: value or field_name:value
+        or field_name : value
+        '''
+        fields = []
+        pattern = r'\b([\w\.]+):'
+
+        pattern = re.compile(pattern)
+
+        if not query:
+            query = self.query.query
+
+        print(query)
+        
+        matches = pattern.findall(query)
+        if matches:
+            fields = [m for m in matches]
+
+        fields = list(set(fields))
+
+        self.required_fields = fields
+            
+        return fields
+    
     @classmethod
     def get_by_detection_id(cls, detection_id, repository=None, organization=None):
         '''

@@ -52,14 +52,27 @@ class MITRETechnique(base.BaseDocument):
         settings = {
             "refresh_interval": "1s"
         }
+        version = "0.1.5"
 
     mitre_id = Keyword(fields={'text':Text()}) # Example: x-mitre-tactic--2558fd61-8c75-4730-94c4-11926db2a263
     description = Keyword(fields={'text':Text()})
     name = Keyword(fields={'text':Text()}) # Example: Credential Access
+    external_id = Keyword(fields={'text':Text()}) # Example: TA0006
     external_references = Nested(MITREExternalReference)
     kill_chain_phases = Nested(MITREKillChainPhase)
     phase_names = Keyword(fields={'text':Text()}) # Example: defense-evasion
     data_sources = Keyword(fields={'text':Text()}) # Example: Process: OS API Execution
+    is_sub_technique = Boolean()
+    is_deprecated = Boolean()
+    is_revoked = Boolean()
+
+    @property
+    def external_id_parent(self):
+        ''' Returns just the parent external_id '''
+        parts = self.external_id.split('.')
+        if len(parts) > 1:
+            return parts[0]
+        return self.external_id
 
     def get_external_id(self):
         ''' Pulls the MITRE External ID from external_references '''

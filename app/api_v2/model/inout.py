@@ -136,6 +136,7 @@ class Input(base.BaseDocument):
     # What sigma field mapping pysigma should use when this input is used
     sigma_field_mapping = Keyword()
     mitre_data_sources = Keyword()  # What MITRE data sources does this input cover?
+    data_source_templates = Keyword()
 
     class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
