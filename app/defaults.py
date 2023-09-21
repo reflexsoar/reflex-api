@@ -231,7 +231,12 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         'view_packages': True,
         'create_package': True,
         'update_package': True,
-        'delete_package': True
+        'delete_package': True,
+        'create_data_source_template': True,
+        'view_data_source_templates': True,
+        'update_data_source_template': True,
+        'delete_data_source_template': True
+
     }
 
     role_contents = {
@@ -289,6 +294,10 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["create_package"] = True
                     perms["update_package"] = True
                     perms["delete_package"] = True
+                    perms["create_data_source_template"] = True
+                    perms["view_data_source_templates"] = True
+                    perms["update_data_source_template"] = True
+                    perms["delete_data_source_template"] = True
                 else:
                     perms['view_organizations'] = False
                     perms['add_organization'] = False
@@ -324,6 +333,10 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["create_package"] = True
                     perms["update_package"] = True
                     perms["delete_package"] = True
+                    perms["create_data_source_template"] = True
+                    perms["view_data_source_templates"] = True
+                    perms["update_data_source_template"] = True
+                    perms["delete_data_source_template"] = True
                 role = role[0]
                 role.permissions = perms
                 role.save()
@@ -430,7 +443,11 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         'view_packages': False,
         'create_package': False,
         'update_package': False,
-        'delete_package': False
+        'delete_package': False,
+        'create_data_source_template': False,
+        'view_data_source_templates': False,
+        'update_data_source_template': False,
+        'delete_data_source_template': False
     }
 
     role_contents = {

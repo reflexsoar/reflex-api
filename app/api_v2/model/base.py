@@ -86,8 +86,8 @@ class BaseDocument(Document):
             
         response = search.execute()
         if response:
-            return True
-        return False
+            return response[0]
+        return None
 
 
     @classmethod

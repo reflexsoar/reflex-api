@@ -733,6 +733,18 @@ class Permission(InnerDoc):
     delete_sso_mapping_policy = Boolean()
     view_sso_mapping_policies = Boolean()
 
+    # Package Permissions
+    create_package = Boolean()
+    update_package = Boolean()
+    delete_package = Boolean()
+    view_packages = Boolean()
+
+    # Data Source Template Permissions
+    create_data_source_template = Boolean()
+    update_data_source_template = Boolean()
+    delete_data_source_template = Boolean()
+    view_data_source_templates = Boolean()
+
 
 class ServiceAccount(base.BaseDocument):
     '''
