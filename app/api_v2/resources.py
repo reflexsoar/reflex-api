@@ -1232,11 +1232,15 @@ class GlobalSettings(Resource):
 
         args = settings_parser.parse_args()
 
-        if user_in_default_org:
-            if args.organization:
+        print(args.organization, current_user.organization)
+
+        if args.organization:
+            if current_user.is_default_org():
                 settings = Settings.load(organization=args.organization)
-            else:
+            elif current_user.organization == args.organization:
                 settings = Settings.load(organization=current_user.organization)
+            else:
+                abort(404, 'Organization not found.')
         else:
             settings = Settings.load(organization=current_user.organization)
             
