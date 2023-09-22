@@ -9,6 +9,13 @@ from elasticsearch_dsl import connections as econn
 from opensearch_dsl import connections as oconn
 
 
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+import smtplib
+import ssl
+
+
 class IndexedDict(dict):
     """A dictionary that maintains an index of the keys in a flattened
     dot notation format.  All destination values are stored in a list to
@@ -183,3 +190,54 @@ def _current_user_id_or_none(organization_only=False):
         print(e)
         return None
     
+def send_system_generated_email(email, subject, body=None, plaintext_body=None):
+    ''' Sends an email as the system configured SMTP server'''
+
+    server = current_app.config["SMTP_SERVER"]
+    port = current_app.config["SMTP_PORT"]
+    username = current_app.config["SMTP_USERNAME"]
+    secret = current_app.config["SMTP_PASSWORD"]
+    mail_from = current_app.config["SMTP_MAIL_FROM"]
+
+    required_params = [server, port, mail_from]
+
+    if any(param is None for param in required_params):
+        current_app.logger.error("Ensure SMTP_SERVER, SMTP_PORT, SMTP_MAIL_FROM are configured, unable to send email.")
+        return
+
+    message = MIMEMultipart("alternative")
+    message["Subject"] = subject
+    message["From"] = mail_from
+    message["To"] = email
+
+    # Create the plain-text and HTML version of your message
+    if plaintext_body:
+        plainttext_part = MIMEText(plaintext_body, "plain")
+        message.attach(plainttext_part)
+
+    if body:
+        html_part = MIMEText(body, "html")
+        message.attach(html_part)
+
+    connection = smtplib.SMTP(server, port)
+
+    # If the mail server requires TLS
+    if port == 587:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+
+        connection.ehlo()
+        connection.starttls(context=context)
+        connection.ehlo()
+
+        if username:
+            connection.login(username, secret)
+
+    else:
+
+        if username:
+            connection.login(username, secret)
+
+    try:
+        connection.sendmail(mail_from, email, message.as_string())
+    except Exception as e:
+        current_app.logger.error(f"Unable to send email - {e}")
