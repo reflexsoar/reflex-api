@@ -11,8 +11,9 @@ import jwt
 import onetimepass
 import base64
 import os
-from flask import current_app, request
+from flask import current_app, request, render_template
 from flask_bcrypt import Bcrypt
+from .utils import send_system_generated_email
 
 from . import (
     Text,
@@ -257,7 +258,7 @@ class User(base.BaseDocument):
         _token = jwt.encode({
             'uuid': self.uuid,
             'organization': self.organization,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30),
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=current_app.config['PASSWORD_RESET_EXPIRE_MINUTES']),
             'iat': datetime.datetime.utcnow(),
             'type': 'password_reset'
         }, current_app.config['SECRET_KEY'])
@@ -455,6 +456,24 @@ class User(base.BaseDocument):
         if hasattr(self, 'default_org'):
             return self.default_org
         return False
+    
+    def send_sspr_email(user):
+        '''
+        Sends an email to the user with a link to reset their password
+        '''
+
+        # Generate a new token for the user to reset their password
+        token = user.create_password_reset_token()
+
+        support_email = current_app.config['SUPPORT_EMAIL']
+        reset_url = f"{current_app.config['SSO_BASE_URL']}/#/reset_password/{token}"
+
+        # Fill in the template with the users information
+        user.email = user.email.lower();
+        email_body = render_template('emails/sspr.html', user=user, support_email=support_email, reset_url=reset_url)
+        email_body_plaintext = render_template('emails/sspr-plaintext.html', user=user, support_email=support_email, reset_url=reset_url)
+
+        send_system_generated_email(user.email, 'Reflex Password Reset', email_body, email_body_plaintext)
 
 
 class OrganizationSLASettings(InnerDoc):

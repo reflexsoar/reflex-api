@@ -55,6 +55,72 @@ class MultiFactor(Resource):
         api.abort(401, 'Invalid TOTP token')
 
 
+mod_user_email = api.model('UserEmail', {
+    'email': fields.String
+})
+
+
+@api.route("/forgot_password")
+class ForgotPassword(Resource):
+
+    @api.expect(mod_user_email)
+    def post(self):
+
+        if current_app.config['PASSWORD_SSPR_DISABLED']:
+            api.abort(401, 'Self-service password reset is disabled.')
+
+        # Get the user by email
+        user = User.get_by_email(api.payload['email'])
+
+        if user:
+            user.send_sspr_email()
+        
+        return {'message': 'A password reset e-mail has been generated.'}, 200
+    
+mod_password_reset_confirmation = api.model('PasswordResetConfirmation', {
+    'password': fields.String(required=True),
+    'confirm_password': fields.String(required=True)
+}, validate=True)
+
+@api.route('/reset_password/<string:token>')
+class ResetPassword(Resource):
+
+    def get(self, token):
+
+        if current_app.config['PASSWORD_SSPR_DISABLED']:
+            api.abort(401, 'Self-service password reset is disabled.')
+
+        user = check_password_reset_token(token)
+
+        if user:
+            return {'message': 'Valid token.'}, 200
+
+        api.abort(401, 'Invalid token.')
+
+    @api.expect(mod_password_reset_confirmation)
+    def post(self, token):
+
+        if current_app.config['PASSWORD_SSPR_DISABLED']:
+            api.abort(400, 'Self-service password reset is disabled.')
+
+        user = check_password_reset_token(token)
+
+        if 'password' not in api.payload or 'confirm_password' not in api.payload:
+            api.abort(400, 'Passwords do not match.')
+
+        if user:
+            if api.payload['password'] != api.payload['confirm_password']:
+                api.abort(400, 'Passwords do not match.')
+
+            user.set_password(api.payload['password'])
+            user.save()
+            expired = ExpiredToken(token=token)
+            expired.save()
+            return {'message': 'Password updated.'}, 200
+
+        api.abort(400, 'Invalid reset token.')
+
+
 @api.route("/login")
 class Login(Resource):
 
