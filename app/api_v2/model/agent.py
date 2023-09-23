@@ -288,6 +288,10 @@ class Agent(base.BaseDocument):
                 priority=0,
                 revision=0
             )
+        
+    def is_default_org(self):
+        ''' Checks to see if the user belongs to the default org'''
+        return False
 
     def has_right(self, permission):
         '''

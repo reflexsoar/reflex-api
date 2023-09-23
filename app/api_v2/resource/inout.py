@@ -80,8 +80,10 @@ mod_input_create = api.model('CreateInput', {
     'sigma_backend': fields.String,
     'sigma_pipeline': fields.String,
     'sigma_field_mapping': fields.String,
-    'mitre_data_sources': fields.List(fields.String)
+    'mitre_data_sources': fields.List(fields.String),
+    'data_source_templates': fields.List(fields.String)
 })
+
 mod_input_list_brief = api.model('InputBrief', {
     'uuid': fields.String,
     'name': fields.String
@@ -246,13 +248,17 @@ class InputDetails(Resource):
     @user_has('update_input')
     def put(self, uuid, current_user):
         ''' Updates information for an input '''
+        
         inp = Input.get_by_uuid(uuid=uuid)
         if inp:
-            if 'name' in api.payload and Input.get_by_name(name=api.payload['name']):
-                api.abort(409, 'Input name already exists.')
-            else:
-                inp.update(**api.payload)
-                return inp
+            if 'name' in api.payload:
+                existing_input = Input.get_by_name(
+                    name=api.payload['name'], organization=inp.organization)
+                if existing_input and existing_input.uuid != inp.uuid:
+                    api.abort(409, 'Input name already exists.')
+            
+            inp.update(**api.payload)
+            return inp
         else:
             api.abort(404, 'Input not found.')
 

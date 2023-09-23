@@ -55,11 +55,15 @@ mod_data_source_template_list = api.model('DataSourceTemplateList', {
     'templates': fields.List(fields.Nested(mod_data_source_template_details))
 })
 
+dst_parser = api.parser()
+dst_parser.add_argument('organization', type=str, help='Organization', location='args')
+
 @api.route("")
 class DataSourceTemplateList(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_data_source_template_list)
+    @api.expect(dst_parser)
     @token_required
     @user_has('view_data_source_templates')
     def get(self, current_user):
@@ -67,7 +71,32 @@ class DataSourceTemplateList(Resource):
         Returns a list of data source templates
         '''
 
-        templates = DataSourceTemplate.search().scan()
+        args = dst_parser.parse_args()
+
+        templates = DataSourceTemplate.search(skip_org_check=True)
+
+        if args.organization:
+            if current_user.is_default_org():
+                templates = templates.filter('bool', should=[
+                    {'term': {'organization': args.organization}},
+                    {'term': {'is_global': True}}
+                ])
+            else:
+                templates = templates.filter('bool', should=[
+                    {'term': {'organization': current_user.organization}},
+                    {'term': {'is_global': True}}
+                ])
+        else:
+            if not current_user.is_default_org():
+                templates = templates.filter('bool', should=[
+                    {'term': {'organization': current_user.organization}},
+                    {'term': {'is_global': True}}
+                ])
+
+        import json
+        print(json.dumps(templates.to_dict(), indent=4))
+
+        templates = templates.scan()
 
         return {'templates': [t for t in templates]}
 
@@ -82,9 +111,6 @@ class DataSourceTemplateList(Resource):
         '''
 
         data = api.payload
-
-        print(data)
-
 
         # If the user is trying to set the organization make sure they have the proper
         # permissions to do so
@@ -121,8 +147,6 @@ class DataSourceTemplateList(Resource):
             is_global=is_global
         )
 
-        
-
         template.save()
 
         return template
@@ -138,8 +162,6 @@ class DataSourceTemplateDetails(Resource):
         '''
         Returns the details of a data source template
         '''
-
-        # TODO: Add organization check
 
         template = DataSourceTemplate.get(uuid)
 
