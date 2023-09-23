@@ -315,6 +315,7 @@ class AgentPolicy(Resource):
                     'detector': agent._policy.detector_config,
                     'poller': agent._policy.poller_config,
                     'runner': agent._policy.runner_config,
+                    'mitre': agent._policy.mitre_config
                 },
                 'settings': {
                     'health_check_interval': agent._policy.health_check_interval,

@@ -510,7 +510,8 @@ def create_agent_role(cls, org_id, check_for_default=False):
         "view_service_accounts": False,
         "update_service_account": False,
         "delete_service_account": False,
-        "view_packages": True
+        "view_packages": True,
+        "view_data_source_templates": True,
     }
 
     role_contents = {

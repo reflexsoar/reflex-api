@@ -65,6 +65,18 @@ class PollerRoleConfig(InnerDoc):
     signature_cache_ttl = Integer()
 
 
+class MitreMapperConfig(InnerDoc):
+    '''
+    Contains information about the Mitre Mapper configuration
+    '''
+
+    concurrent_inputs = Integer()  # How many inputs can a single mapper run concurrently
+    mapping_refresh_interval = Integer()  # How often should the mapper refresh its mapping
+    # Should the mapper attempt a graceful exit when the mapper is asked to shut down?
+    graceful_exit = Boolean()
+    logging_level = Keyword()  # What logging level should the mapper use for its logs?
+
+
 class AgentPolicy(base.BaseDocument):
     '''
     A Reflex agent policy that controls all the configuration of an agent
@@ -99,6 +111,7 @@ class AgentPolicy(base.BaseDocument):
     detector_config = Nested(DetectorRoleConfig)
     # What is the configuration for the runner role?
     runner_config = Nested(RunnerRoleConfig)
+    mitre_mapper_config = Nested(MitreMapperConfig)
     tags = Keyword()  # Tags to categorize this policy
     priority = Integer()  # What is the priority of this policy?
     revision = Integer()  # What is the revision of this policy?
@@ -262,6 +275,12 @@ class Agent(base.BaseDocument):
                     concurrent_actions=10,
                     wait_interval=30,
                     plugin_poll_interval=30,
+                    graceful_exit=True,
+                    logging_level='ERROR'
+                ),
+                mitre_mapper_config=MitreMapperConfig(
+                    concurrent_inputs=10,
+                    mapping_refresh_interval=60,
                     graceful_exit=True,
                     logging_level='ERROR'
                 ),
