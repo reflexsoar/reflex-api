@@ -936,30 +936,30 @@ class DetectionFilters(Resource):
 
         # Aggregate for tactic names which are nested under tactics
         detections.aggs.bucket('tactics', 'nested', path='tactics').bucket(
-            'tactic_names', 'terms', field='tactics.external_id', size=1000)
+            'tactic_names', 'terms', field='tactics.external_id', size=1000, min_doc_count=0)
 
         # Aggregate for technique names which are nested under techniques
         detections.aggs.bucket('techniques', 'nested', path='techniques').bucket(
-            'technique_names', 'terms', field='techniques.external_id', size=1000)
+            'technique_names', 'terms', field='techniques.external_id', size=1000, min_doc_count=0)
 
         # Aggregate for status
-        detections.aggs.bucket('status', 'terms', field='status', size=1000)
+        detections.aggs.bucket('status', 'terms', field='status', size=1000, min_doc_count=0)
 
         # Aggregate for organization
         detections.aggs.bucket('organization', 'terms',
-                                    field='organization', size=1000)
+                                    field='organization', size=1000, min_doc_count=0)
 
         # Aggregate for repository
         detections.aggs.bucket('repository', 'terms',
-                                    field='repository', size=1000)
+                                    field='repository', size=1000, min_doc_count=0)
 
         # Aggregate for warnings
         detections.aggs.bucket('warnings', 'terms',
-                               field='warnings', size=1000)
+                               field='warnings', size=1000, min_doc_count=0)
         
         # Aggregate for active
         detections.aggs.bucket('active', 'terms',
-                                    field='active', size=1000)
+                                    field='active', size=1000, min_doc_count=0)
         
         # Aggregate for assess_rule
         detections.aggs.bucket('assess_rule', 'terms',
@@ -967,7 +967,7 @@ class DetectionFilters(Resource):
         
         # Aggregator for rule_type
         detections.aggs.bucket('rule_type', 'terms',
-                                    field='rule_type', size=1000)
+                                    field='rule_type', size=1000, min_doc_count=0)
 
         # Aggregrator for severity
         detections.aggs.bucket('severity', 'terms',
