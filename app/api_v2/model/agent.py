@@ -75,6 +75,7 @@ class MitreMapperConfig(InnerDoc):
     # Should the mapper attempt a graceful exit when the mapper is asked to shut down?
     graceful_exit = Boolean()
     logging_level = Keyword()  # What logging level should the mapper use for its logs?
+    assessment_days = Integer()  # How many days back should the mapper assess for new data
 
 
 class AgentPolicy(base.BaseDocument):
@@ -282,7 +283,8 @@ class Agent(base.BaseDocument):
                     concurrent_inputs=10,
                     mapping_refresh_interval=60,
                     graceful_exit=True,
-                    logging_level='ERROR'
+                    logging_level='ERROR',
+                    assessment_days=14
                 ),
                 tags=['default'],
                 priority=0,
