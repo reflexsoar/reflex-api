@@ -24,6 +24,7 @@ from ..model import (
     DetectionState,
     UpdateByQuery
 )
+import chevron
 from .shared import mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
 from ..utils import page_results
@@ -1371,20 +1372,41 @@ def add_warning(payload, warning):
 
     return payload
 
+detection_details_parser = api.parser()
+detection_details_parser.add_argument(
+    'event', type=str, location='args', required=False)
 
 @api.route("/<uuid>")
 class DetectionDetails(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_detection_details)
+    @api.expect(detection_details_parser)
     @token_required
     @user_has('view_detections')
     def get(self, uuid, current_user):
         '''
         Returns the details of a single detection rule
         '''
+
+        args = detection_details_parser.parse_args()
+
         detection = Detection.get_by_uuid(uuid=uuid)
+
         if detection:
+            if args.event:
+                # Pull the event and then use Jinja2 to replace any variables
+                # in the detections Triage Guide
+                event = Event.get_by_uuid(uuid=args.event, organization=detection.organization)
+                if event:
+                    event.raw_log = json.loads(event.raw_log)
+                    
+                    try:
+                        detection.guide = chevron.render(detection.guide, event.to_dict())
+                    except Exception as e:
+                        print(e)
+                        pass
+
             return detection
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')
