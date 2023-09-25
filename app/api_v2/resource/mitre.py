@@ -1,6 +1,8 @@
 from app.api_v2.model import MITRETactic, MITRETechnique, Q, Detection
 from flask import request
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
+
+from app.api_v2.model.inout import Input
 from .shared import mod_pagination
 from ..utils import page_results, token_required, user_has
 
@@ -211,22 +213,38 @@ class TechniqueList(Resource):
             }
         }
 
+data_source_parser = api.parser()
+data_source_parser.add_argument('with_coverage', location='args', type=xinputs.boolean, default=False, required=False)
+
 @api.route("/data_sources")
 class DataSourceList(Resource):
 
     @api.doc(security="Bearer")
+    @api.expect(data_source_parser)
     @api.marshal_with(mod_data_sources)
     @token_required
     def get(self, current_user):
         '''
         Returns a list of MITRE ATT&CK Data Sources
         '''
+
+        args = data_source_parser.parse_args()
         
         search = MITRETechnique.search()
         search = search[0:]
         search.aggs.bucket('data_sources', 'terms', field='data_sources', size=1000)
-
         results = search.execute()
+
+        if current_user and args.with_coverage and args.with_coverage is True:
+            covered_filter = []
+            inputs = Input.search()
+            inputs.aggs.bucket('mitre_data_sources', 'terms', field='mitre_data_sources', size=1000)
+            inputs = inputs[0]
+            inputs = inputs.execute()
+            input_buckets = inputs.aggregations.mitre_data_sources.buckets
+            covered_filter = [bucket.key for bucket in input_buckets]
+            return {'data_sources': [bucket.key for bucket in results.aggregations.data_sources.buckets if bucket.key in covered_filter]}            
+        
         return {'data_sources': [bucket.key for bucket in results.aggregations.data_sources.buckets]}
     
 
