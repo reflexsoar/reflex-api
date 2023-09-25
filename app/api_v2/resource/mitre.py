@@ -56,7 +56,10 @@ mod_technique_details = api.model('MITRETechnique', {
     'external_references': fields.List(fields.Nested(mod_external_reference)),
     'phase_names': fields.List(fields.String),
     'kill_chain_phases': fields.List(fields.Nested(mod_kill_chain_phase)),
-    'data_sources': fields.List(fields.String)
+    'data_sources': fields.List(fields.String),
+    'is_revoked': fields.Boolean(default=False),
+    'total_detections': fields.Integer(default=0),
+    'active_detections': fields.Integer(default=0)
 })
 
 mod_technique_brief = api.model('MITRETechniqueBrief', {
@@ -142,6 +145,9 @@ technique_list_parser.add_argument(
 technique_list_parser.add_argument(
     'show_revoked', type=xinputs.boolean, location='args', default=False, required=False
 )
+technique_list_parser.add_argument(
+    'show_detection_metrics', type=xinputs.boolean, location='args', default=False, required=False
+)
 
 @api.route("/technique")
 class TechniqueList(Resource):
@@ -177,7 +183,6 @@ class TechniqueList(Resource):
         if args.phase_names and len(args.phase_names) > 0 and args.phase_names != ['']:
             search = search.filter('terms', phase_names=args.phase_names)
 
-
         if args.show_revoked:
             search = search.filter('terms', is_revoked=[True, False])
         else:
@@ -202,6 +207,31 @@ class TechniqueList(Resource):
         # Loop through the techniques and set the has_subs property
         for technique in techniques:
             technique.has_subs = technique_counts.get(technique.external_id, 0) > 1
+
+        # If the user is authenticated and the show_detection_metrics flag is set to true
+        # aggregate the number of detections per technique and the number of active detections
+        # per technique
+        if args.show_detection_metrics is True and current_user:
+            detections = Detection.search()
+            detections.aggs.bucket('techniques', 'nested', path='techniques').bucket('external_ids', 'terms', field='techniques.external_id', size=10000)
+            detections.aggs.bucket('active', 'filter', filter={'term': {'active': True}}).bucket('techniques', 'nested', path='techniques').bucket('external_ids', 'terms', field='techniques.external_id', size=10000)
+            detections = detections[0:0]
+
+            detections = detections.execute()
+
+            # Create a lookup dictionary of the external_id and the count of total and active detections
+            technique_total = {}
+            technique_active_total = {}
+            for bucket in detections.aggregations.techniques.external_ids.buckets:
+                technique_total[bucket.key] = bucket.doc_count
+
+            for bucket in detections.aggregations.active.techniques.external_ids.buckets:
+                technique_active_total[bucket.key] = bucket.doc_count
+
+            # Loop through the techniques and set the total and active properties
+            for technique in techniques:
+                technique.total_detections = technique_total.get(technique.external_id, 0)
+                technique.active_detections = technique_active_total.get(technique.external_id, 0)
         
         return {
             'techniques': list(techniques),
