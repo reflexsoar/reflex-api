@@ -93,9 +93,6 @@ class DataSourceTemplateList(Resource):
                     {'term': {'is_global': True}}
                 ])
 
-        import json
-        print(json.dumps(templates.to_dict(), indent=4))
-
         templates = templates.scan()
 
         return {'templates': [t for t in templates]}

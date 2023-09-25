@@ -352,9 +352,6 @@ class Reporting(Resource):
         # Aggregate by the event_observables.observable_value.keyword
         event_observables.aggs['org_filter']['date_filter']['nested']['observables'].bucket('observables', 'terms', field='event_observables.value.keyword', size=10)
 
-        import json
-        print(json.dumps(event_observables.to_dict(), indent=2, default=str))
-
         event_observables = event_observables.execute()
 
         top_10_users = []
