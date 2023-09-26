@@ -172,3 +172,10 @@ class BaseDocument(Document):
             #self.updated_by = utils._current_user_id_or_none()
 
         return super().update(**kwargs)
+    
+    @classmethod
+    def get_all(cls):
+        '''
+        Returns all documents of this type
+        '''
+        return [d for d in cls.search().scan()]
