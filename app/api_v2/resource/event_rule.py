@@ -68,7 +68,8 @@ mod_event_rule_create = api.model('CreateEventRule', {
     'priority': fields.Integer,
     'notification_channels': fields.List(fields.String),
     'protected': fields.Boolean,
-    'integration_actions': fields.List(fields.Nested(mod_run_action))
+    'integration_actions': fields.List(fields.Nested(mod_run_action)),
+    'schedules': fields.String
 })
 
 mod_event_rule_list = api.model('EventRuleList', {
@@ -115,7 +116,8 @@ mod_event_rule_list = api.model('EventRuleList', {
     'tags': fields.List(fields.String),
     'high_volume_rule': fields.Boolean,
     'protected': fields.Boolean,
-    'integration_actions': fields.List(AsAttrDict)
+    'integration_actions': fields.List(AsAttrDict),
+    'schedules': fields.List(fields.String, default=[])
 })
 
 mod_event_rule_list_paged = api.model('PagedEventRuleList', {

@@ -3,6 +3,7 @@ import hashlib
 import json
 from app.api_v2.model.exceptions import EventRuleFailure
 from app.api_v2.model.notification import Notification
+from app.api_v2.model.schedule import Schedule
 from app.api_v2.model.system import Observable
 from app.api_v2.model.user import User
 from app.api_v2.model.inout import Input
@@ -621,6 +622,7 @@ class EventRule(base.BaseDocument):
     tags = Keyword() # Descriptive tags for the event rule
     protected = Boolean() # If true, the event rule can only be modified by its creator
     integration_actions = Nested() # The integration actions to run when the event rule matches
+    schedules = Keyword() # The schedules to run the event rule on
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -859,3 +861,20 @@ class EventRule(base.BaseDocument):
             return list(response)
 
         return []
+    
+    def schedule_allows(self):
+        '''
+        Checks to see if any of the schedules defined on the Event Rule
+        are currently active and the current time (adjusted) to the schedules
+        defined timezone is within the schedule
+        '''
+
+        if hasattr(self, 'schedules') and self.schedules:
+            schedules = Schedule.get_by_uuid(self.schedules, all_results=True)
+            for schedule in schedules:
+                if schedule.schedule_active:
+                    return True
+        else:
+            return True
+        
+        return False

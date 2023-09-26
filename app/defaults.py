@@ -235,8 +235,11 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         'create_data_source_template': True,
         'view_data_source_templates': True,
         'update_data_source_template': True,
-        'delete_data_source_template': True
-
+        'delete_data_source_template': True,
+        'create_schedule': True,
+        'view_schedules': True,
+        'update_schedule': True,
+        'delete_schedule': True
     }
 
     role_contents = {
@@ -298,6 +301,10 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["view_data_source_templates"] = True
                     perms["update_data_source_template"] = True
                     perms["delete_data_source_template"] = True
+                    perms["create_schedule"] = True
+                    perms["view_schedules"] = True
+                    perms["update_schedule"] = True
+                    perms["delete_schedule"] = True
                 else:
                     perms['view_organizations'] = False
                     perms['add_organization'] = False
@@ -337,6 +344,10 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["view_data_source_templates"] = True
                     perms["update_data_source_template"] = True
                     perms["delete_data_source_template"] = True
+                    perms["create_schedule"] = True
+                    perms["view_schedules"] = True
+                    perms["update_schedule"] = True
+                    perms["delete_schedule"] = True
                 role = role[0]
                 role.permissions = perms
                 role.save()
@@ -447,7 +458,10 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         'create_data_source_template': False,
         'view_data_source_templates': False,
         'update_data_source_template': False,
-        'delete_data_source_template': False
+        'delete_data_source_template': False,
+        'create_schedule': False,
+        'view_schedules': False,
+        'update_schedule': False,
     }
 
     role_contents = {

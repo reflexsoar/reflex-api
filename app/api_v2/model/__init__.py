@@ -98,6 +98,7 @@ from .integration import Integration, IntegrationConfiguration, IntegrationLog, 
 from .sso import SSOProvider, RoleMappingPolicy
 from .package import Package
 from .data_source import DataSourceTemplate, DataSourceDefinition
+from .schedule import Schedule
 
 VERSION = (2, 0, 0)
 __version__ = VERSION
@@ -174,4 +175,5 @@ __all__ = [
     'analyzer',
     'DataSourceTemplate',
     'DataSourceDefinition',
+    'Schedule'
 ]

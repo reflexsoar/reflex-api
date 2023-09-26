@@ -268,7 +268,11 @@ mod_permissions = Model('Permissions', {
     'create_data_source_template': fields.Boolean,
     'update_data_source_template': fields.Boolean,
     'delete_data_source_template': fields.Boolean,
-    'view_data_source_templates': fields.Boolean
+    'view_data_source_templates': fields.Boolean,
+    'create_schedule': fields.Boolean,
+    'update_schedule': fields.Boolean,
+    'delete_schedule': fields.Boolean,
+    'view_schedules': fields.Boolean,
 }, strict=True)
 
 mod_user_list = Model('UserList', {

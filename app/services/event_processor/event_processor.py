@@ -1197,6 +1197,10 @@ class EventWorker(Process):
             # Process Global Event Rules
             raw_event['metrics']['event_rule_start'] = datetime.datetime.utcnow()
             for rule in self.rules:
+
+                if not rule.schedule_allows():
+                    self.logger.info(f"Skipping rule {rule.uuid} ({rule.name}) because it is not scheduled to run at this time")
+                    continue
                 
                 try:
                     matched = False
