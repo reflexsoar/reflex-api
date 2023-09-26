@@ -33,6 +33,10 @@ mod_data_source_template_details = api.model('DataSourceTemplateDetails', {
     'sources': fields.List(fields.Nested(mod_data_source_definition_details)),
     'revision': fields.Integer,
     'is_global': fields.Boolean,
+    'updated_at': ISO8601,
+    'created_at': ISO8601,
+    'created_by': fields.Nested(mod_user_list),
+    'updated_by': fields.Nested(mod_user_list)
 })
 
 mod_data_source_template_create = api.model('DataSourceTemplateCreate', {
