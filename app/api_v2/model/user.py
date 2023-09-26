@@ -346,6 +346,24 @@ class User(base.BaseDocument):
                     if r.permissions[p] is True:
                         permissions[p] = r.permissions[p]
         return permissions
+    
+    @property
+    def tlps(self):
+        '''
+        Returns a list of all the users TLPs
+        '''
+
+        role = Role.search().query('term', members=self.uuid).scan()
+
+        # If there is more than one role assigned to the user
+        # merge the permissions together such that any permission that is true
+        # overrides false
+        tlps = []
+        for r in role:
+            for t in r.tlps:
+                if t not in tlps:
+                    tlps.append(t)
+        return tlps
 
     def has_right(self, permission):
         '''
@@ -764,6 +782,12 @@ class Permission(InnerDoc):
     delete_data_source_template = Boolean()
     view_data_source_templates = Boolean()
 
+    # Schedule Permissions
+    create_schedule = Boolean()
+    update_schedule = Boolean()
+    delete_schedule = Boolean()
+    view_schedules = Boolean()
+    
 
 class ServiceAccount(base.BaseDocument):
     '''
@@ -779,6 +803,7 @@ class ServiceAccount(base.BaseDocument):
     name = Keyword() # The name of the service account, must be unique
     description = Text(fields={'keyword':Keyword()}) # A description of the service account
     permissions = Object(Permission) # The permissions that this service account has
+    tlps = Keyword() # The TLPs that this service account can access
     active = Boolean() # Whether or not this service account is active, if not it cannot be used
     last_used = Date() # The last time this service account was used
     organization_scope = Keyword() # The organizations that this service account can access
@@ -884,6 +909,7 @@ class Role(base.BaseDocument):
     description = Text(fields={'keyword':Keyword()})  # A brief description of the role
     members = Keyword()  # Contains a list of user IDs
     permissions = Nested(Permission)
+    tlps = Keyword() # The TLPs that this service account can access
     system_generated = Boolean() # If this is a default Role in the system
 
     class Index: # pylint: disable=too-few-public-methods
