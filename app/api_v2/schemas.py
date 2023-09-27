@@ -211,7 +211,15 @@ mod_permissions = Model('Permissions', {
     'create_sso_mapping_policy': fields.Boolean,
     'update_sso_mapping_policy': fields.Boolean,
     'delete_sso_mapping_policy': fields.Boolean,
-    'view_sso_mapping_policies': fields.Boolean
+    'view_sso_mapping_policies': fields.Boolean,
+    'view_packages': fields.Boolean,
+    'create_package': fields.Boolean,
+    'update_package': fields.Boolean,
+    'delete_package': fields.Boolean,
+    'view_data_source_templates': fields.Boolean,
+    'add_data_source_templates': fields.Boolean,
+    'update_data_source_templates': fields.Boolean,
+    'delete_data_source_templates': fields.Boolean
 })
 
 mod_role_create = Model('RoleCreate', {

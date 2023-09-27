@@ -1668,15 +1668,15 @@ class EventStats(Resource):
 
         if 'dismiss_reason' in args.metrics:
             max_reasons = args.top if args.top != 10 else 100
-            search.aggs['range'].bucket('dismiss_reason', 'terms', field='dismiss_reason.keyword', size=max_reasons)
+            search.aggs['range'].bucket('dismiss_reason', 'terms', field='dismiss_reason.keyword', size=max_reasons, min_doc_count=0)
 
         if 'status' in args.metrics:
             max_status = args.top if args.top != 10 else 100
-            search.aggs['range'].bucket('status', 'terms', field='status.name.keyword', size=max_status)
+            search.aggs['range'].bucket('status', 'terms', field='status.name.keyword', size=max_status, min_doc_count=0)
 
         if 'severity' in args.metrics:
             max_severity = args.top if args.top != 10 else 100
-            search.aggs['range'].bucket('severity', 'terms', field='severity', size=max_severity)
+            search.aggs['range'].bucket('severity', 'terms', field='severity', size=max_severity, min_doc_count=0)
 
         if 'signature' in args.metrics:
             max_signature = args.top if args.top != 50 else 100
@@ -1692,7 +1692,7 @@ class EventStats(Resource):
 
         if 'organization' in args.metrics:
             max_organizations = args.top if args.top != 10 else 100
-            search.aggs['range'].bucket('organization', 'terms', field='organization', size=max_organizations)
+            search.aggs['range'].bucket('organization', 'terms', field='organization', size=max_organizations, min_doc_count=0)
 
         if 'observable' in args.metrics:
             max_observables = args.top if args.top != 10 else 100

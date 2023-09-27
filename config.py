@@ -179,6 +179,19 @@ class Config(object):
 
     INTEGRATION_LOADER_INTERVAL = int(os.getenv('REFLEX_INTEGRATION_LOADER_INTERVAL')) if os.getenv('REFLEX_INTEGRATION_LOADER_INTERVAL') else 1
 
+    # Password Reset Configuration
+    PASSWORD_RESET_EXPIRE_MINUTES = int(os.getenv('REFLEX_PASSWORD_RESET_EXPIRE_MINUTES')) if os.getenv('REFLEX_PASSWORD_RESET_EXPIRE_MINUTES') else 15
+    PASSWORD_SSPR_DISABLED = as_bool(os.getenv('REFLEX_PASSWORD_SSPR_ENABLED')) if os.getenv('REFLEX_PASSWORD_SSPR_ENABLED') else False
+
+    # SMTP CONFIGURATION
+    SMTP_SERVER = os.getenv('REFLEX_SMTP_SERVER') if os.getenv('REFLEX_SMTP_SERVER') else None
+    SMTP_PORT = os.getenv('REFLEX_SMTP_PORT') if os.getenv('REFLEX_SMTP_PORT') else None
+    SMTP_USERNAME = os.getenv('REFLEX_SMTP_USERNAME') if os.getenv('REFLEX_SMTP_USERNAME') else None
+    SMTP_PASSWORD = os.getenv('REFLEX_SMTP_PASSWORD') if os.getenv('REFLEX_SMTP_PASSWORD') else None
+    SMTP_MAIL_FROM = os.getenv('REFLEX_SMTP_MAIL_FROM') if os.getenv('REFLEX_SMTP_MAIL_FROM') else None
+    
+    SUPPORT_EMAIL = os.getenv('REFLEX_SUPPORT_EMAIL') if os.getenv('REFLEX_SUPPORT_EMAIL') else None
+
 
 class ProductionConfig(Config):
     ENV = 'production'

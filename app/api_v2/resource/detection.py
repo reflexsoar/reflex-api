@@ -24,6 +24,7 @@ from ..model import (
     DetectionState,
     UpdateByQuery
 )
+import chevron
 from .shared import mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
 from ..utils import page_results
@@ -936,30 +937,30 @@ class DetectionFilters(Resource):
 
         # Aggregate for tactic names which are nested under tactics
         detections.aggs.bucket('tactics', 'nested', path='tactics').bucket(
-            'tactic_names', 'terms', field='tactics.external_id', size=1000)
+            'tactic_names', 'terms', field='tactics.external_id', size=1000, min_doc_count=0)
 
         # Aggregate for technique names which are nested under techniques
         detections.aggs.bucket('techniques', 'nested', path='techniques').bucket(
-            'technique_names', 'terms', field='techniques.external_id', size=1000)
+            'technique_names', 'terms', field='techniques.external_id', size=1000, min_doc_count=0)
 
         # Aggregate for status
-        detections.aggs.bucket('status', 'terms', field='status', size=1000)
+        detections.aggs.bucket('status', 'terms', field='status', size=1000, min_doc_count=0)
 
         # Aggregate for organization
         detections.aggs.bucket('organization', 'terms',
-                                    field='organization', size=1000)
+                                    field='organization', size=1000, min_doc_count=0)
 
         # Aggregate for repository
         detections.aggs.bucket('repository', 'terms',
-                                    field='repository', size=1000)
+                                    field='repository', size=1000, min_doc_count=0)
 
         # Aggregate for warnings
         detections.aggs.bucket('warnings', 'terms',
-                               field='warnings', size=1000)
+                               field='warnings', size=1000, min_doc_count=0)
         
         # Aggregate for active
         detections.aggs.bucket('active', 'terms',
-                                    field='active', size=1000)
+                                    field='active', size=1000, min_doc_count=0)
         
         # Aggregate for assess_rule
         detections.aggs.bucket('assess_rule', 'terms',
@@ -967,7 +968,7 @@ class DetectionFilters(Resource):
         
         # Aggregator for rule_type
         detections.aggs.bucket('rule_type', 'terms',
-                                    field='rule_type', size=1000)
+                                    field='rule_type', size=1000, min_doc_count=0)
 
         # Aggregrator for severity
         detections.aggs.bucket('severity', 'terms',
@@ -1371,20 +1372,41 @@ def add_warning(payload, warning):
 
     return payload
 
+detection_details_parser = api.parser()
+detection_details_parser.add_argument(
+    'event', type=str, location='args', required=False)
 
 @api.route("/<uuid>")
 class DetectionDetails(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_detection_details)
+    @api.expect(detection_details_parser)
     @token_required
     @user_has('view_detections')
     def get(self, uuid, current_user):
         '''
         Returns the details of a single detection rule
         '''
+
+        args = detection_details_parser.parse_args()
+
         detection = Detection.get_by_uuid(uuid=uuid)
+
         if detection:
+            if args.event:
+                # Pull the event and then use Jinja2 to replace any variables
+                # in the detections Triage Guide
+                event = Event.get_by_uuid(uuid=args.event, organization=detection.organization)
+                if event:
+                    event.raw_log = json.loads(event.raw_log)
+                    
+                    try:
+                        detection.guide = chevron.render(detection.guide, event.to_dict())
+                    except Exception as e:
+                        print(e)
+                        pass
+
             return detection
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')

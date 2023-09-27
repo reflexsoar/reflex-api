@@ -1,0 +1,11 @@
+Dear {{ user.first_name }},
+
+You have requested a password reset on your ReflexSOAR account {{ user.email }}. Navigate to the URL below to change your password.
+
+{{ reset_url }}
+
+If you did not request a password reset please disregard this e-mail.
+
+{% if support_email %}
+If you continue to have issues logging in to your account, please notify {{ support_email }}.
+{% endif %}

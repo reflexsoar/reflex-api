@@ -92,11 +92,11 @@ class OrganizationDetails(Resource):
         organization = Organization.get_by_uuid(uuid=uuid)
 
         # If the user is the default organization allow them to view any organization
-        if user_in_default_org:
-            return organization      
+        if current_user.is_default_org():
+            return organization
         
         # If the user is not the default organization and they try to access a different organization
-        if not user_in_default_org and organization.uuid != current_user.organization:
+        if not current_user.is_default_org() and organization.uuid != current_user.organization:
             api.abort(404, 'Organization not found.')
 
         return organization

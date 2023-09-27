@@ -11,8 +11,9 @@ import jwt
 import onetimepass
 import base64
 import os
-from flask import current_app, request
+from flask import current_app, request, render_template
 from flask_bcrypt import Bcrypt
+from .utils import send_system_generated_email
 
 from . import (
     Text,
@@ -257,7 +258,7 @@ class User(base.BaseDocument):
         _token = jwt.encode({
             'uuid': self.uuid,
             'organization': self.organization,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30),
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=current_app.config['PASSWORD_RESET_EXPIRE_MINUTES']),
             'iat': datetime.datetime.utcnow(),
             'type': 'password_reset'
         }, current_app.config['SECRET_KEY'])
@@ -345,6 +346,24 @@ class User(base.BaseDocument):
                     if r.permissions[p] is True:
                         permissions[p] = r.permissions[p]
         return permissions
+    
+    @property
+    def tlps(self):
+        '''
+        Returns a list of all the users TLPs
+        '''
+
+        role = Role.search().query('term', members=self.uuid).scan()
+
+        # If there is more than one role assigned to the user
+        # merge the permissions together such that any permission that is true
+        # overrides false
+        tlps = []
+        for r in role:
+            for t in r.tlps:
+                if t not in tlps:
+                    tlps.append(t)
+        return tlps
 
     def has_right(self, permission):
         '''
@@ -455,6 +474,24 @@ class User(base.BaseDocument):
         if hasattr(self, 'default_org'):
             return self.default_org
         return False
+    
+    def send_sspr_email(user):
+        '''
+        Sends an email to the user with a link to reset their password
+        '''
+
+        # Generate a new token for the user to reset their password
+        token = user.create_password_reset_token()
+
+        support_email = current_app.config['SUPPORT_EMAIL']
+        reset_url = f"{current_app.config['SSO_BASE_URL']}/#/reset_password/{token}"
+
+        # Fill in the template with the users information
+        user.email = user.email.lower();
+        email_body = render_template('emails/sspr.html', user=user, support_email=support_email, reset_url=reset_url)
+        email_body_plaintext = render_template('emails/sspr-plaintext.html', user=user, support_email=support_email, reset_url=reset_url)
+
+        send_system_generated_email(user.email, 'Reflex Password Reset', email_body, email_body_plaintext)
 
 
 class OrganizationSLASettings(InnerDoc):
@@ -733,6 +770,24 @@ class Permission(InnerDoc):
     delete_sso_mapping_policy = Boolean()
     view_sso_mapping_policies = Boolean()
 
+    # Package Permissions
+    create_package = Boolean()
+    update_package = Boolean()
+    delete_package = Boolean()
+    view_packages = Boolean()
+
+    # Data Source Template Permissions
+    create_data_source_template = Boolean()
+    update_data_source_template = Boolean()
+    delete_data_source_template = Boolean()
+    view_data_source_templates = Boolean()
+
+    # Schedule Permissions
+    create_schedule = Boolean()
+    update_schedule = Boolean()
+    delete_schedule = Boolean()
+    view_schedules = Boolean()
+    
 
 class ServiceAccount(base.BaseDocument):
     '''
@@ -748,6 +803,7 @@ class ServiceAccount(base.BaseDocument):
     name = Keyword() # The name of the service account, must be unique
     description = Text(fields={'keyword':Keyword()}) # A description of the service account
     permissions = Object(Permission) # The permissions that this service account has
+    tlps = Keyword() # The TLPs that this service account can access
     active = Boolean() # Whether or not this service account is active, if not it cannot be used
     last_used = Date() # The last time this service account was used
     organization_scope = Keyword() # The organizations that this service account can access
@@ -853,6 +909,7 @@ class Role(base.BaseDocument):
     description = Text(fields={'keyword':Keyword()})  # A brief description of the role
     members = Keyword()  # Contains a list of user IDs
     permissions = Nested(Permission)
+    tlps = Keyword() # The TLPs that this service account can access
     system_generated = Boolean() # If this is a default Role in the system
 
     class Index: # pylint: disable=too-few-public-methods

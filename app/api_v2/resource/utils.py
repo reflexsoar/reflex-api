@@ -7,11 +7,13 @@ from ..model import Agent, Detection, Tag, UpdateByQuery
 import random
 import string
 
+
 def generate_random_password(length=32):
     '''
     Generates a random password
     '''
     return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
+
 
 def time_since(start_time, message, format="s"):
     '''
@@ -26,6 +28,7 @@ def time_since(start_time, message, format="s"):
         print(f"{message} - {time_diff.total_seconds()/3600}h")
     return time_diff
 
+
 @lru_cache(maxsize=10000)
 def check_ip_whois_io(ip):
     ''' Connects to ipwhois.io and pulls information about the IP address'''
@@ -34,7 +37,7 @@ def check_ip_whois_io(ip):
         ipaddress.ip_address(ip)
     except ValueError:
         return {}
-    
+
     ip_information = {}
     try:
         r = requests.get(f'https://ipwho.is/{ip}')
@@ -43,6 +46,7 @@ def check_ip_whois_io(ip):
     except:
         pass
     return ip_information
+
 
 def save_tags(tags):
     '''
@@ -56,9 +60,11 @@ def save_tags(tags):
             tag = Tag(name=tag)
             tag.save()
 
+
 def chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i:i + n]
+
 
 def redistribute_detections(organization=None):
     '''
@@ -74,18 +80,20 @@ def redistribute_detections(organization=None):
 
     # If there are agents
     if len(agents) > 0:
-        
+
         # Filter for agents that are detectors
-        agents = [agent for agent in agents if agent.merged_roles and 'detector' in agent.merged_roles and agent.healthy]
+        agents = [
+            agent for agent in agents if agent.merged_roles and 'detector' in agent.merged_roles and agent.healthy]
         if len(agents) > 0:
 
             detection_sets = []
 
             # Distribute the agents across all the detections
             if len(detections) > 0:
-                detection_sets = list(chunks(detections, math.ceil(len(detections)/len(agents))))
+                detection_sets = list(
+                    chunks(detections, math.ceil(len(detections)/len(agents))))
 
-            for i in range(0,len(detection_sets)):
+            for i in range(0, len(detection_sets)):
 
                 # Fix for slow agent redistribution, looping through each
                 # detection was a bottleneck
@@ -98,19 +106,22 @@ def redistribute_detections(organization=None):
                 )
 
                 # Wait for a refresh to make sure the changes are available for the next function
-                update_by_query.params(refresh=True, slices="auto", wait_for_completion=True)
+                update_by_query.params(
+                    refresh=True, slices="auto", wait_for_completion=True)
 
                 update_by_query.execute()
 
         else:
 
             update_by_query = UpdateByQuery(index=Detection._index._name)
-            update_by_query = update_by_query.filter("term", organization=organization)
+            update_by_query = update_by_query.filter(
+                "term", organization=organization)
             update_by_query = update_by_query.script(
                 source="ctx._source.assigned_agent = null"
             )
 
             # Wait for a refresh to make sure the changes are available for the next function
-            update_by_query.params(refresh=True, slices="auto", wait_for_completion=True)
+            update_by_query.params(
+                refresh=True, slices="auto", wait_for_completion=True)
 
             update_by_query.execute()

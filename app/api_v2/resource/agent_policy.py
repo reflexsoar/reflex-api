@@ -38,6 +38,14 @@ mod_poller_config = api.model('PollerRoleConfig', {
     'signature_cache_ttl': fields.Integer(default=3600),
 })
 
+mod_mitre_mapper_config = api.model('MitreMapperConfig', {
+    'concurrent_inputs': fields.Integer(default=10),
+    'graceful_exit': fields.Boolean(default=True),
+    'mapping_refresh_interval': fields.Integer(default=60),
+    'logging_level': fields.String(default='ERROR'),
+    'assessment_days': fields.Integer(default=14),
+})
+
 mod_agent_policy = api.model('AgentPolicy', {
     'name': fields.String,
     'organization': fields.String,
@@ -51,6 +59,7 @@ mod_agent_policy = api.model('AgentPolicy', {
     'poller_config': fields.Nested(mod_poller_config),
     'detector_config': fields.Nested(mod_detector_config),
     'runner_config': fields.Nested(mod_runner_config),
+    'mitre_mapper_config': fields.Nested(mod_mitre_mapper_config),
     'tags': fields.List(fields.String, default=[]),
     'priority': fields.Integer(default=1)
 }, strict=True)
@@ -58,7 +67,8 @@ mod_agent_policy = api.model('AgentPolicy', {
 mod_policy_roles = api.model('AgentPolicyRoles', {
     'detector': fields.Nested(mod_detector_config),
     'poller': fields.Nested(mod_poller_config),
-    'runner': fields.Nested(mod_runner_config)
+    'runner': fields.Nested(mod_runner_config),
+    'mitre': fields.Nested(mod_mitre_mapper_config)
 })
 
 mod_policy_settings = api.model('AgentPolicySettings', {

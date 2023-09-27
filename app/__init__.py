@@ -37,7 +37,7 @@ from app.api_v2.model import (
         AgentLogMessage, EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState, RepositorySyncLog,
         Integration, IntegrationConfiguration, IntegrationLog, IntegrationActionQueue, SSOProvider,
-        RoleMappingPolicy, Package
+        RoleMappingPolicy, Package, DataSourceTemplate, Schedule
 )
 
 from .defaults import (
@@ -141,8 +141,9 @@ def upgrade_indices(app):
         EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState,
         RepositorySyncLog, Integration, IntegrationConfiguration, IntegrationLog,
-        IntegrationActionQueue, SSOProvider, RoleMappingPolicy, Package
-        ]
+        IntegrationActionQueue, SSOProvider, RoleMappingPolicy, Package, DataSourceTemplate,
+        Schedule
+    ]
     
     def do_upgrade(model):
         ALIAS = model.Index.name

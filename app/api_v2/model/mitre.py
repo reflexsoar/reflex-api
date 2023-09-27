@@ -93,9 +93,9 @@ class MITRETechnique(base.BaseDocument):
         ''' Fetches the tactic by its external ID '''
         search = cls.search()
         if isinstance(external_id, list):
-            search = search.filter('terms', external_id__keyword=external_id)
+            search = search.filter('terms', external_id=external_id)
         else:
-            search = search.filter('match', external_id=external_id)
+            search = search.filter('term', external_id=external_id)
         result = [r for r in search.scan()]
         if result:
             if isinstance(external_id, list):

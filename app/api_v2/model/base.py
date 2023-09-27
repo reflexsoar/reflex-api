@@ -68,6 +68,26 @@ class BaseDocument(Document):
                     s = s.filter('term', organization=current_user['organization'])
             
         return s
+    
+
+    @classmethod
+    def exists_by_field(cls, field, value, organization=None, **kwargs):
+        """
+        Checks to see if a document exists by a specific field
+        """
+
+        if organization:
+            search = cls.search(skip_org_check=True)
+            search = search.filter('term', organization=organization)
+        else:
+            search = cls.search()
+
+        search = search.filter('term', **{field: value})
+            
+        response = search.execute()
+        if response:
+            return response[0]
+        return None
 
 
     @classmethod
@@ -152,3 +172,10 @@ class BaseDocument(Document):
             #self.updated_by = utils._current_user_id_or_none()
 
         return super().update(**kwargs)
+    
+    @classmethod
+    def get_all(cls):
+        '''
+        Returns all documents of this type
+        '''
+        return [d for d in cls.search().scan()]

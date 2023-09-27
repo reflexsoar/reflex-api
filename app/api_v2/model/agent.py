@@ -65,6 +65,19 @@ class PollerRoleConfig(InnerDoc):
     signature_cache_ttl = Integer()
 
 
+class MitreMapperConfig(InnerDoc):
+    '''
+    Contains information about the Mitre Mapper configuration
+    '''
+
+    concurrent_inputs = Integer()  # How many inputs can a single mapper run concurrently
+    mapping_refresh_interval = Integer()  # How often should the mapper refresh its mapping
+    # Should the mapper attempt a graceful exit when the mapper is asked to shut down?
+    graceful_exit = Boolean()
+    logging_level = Keyword()  # What logging level should the mapper use for its logs?
+    assessment_days = Integer()  # How many days back should the mapper assess for new data
+
+
 class AgentPolicy(base.BaseDocument):
     '''
     A Reflex agent policy that controls all the configuration of an agent
@@ -99,6 +112,7 @@ class AgentPolicy(base.BaseDocument):
     detector_config = Nested(DetectorRoleConfig)
     # What is the configuration for the runner role?
     runner_config = Nested(RunnerRoleConfig)
+    mitre_mapper_config = Nested(MitreMapperConfig)
     tags = Keyword()  # Tags to categorize this policy
     priority = Integer()  # What is the priority of this policy?
     revision = Integer()  # What is the revision of this policy?
@@ -265,10 +279,21 @@ class Agent(base.BaseDocument):
                     graceful_exit=True,
                     logging_level='ERROR'
                 ),
+                mitre_mapper_config=MitreMapperConfig(
+                    concurrent_inputs=10,
+                    mapping_refresh_interval=60,
+                    graceful_exit=True,
+                    logging_level='ERROR',
+                    assessment_days=14
+                ),
                 tags=['default'],
                 priority=0,
                 revision=0
             )
+        
+    def is_default_org(self):
+        ''' Checks to see if the user belongs to the default org'''
+        return False
 
     def has_right(self, permission):
         '''

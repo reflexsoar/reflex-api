@@ -1,10 +1,7 @@
 from app.api_v2.model.user import Organization
-import json
 import jwt
-import base64
 import datetime
 import smtplib
-import logging
 import string
 import random
 import ipaddress
@@ -12,7 +9,6 @@ import math
 import elasticapm
 
 from flask import request, current_app, abort
-from flask_restx import fields
 from .model import EventLog, User, ExpiredToken, Settings, Agent, ServiceAccount
 
 def random_ending(prefix=None, length=10):
@@ -490,4 +486,3 @@ def _check_token():
             elasticapm.set_user_context(username=username+'-'+current_user.organization, user_id=current_user.uuid, email=email)
 
     return current_user
-
