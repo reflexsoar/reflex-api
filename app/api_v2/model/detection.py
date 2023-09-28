@@ -626,6 +626,7 @@ class Detection(base.BaseDocument):
     # The maximum number of events to create per run
     suppression_max_events = Integer()
     required_fields = Keyword()  # A list of fields that must be present on the source event
+    author = Keyword() # A list of authors
 
     class Index:
         name = "reflex-detections"

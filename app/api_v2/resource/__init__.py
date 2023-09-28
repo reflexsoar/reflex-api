@@ -29,6 +29,7 @@ from .sso import api as ns_sso_v2
 from .package import api as ns_package_v2
 from .data_source import api as ns_data_source_v2
 from .schedule import api as ns_schedule_v2
+from .release_notes import api as ns_release_notes_v2
 
 __all__ = [
     'ns_playbook_v2',
@@ -62,5 +63,6 @@ __all__ = [
     'ns_sso_v2',
     'ns_package_v2',
     'ns_data_source_v2',
-    'ns_schedule_v2'
+    'ns_schedule_v2',
+    'ns_release_notes_v2'
 ]
