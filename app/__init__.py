@@ -50,7 +50,14 @@ from .defaults import (
 from .upgrades import upgrades
 
 REFLEX_VERSION = '0.1.4'
-BUILD_VERSION = '2023.09.28-rc0'
+
+try:
+    __ = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'version.txt')
+    with open(__) as f:
+        BUILD_VERSION = f.read().strip()
+except Exception as e:
+    print(e)
+    BUILD_VERSION = '0.0.0'
 
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
@@ -252,6 +259,8 @@ def create_app(environment='development'):
     app.config.from_pyfile('application.conf', silent=True)
     app.config['ERROR_404_HELP'] = False
     app.config['BUILD_VERSION'] = BUILD_VERSION
+
+    app.logger.info(f"Starting Reflex version {BUILD_VERSION}.  Base model schema: {REFLEX_VERSION}")
 
     #app.logger.propagate = False
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
