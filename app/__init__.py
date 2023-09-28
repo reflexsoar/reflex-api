@@ -50,7 +50,7 @@ from .defaults import (
 from .upgrades import upgrades
 
 REFLEX_VERSION = '0.1.4'
-BUILD_VERSION = '2023.09.13-rc0'
+BUILD_VERSION = '2023.09.28-rc0'
 
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':

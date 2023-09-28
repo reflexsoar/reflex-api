@@ -1,0 +1,29 @@
+{
+    "version": "2023.09.28-rc0",
+    "sections": [
+        {
+            "title": "Features",
+            "items": [
+                {
+                    "title": "MITRE Data Source Mapping",
+                    "description": "Reflex now supports automatically mapping your inputs and underlying data to the MITRE ATT&CK framework using data sources.  This allows you to quickly see which data sources are being used to detect which techniques and tactics.  This also allows you to quickly see which techniques and tactics are not being detected by any data sources.  This feature is available in the Settings > Data Source Templates tab of the Reflex UI."
+                }
+            ]
+        },
+        {
+            "title": "Improvements",
+            "items": [
+                {
+                    "title": "MITRE ATT&CK Fixes",
+                    "description": "The MITRE ATT&CK Coverage matrix now shows the following items:\n- Sub-Techniques are hidden by default and noted with a grey left edge.\n- Techniques with sub-techniques have a thick black left edge.\n- Deprecated techniques are hidden by default but can be toggled on.\n- Cards will now show if you have all the required data sources.\n- Cards show the total number of detections vs. enabled detections for each technique."
+                }
+            ]
+        },
+        {
+            "title": "Bug Fixes",
+            "items": [
+               
+            ]
+        }
+    ]
+}
