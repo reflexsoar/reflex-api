@@ -52,7 +52,7 @@ from .upgrades import upgrades
 REFLEX_VERSION = '0.1.4'
 
 try:
-    __ = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'version.txt')
+    __ = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'VERSION.txt')
     with open(__) as f:
         BUILD_VERSION = f.read().strip()
 except Exception as e:
