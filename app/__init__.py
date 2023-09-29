@@ -52,7 +52,7 @@ from .upgrades import upgrades
 REFLEX_VERSION = '0.1.4'
 
 try:
-    __ = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'version.txt')
+    __ = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'VERSION.txt')
     with open(__) as f:
         BUILD_VERSION = f.read().strip()
 except Exception as e:
@@ -310,7 +310,7 @@ def create_app(environment='development'):
         
 
         # Reload integrations every N minutes
-        scheduler.add_job(func=register_integrations, trigger="interval", seconds=app.config['INTEGRATION_LOADER_INTERVAL']*60)
+        #scheduler.add_job(func=register_integrations, trigger="interval", seconds=app.config['INTEGRATION_LOADER_INTERVAL']*60)
 
     reset_detection_state()
 

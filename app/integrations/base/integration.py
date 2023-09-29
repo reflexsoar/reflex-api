@@ -315,7 +315,7 @@ class IntegrationBase(object):
         query.execute()
 
 
-    def add_event_comment(self, events, comment, created_by):
+    def add_event_comment(self, events, comment, created_by=None):
         """
         Adds a comment to one more events
         """
@@ -348,7 +348,7 @@ class IntegrationBase(object):
                 "lang": "painless",
                 "params": {
                     "comment": comment,
-                    "created_by": f"{self.__class__.__name__} integration",
+                    "created_by": created_by if created_by else f"{self.__class__.__name__} integration",
                     "created_at": datetime.utcnow()
                 }
             }

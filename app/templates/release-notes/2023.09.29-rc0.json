@@ -1,5 +1,5 @@
 {
-    "version": "2023.09.28-rc0",
+    "version": "2023.09.29-rc0",
     "sections": [
         {
             "title": "Features",
@@ -33,6 +33,10 @@
                {
                 "title": "Case Management",
                 "description": "- After several UX improvements to the Case Details page, users were unable to edit tags or the case's title.  This functionality has been added back.\n"
+               },
+               {
+                "title": "Event Tag Filtering",
+                "description": "When filtering events by tag, it was an OR condition which could lead to confusing results.  The filter for tags is now an AND condition."
                }
             ]
         }

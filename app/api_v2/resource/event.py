@@ -305,13 +305,13 @@ class EventListAggregated(Resource):
                 'value': args.event_rule
             })
 
-        for arg in ['severity','title','tags','organization']:
+        for arg in ['severity','title','organization']:
             if arg in args and args[arg] not in ['', None, []]:
                 search_filters.append({
                     'type': 'terms',
                     'field': arg,
                     'value': args[arg]
-                })        
+                })
         
         if args.signature:
             search_filters.append({
@@ -353,6 +353,10 @@ class EventListAggregated(Resource):
             # Apply all filters
             for _filter in search_filters:
                 search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+            
+            if args.tags and len(args.tags) > 0:
+                # Create a boolean where all tags must match
+                search = search.query('bool', must=[Q({"term": {"tags": tag}}) for tag in args.tags])
 
             if args.observables:
                 search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))           
@@ -1588,7 +1592,7 @@ class EventStats(Resource):
         search_filters = []
 
         # Prevent sub-tenants from seeing the organization metric
-        if 'organization' in args.metrics and not hasattr(current_user,'default_org'):
+        if 'organization' in args.metrics and not current_user.is_default_org():
             args.metrics.remove('organization')
 
         if args.title__like and args.title__like != '':
@@ -1619,7 +1623,7 @@ class EventStats(Resource):
                 'value': args.event_rule
             })
 
-        for arg in ['severity','title','tags','organization']:
+        for arg in ['severity','title','organization']:
             if arg in args and args[arg] not in ['', None, []]:
                 search_filters.append({
                     'type': 'terms',
@@ -1649,6 +1653,10 @@ class EventStats(Resource):
         # Apply all filters
         for _filter in search_filters:
             search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+
+        if args.tags and len(args.tags) > 0:
+            # Create a boolean where all tags must match
+            search = search.query('bool', must=[Q({"term": {"tags": tag}}) for tag in args.tags])
 
         if args.observables:
             search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))  
