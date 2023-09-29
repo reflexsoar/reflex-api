@@ -32,6 +32,7 @@
                     "input",
                     "logs"
                 ],
+                "trigger": ["system"],
                 "run_from": "agent",
                 "configuration": {
                     "file_path": {
@@ -93,6 +94,7 @@
                     "notification"
                 ],
                 "target_object": "notification_channel",
+                "trigger": ["system"],
                 "run_from": "console",
                 "parameters": {
                     "notification_channel": {
@@ -113,6 +115,7 @@
                     "intel"
                 ],
                 "target_object": "intel_list",
+                "trigger": ["event_rule", "manual", "system"],
                 "run_from": "console",
                 "parameters": {
                     "observable_value": {
@@ -150,7 +153,8 @@
                 },
                 "trigger": [
                     "event_rule",
-                    "manual"
+                    "manual",
+                    "system"
                 ],
                 "source_object_type": [
                     "event"
@@ -166,6 +170,9 @@
                 ],
                 "target_object": "event",
                 "run_from": "console",
+                "trigger": [
+                    "system"
+                ],
                 "configuration": {
                     "ip_restrictions": {
                         "label": "IP Restrictions",
@@ -193,6 +200,9 @@
                 ],
                 "target_object": "case",
                 "run_from": "console",
+                "trigger": [
+                    "system"
+                ],
                 "configuration": {
                     "ip_restrictions": {
                         "label": "IP Restrictions",
