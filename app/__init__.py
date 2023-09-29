@@ -310,7 +310,7 @@ def create_app(environment='development'):
         
 
         # Reload integrations every N minutes
-        scheduler.add_job(func=register_integrations, trigger="interval", seconds=app.config['INTEGRATION_LOADER_INTERVAL']*60)
+        #scheduler.add_job(func=register_integrations, trigger="interval", seconds=app.config['INTEGRATION_LOADER_INTERVAL']*60)
 
     reset_detection_state()
 
