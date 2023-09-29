@@ -924,7 +924,7 @@ class DetectionFilters(Resource):
 
         # If the current_user is in the default org allow all detections, if they are not
         # in the default organization, filter the detections only to their organization
-        if user_in_default_org is False:
+        if current_user.is_default_org() is False:
             detections = detections.filter(
                 'terms', organization=[current_user.organization])
         else:
@@ -947,12 +947,18 @@ class DetectionFilters(Resource):
         detections.aggs.bucket('status', 'terms', field='status', size=1000, min_doc_count=0)
 
         # Aggregate for organization
-        detections.aggs.bucket('organization', 'terms',
+        if current_user.is_default_org() is False:
+            detections.aggs.bucket('organization', 'terms',
+                                    field='organization', size=1000)
+            detections.aggs.bucket('repository', 'terms',
+                                        field='repository', size=1000)
+        else:
+            detections.aggs.bucket('organization', 'terms',
                                     field='organization', size=1000, min_doc_count=0)
 
-        # Aggregate for repository
-        detections.aggs.bucket('repository', 'terms',
-                                    field='repository', size=1000, min_doc_count=0)
+            # Aggregate for repository
+            detections.aggs.bucket('repository', 'terms',
+                                        field='repository', size=1000, min_doc_count=0)
 
         # Aggregate for warnings
         detections.aggs.bucket('warnings', 'terms',
@@ -973,7 +979,7 @@ class DetectionFilters(Resource):
         # Aggregrator for severity
         detections.aggs.bucket('severity', 'terms',
                                     field='severity', min_doc_count=0, size=5)
-
+        
         # Set size to 0
         detections = detections[0:0].execute()
 
