@@ -76,6 +76,7 @@ class MitreMapperConfig(InnerDoc):
     graceful_exit = Boolean()
     logging_level = Keyword()  # What logging level should the mapper use for its logs?
     assessment_days = Integer()  # How many days back should the mapper assess for new data
+    timeout = Integer()  # How long should the mapper wait for a response from the API
 
 
 class AgentPolicy(base.BaseDocument):
@@ -284,7 +285,8 @@ class Agent(base.BaseDocument):
                     mapping_refresh_interval=60,
                     graceful_exit=True,
                     logging_level='ERROR',
-                    assessment_days=14
+                    assessment_days=14,
+                    timeout=30
                 ),
                 tags=['default'],
                 priority=0,

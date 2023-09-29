@@ -44,6 +44,7 @@ mod_mitre_mapper_config = api.model('MitreMapperConfig', {
     'mapping_refresh_interval': fields.Integer(default=60),
     'logging_level': fields.String(default='ERROR'),
     'assessment_days': fields.Integer(default=14),
+    'timeout': fields.Integer(default=30),
 })
 
 mod_agent_policy = api.model('AgentPolicy', {
