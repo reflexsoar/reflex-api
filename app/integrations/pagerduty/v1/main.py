@@ -207,10 +207,10 @@ Related Observables:\n
                         default_close_reason = config['default_close_reason']
                         close_reason = CloseReason.get_by_uuid(default_close_reason)
                         if close_reason:
-                            close_reason_payload['dismiss_reason'] = close_reason.title
+                            close_reason_payload['reason'] = close_reason.title
 
                     if 'default_close_comment' in config:
-                        close_reason_payload['dismiss_comment'] = config['default_close_comment']
+                        close_reason_payload['comment'] = config['default_close_comment']
 
                     success = pagerduty.close_event(events, **close_reason_payload)
                     
