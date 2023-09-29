@@ -102,14 +102,6 @@ Related Observables:\n
 
                 incident = response.json()['incident']
 
-                # For all of the events for this incident_key update the events using
-                # set the pagerduty.incident_key attribute
-                #pagerduty.set_event_integration_attribute(events, attributes={'pagerduty': {
-                #            'incident_key': incident_key,
-                #            'incident_id': incident['id'],
-                #            'url': incident['html_url']
-                #        }
-                #    })
                 incident_id = incident.get('id', None)
                 if incident_id:
                     if incident_id in self.incident_ids:
@@ -183,10 +175,58 @@ Related Observables:\n
                         }
 
                         events = pagerduty.load_events(**event_filter)
-                        print(events)
                         pagerduty.add_event_comment(events, pd_event["data"]["content"], pd_event["agent"]["summary"])
 
+                if event_type == "incident.acknowledged":
+
+                    incident_id = pagerduty.incident_ids.get(pd_event["data"]["id"], None)
+
+                    if incident_id:
+
+                        event_filter = {
+                            incident_key_field: incident_id
+                        }
+
+                        events = pagerduty.load_events(**event_filter)
+                        pagerduty.add_event_comment(events, "Incident Acknowledged", pd_event["agent"]["summary"])
+
+                if event_type == "incident.unacknowledged":
+
+                    incident_id = pagerduty.incident_ids.get(pd_event["data"]["id"], None)
+
+                    if incident_id:
+
+                        event_filter = {
+                            incident_key_field: incident_id
+                        }
+
+                        events = pagerduty.load_events(**event_filter)
+                        pagerduty.add_event_comment(events, "Incident Unacknowledged", pd_event["agent"]["summary"])
+
+                if event_type == "incident.reassigned":
+
+                    incident_id = pagerduty.incident_ids.get(pd_event["data"]["id"], None)
+
+                    if incident_id:
+
+                        event_filter = {
+                            incident_key_field: incident_id
+                        }
+
+                        events = pagerduty.load_events(**event_filter)
+
+                        if 'assignees' in pd_event["data"] and len(pd_event["data"]["assignees"]) > 0:
+                            assignee = pd_event["data"]["assignees"][0]["summary"]
+                            message = f"Incident Reassigned\n\n**New Responder:** {assignee}"
+                        else:
+                            message = f"Incident Reassigned"                        
+
+                        pagerduty.add_event_comment(events, message, pd_event["agent"]["summary"])
+
+
                 if event_type == "incident.resolved":
+
+                    incident_id = pd_event["data"]["id"]
 
                     event_filter = {
                         incident_key_field: pd_event["data"]["incident_key"],
@@ -215,8 +255,8 @@ Related Observables:\n
                     success = pagerduty.close_event(events, **close_reason_payload)
                     
                     if success:
-                        del pagerduty.incident_ids[incident_id]
-                    
+                        if incident_id in pagerduty.incident_ids:
+                            del pagerduty.incident_ids[incident_id]
 
         def verify(self):
             # Verify the webhook is valid by checking the pagerduty
