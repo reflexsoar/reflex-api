@@ -152,7 +152,9 @@ Related Observables:\n
             # Determine if the action is supported
             event_type = None
             pd_event = None
-            supported_event_types = ['incident.acknowledged', 'incident.resolved', 'incident.annotated', 'incident.unacknowledged','incident.priority_updated']
+            supported_event_types = ['incident.acknowledged', 'incident.resolved',
+                                     'incident.annotated', 'incident.unacknowledged',
+                                     'incident.priority_updated', 'incident.reassigned']
 
             if "event" in IntegrationApi.payload:
                 pd_event = IntegrationApi.payload['event']
