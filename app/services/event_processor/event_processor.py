@@ -1225,7 +1225,7 @@ class EventWorker(Process):
                                         action=action['action'],
                                         configuration_uuid=action['configuration_uuid'],
                                         integration_uuid=action['integration_uuid'],
-                                        parameters=action['parameters'],
+                                        parameters=action['parameters'] if 'parameters' in action else {},
                                         from_event_rule=True,
                                         status='pending',
                                         events=[raw_event['uuid']]
