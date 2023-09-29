@@ -1219,7 +1219,7 @@ class EventWorker(Process):
 
                         # If the event rule has integration actions, run them using a thread pool
                         if hasattr(rule, 'integration_actions'):
-                            if len(rule.integration_actions) > 0:
+                            if rule.integration_actions and len(rule.integration_actions) > 0:
                                 for action in rule.integration_actions:
                                     action_queue = IntegrationActionQueue(
                                         action=action['action'],
