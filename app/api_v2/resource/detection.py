@@ -1343,7 +1343,7 @@ def increase_version(detection, payload):
                   'guide', 'setup_guide', 'testing_guide', 'test_script', 
                   'test_script_language', 'test_script_safe', 'metric_change_config',
                   'indicator_match_config', 'field_mismatch_config',
-                  'source_monitor_config']
+                  'source_monitor_config', 'status']
     
     # If any of the attributes listed are in the payload and differ from
     # what the detection currently has then return True
