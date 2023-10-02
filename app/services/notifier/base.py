@@ -139,7 +139,11 @@ class Notifier(object):
 
             if hasattr(notification, 'source_object_type') and hasattr(notification, 'source_object_uuid'):
                 if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
-                    notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
+                    try:
+                        notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
+                    except Exception as e:
+                        self.logger.error(f"Error parsing message template: {e}")
+                        notification.message = message_template
 
         subject = self.use_template(channel_config['subject'], notification.source_object_type, notification.source_object_uuid, skip_detection=True)
 
@@ -296,7 +300,11 @@ class Notifier(object):
 
             if hasattr(notification, 'source_object_type') and hasattr(notification, 'source_object_uuid'):
                 if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
-                    notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
+                    try:
+                        notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
+                    except Exception as e:
+                        self.logger.error(f"Error parsing message template: {e}")
+                        notification.message = message_template
 
             if notification.source_object_type == 'event':
                 event = Event.get_by_uuid(notification.source_object_uuid)
@@ -329,7 +337,11 @@ class Notifier(object):
        
         if hasattr(notification, 'source_object_type') and hasattr(notification, 'source_object_uuid'):
             if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
-                notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
+                try:
+                    notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
+                except Exception as e:
+                    self.logger.error(f"Error parsing message template: {e}")
+                    notification.message = message_template
 
                 # Add a View Event button if this was sourced from an event
                 if notification.source_object_type == 'event':
@@ -359,7 +371,11 @@ class Notifier(object):
 
         if hasattr(notification, 'source_object_type') and hasattr(notification, 'source_object_uuid'):
             if notification.source_object_type not in ['', None] and notification.source_object_uuid not in ['', None]:
-                notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
+                try:
+                    notification.message = self.use_template(message_template, notification.source_object_type, notification.source_object_uuid)
+                except Exception as e:
+                    self.logger.error(f"Error parsing message template: {e}")
+                    notification.message = message_template
 
         try:
             data = {
