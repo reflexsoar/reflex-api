@@ -29,6 +29,7 @@ class ValidTriggers(str, Enum):
     MANUAL = 'manual'
     SCHEDULE = 'schedule'
     EVENT_RULE = 'event_rule'
+    SYSTEM = 'system'
 
 # A normal UUID4 regex
 UUID4_REGEX = r'[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
