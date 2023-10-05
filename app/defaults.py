@@ -460,8 +460,9 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         'update_data_source_template': False,
         'delete_data_source_template': False,
         'create_schedule': False,
-        'view_schedules': False,
+        'view_schedules': True,
         'update_schedule': False,
+        'delete_schedule': False
     }
 
     role_contents = {
