@@ -26,7 +26,6 @@ from ..model import (
 )
 import chevron
 from .shared import mod_pagination, ISO8601, mod_user_list
-from .utils import redistribute_detections
 from ..utils import page_results
 from .mitre import mod_tactic_brief, mod_technique_brief
 from ..sigma_parsing.main import SigmaParser
