@@ -26,7 +26,6 @@ from ..model import (
 )
 import chevron
 from .shared import mod_pagination, ISO8601, mod_user_list
-from .utils import redistribute_detections
 from ..utils import page_results
 from .mitre import mod_tactic_brief, mod_technique_brief
 from ..sigma_parsing.main import SigmaParser
@@ -168,6 +167,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'organization': fields.String,
     'detection_id': fields.String,
     'description': fields.String,
+    'author': fields.List(fields.String),
     'guide': fields.String,
     'setup_guide': fields.String,
     'testing_guide': fields.String,
@@ -238,6 +238,7 @@ mod_create_detection = api.model('CreateDetection', {
     'organization': fields.String,
     'status': fields.String(default='Draft', required=False, enum=VALID_DETECTION_STATUS),
     'description': fields.String(default="A detailed description.", required=True),
+    'author': fields.List(fields.String),
     'guide': fields.String(default="An investigation guide on how to triage this detection"),
     'setup_guide': fields.String,
     'testing_guide': fields.String,
@@ -284,6 +285,7 @@ mod_update_detection = api.model('UpdateDetection', {
     'organization': fields.String,
     'detection_id': fields.String,
     'description': fields.String,
+    'author': fields.List(fields.String),
     'guide': fields.String,
     'setup_guide': fields.String,
     'testing_guide': fields.String,
@@ -345,6 +347,7 @@ mod_detection_export = api.model('DetectionExport', {
     'sigma_rule': fields.String,
     'detection_id': fields.String,
     'description': fields.String,
+    'author': fields.List(fields.String),
     'guide': fields.String,
     'setup_guide': fields.String,
     'testing_guide': fields.String,

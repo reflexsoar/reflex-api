@@ -1281,7 +1281,8 @@ class DetectionRepository(base.BaseDocument):
                     status=detection.status,
                     source=input_config,
                     field_templates=subscription.default_field_template,
-                    assess_rule=True
+                    assess_rule=True,
+                    required_fields=detection.required_fields,
                 )
                 new_detection.save()
                 RepositorySyncLog(
@@ -1315,6 +1316,7 @@ class DetectionRepository(base.BaseDocument):
                     existing_detection.test_script_safe = detection.test_script_safe
                     existing_detection.email_template = detection.email_template
                     existing_detection.status = detection.status
+                    existing_detection.required_fields = detection.required_fields
 
                     # Set all the attributes based on the sync settings
                     sync_settings = subscription.sync_settings.to_dict()

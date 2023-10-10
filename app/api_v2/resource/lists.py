@@ -306,12 +306,14 @@ class ThreatListDetails(Resource):
 
             if 'global_list' in api.payload:
                 current_state = getattr(value_list, 'global_list')
-                if current_state != api.payload['global_list']:
-                    if not current_user.is_default_org():
-                        api.abort(400, 'You do not have permission to change the global_list setting.')
+                
+                if not current_user.is_default_org():
+                    del api.payload['global_list']
 
-                    if current_user.is_default_org() and 'organization' in api.payload and api.payload['organization'] != current_user.organization:
+                if current_user.is_default_org() and value_list.organization != current_user.organization:
+                    if current_state == True:
                         api.abort(400, 'global_list can only be set on the default organizations lists')
+                        
 
             if 'name' in api.payload:
                 l = ThreatList.get_by_name(name=api.payload['name'])

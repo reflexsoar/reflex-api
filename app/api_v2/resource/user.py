@@ -444,7 +444,7 @@ class UserList(Resource):
             if roles_to_modify:
                 for role in roles_to_modify:
                     role.add_user_to_role(user.uuid)
-                user.role = roles_to_modify
+                #user.role = roles_to_modify
             
             user.save()
 

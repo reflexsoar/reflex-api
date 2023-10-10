@@ -20,6 +20,9 @@
                 "name": "synchronize_inventory",
                 "type": "inventory",
                 "run_from": "agent",
+                "trigger": [
+                    "system"
+                ],
                 "configuration": {
                     "sync_interval": {
                         "label": "Synchronization Interval (minutes)",

@@ -942,7 +942,7 @@ class EventWorker(Process):
                 reason = next((r for r in self.reasons if r.uuid ==
                               event_meta_data['dismiss_reason']), None)
                 if reason:
-                    payload['dismiss_reason'] = reason.title
+                    payload['dismiss_reason'] = reason.title if reason else "Other"
                     payload['dismiss_comment'] = event_meta_data['dismiss_comment']
                     payload['dismissed_at'] = now
                     payload['time_to_dismiss'] = (
@@ -1082,7 +1082,7 @@ class EventWorker(Process):
                 raw_event['dismiss_comment'] = rule.dismiss_comment
 
             raw_event['dismissed_at'] = datetime.datetime.utcnow()
-            raw_event['dismiss_reason'] = reason.title
+            raw_event['dismiss_reason'] = reason.title if reason else "Other"
             raw_event['dismissed_by_rule'] = True
             raw_event['time_to_dismiss'] = 0
 
