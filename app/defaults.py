@@ -669,19 +669,33 @@ def create_default_closure_reasons(cls, org_id, check_for_default=False):
                     print(f"{r['title']} missing from {org.name} - {new_reason}")
 
 
-def create_default_event_status(cls, org_id):
+def create_default_event_status(cls, org_id, check_for_default=False):
 
     statuses = {
         'New': 'A new event.',
         'Closed': 'An event that has been closed.',
         'Open': 'An event is open and being worked in a case.',
-        'Dismissed': 'An event that has been ignored from some reason.'
+        'Dismissed': 'An event that has been ignored from some reason.',
+        'Acknowledged': 'An event that has been acknowledged by an analyst.'
     }
-    for k in statuses:
-        status = cls(name=k, description=statuses[k], organization=org_id)
-        if k == 'Closed':
-            status.closed = True
-        status.save()
+    if check_for_default is False:
+        for k in statuses:
+            status = cls(name=k, description=statuses[k], organization=org_id)
+            if k == 'Closed':
+                status.closed = True
+            status.save()
+    else:
+        orgs = Organization.search().scan()
+        for org in orgs:
+            existing_statuses = cls.search().filter('term', organization=org.uuid).execute()
+            for k in statuses:
+                if k not in [status.name for status in existing_statuses]:
+                    
+                    status = cls(name=k, description=statuses[k], organization=org.uuid)
+                    if k == 'Closed':
+                        status.closed = True
+                    status.save()
+                    print(f"Status \"{k}\" missing from {org.uuid} - Adding new status.")
 
 
 def create_default_case_templates(cls, org_id):
