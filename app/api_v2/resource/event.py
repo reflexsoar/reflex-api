@@ -137,6 +137,36 @@ mod_event_bulk_dismiss_by_filter = api.model('EventBulkDismissByFilter', {
     'uuids': fields.List(fields.String)
 })
 
+mod_event_metrics = api.model('EventMetrics', {
+    'agent_uuid': fields.String,
+    'agent_pickup_time = Date()': ISO8601,
+    'agent_bulk_start = Date()': ISO8601,
+    'event_processing_dequeue = Date()': ISO8601,
+    'event_processing_start = Date()': ISO8601,
+    'event_processing_end = Date()': ISO8601,
+    'event_bulked = Date()': ISO8601,
+    'event_rule_start = Date()': ISO8601,
+    'event_rule_end = Date()': ISO8601,
+    'event_enrichment_start = Date()': ISO8601,
+    'event_enrichment_end = Date()': ISO8601,
+    'total_duration = Float()': fields.Float,
+    'total_duration_with_agent = Float()': fields.Float,
+    'auto_data_type_start = Date()': ISO8601,
+    'auto_data_type_end = Date()': ISO8601,
+    'threat_list_check_start = Date()': ISO8601,
+    'threat_list_check_end = Date()': ISO8601,
+    'threat_list_check_duration = Float()': fields.Float,
+    'auto_data_type_duration = Float()': fields.Float,
+    'event_processing_duration = Float()': fields.Float,
+    'agent_duration = Float()': fields.Float,
+    'enrichment_duration = Float()': fields.Float,
+    'event_rule_duration = Float()': fields.Float,
+    'auto_data_type_extraction = Boolean()': fields.Boolean,
+    'first_touch = Date()': ISO8601,
+    'total_abandons = Integer()': fields.Integer,
+    'total_touches = Integer()': fields.Integer,
+})
+
 mod_event_details = api.model('EventDetails', {
     'uuid': fields.String,
     'title': fields.String(required=True),
@@ -170,6 +200,7 @@ mod_event_details = api.model('EventDetails', {
     'acknowledged_by': fields.Nested(mod_user_list),
     'integration_output': fields.List(AsAttrDict)
 })
+
 
 mod_observable_update = api.model('ObservableUpdate', {
     'tags': fields.List(fields.String),
@@ -1466,6 +1497,64 @@ class EventRemapObservables(Resource):
         else:
             api.abort(404, 'Event not found.')
 """
+
+@api.route("/<uuid>/acknowledge")
+class EventAcknowledge(Resource):
+    '''
+    Acknowledge an event.  Used when an analyst wants to mark that they have seen
+    the event and are currently working on it but don't want to close it or have
+    another analyst start working on it.
+    '''
+    
+    @api.doc(security="Bearer")
+    @token_required
+    @api.marshal_with(mod_event_details)
+    @user_has('update_event')
+    def put(self, uuid, current_user):
+        '''
+        Acknowledge an event.  Used when an analyst wants to mark that they have seen
+        the event and are currently working on it but don't want to close it or have
+        another analyst start working on it.
+        '''
+
+        event = Event.get_by_uuid(uuid)
+        if event:
+            event.set_acknowledged()
+            return event
+        else:
+            api.abort(404, 'Event not found.')
+
+        return event
+    
+
+@api.route("/<uuid>/unacknowledge")
+class EventUnacknowledge(Resource):
+    '''
+    Unacknowledge an event.  Used when an analyst wants to mark that they have seen
+    the event and are currently working on it but don't want to close it or have
+    another analyst start working on it.
+    '''
+    
+    @api.doc(security="Bearer")
+    @token_required
+    @api.marshal_with(mod_event_details)
+    @user_has('update_event')
+    def put(self, uuid, current_user):
+        '''
+        Unacknowledge an event.  Used when an analyst wants to mark that they have seen
+        the event and are currently working on it but don't want to close it or have
+        another analyst start working on it.
+        '''
+
+        event = Event.get_by_uuid(uuid)
+        if event:
+            event.set_unacknowledged()
+            return event
+        else:
+            api.abort(404, 'Event not found.')
+
+        return event
+    
 
 @api.route("/<uuid>")
 class EventDetails(Resource):

@@ -1,6 +1,7 @@
 import datetime
 import hashlib
 import json
+from uuid import uuid4
 from app.api_v2.model.exceptions import EventRuleFailure
 from app.api_v2.model.notification import Notification
 from app.api_v2.model.schedule import Schedule
@@ -166,6 +167,8 @@ class Event(base.BaseDocument):
     tags = Keyword()
     event_observables = Nested(EventObservable)
     status = Object()
+    previous_status = Object() # The previous status of the event if it needs to be reverted
+    status_name = Keyword() # The name of the status, to replace status.name in the future
     signature = Keyword()
     dismissed = Boolean()
     dismiss_reason = Text(fields={'keyword':Keyword()})
@@ -312,14 +315,87 @@ class Event(base.BaseDocument):
         analyst in a case
         '''
         self.status = EventStatus.get_by_name(name='Open')
+        self.status_name = 'open'
         self.time_to_act = (datetime.datetime.utcnow() - self.created_at).seconds
         self.save()
+
+    def set_acknowledged(self):
+        '''
+        Sets an event as acknowledged so that an analyst can work
+        the event without multiple analysts attempting to triage the same event
+        '''
+
+        # Set the previous status so that it can be reverted if needed
+        self.previous_status = self.status
+
+        self.status = EventStatus.get_by_name(name='Acknowledged')
+        self.status_name = 'acknowledged'
+        self.acknowledged = True
+        self.acknowledged_by = utils._current_user_id_or_none()
+        self.set_first_touch()
+        if not hasattr(self, 'total_touches'):
+            self.total_touches = 0
+
+        self.total_touches += 1
+
+        self.add_comment(comment={
+            'uuid': uuid4(),
+            'comment': 'Event Acknowledged',
+            'organization': self.organization,
+            'created_by': self.acknowledged_by.username,
+            'created_at': datetime.datetime.utcnow(),
+        })
+
+        self.save()
+
+    def set_unacknowledged(self):
+        '''
+        Sets an event as unacknowledged
+        '''
+
+        self.add_comment(comment={
+            'uuid': uuid4(),
+            'comment': 'Event Unacknowledged',
+            'organization': self.organization,
+            'created_by': self.acknowledged_by.username,
+            'created_at': datetime.datetime.utcnow(),
+        })
+
+        self.status = self.previous_status
+        self.status_name = self.previous_status.name.lower()
+        self.acknowledged = False
+        self.acknowledged_by = None
+        
+        # Set the initial value of total abandons if it doesn't exist
+        if not hasattr(self, 'total_abandons'):
+            self.total_abandons = 0
+
+        self.total_abandons += 1
+
+        self.save()
+    
+    def set_first_touch(self, save=False):
+        '''
+        Sets the first touch time on the event
+        '''
+        
+        # If the event has the metrics field and first_touch is not set or is set to None
+        # set it to now() in utc
+        if hasattr(self, 'metrics'):
+            if not hasattr(self.metrics, 'first_touch') or self.metrics.first_touch is None:
+                self.metrics.first_touch = datetime.datetime.utcnow()
+        else:
+            self.metrics = EventMetrics(first_touch=datetime.datetime.utcnow())
+        
+        if save:
+            self.save()
 
     def set_new(self):
         '''
         Sets the event as new
         '''
         self.status = EventStatus.get_by_name(name='New')
+        self.status_name = 'new'
         self.save()
 
     def set_dismissed(self, reason, by_rule=False, comment=None, advice=None):
@@ -327,6 +403,7 @@ class Event(base.BaseDocument):
         Sets the event as dismissed
         '''
         self.status = EventStatus.get_by_name(name='Dismissed')
+        self.status_name = 'dismissed'
         if comment:
             self.dismiss_comment = comment
         if advice:
@@ -343,6 +420,7 @@ class Event(base.BaseDocument):
         Sets the event as closed
         '''
         self.status = EventStatus.get_by_name(name='Closed')
+        self.status_name = 'closed'
         self.closed_at = datetime.datetime.utcnow()
         self.time_to_close = (self.closed_at - self.created_at).seconds
         self.save()
