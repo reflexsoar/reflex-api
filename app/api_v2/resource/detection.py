@@ -135,13 +135,13 @@ mod_observable_field = api.model('ObservableField', {
 })
 
 mod_detection_schedule_hour_range = api.model('DetectionScheduleHourRange', {
-    'from': fields.String,
-    'to': fields.String
+    'from': fields.String(default='00:00'),
+    'to': fields.String(default='23:59')
 })
 
 mod_detection_schedule_day = api.model('DetectionScheduleDay', {
-    'custom': fields.Boolean,
-    'active': fields.Boolean,
+    'custom': fields.Boolean(default=False),
+    'active': fields.Boolean(default=True),
     'hours': fields.List(fields.Nested(mod_detection_schedule_hour_range))
 })
 
