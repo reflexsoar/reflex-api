@@ -712,6 +712,10 @@ class DetectionList(Resource):
         Creates a new detection rule
         '''
 
+        # System reserved field
+        if 'required_fields' in api.payload:
+            del api.payload['required_fields']
+
         # Only allow a detection with
         if 'organization' in api.payload:
 
@@ -1436,7 +1440,8 @@ class DetectionDetails(Resource):
                                  'created_at', 'created_by', 'updated_at', 'updated_by',
                                  'time_taken', 'version', 'running',
                                  'assigned_agent', 'assess_rule', 'hits_over_time',
-                                 'average_hits_per_day', 'last_assessed', 'average_query_time']
+                                 'average_hits_per_day', 'last_assessed', 'average_query_time',
+                                 'required_fields']
 
         # Prevent users from updating these fields
         if isinstance(current_user, User):
