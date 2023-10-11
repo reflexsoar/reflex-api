@@ -82,7 +82,7 @@ class SigmaParser(object):
         }
 
         if isinstance(detection_config['author'], str):
-            detection_config['author'] = [detection_config['author']]
+            detection_config['author'] = detection_config['author'].split(",")
 
         NO_PIPELINE_ERROR = "No pipeline specified"
         NO_BACKEND_ERROR = "No backend specified"
