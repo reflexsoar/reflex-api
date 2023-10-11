@@ -277,7 +277,8 @@ mod_create_detection = api.model('CreateDetection', {
     'test_script_safe': fields.Boolean,
     'test_script_language': fields.String,
     'is_hunting_rule': fields.Boolean,
-    'suppression_max_events': fields.Integer
+    'suppression_max_events': fields.Integer,
+    'required_fields': fields.List(fields.String, default=[], required=False)
 }, strict=True)
 
 mod_update_detection = api.model('UpdateDetection', {
