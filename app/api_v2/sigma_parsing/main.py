@@ -74,11 +74,15 @@ class SigmaParser(object):
             'references': getattr(self.rule, 'references', []),
             'false_positives': getattr(self.rule, 'falsepositives', []),
             'severity': LEVELS[str(getattr(self.rule, 'level', 'low'))],
+            'author': getattr(self.rule, 'author', []),
             'from_sigma': True,
             'sigma_rule': self.raw_rule,
             'tactics': [],
             'techniques': []
         }
+
+        if isinstance(detection_config['author'], str):
+            detection_config['author'] = [detection_config['author']]
 
         NO_PIPELINE_ERROR = "No pipeline specified"
         NO_BACKEND_ERROR = "No backend specified"
@@ -127,10 +131,11 @@ class SigmaParser(object):
                         if technique:
                             detection_config['techniques'].append(technique)
                     else:
+                        shortname = tag.lower()
                         if '_' in tag:
                             shortname = tag.lower().replace('_', '-')
-                            tactic = MITRETactic.get_by_shortname(shortname)
-                            if tactic:
-                                detection_config['tactics'].append(tactic)
+                        tactic = MITRETactic.get_by_shortname(shortname)
+                        if tactic:
+                            detection_config['tactics'].append(tactic)
 
         return Detection(**detection_config)
