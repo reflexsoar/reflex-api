@@ -135,13 +135,13 @@ mod_observable_field = api.model('ObservableField', {
 })
 
 mod_detection_schedule_hour_range = api.model('DetectionScheduleHourRange', {
-    'from': fields.String,
-    'to': fields.String
+    'from': fields.String(default='00:00'),
+    'to': fields.String(default='23:59')
 })
 
 mod_detection_schedule_day = api.model('DetectionScheduleDay', {
-    'custom': fields.Boolean,
-    'active': fields.Boolean,
+    'custom': fields.Boolean(default=False),
+    'active': fields.Boolean(default=True),
     'hours': fields.List(fields.Nested(mod_detection_schedule_hour_range))
 })
 
@@ -277,7 +277,8 @@ mod_create_detection = api.model('CreateDetection', {
     'test_script_safe': fields.Boolean,
     'test_script_language': fields.String,
     'is_hunting_rule': fields.Boolean,
-    'suppression_max_events': fields.Integer
+    'suppression_max_events': fields.Integer,
+    'required_fields': fields.List(fields.String, default=[], required=False)
 }, strict=True)
 
 mod_update_detection = api.model('UpdateDetection', {
@@ -710,6 +711,10 @@ class DetectionList(Resource):
         '''
         Creates a new detection rule
         '''
+
+        # System reserved field
+        if 'required_fields' in api.payload:
+            del api.payload['required_fields']
 
         # Only allow a detection with
         if 'organization' in api.payload:
@@ -1435,7 +1440,8 @@ class DetectionDetails(Resource):
                                  'created_at', 'created_by', 'updated_at', 'updated_by',
                                  'time_taken', 'version', 'running',
                                  'assigned_agent', 'assess_rule', 'hits_over_time',
-                                 'average_hits_per_day', 'last_assessed', 'average_query_time']
+                                 'average_hits_per_day', 'last_assessed', 'average_query_time',
+                                 'required_fields']
 
         # Prevent users from updating these fields
         if isinstance(current_user, User):
