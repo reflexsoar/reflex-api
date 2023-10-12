@@ -6,11 +6,11 @@
             "items": [
                 {
                     "title": "Sigma Rule Parsing",
-                    "description": "- When importing a detection from a Sigma rule, the Sigma rule authors will automatically fill the Detections \"author\" field.\n"
+                    "description": "- When importing a detection from a Sigma rule, the Sigma rule authors will automatically fill the Detections `author` field.\n"
                 },
                 {
                     "title": "Detections",
-                    "description": "- Detection rules now support tracking authorship via the \"author\" field.\n"
+                    "description": "- Detection rules now support tracking authorship via the `author` field.\n"
                 }
             ]
         },
@@ -23,7 +23,7 @@
                },
                {
                 "title": "Detections",
-                "description": "- The Detection rule creation schema did not expect the \"required_fields\" to be passed during creation, resulting in a rejected request.  The field has been defined as optional.\n"
+                "description": "- The Detection rule creation schema did not expect the `required_fields` to be passed during creation, resulting in a rejected request.  The field has been defined as optional.\n"
                }
             ]
         }
