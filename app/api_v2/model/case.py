@@ -206,7 +206,7 @@ class CaseTask(base.BaseDocument):
         self.finish_date = datetime.datetime.utcnow()
         case = Case.get_by_uuid(uuid=self.case)
         case.add_history(f'Task **{self.title}** closed')
-        self.save()
+        #self.save()
 
     def start_task(self, owner_uuid=None):
         '''
@@ -218,7 +218,7 @@ class CaseTask(base.BaseDocument):
             self.set_owner(owner_uuid)
         case = Case.get_by_uuid(uuid=self.case)
         case.add_history(f'Task **{self.title}** started')
-        self.save()
+        #self.save()
 
     def reopen_task(self):
         '''
@@ -228,7 +228,7 @@ class CaseTask(base.BaseDocument):
         self.finish_date = None
         case = Case.get_by_uuid(uuid=self.case)
         case.add_history(f'Task **{self.title}** reopened')
-        self.save()
+        #self.save()
 
     def set_owner(self, owner_uuid):
         '''
