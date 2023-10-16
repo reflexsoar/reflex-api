@@ -1,0 +1,27 @@
+{
+    "version": "2023.10.11-rc0",
+    "sections": [
+        {
+            "title": "Enhancements",
+            "items": [
+                {
+                    "title": "Detections",
+                    "description": "- Detection rules that are missing `required_fields` will automatically have them set on platform startup, if they are not repository synchronized rules.\n"
+                }
+            ]
+        },
+        {
+            "title": "Bug Fixes",
+            "items": [
+               {
+                "title": "Case Tasks",
+                "description": "- When assigning a case task to a user, the change would not save\n- When starting a case task, the owner would be overwritten by the individual starting the task.  This should only happen in the task is unassigned.\n- Case Tasks could not be reassigned after starting, this is due to the same issue as the first item in this list."
+               },
+               {
+                "title": "Observable Popover",
+                "description": "- The Copy Value button no longer worked when attemping to copy an observable value from the Observable Popover."
+               }
+            ]
+        }
+    ]
+}
