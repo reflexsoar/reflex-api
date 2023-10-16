@@ -714,8 +714,6 @@ class Detection(base.BaseDocument):
 
         if not query:
             query = self.query.query
-
-        print(query)
         
         matches = pattern.findall(query)
         if matches:
