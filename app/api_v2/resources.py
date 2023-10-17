@@ -847,6 +847,12 @@ class CaseTaskDetails(Resource):
                     # Reopen the task if the previous status was closed
                     if task.status == 2 and api2.payload['status'] == 1:
                         task.reopen_task()
+                        
+                if 'owner_uuid' in api2.payload:
+                    task.set_owner(api2.payload['owner_uuid'])
+
+            task.save()
+            
             return task
         else:
             ns_case_task_v2.abort(404, 'Case Task not found.')
