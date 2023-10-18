@@ -17,7 +17,7 @@ def set_required_fields_on_detections():
         if detection.required_fields is not None:
             print(
                 f"Setting required fields on detection {detection.name} ({detection.uuid})")
-            detection.save(refresh=True)
+            detection.save()
 
     detections = [d for d in Detection.search().filter('term', from_repo_sync=True).scan()
                   if not hasattr(d, 'required_fields') or d.required_fields is None]
@@ -76,5 +76,5 @@ def migrate_intel_list_data_feeds_to_static_names():
 upgrades = [
     migrate_intel_list_data_feeds_to_static_names,
     migrate_all_threshold_configs_to_list_keys,
-    set_required_fields_on_detections
+    #set_required_fields_on_detections
 ]
