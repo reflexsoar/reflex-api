@@ -721,7 +721,9 @@ class Detection(base.BaseDocument):
 
         fields = list(set(fields))
 
-        self.required_fields = fields
+        EXCLUDED_FIELDS = ['_exists_']
+
+        self.required_fields = [f.lstrip("-") for f in fields if f not in EXCLUDED_FIELDS and len(f) > 1]
             
         return fields
     
