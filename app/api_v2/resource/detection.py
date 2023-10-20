@@ -134,6 +134,19 @@ mod_observable_field = api.model('ObservableField', {
     'tags': fields.List(fields.String)
 })
 
+mod_metric_hit = api.model('FieldMetricHit', {
+    'key': fields.String,
+    'doc_count': fields.Integer,
+    'pct': fields.Float,
+})
+
+mod_field_metric = api.model('FieldMetric', {
+    'field': fields.String,
+    'cardinality': fields.Integer,
+    'value_count': fields.Integer,
+    'top_ten': fields.List(fields.Nested(mod_metric_hit))
+})
+
 mod_detection_schedule_hour_range = api.model('DetectionScheduleHourRange', {
     'from': fields.String(default='00:00'),
     'to': fields.String(default='23:59')
@@ -226,7 +239,8 @@ mod_detection_details = api.model('DetectionDetails', {
     'test_script_language': fields.String,
     'is_hunting_rule': fields.Boolean,
     'suppression_max_events': fields.Integer(default=0),
-    'required_fields': fields.List(fields.String, default=[])
+    'required_fields': fields.List(fields.String, default=[]),
+    'field_metrics': fields.List(fields.Nested(mod_field_metric), default=[])
 }, strict=True)
 
 mod_create_detection = api.model('CreateDetection', {
@@ -281,6 +295,8 @@ mod_create_detection = api.model('CreateDetection', {
     'required_fields': fields.List(fields.String, default=[], required=False)
 }, strict=True)
 
+
+
 mod_update_detection = api.model('UpdateDetection', {
     'name': fields.String,
     'organization': fields.String,
@@ -331,7 +347,8 @@ mod_update_detection = api.model('UpdateDetection', {
     'test_script_safe': fields.Boolean,
     'test_script_language': fields.String,
     'is_hunting_rule': fields.Boolean,
-    'suppression_max_events': fields.Integer
+    'suppression_max_events': fields.Integer,
+    'field_metrics': fields.List(fields.Nested(mod_field_metric))
 }, strict=True)
 
 mod_detection_list_paged = api.model('DetectionListPaged', {
