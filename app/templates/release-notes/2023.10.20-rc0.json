@@ -1,0 +1,29 @@
+{
+    "version": "2023.10.20-rc0",
+    "sections": [
+        {
+            "title": "Features",
+            "items": [
+                {
+                    "title": "Detection Field Analysis",
+                    "description": "Detection Rules will now automatically asssess common values of the fields returned by a rule hit to help guide in potential tuning of the rule.  Field Analysis results can be viewed on the Event Drawer when viewing a matched Detection in the Event Queue or by opening the Rule Details from the Detection Management page.  This functionality currently only works for Match rules."
+                }
+            ]
+        },
+        {
+            "title": "Enhancements",
+            "items": [
+                {
+                    "title": "Detections",
+                    "description": "- Detection rules will now automatically be assessed every 24 hours.  Currently only works for Match rules."
+                }
+            ]
+        },
+        {
+            "title": "Bug Fixes",
+            "items": [
+               
+            ]
+        }
+    ]
+}
