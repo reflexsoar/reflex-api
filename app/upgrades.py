@@ -17,9 +17,9 @@ def set_required_fields_on_detections():
         if detection.required_fields is not None:
             print(
                 f"Setting required fields on detection {detection.name} ({detection.uuid})")
-            detection.save(refresh=True)
+            detection.save()
 
-    detections = [d for d in Detection.search().filter('term', from_repo_sync=True).scan()
+    detections = [d for d in Detection.search().filter('term', from_repo_sync=False).scan()
                   if not hasattr(d, 'required_fields') or d.required_fields is None]
     if len(detections) > 0:
         print(f"Setting required fields on {len(detections)} detections")
