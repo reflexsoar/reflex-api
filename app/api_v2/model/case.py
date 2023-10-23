@@ -340,6 +340,7 @@ class Case(base.BaseDocument):
     _total_tasks = 0
     watchers = Keyword() # A list of UUIDs of users watching this case
     metrics = Object(CaseMetrics)
+    block_auto_close = Boolean()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -530,10 +531,11 @@ class Case(base.BaseDocument):
         self.case_template = template
         self.save()
 
-    def close(self, uuid):
+    def close(self, uuid, reason=None):
         '''
         Closes a case and sets the time that it was closed
         '''
+        
         self.close_reason = CloseReason.get_by_uuid(uuid=uuid)
         self.closed_at = datetime.datetime.utcnow()
         self.closed = True

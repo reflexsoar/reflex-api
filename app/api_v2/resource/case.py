@@ -95,7 +95,8 @@ mod_case_list = api.model('CaseList', {
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
     'case_template_uuid': fields.String,
-    'escalated': fields.Boolean
+    'escalated': fields.Boolean,
+    'block_auto_closure': fields.Boolean(default=False)
     # 'created_by': fields.Nested(mod_user_list),
     # 'updated_by': fields.Nested(mod_user_list),
     # 'observable_count': ValueCount(attribute='observables'),
@@ -125,7 +126,8 @@ mod_case_details = api.model('CaseDetails', {
     'created_by': fields.Nested(mod_user_list),
     'updated_by': fields.Nested(mod_user_list),
     'observable_count': ValueCount(attribute='observables'),
-    'escalated': fields.Boolean
+    'escalated': fields.Boolean,
+    'block_auto_closure': fields.Boolean(default=False),
 })
 
 mod_case_paged_list = api.model('PagedCaseList', {
