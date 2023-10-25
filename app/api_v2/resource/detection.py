@@ -292,7 +292,8 @@ mod_create_detection = api.model('CreateDetection', {
     'test_script_language': fields.String,
     'is_hunting_rule': fields.Boolean,
     'suppression_max_events': fields.Integer,
-    'required_fields': fields.List(fields.String, default=[], required=False)
+    'required_fields': fields.List(fields.String, default=[], required=False),
+    'field_metrics': fields.List(fields.Nested(mod_field_metric), default=[], required=False)
 }, strict=True)
 
 
@@ -732,6 +733,9 @@ class DetectionList(Resource):
         # System reserved field
         if 'required_fields' in api.payload:
             del api.payload['required_fields']
+
+        if 'field_metrics' in api.payload:
+            del api.payload['field_metrics']
 
         # Only allow a detection with
         if 'organization' in api.payload:
