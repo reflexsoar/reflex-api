@@ -1481,8 +1481,10 @@ class DetectionRepository(base.BaseDocument):
             # Set from_repo_sync to False for any detections that were in this repository but are not anymore
             # and have been synced to a tenant
             ubq = UpdateByQuery(index=Detection._index._name)
-            # TODO: MAYBE FIX THIS?
-            ubq = ubq.query('term', organization=self.organization)
+
+            # Removed 2023.10.25 by @n3tsurge
+            #ubq = ubq.query('term', organization=self.organization)
+            
             ubq = ubq.query('term', from_repo_sync=True)
             ubq = ubq.query('terms', detection_id=detections)
             ubq = ubq.script(source="ctx._source.from_repo_sync = false")
