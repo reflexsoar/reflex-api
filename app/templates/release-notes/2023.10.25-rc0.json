@@ -1,0 +1,28 @@
+{
+    "version": "2023.10.25-rc0",
+    "sections": [
+        {
+            "title": "Features",
+            "items": [
+                {
+                    "title": "Cases",
+                    "description": "- Added functionality to automatically close a case after a specified period of time.  This can be configured in the Settings page under the Case Settings section.  This defaults to Off.\n"
+                }
+            ]
+        },
+        {
+            "title": "Enhancements",
+            "items": [
+            ]
+        },
+        {
+            "title": "Bug Fixes",
+            "items": [
+               {
+                "title": "Event Queue",
+                "description": "- Fixed an issue where Event Rules were not included in the Bulk Select action on the Event Queue page which could result in acting on unintended target events.\n"
+               }
+            ]
+        }
+    ]
+}
