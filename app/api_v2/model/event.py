@@ -23,7 +23,8 @@ from . import (
     system,
     utils,
     Nested,
-    InnerDoc
+    InnerDoc,
+    UpdateByQuery
 )
 
 from .utils import IndexedDict
@@ -346,7 +347,68 @@ class Event(base.BaseDocument):
             'created_at': datetime.datetime.utcnow(),
         })
 
-        self.save()
+        self.save(refresh="wait_for")
+
+    @classmethod
+    def bulk_unacknowledge_by_signature(self, event, signature, user):
+        '''
+        Bulk acknowledges a list of events
+        '''
+        
+        query = UpdateByQuery(index=self.Index.name)
+
+        # Filter for just the signature and the status of the target event
+        query = query.filter('term', signature=signature)
+        query = query.filter('term', status__name__keyword=event.status.name)
+
+        # Update the status to acknowledged
+        query = query.script(
+            source="""ctx._source.status = params.status; ctx._source.status_name = params.status_name; ctx._source.acknowledged = params.acknowledged; ctx._source.previous_status = params.previous_status; ctx._source.acknowledged_by = params.acknowledged_by; if(ctx._source.total_touches == null) { ctx._source.total_touches = 0; } ctx._source.total_touches += 1; if(ctx._source.total_abandons == null) { ctx._source.total_abandons = 0; } ctx._source.total_abandons +=1;""",
+            params={
+                'status': event.previous_status,
+                'previous_status': event.status,
+                'status_name': event.previous_status.name.lower(),
+                'acknowledged': False,
+                'acknowledged_by': None
+            }
+        )
+
+        # Execute the query 
+        query.execute()
+
+    @classmethod
+    def bulk_acknowledge_by_signature(self, event, signature, user):
+        '''
+        Bulk acknowledges a list of events
+        '''
+        
+        query = UpdateByQuery(index=self.Index.name)
+
+        # Filter for just the signature and the status of the target event
+        query = query.filter('term', signature=signature)
+        query = query.filter('term', status__name__keyword=event.status.name)
+
+        status = EventStatus.get_by_name(name='Acknowledged')
+        status_name = 'acknowledged'
+        acknowledged = True
+        acknowledged_by = utils._current_user_id_or_none()
+
+        # Update the status to acknowledged
+        query = query.script(
+            source="""ctx._source.status = params.status; ctx._source.status_name = params.status_name; ctx._source.acknowledged = params.acknowledged; ctx._source.previous_status = params.previous_status; ctx._source.acknowledged_by = params.acknowledged_by; if(ctx._source.total_touches == null) { ctx._source.total_touches = 0; } ctx._source.total_touches += 1; if(ctx._source.total_abandons == null) { ctx._source.total_abandons = 0; } if(ctx._source.metrics.first_touch == null) { ctx._source.metrics.first_touch = params.first_touch; }""",
+            params={
+                'status': status,
+                'previous_status': event.status,
+                'status_name': status_name,
+                'acknowledged': acknowledged,
+                'acknowledged_by': acknowledged_by,
+                'first_touch': datetime.datetime.utcnow()
+            }
+        )
+
+        # Execute the query 
+        query.execute()
+
 
     def set_unacknowledged(self):
         '''
@@ -372,7 +434,7 @@ class Event(base.BaseDocument):
 
         self.total_abandons += 1
 
-        self.save()
+        self.save(refresh="wait_for")
     
     def set_first_touch(self, save=False):
         '''

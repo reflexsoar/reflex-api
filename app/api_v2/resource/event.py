@@ -1498,6 +1498,9 @@ class EventRemapObservables(Resource):
             api.abort(404, 'Event not found.')
 """
 
+ack_parser = api.parser()
+ack_parser.add_argument('signature', type=str, help='The signature to acknowledge', location='args', default=None)
+
 @api.route("/<uuid>/acknowledge")
 class EventAcknowledge(Resource):
     '''
@@ -1508,6 +1511,7 @@ class EventAcknowledge(Resource):
     
     @api.doc(security="Bearer")
     @token_required
+    @api.expect(ack_parser)
     @api.marshal_with(mod_event_details)
     @user_has('update_event')
     def put(self, uuid, current_user):
@@ -1517,10 +1521,16 @@ class EventAcknowledge(Resource):
         another analyst start working on it.
         '''
 
+        args = ack_parser.parse_args()
+
         event = Event.get_by_uuid(uuid)
+
         if event:
-            event.set_acknowledged()
-            return event
+            if args.signature:
+                Event.bulk_acknowledge_by_signature(event=event, signature=args.signature, user=current_user)
+            else:
+                event.set_acknowledged()
+                return event
         else:
             api.abort(404, 'Event not found.')
 
@@ -1537,6 +1547,7 @@ class EventUnacknowledge(Resource):
     
     @api.doc(security="Bearer")
     @token_required
+    @api.expect(ack_parser)
     @api.marshal_with(mod_event_details)
     @user_has('update_event')
     def put(self, uuid, current_user):
@@ -1546,10 +1557,15 @@ class EventUnacknowledge(Resource):
         another analyst start working on it.
         '''
 
+        args = ack_parser.parse_args()
+
         event = Event.get_by_uuid(uuid)
         if event:
-            event.set_unacknowledged()
-            return event
+            if args.signature:
+                Event.bulk_unacknowledge_by_signature(event=event, signature=args.signature, user=current_user)
+            else:
+                event.set_unacknowledged()
+                return event
         else:
             api.abort(404, 'Event not found.')
 
@@ -1990,6 +2006,8 @@ event_bulk_select_parser.add_argument(
 event_bulk_select_parser.add_argument('organization', location='args', action='split', required=False)
 event_bulk_select_parser.add_argument('start', location='args', type=str, required=False)
 event_bulk_select_parser.add_argument('end', location='args', type=str, required=False)
+event_bulk_select_parser.add_argument('event_rule', location='args', default=[
+], type=str, action='split', required=False)
 
 @api.route("/bulk_select_all")
 class BulkSelectAll(Resource):
@@ -2062,6 +2080,13 @@ class BulkSelectAll(Resource):
                     'gte': args.start,
                     'lte': args.end
                 }
+            })
+
+        if args.event_rule and args.event_rule != ['']:
+            search_filters.append({
+                'type': 'terms',
+                'field': 'event_rules',
+                'value': args.event_rule
             })
         
         search = Event.search()
