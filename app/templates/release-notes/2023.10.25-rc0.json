@@ -13,6 +13,10 @@
         {
             "title": "Enhancements",
             "items": [
+                    {
+                        "title": "Detections",
+                        "description": "- Detection rules that have been imported from a Sigma Rule and subsequently synchronized to a tenant via a repository will now have the original sigma rule synchronized.\n"
+                    }
             ]
         },
         {
