@@ -17,6 +17,7 @@ from app.services.mitre import MITREAttack
 from app.services.notifier import Notifier
 from app.services.action_runner import ActionRunner
 from app.tasks.assess_rules import flag_rules_for_periodic_assessment
+from app.tasks.case.auto_close import auto_close_cases
 from app.integrations.base.loader import register_integrations
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -418,6 +419,9 @@ def create_app(environment='development'):
     # Add scheduled tasks
     scheduler.add_job(func=flag_rules_for_periodic_assessment, trigger="date", run_date=datetime.datetime.now()) # On System Startup
     scheduler.add_job(func=flag_rules_for_periodic_assessment, trigger="interval", seconds=24*60*60) # Once a day
+
+    scheduler.add_job(func=auto_close_cases, trigger="date", run_date=datetime.datetime.now()) # On System Startup
+    scheduler.add_job(func=auto_close_cases, trigger="interval", seconds=24*60*60) # Once a day
 
     if not app.config['EVENT_PROCESSOR']['DISABLED']:
         try:
