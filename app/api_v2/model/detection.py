@@ -1284,6 +1284,7 @@ class DetectionRepository(base.BaseDocument):
                     field_templates=subscription.default_field_template,
                     assess_rule=True,
                     required_fields=detection.required_fields,
+                    from_sigma=detection.from_sigma,
                     sigma_rule=detection.sigma_rule,
                     sigma_rule_id=detection.sigma_rule_id
                 )
@@ -1320,6 +1321,7 @@ class DetectionRepository(base.BaseDocument):
                     existing_detection.email_template = detection.email_template
                     existing_detection.status = detection.status
                     existing_detection.required_fields = detection.required_fields
+                    existing_detection.from_sigma = detection.from_sigma
                     existing_detection.sigma_rule = detection.sigma_rule
                     existing_detection.sigma_rule_id = detection.sigma_rule_id
 
@@ -1484,7 +1486,7 @@ class DetectionRepository(base.BaseDocument):
 
             # Removed 2023.10.25 by @n3tsurge
             #ubq = ubq.query('term', organization=self.organization)
-            
+
             ubq = ubq.query('term', from_repo_sync=True)
             ubq = ubq.query('terms', detection_id=detections)
             ubq = ubq.script(source="ctx._source.from_repo_sync = false")
