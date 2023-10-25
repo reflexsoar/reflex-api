@@ -1284,6 +1284,8 @@ class DetectionRepository(base.BaseDocument):
                     field_templates=subscription.default_field_template,
                     assess_rule=True,
                     required_fields=detection.required_fields,
+                    sigma_rule=detection.sigma_rule,
+                    sigma_rule_id=detection.sigma_rule_id
                 )
                 new_detection.save()
                 RepositorySyncLog(
@@ -1318,6 +1320,8 @@ class DetectionRepository(base.BaseDocument):
                     existing_detection.email_template = detection.email_template
                     existing_detection.status = detection.status
                     existing_detection.required_fields = detection.required_fields
+                    existing_detection.sigma_rule = detection.sigma_rule
+                    existing_detection.sigma_rule_id = detection.sigma_rule_id
 
                     # Set all the attributes based on the sync settings
                     sync_settings = subscription.sync_settings.to_dict()
