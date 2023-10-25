@@ -1215,6 +1215,8 @@ class AddDetectionException(Resource):
             else:
                 detection.exceptions = [exception]
 
+            detection.assess_rule = True
+
             detection.save(refresh=True)
 
             return detection
@@ -1239,6 +1241,7 @@ class RemoveDetectionException(Resource):
             if detection.exceptions:
                 detection.exceptions = [
                     exception for exception in detection.exceptions if exception.uuid != exception_uuid]
+                detection.assess_rule = True
                 detection.save(refresh=True)
 
             return detection
