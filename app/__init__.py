@@ -417,8 +417,8 @@ def create_app(environment='development'):
     scheduler.add_job(func=action_runner.run, trigger="date", run_date=datetime.datetime.now())
 
     # Add scheduled tasks
-    scheduler.add_job(func=flag_rules_for_periodic_assessment, trigger="date", run_date=datetime.datetime.now()) # On System Startup
-    scheduler.add_job(func=flag_rules_for_periodic_assessment, trigger="interval", seconds=24*60*60) # Once a day
+    # scheduler.add_job(func=flag_rules_for_periodic_assessment, trigger="date", run_date=datetime.datetime.now()) # On System Startup
+    # scheduler.add_job(func=flag_rules_for_periodic_assessment, trigger="interval", seconds=24*60*60) # Once a day
 
     scheduler.add_job(func=auto_close_cases, trigger="date", run_date=datetime.datetime.now()) # On System Startup
     scheduler.add_job(func=auto_close_cases, trigger="interval", seconds=24*60*60) # Once a day
