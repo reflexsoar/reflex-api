@@ -1284,6 +1284,9 @@ class DetectionRepository(base.BaseDocument):
                     field_templates=subscription.default_field_template,
                     assess_rule=True,
                     required_fields=detection.required_fields,
+                    from_sigma=detection.from_sigma,
+                    sigma_rule=detection.sigma_rule,
+                    sigma_rule_id=detection.sigma_rule_id
                 )
                 new_detection.save()
                 RepositorySyncLog(
@@ -1318,6 +1321,9 @@ class DetectionRepository(base.BaseDocument):
                     existing_detection.email_template = detection.email_template
                     existing_detection.status = detection.status
                     existing_detection.required_fields = detection.required_fields
+                    existing_detection.from_sigma = detection.from_sigma
+                    existing_detection.sigma_rule = detection.sigma_rule
+                    existing_detection.sigma_rule_id = detection.sigma_rule_id
 
                     # Set all the attributes based on the sync settings
                     sync_settings = subscription.sync_settings.to_dict()
@@ -1477,8 +1483,10 @@ class DetectionRepository(base.BaseDocument):
             # Set from_repo_sync to False for any detections that were in this repository but are not anymore
             # and have been synced to a tenant
             ubq = UpdateByQuery(index=Detection._index._name)
-            # TODO: MAYBE FIX THIS?
-            ubq = ubq.query('term', organization=self.organization)
+
+            # Removed 2023.10.25 by @n3tsurge
+            #ubq = ubq.query('term', organization=self.organization)
+
             ubq = ubq.query('term', from_repo_sync=True)
             ubq = ubq.query('terms', detection_id=detections)
             ubq = ubq.script(source="ctx._source.from_repo_sync = false")

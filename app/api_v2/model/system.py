@@ -162,6 +162,10 @@ class Settings(base.BaseDocument):
     disallowed_password_keywords = Keyword()
     # The number of days a case can stay open before it's in SLA breach
     case_sla_days = Integer()
+    case_auto_close = Boolean()  # Automatically close cases after a period of inactivity
+    case_auto_close_days = Integer()  # The number of days a case can stay open before it's automatically closed
+    case_auto_close_reason = Keyword()  # The reason a case is automatically closed
+    case_auto_close_comment = Keyword()  # The comment to add when a case is automatically closed
     # The number of minutes an event can be New before its SLA breach
     event_sla_minutes = Integer()
     allow_user_registration = Boolean()  # Allow users to register themselves

@@ -1,0 +1,36 @@
+{
+    "version": "2023.10.25-rc0",
+    "sections": [
+        {
+            "title": "Features",
+            "items": [
+                {
+                    "title": "Cases",
+                    "description": "- Added functionality to automatically close a case after a specified period of time.  This can be configured in the Settings page under the Case Settings section.  This defaults to Off.\n"
+                }
+            ]
+        },
+        {
+            "title": "Enhancements",
+            "items": [
+                    {
+                        "title": "Detections",
+                        "description": "- Detection rules that have been imported from a Sigma Rule and subsequently synchronized to a tenant via a repository will now have the original sigma rule synchronized.\n"
+                    }
+            ]
+        },
+        {
+            "title": "Bug Fixes",
+            "items": [
+               {
+                "title": "Event Queue",
+                "description": "- Fixed an issue where Event Rules were not included in the Bulk Select action on the Event Queue page which could result in acting on unintended target events.\n"
+               },
+               {
+                "title": "Detections",
+                "description": "- After a rule was removed from a repository, any organizations that had the same rule synchronized from said repository could not delete the rule.\n- Detections should not get automatically flagged for assessment when adding a new exception or removing an existing exception.  It is a known bug that editing a Detection Exception that already exists still does not flag the rule for assessment automatically.\n"
+               }
+            ]
+        }
+    ]
+}
