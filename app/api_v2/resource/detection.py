@@ -552,7 +552,12 @@ detection_list_parser.add_argument(
 detection_list_parser.add_argument(
     'status', location='args', action='split', type=str, required=False)
 detection_list_parser.add_argument(
+    'status__not', location='args', action='split', type=str, required=False)
+detection_list_parser.add_argument(
     'warnings', location='args', action='split', type=str, required=False)
+detection_list_parser.add_argument(
+    'warnings__not', location='args', action='split', type=str, required=False
+)
 detection_list_parser.add_argument(
     'name__like', location='args', type=str, required=False)
 detection_list_parser.add_argument(
@@ -612,11 +617,17 @@ class DetectionList(Resource):
         if args.status and len(args.status) > 0 and args.status[0] != '':
             search = search.filter('terms', status=args.status)
 
+        if args.status__not and len(args.status__not) > 0 and args.status__not[0] != '':
+            search = search.exclude('terms', status=args.status__not)
+
         if args.assess_rule:
             search = search.filter('terms', assess_rule=args.assess_rule)
 
         if args.warnings and len(args.warnings) > 0:
             search = search.filter('terms', warnings=args.warnings)
+
+        if args.warnings__not and len(args.warnings__not) > 0:
+            search = search.exclude('terms', warnings=args.warnings__not)
 
         if args.severity and len(args.severity) > 0:
             search = search.filter('terms', severity=args.severity)
@@ -801,6 +812,9 @@ class DetectionUUIDsByFilter(Resource):
         if args.status and len(args.status) > 0 and args.status != [""]:
             detections = detections.filter('terms', status=args.status)
 
+        if args.status__not and len(args.status__not) > 0 and args.status__not != [""]:
+            detections = detections.exclude('terms', status=args.status__not)
+
         if args.repository and len(args.repository) > 0 and args.repository[0] != '':
             if 'None' in args.repository:
                 # If the user has selected None filter for detections with no value for repository
@@ -829,6 +843,9 @@ class DetectionUUIDsByFilter(Resource):
 
         if args.warnings and len(args.warnings) > 0:
             detections = detections.filter('terms', warnings=args.warnings)
+
+        if args.warnings__not and len(args.warnings__not) > 0:
+            detections = detections.exclude('terms', warnings=args.warnings__not)
 
         if args.active:
             detections = detections.filter('terms', active=args.active)
@@ -901,6 +918,9 @@ class DetectionFilters(Resource):
         if args.status and len(args.status) > 0 and args.status != [""]:
             detections = detections.filter('terms', status=args.status)
 
+        if args.status__not and len(args.status__not) > 0 and args.status__not[0] != '':
+            detections = detections.exclude('terms', status=args.status__not)
+
         if args.severity and len(args.severity) > 0:
             detections = detections.filter('terms', severity=args.severity)
 
@@ -932,6 +952,9 @@ class DetectionFilters(Resource):
 
         if args.warnings and len(args.warnings) > 0:
             detections = detections.filter('terms', warnings=args.warnings)
+
+        if args.warnings__not and len(args.warnings__not) > 0:
+            detections = detections.exclude('terms', warnings=args.warnings__not)
 
         if args.active:
             detections = detections.filter('terms', active=args.active)
