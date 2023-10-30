@@ -548,6 +548,8 @@ detection_list_parser.add_argument(
 detection_list_parser.add_argument(
     'tags', location='args', action='split', type=str, required=False)
 detection_list_parser.add_argument(
+    'tags__not', location='args', action='split', type=str, required=False)
+detection_list_parser.add_argument(
     'repository', location='args', action='split', type=str, required=False)
 detection_list_parser.add_argument(
     'status', location='args', action='split', type=str, required=False)
@@ -613,6 +615,9 @@ class DetectionList(Resource):
 
         if args.tags and len(args.tags) > 0 and args.tags[0] != '':
             search = search.filter('terms', tags=args.tags)
+
+        if args.tags__not and len(args.tags__not) > 0 and args.tags__not[0] != '':
+            search = search.exclude('terms', tags=args.tags__not)
 
         if args.status and len(args.status) > 0 and args.status[0] != '':
             search = search.filter('terms', status=args.status)
@@ -809,6 +814,9 @@ class DetectionUUIDsByFilter(Resource):
         if args.tags and len(args.tags) > 0 and args.tags != [""]:
             detections = detections.filter('terms', tags=args.tags)
 
+        if args.tags__not and len(args.tags__not) > 0 and args.tags__not != [""]:
+            detections = detections.exclude('terms', tags=args.tags__not)
+
         if args.status and len(args.status) > 0 and args.status != [""]:
             detections = detections.filter('terms', status=args.status)
 
@@ -914,6 +922,9 @@ class DetectionFilters(Resource):
 
         if args.tags and len(args.tags) > 0 and args.tags != [""]:
             detections = detections.filter('terms', tags=args.tags)
+
+        if args.tags__not and len(args.tags__not) > 0 and args.tags__not != [""]:
+            detections = detections.exclude('terms', tags=args.tags__not)
 
         if args.status and len(args.status) > 0 and args.status != [""]:
             detections = detections.filter('terms', status=args.status)
