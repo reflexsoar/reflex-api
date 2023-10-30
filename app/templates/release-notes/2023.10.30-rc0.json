@@ -1,0 +1,19 @@
+{
+    "version": "2023.10.25-rc0",
+    "sections": [
+        {
+            "title": "Enhancements",
+            "items": [
+                    {
+                        "title": "Detections",
+                        "description": "- The Detections page now supports inverse filtering on the `tags`, `status` and `warnings` fields by using Alt+Click on the filter."
+                    }
+            ]
+        },
+        {
+            "title": "Bug Fixes",
+            "items": [
+            ]
+        }
+    ]
+}
