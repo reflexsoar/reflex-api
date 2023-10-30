@@ -1,6 +1,7 @@
 import random
 import string
 from io import BytesIO
+from uuid import uuid4
 
 import pyqrcode
 from flask_restx import Namespace, Resource, fields
@@ -616,6 +617,8 @@ class UserDetails(Resource):
                 user.username = f"{user.username}-DELETED-{random_identifier}"
                 user.email = None
                 user.locked = True
+                # Generate a new uuid for the user
+                user.uuid = str(uuid4())
                 user.save()
                 return {'message': 'User successfully deleted.'}
         else:
