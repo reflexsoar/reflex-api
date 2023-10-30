@@ -116,6 +116,11 @@ class SigmaParser(object):
         backend = BACKENDS[self.backend](pipeline)
         rules = SigmaCollection([self.rule])
 
+        # TODO: Implement support for multiple pipelines
+        # for rule in rules:
+        #    for p in [sysmon_pipeline(), ecs_windows()]:
+        #        p.apply(rule)
+
         if rules:
             converted_rules = backend.convert(rules)
             detection_config['query']['query'] = converted_rules[0]
