@@ -13,6 +13,18 @@
         {
             "title": "Bug Fixes",
             "items": [
+                {
+                    "title": "Cases",
+                    "description": "- Fixed an issue where automatic case closure settings were not available for every organization.\n"
+                },
+                {
+                    "title": "Events",
+                    "description": "- Fixed an issue where the wrong observable value would display on the Observable Popover.\n"
+                },
+                {
+                    "title": "Detections",
+                    "description": "- A field may not always be aggregatable across multiple indices when running field metrics analysis, agents will now skip fields that fail to aggregate when checking for field statistics during rule assessment.\n"
+                }
             ]
         }
     ]
