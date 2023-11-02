@@ -632,7 +632,7 @@ def fetch_observables_from_history(observables, organization=None):
                 observable['source_field'] = source_observable['source_field']
         
         # Merge the latest historical tags with the tags on this current observable
-        if 'tags' in observable:
+        if 'tags' in observable and 'tags' in source_observable:
             observable['tags'] = list(set([t for t in source_observable['tags']] + [t for t in observable['tags']]))
         else:
             if 'tags' in source_observable:

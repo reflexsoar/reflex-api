@@ -15,7 +15,7 @@
             "items": [
                     {
                         "title": "Detections",
-                        "description": "- Detection rules that have been imported from a Sigma Rule and subsequently synchronized to a tenant via a repository will now have the original sigma rule synchronized.\n"
+                        "description": "- Detection rules that have been imported from a Sigma Rule and subsequently synchronized to a tenant via a repository will now have the original sigma rule synchronized.\n- The original sigma rule used to create a detection is now on a Sigma Rule tab on the Detection Details page."
                     }
             ]
         },
