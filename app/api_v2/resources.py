@@ -384,6 +384,9 @@ class CloseReasonList(Resource):
         
         if args.title:
             close_reasons = close_reasons.filter('match', title=args.title)
+
+        # Sort by title
+        close_reasons = close_reasons.sort({"title": {"order": "asc"}})
         
         close_reasons = close_reasons.execute()
         if close_reasons:
