@@ -6,7 +6,7 @@
             "items": [
                 {
                     "title": "File Integrity Monitoring (BETA)",
-                    "description": "Reflex now supports adding File Integrity Monitoring (FIM) rules to your organization. FIM rules allow you to monitor for changes to files on your endpoints. For more information, see [File Integrity Monitoring](https://docs.reflexsoart.com/file-integrity-monitoring).  Note: This is a Beta feature and requires a special agent."
+                    "description": "Reflex now supports adding File Integrity Monitoring (FIM) rules to your organization. FIM rules allow you to monitor for changes to files on your endpoints. For more information, see [File Integrity Monitoring](https://docs.reflexsoar.com/file-integrity-monitoring).  Note: This is a Beta feature and requires a special agent."
                 }
             ]
         },
