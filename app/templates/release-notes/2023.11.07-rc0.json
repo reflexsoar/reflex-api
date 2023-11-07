@@ -1,0 +1,28 @@
+{
+    "version": "2023.10.30-rc0",
+    "sections": [
+        {
+            "title": "Feature",
+            "items": [
+                {
+                    "title": "File Integrity Monitoring (BETA)",
+                    "description": "Reflex now supports adding File Integrity Monitoring (FIM) rules to your organization. FIM rules allow you to monitor for changes to files on your endpoints. For more information, see [File Integrity Monitoring](https://docs.reflexsoart.com/file-integrity-monitoring).  Note: This is a Beta feature and requires a special agent."
+                }
+            ]
+        },
+        {
+            "title": "Enhancements",
+            "items": [
+                    {
+                        "title": "Agents",
+                        "description": "- Agents will now be flagged as `is_pluggable` if they are running the new pluggable agent.  This is for backwards compatibility purposes.\n"
+                    }
+            ]
+        },
+        {
+            "title": "Bug Fixes",
+            "items": [
+            ]
+        }
+    ]
+}
