@@ -11,6 +11,8 @@ from ..model import (
     AgentGroup,
     ExpiredToken
 )
+
+from app.api_v2.model.agent import PLUGGABLE_SUPPORTED_ROLES
 from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
 from ..utils import check_org, token_required, user_has, ip_approved, page_results, generate_token, default_org
@@ -177,6 +179,12 @@ class AgentList(Resource):
             if 'version' in api.payload:
                 if 'plg' in api.payload['version']:
                     api.payload['is_pluggable'] = True
+
+            # Pluggable agents can't be detectors as of 2023-11-06
+            if 'roles' in api.payload and 'is_pluggable' in api.payload:
+                for role in api.payload['roles']:
+                    if role not in PLUGGABLE_SUPPORTED_ROLES:
+                        api.abort(400, f"Role {role} is not supported by pluggable agents.")
 
             groups = None
             if 'groups' in api.payload and api.payload['groups']:
@@ -448,7 +456,13 @@ class AgentDetails(Resource):
         agent = Agent.get_by_uuid(uuid=uuid)
         if agent:
 
-            agent.update(**api.payload, refresh=True)
+            # Pluggable agents can't be detectors as of 2023-11-06
+            if 'roles' in api.payload and agent.is_pluggable:
+                for role in api.payload['roles']:
+                    if role not in PLUGGABLE_SUPPORTED_ROLES:
+                        api.abort(400, f"Role {role} is not supported by pluggable agents.")
+
+            agent.update(**api.payload, refresh=True)          
 
             #if 'roles' in api.payload:
             #    redistribute_detections(organization=agent.organization)

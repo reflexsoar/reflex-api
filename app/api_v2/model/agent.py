@@ -17,6 +17,7 @@ from . import (
     Nested
 )
 
+PLUGGABLE_SUPPORTED_ROLES = ['fim']
 
 class RunnerRoleConfig(InnerDoc):
     '''
