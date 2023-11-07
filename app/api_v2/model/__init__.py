@@ -100,6 +100,7 @@ from .package import Package
 from .data_source import DataSourceTemplate, DataSourceDefinition
 from .schedule import Schedule
 from .fim import FimRule
+from .tag import AgentTag
 
 VERSION = (2, 0, 0)
 __version__ = VERSION
@@ -177,5 +178,6 @@ __all__ = [
     'DataSourceTemplate',
     'DataSourceDefinition',
     'Schedule',
-    'FimRule'
+    'FimRule',
+    'AgentTag'
 ]

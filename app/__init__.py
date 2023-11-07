@@ -39,7 +39,7 @@ from app.api_v2.model import (
         AgentLogMessage, EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState, RepositorySyncLog,
         Integration, IntegrationConfiguration, IntegrationLog, IntegrationActionQueue, SSOProvider,
-        RoleMappingPolicy, Package, DataSourceTemplate, Schedule, FimRule
+        RoleMappingPolicy, Package, DataSourceTemplate, Schedule, FimRule, AgentTag
 )
 
 from .defaults import (
@@ -151,7 +151,7 @@ def upgrade_indices(app):
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState,
         RepositorySyncLog, Integration, IntegrationConfiguration, IntegrationLog,
         IntegrationActionQueue, SSOProvider, RoleMappingPolicy, Package, DataSourceTemplate,
-        Schedule, FimRule
+        Schedule, FimRule, AgentTag
     ]
     
     def do_upgrade(model):
