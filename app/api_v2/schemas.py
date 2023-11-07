@@ -219,7 +219,15 @@ mod_permissions = Model('Permissions', {
     'view_data_source_templates': fields.Boolean,
     'add_data_source_templates': fields.Boolean,
     'update_data_source_templates': fields.Boolean,
-    'delete_data_source_templates': fields.Boolean
+    'delete_data_source_templates': fields.Boolean,
+    'view_fim_rules': fields.Boolean,
+    'create_fim_rule': fields.Boolean,
+    'update_fim_rule': fields.Boolean,
+    'delete_fim_rule': fields.Boolean,
+    'view_schedules': fields.Boolean,
+    'create_schedule': fields.Boolean,
+    'update_schedule': fields.Boolean,
+    'delete_schedule': fields.Boolean
 })
 
 mod_role_create = Model('RoleCreate', {
