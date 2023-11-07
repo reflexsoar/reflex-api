@@ -36,6 +36,7 @@ mod_agent_list = api.model('AgentList', {
     'last_heartbeat': ISO8601(attribute='last_heartbeat'),
     'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
     'version': fields.String,
+    'is_pluggable': fields.Boolean(default=False)
 })
 
 mod_agent_details = api.model('AgentList', {
@@ -52,6 +53,7 @@ mod_agent_details = api.model('AgentList', {
     'last_heartbeat': ISO8601(attribute='last_heartbeat'),
     'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
     'version': fields.String,
+    'is_pluggable': fields.Boolean(default=False)
 })
 
 mod_agent_inputs = api.model('AgentInputs', {
@@ -171,6 +173,10 @@ class AgentList(Resource):
 
         agent = Agent.get_by_name(name=api.payload['name'])
         if not agent:
+
+            if 'version' in api.payload:
+                if 'plg' in api.payload['version']:
+                    api.payload['is_pluggable'] = True
 
             groups = None
             if 'groups' in api.payload and api.payload['groups']:

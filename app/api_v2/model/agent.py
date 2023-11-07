@@ -189,6 +189,7 @@ class Agent(base.BaseDocument):
     health_issues = Keyword()  # A list of issues that have been found with the agent
     agent_policy = Keyword()  # The agent policy that controls this agent
     version = Keyword() # What is the version of this policy?
+    is_pluggable = Boolean() # Is this agent pluggable?
 
     class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
