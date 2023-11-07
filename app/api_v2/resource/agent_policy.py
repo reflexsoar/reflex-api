@@ -53,7 +53,10 @@ mod_fim_config = api.model('FIMConfig', {
     'max_memory': fields.Integer(default=256),
     'max_cache_db_size': fields.Integer(default=100),
     'max_cache_db_age': fields.Integer(default=72),
-    'alert_on_cache_full': fields.Boolean(default=True)
+    'alert_on_cache_missing': fields.Boolean(default=True),
+    'wait_interval': fields.Integer(default=30),
+    'logging_level': fields.String(default='ERROR'),
+    'graceful_exit': fields.Boolean(default=True)
 })
 
 mod_agent_policy = api.model('AgentPolicy', {

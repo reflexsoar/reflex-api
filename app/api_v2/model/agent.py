@@ -90,6 +90,9 @@ class FIMConfig(InnerDoc):
     max_cache_db_size = Integer()  # How much space can the FIM cache use before it is cleared
     max_cache_db_age = Integer()  # How old can the FIM cache be before it is cleared
     alert_on_cache_missing = Boolean()  # Should the FIM alert when the cache is missing
+    wait_interval = Integer()  # How long should the FIM wait between runs
+    logging_level = Keyword()  # What logging level should the FIM use for its logs?
+    graceful_exit = Boolean()  # Should the FIM attempt a graceful exit when asked to shut down
 
 
 class AgentPolicy(base.BaseDocument):
@@ -309,7 +312,10 @@ class Agent(base.BaseDocument):
                     max_memory=256,
                     max_cache_db_size=100,
                     max_cache_db_age=72,
-                    alert_on_cache_missing=True
+                    alert_on_cache_missing=True,
+                    wait_interval=30,
+                    logging_level='ERROR',
+                    graceful_exit=True
                 ),
                 tags=['default'],
                 priority=0,
