@@ -79,6 +79,18 @@ class MitreMapperConfig(InnerDoc):
     timeout = Integer()  # How long should the mapper wait for a response from the API
 
 
+class FIMConfig(InnerDoc):
+    '''Contains information about the FIM role configuration
+    '''
+
+    max_parallel_rules = Integer()  # How many rules can a single FIM run concurrently
+    max_cpu_time = Integer()  # How long can a single FIM rule run before it is killed
+    max_memory = Integer()  # How much memory can a single FIM rule use before it is killed
+    max_cache_db_size = Integer()  # How much space can the FIM cache use before it is cleared
+    max_cache_db_age = Integer()  # How old can the FIM cache be before it is cleared
+    alert_on_cache_missing = Boolean()  # Should the FIM alert when the cache is missing
+
+
 class AgentPolicy(base.BaseDocument):
     '''
     A Reflex agent policy that controls all the configuration of an agent
@@ -114,6 +126,7 @@ class AgentPolicy(base.BaseDocument):
     # What is the configuration for the runner role?
     runner_config = Nested(RunnerRoleConfig)
     mitre_mapper_config = Nested(MitreMapperConfig)
+    fim_config = Nested(FIMConfig)
     tags = Keyword()  # Tags to categorize this policy
     priority = Integer()  # What is the priority of this policy?
     revision = Integer()  # What is the revision of this policy?
@@ -287,6 +300,14 @@ class Agent(base.BaseDocument):
                     logging_level='ERROR',
                     assessment_days=14,
                     timeout=30
+                ),
+                fim_config=FIMConfig(
+                    max_parallel_rules=10,
+                    max_cpu_time=30,
+                    max_memory=256,
+                    max_cache_db_size=100,
+                    max_cache_db_age=72,
+                    alert_on_cache_missing=True
                 ),
                 tags=['default'],
                 priority=0,

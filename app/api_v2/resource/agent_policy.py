@@ -47,6 +47,15 @@ mod_mitre_mapper_config = api.model('MitreMapperConfig', {
     'timeout': fields.Integer(default=30),
 })
 
+mod_fim_config = api.model('FIMConfig', {
+    'max_parallel_rules': fields.Integer(default=10),
+    'max_cpu_time': fields.Integer(default=30),
+    'max_memory': fields.Integer(default=256),
+    'max_cache_db_size': fields.Integer(default=100),
+    'max_cache_db_age': fields.Integer(default=72),
+    'alert_on_cache_full': fields.Boolean(default=True)
+})
+
 mod_agent_policy = api.model('AgentPolicy', {
     'name': fields.String,
     'organization': fields.String,
@@ -61,6 +70,7 @@ mod_agent_policy = api.model('AgentPolicy', {
     'detector_config': fields.Nested(mod_detector_config),
     'runner_config': fields.Nested(mod_runner_config),
     'mitre_mapper_config': fields.Nested(mod_mitre_mapper_config),
+    'fim_config': fields.Nested(mod_fim_config),
     'tags': fields.List(fields.String, default=[]),
     'priority': fields.Integer(default=1)
 }, strict=True)
@@ -69,7 +79,8 @@ mod_policy_roles = api.model('AgentPolicyRoles', {
     'detector': fields.Nested(mod_detector_config),
     'poller': fields.Nested(mod_poller_config),
     'runner': fields.Nested(mod_runner_config),
-    'mitre': fields.Nested(mod_mitre_mapper_config)
+    'mitre': fields.Nested(mod_mitre_mapper_config),
+    'fim': fields.Nested(mod_fim_config),
 })
 
 mod_policy_settings = api.model('AgentPolicySettings', {
