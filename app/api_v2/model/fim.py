@@ -28,6 +28,7 @@ class FimRule(base.BaseDocument):
     alert = Boolean()
     collect_additional_data = Boolean()
     tags = Keyword()
+    schedules = Keyword()
 
     class Index:
 

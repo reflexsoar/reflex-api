@@ -99,6 +99,7 @@ from .sso import SSOProvider, RoleMappingPolicy
 from .package import Package
 from .data_source import DataSourceTemplate, DataSourceDefinition
 from .schedule import Schedule
+from .fim import FimRule
 
 VERSION = (2, 0, 0)
 __version__ = VERSION
@@ -175,5 +176,6 @@ __all__ = [
     'analyzer',
     'DataSourceTemplate',
     'DataSourceDefinition',
-    'Schedule'
+    'Schedule',
+    'FimRule'
 ]
