@@ -10,7 +10,7 @@ class FimRule(base.BaseDocument):
 
     name = Keyword(fields={'text': Text()})
     description = Keyword(fields={'text': Text()})
-    severity = Keyword()
+    severity = Integer()
     risk_score = Integer()
     paths = Keyword()
     recursive = Boolean()
@@ -32,3 +32,24 @@ class FimRule(base.BaseDocument):
         settings = {
             'refresh_interval': '5s',
         }
+
+    @classmethod
+    def get_by_name(cls, name, organization=None):
+        '''
+        Fetches a document by the name field
+        Uses a term search on a keyword field for EXACT matching
+        '''
+        response = cls.search()
+
+        if isinstance(name, list):
+            response = response.filter('terms', name=name)
+        else:
+            response = response.filter('term', name=name)
+        if organization:
+            response = response.filter('term', organization=organization)
+
+        response = response.execute()
+        if response:
+            usr = response[0]
+            return usr
+        return response

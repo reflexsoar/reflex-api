@@ -6,7 +6,7 @@
             "items": [
                 {
                     "title": "File Integrity Monitoring (BETA)",
-                    "description": "Reflex now supports adding File Integrity Monitoring (FIM) rules to your organization. FIM rules allow you to monitor for changes to files on your endpoints. For more information, see [File Integrity Monitoring](https://docs.reflexsoar.com/file-integrity-monitoring).  Note: This is a Beta feature and requires a special agent."
+                    "description": "Reflex now supports adding File Integrity Monitoring (FIM) rules to your organization. FIM rules allow you to monitor for changes to files on your endpoints. For more information, see [File Integrity Monitoring](https://docs.reflexsoar.com/en/latest/agents/roles/file-integrity-monitoring).  Note: This is a Beta feature and requires a special agent."
                 }
             ]
         },
@@ -15,7 +15,7 @@
             "items": [
                     {
                         "title": "Agents",
-                        "description": "- Agents will now be flagged as `is_pluggable` if they are running the new pluggable agent.  This is for backwards compatibility purposes.\n"
+                        "description": "- Agents will now be flagged as `is_pluggable` if they are running the new pluggable agent.  This is for backwards compatibility purposes.\n- Agents now support static or dynamic tagging (BETA).  These tags can be used to dynamically add agent policies, upgrade the agents (future release) and group agents in to more manageable buckets, see [Agent Tags](http://docs.reflexsoar.com/en/latest/agents/tags)."
                     }
             ]
         },
