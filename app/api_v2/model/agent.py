@@ -174,6 +174,69 @@ class AgentLogMessage(base.BaseDocument):
     message = Text(fields={'keyword': Keyword()})  # The log message
 
 
+class AgentNetworkInterface(InnerDoc):
+    '''
+    Contains information about a network interface on the host
+    '''
+    name = Keyword() # The name of the interface
+    mac = Keyword() # The MAC address of the interface
+    ip = Ip() # The IP address of the interface
+    netmask = Keyword() # The netmask of the interface
+    broadcast = Ip() # The broadcast address of the interface
+
+
+class AgentSystemInfo(InnerDoc):
+    '''
+    Contains information about the system that the agent is running on
+    '''
+    type = Keyword() # The type of system
+    os_release = Keyword() # The OS release of the system
+    os_version = Keyword() # The OS version of the system
+    os_name = Keyword() # The OS name of the system
+    machine = Keyword() # The machine type of the system
+    hostname = Keyword() # The hostname of the system
+    processor = Keyword() # The processor type of the system
+    architecture = Keyword() # The architecture of the system
+
+
+class AgentChassisInfo(InnerDoc):
+    '''
+    Contains information about the chassis that the agent is running on
+    '''
+    domain = Keyword() # The domain of the chassis
+    domain_role = Integer() # The domain role of the chassis
+    model = Keyword() # The model of the chassis
+    manufacturer = Keyword() # The manufacturer of the chassis
+    system_family = Keyword() # The system family of the chassis
+    system_sku = Keyword() # The system SKU of the chassis
+    workgroup = Keyword() # The workgroup of the chassis
+    serial_number = Keyword() # The serial number of the chassis
+    chassis_type = Keyword() # The chassis type of the chassis
+
+
+class AgentLocalUser(InnerDoc):
+    '''
+    Contains information about a local user on the host
+    '''
+    
+    username = Keyword() # The username of the local user
+    terminal = Keyword() # The terminal of the local user
+    host = Keyword() # The host of the local user
+    session_start = Date() # The start time of the local user session
+    groups = Keyword() # The groups the local user belongs to
+
+
+class AgentHostInformation(InnerDoc):
+    '''
+    Contains information about the host that the agent is running on
+    '''
+    timezone = Keyword() # The timezone of the host
+    network_interfaces = Nested(AgentNetworkInterface)
+    users = Nested(AgentLocalUser)
+    last_reboot = Date() # The last time the host was rebooted
+    system = Nested(AgentSystemInfo)
+    chassis = Nested(AgentChassisInfo)
+
 class Agent(base.BaseDocument):
     '''
     A Reflex agent performs plugin actions, polls external sources
@@ -194,6 +257,8 @@ class Agent(base.BaseDocument):
     agent_policy = Keyword()  # The agent policy that controls this agent
     version = Keyword() # What is the version of this policy?
     is_pluggable = Boolean() # Is this agent pluggable?
+    updated_required = Boolean() # Does this agent need to be updated?
+    host_information = Nested(AgentHostInformation)
 
     class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

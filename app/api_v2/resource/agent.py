@@ -62,11 +62,60 @@ mod_agent_inputs = api.model('AgentInputs', {
     'inputs': fields.List(fields.Nested(mod_input_list)),
 })
 
+mod_agent_network_interfaces = api.model('AgentNetworkInterfaces', {
+    'name': fields.String,
+    'mac': fields.String,
+    'ip': fields.String,
+    'netmask': fields.String,
+    'broadcast': fields.String,
+})
+
+mod_agent_local_users = api.model('AgentLocalUsers', {
+    'username': fields.String,
+    'terminal': fields.String,
+    'host': fields.String,
+    'session_start': ISO8601,
+    'groups': fields.List(fields.String)
+})
+
+mod_agent_system_info = api.model('AgentSystemInfo', {
+    'type': fields.String,
+    'os_release': fields.String,
+    'os_version': fields.String,
+    'os_name': fields.String,
+    'machine': fields.String,
+    'hostname': fields.String,
+    'processor': fields.String,
+    'architecture': fields.String,
+})
+
+mod_agent_chassis_info = api.model('AgentChassisInfo', {
+    'domain': fields.String,
+    'domain_role': fields.Integer,
+    'model': fields.String,
+    'manufacturer': fields.String,
+    'system_family': fields.String,
+    'system_sku': fields.String,
+    'workgroup': fields.String,
+    'serial_number': fields.String,
+    'chassis_type': fields.String,
+})
+
+mod_agent_host_information = api.model('AgentHostInformation', {
+    'timezone': fields.String,
+    'network_interfaces': fields.List(fields.Nested(mod_agent_network_interfaces)),
+    'users': fields.List(fields.Nested(mod_agent_local_users)),
+    'last_reboot': ISO8601,
+    'system': fields.Nested(mod_agent_system_info),
+    'chassis': fields.Nested(mod_agent_chassis_info),
+})
+
 mod_agent_heartbeat = api.model('AgentHeartbeat', {
     'healthy': fields.Boolean,
     'health_issues': fields.List(fields.String),
     'recovered': fields.Boolean,
     'version': fields.String,
+    'host_information': fields.Nested(mod_agent_host_information)
 })
 
 mod_agent_list_paged = api.model('AgentListPaged', {
