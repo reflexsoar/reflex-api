@@ -397,6 +397,10 @@ class AgentPolicy(Resource):
                 'updated_by': agent._policy.updated_by
             }
 
+            # Only return pluggable roles if the agent is pluggable
+            if agent.is_pluggable:
+                policy['roles'] = [r for r in policy['roles'] if r in PLUGGABLE_SUPPORTED_ROLES]
+
             return policy
         else:
             api.abort(404, "Agent not found.")

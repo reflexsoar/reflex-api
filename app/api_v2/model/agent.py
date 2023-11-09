@@ -310,6 +310,10 @@ class Agent(base.BaseDocument):
         if self._policy:
             if self._policy.roles and len(self._policy.roles) > 0:
                 [roles.append(r) for r in self._policy.roles]
+
+        if self.is_pluggable:
+            roles = [role for role in roles if role in PLUGGABLE_SUPPORTED_ROLES]
+            
         return list(set(roles))
 
 
@@ -328,7 +332,13 @@ class Agent(base.BaseDocument):
 
         if policies:
             policies.sort(key=lambda x: x.priority)
-            return policies[0]
+
+            policy = policies[0]
+
+            if self.is_pluggable:
+                policy['roles'] = [role for role in policy.roles if role in PLUGGABLE_SUPPORTED_ROLES]
+
+            return policy
         else:
             return AgentPolicy(
                 uuid='00000000-0000-0000-0000-000000000000',
