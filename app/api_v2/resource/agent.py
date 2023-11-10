@@ -115,6 +115,7 @@ mod_agent_heartbeat = api.model('AgentHeartbeat', {
     'health_issues': fields.List(fields.String),
     'recovered': fields.Boolean,
     'version': fields.String,
+    'is_pluggable': fields.Boolean,
     'host_information': fields.Nested(mod_agent_host_information)
 })
 
@@ -224,10 +225,6 @@ class AgentList(Resource):
 
         agent = Agent.get_by_name(name=api.payload['name'])
         if not agent:
-
-            if 'version' in api.payload:
-                if 'plg' in api.payload['version']:
-                    api.payload['is_pluggable'] = True
 
             # Pluggable agents can't be detectors as of 2023-11-06
             if 'roles' in api.payload and 'is_pluggable' in api.payload:
