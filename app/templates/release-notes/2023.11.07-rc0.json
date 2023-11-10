@@ -15,13 +15,17 @@
             "items": [
                     {
                         "title": "Agents",
-                        "description": "- Agents will now be flagged as `is_pluggable` if they are running the new pluggable agent.  This is for backwards compatibility purposes.\n- Agents now support static or dynamic tagging (BETA).  These tags can be used to dynamically add agent policies, upgrade the agents (future release) and group agents in to more manageable buckets, see [Agent Tags](http://docs.reflexsoar.com/en/latest/agents/tags)."
+                        "description": "- Agents will now be flagged as `is_pluggable` if they are running the new pluggable agent.  This is for backwards compatibility purposes.\n- Agents now report important information about the machine they are installed on every time they heartbeat.  Requires the new Pluggable Agent\n- Agents now support static or dynamic tagging (BETA).  These tags can be used to dynamically add agent policies, upgrade the agents (future release) and group agents in to more manageable buckets, see [Agent Tags](http://docs.reflexsoar.com/en/latest/agents/tags)."
                     }
             ]
         },
         {
             "title": "Bug Fixes",
             "items": [
+                {
+                    "title": "Events",
+                    "description": "- Occassionaly the dismiss event modal would load before the target organizations dismiss reasons were loaded, wiping out an analysts selection; this has been resolved."
+                }
             ]
         }
     ]
