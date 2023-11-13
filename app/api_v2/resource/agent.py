@@ -24,43 +24,6 @@ api = Namespace(
     'Agent', description='Reflex Agent administration', path='/agent', strict=True)
 
 
-mod_agent_list = api.model('AgentList', {
-    'uuid': fields.String,
-    'organization': fields.String,
-    'name': fields.String,
-    'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
-    'roles': fields.List(fields.String, default=[]),
-    #'groups': fields.List(fields.Nested(mod_agent_group_list), attribute="_groups"),
-    'active': fields.Boolean,
-    'ip_address': fields.String,
-    'healthy': fields.Boolean,
-    'health_issues': fields.List(fields.String, default=[]),
-    'last_heartbeat': ISO8601(attribute='last_heartbeat'),
-    'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
-    'version': fields.String,
-    'is_pluggable': fields.Boolean(default=False)
-})
-
-mod_agent_details = api.model('AgentList', {
-    'uuid': fields.String,
-    'organization': fields.String,
-    'name': fields.String,
-    'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
-    'roles': fields.List(fields.String),
-    'groups': fields.List(fields.Nested(mod_agent_group_list), attribute="_groups"),
-    'active': fields.Boolean,
-    'ip_address': fields.String,
-    'healthy': fields.Boolean,
-    'health_issues': fields.List(fields.String),
-    'last_heartbeat': ISO8601(attribute='last_heartbeat'),
-    'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
-    'version': fields.String,
-    'is_pluggable': fields.Boolean(default=False)
-})
-
-mod_agent_inputs = api.model('AgentInputs', {
-    'inputs': fields.List(fields.Nested(mod_input_list)),
-})
 
 mod_agent_network_interfaces = api.model('AgentNetworkInterfaces', {
     'name': fields.String,
@@ -101,6 +64,14 @@ mod_agent_chassis_info = api.model('AgentChassisInfo', {
     'chassis_type': fields.String,
 })
 
+mod_agent_listening_ports = api.model('AgentListeningPorts', {
+    'pid': fields.Integer,
+    'process_name': fields.String,
+    'process_path': fields.String,
+    'port': fields.Integer,
+    'protocol': fields.String,
+})
+
 mod_agent_host_information = api.model('AgentHostInformation', {
     'timezone': fields.String,
     'network_interfaces': fields.List(fields.Nested(mod_agent_network_interfaces)),
@@ -108,6 +79,47 @@ mod_agent_host_information = api.model('AgentHostInformation', {
     'last_reboot': ISO8601,
     'system': fields.Nested(mod_agent_system_info),
     'chassis': fields.Nested(mod_agent_chassis_info),
+    'listening_ports': fields.List(fields.Nested(mod_agent_listening_ports))
+})
+
+mod_agent_list = api.model('AgentList', {
+    'uuid': fields.String,
+    'organization': fields.String,
+    'name': fields.String,
+    'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
+    'roles': fields.List(fields.String, default=[]),
+    #'groups': fields.List(fields.Nested(mod_agent_group_list), attribute="_groups"),
+    'active': fields.Boolean,
+    'ip_address': fields.String,
+    'healthy': fields.Boolean,
+    'health_issues': fields.List(fields.String, default=[]),
+    'last_heartbeat': ISO8601(attribute='last_heartbeat'),
+    'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
+    'version': fields.String,
+    'is_pluggable': fields.Boolean(default=False)
+})
+
+
+mod_agent_details = api.model('AgentList', {
+    'uuid': fields.String,
+    'organization': fields.String,
+    'name': fields.String,
+    'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
+    'roles': fields.List(fields.String),
+    'groups': fields.List(fields.Nested(mod_agent_group_list), attribute="_groups"),
+    'active': fields.Boolean,
+    'ip_address': fields.String,
+    'healthy': fields.Boolean,
+    'health_issues': fields.List(fields.String),
+    'last_heartbeat': ISO8601(attribute='last_heartbeat'),
+    'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
+    'version': fields.String,
+    'is_pluggable': fields.Boolean(default=False),
+    'host_information': fields.Nested(mod_agent_host_information)
+})
+
+mod_agent_inputs = api.model('AgentInputs', {
+    'inputs': fields.List(fields.Nested(mod_input_list)),
 })
 
 mod_agent_heartbeat = api.model('AgentHeartbeat', {
@@ -137,8 +149,44 @@ mod_agent_create = api.model('AgentCreate', {
     'inputs': fields.List(fields.String)
 })
 
-mod_create_log_message = api.model('AgentLogMessage', {
+mod_agent_log_host_meta = api.model('AgentLogHostMeta', {
+    'name': fields.String
+})
+
+mod_agent_log_level_meta = api.model('AgentLogLevelMeta', {
+    'name': fields.String,
+    'no': fields.Integer
+})
+
+mod_agent_log_file_meta = api.model('AgentLogFileMeta', {
+    'name': fields.String,
+    'path': fields.String
+})
+
+mod_agent_log_thread_meta = api.model('AgentLogThreadMeta', {
+    'name': fields.String,
+    'id': fields.Integer
+})
+
+mod_agent_log_process_meta = api.model('AgentLogProcessMeta', {
+    'name': fields.String,
+    'id': fields.Integer
+})
+
+mod_agent_log_message = api.model('AgentLogMessage', {
+    'timestamp': ISO8601,
+    'host': fields.Nested(mod_agent_log_host_meta),
+    'level': fields.Nested(mod_agent_log_level_meta),
+    'file': fields.Nested(mod_agent_log_file_meta),
+    'thread': fields.Nested(mod_agent_log_thread_meta),
+    'process': fields.Nested(mod_agent_log_process_meta),
+    'line': fields.Integer,
     'message': fields.String,
+    'module': fields.String
+})
+
+mod_create_log_messages = api.model('AgentLogMessages', {
+    'messages': fields.List(fields.Nested(mod_agent_log_message))
 })
 
 
@@ -557,17 +605,18 @@ class AgentDetails(Resource):
 class AgentLog(Resource):
 
     @api.doc(security="Bearer")
-    @api.expect(mod_create_log_message)
+    @api.expect(mod_create_log_messages)
     @token_required
-    @user_has('create_agent_log')
+    @user_has('create_agent_log_message')
     def post(self, current_user):
         ''' Creates a log message for an Agent '''
-        print(current_user.to_dict())
+
         agent = Agent.get_by_uuid(uuid=current_user.uuid)
         if agent:
-            log = AgentLogMessage(agent_uuid=current_user.uuid,
-                message=api.payload['message'])
-            log.save()
+            for message in api.payload['messages']:
+                log = AgentLogMessage(agent_uuid=current_user.uuid,
+                    **message)
+                log.save()
             return {'message': 'Log message successfully created.'}
         else:
 

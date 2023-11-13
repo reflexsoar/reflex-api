@@ -14,10 +14,12 @@ from . import (
     base,
     inout,
     InnerDoc,
-    Nested
+    Nested,
+    Object
 )
 
 PLUGGABLE_SUPPORTED_ROLES = ['fim']
+
 
 class RunnerRoleConfig(InnerDoc):
     '''
@@ -72,11 +74,13 @@ class MitreMapperConfig(InnerDoc):
     '''
 
     concurrent_inputs = Integer()  # How many inputs can a single mapper run concurrently
-    mapping_refresh_interval = Integer()  # How often should the mapper refresh its mapping
+    # How often should the mapper refresh its mapping
+    mapping_refresh_interval = Integer()
     # Should the mapper attempt a graceful exit when the mapper is asked to shut down?
     graceful_exit = Boolean()
     logging_level = Keyword()  # What logging level should the mapper use for its logs?
-    assessment_days = Integer()  # How many days back should the mapper assess for new data
+    # How many days back should the mapper assess for new data
+    assessment_days = Integer()
     timeout = Integer()  # How long should the mapper wait for a response from the API
 
 
@@ -87,12 +91,15 @@ class FIMConfig(InnerDoc):
     max_parallel_rules = Integer()  # How many rules can a single FIM run concurrently
     max_cpu_time = Integer()  # How long can a single FIM rule run before it is killed
     max_memory = Integer()  # How much memory can a single FIM rule use before it is killed
-    max_cache_db_size = Integer()  # How much space can the FIM cache use before it is cleared
+    # How much space can the FIM cache use before it is cleared
+    max_cache_db_size = Integer()
     max_cache_db_age = Integer()  # How old can the FIM cache be before it is cleared
-    alert_on_cache_missing = Boolean()  # Should the FIM alert when the cache is missing
+    # Should the FIM alert when the cache is missing
+    alert_on_cache_missing = Boolean()
     wait_interval = Integer()  # How long should the FIM wait between runs
     logging_level = Keyword()  # What logging level should the FIM use for its logs?
-    graceful_exit = Boolean()  # Should the FIM attempt a graceful exit when asked to shut down
+    # Should the FIM attempt a graceful exit when asked to shut down
+    graceful_exit = Boolean()
 
 
 class AgentPolicy(base.BaseDocument):
@@ -134,7 +141,6 @@ class AgentPolicy(base.BaseDocument):
     tags = Keyword()  # Tags to categorize this policy
     priority = Integer()  # What is the priority of this policy?
     revision = Integer()  # What is the revision of this policy?
-    
 
     @classmethod
     def get_by_name(cls, name, organization=None):
@@ -158,6 +164,31 @@ class AgentPolicy(base.BaseDocument):
         return response
 
 
+class AgentLogHostMeta(InnerDoc):
+
+    name = Keyword()
+
+class AgentLogFileMeta(InnerDoc):
+    
+    name = Keyword()
+    path = Keyword()
+
+class AgentLogThreadMeta(InnerDoc):
+    
+    name = Keyword()
+    id = Integer()
+
+
+class AgentLogProcessMeta(InnerDoc):
+
+    name = Keyword()
+    id = Integer()
+
+class AgentLogLevelMeta(InnerDoc):
+
+    name = Keyword()
+    no = Integer()
+
 class AgentLogMessage(base.BaseDocument):
     '''
     A Reflex Agent log message
@@ -172,70 +203,92 @@ class AgentLogMessage(base.BaseDocument):
 
     agent_uuid = Keyword()  # The UUID of the agent that generated this log message
     message = Text(fields={'keyword': Keyword()})  # The log message
+    timestamp = Date()  # The timestamp of the log message
+    name = Keyword()  # The name of the agent that generated this log message
+    module = Keyword()  # The module that generated this log message
+    line = Integer()  # The line number that generated this log message
+    host = Object(AgentLogHostMeta)
+    level = Object(AgentLogLevelMeta)
+    file = Object(AgentLogFileMeta)
+    function = Keyword()  # The function that generated this log message
+    thread = Object(AgentLogThreadMeta)
+    process = Object(AgentLogProcessMeta)  # The process that generated the log message
 
 
 class AgentNetworkInterface(InnerDoc):
     '''
     Contains information about a network interface on the host
     '''
-    name = Keyword() # The name of the interface
-    mac = Keyword() # The MAC address of the interface
-    ip = Ip() # The IP address of the interface
-    netmask = Keyword() # The netmask of the interface
-    broadcast = Ip() # The broadcast address of the interface
+    name = Keyword()  # The name of the interface
+    mac = Keyword()  # The MAC address of the interface
+    ip = Ip()  # The IP address of the interface
+    netmask = Keyword()  # The netmask of the interface
+    broadcast = Ip()  # The broadcast address of the interface
 
 
 class AgentSystemInfo(InnerDoc):
     '''
     Contains information about the system that the agent is running on
     '''
-    type = Keyword() # The type of system
-    os_release = Keyword() # The OS release of the system
-    os_version = Keyword() # The OS version of the system
-    os_name = Keyword() # The OS name of the system
-    machine = Keyword() # The machine type of the system
-    hostname = Keyword() # The hostname of the system
-    processor = Keyword() # The processor type of the system
-    architecture = Keyword() # The architecture of the system
+    type = Keyword()  # The type of system
+    os_release = Keyword()  # The OS release of the system
+    os_version = Keyword()  # The OS version of the system
+    os_name = Keyword()  # The OS name of the system
+    machine = Keyword()  # The machine type of the system
+    hostname = Keyword()  # The hostname of the system
+    processor = Keyword()  # The processor type of the system
+    architecture = Keyword()  # The architecture of the system
 
 
 class AgentChassisInfo(InnerDoc):
     '''
     Contains information about the chassis that the agent is running on
     '''
-    domain = Keyword() # The domain of the chassis
-    domain_role = Integer() # The domain role of the chassis
-    model = Keyword() # The model of the chassis
-    manufacturer = Keyword() # The manufacturer of the chassis
-    system_family = Keyword() # The system family of the chassis
-    system_sku = Keyword() # The system SKU of the chassis
-    workgroup = Keyword() # The workgroup of the chassis
-    serial_number = Keyword() # The serial number of the chassis
-    chassis_type = Keyword() # The chassis type of the chassis
+    domain = Keyword()  # The domain of the chassis
+    domain_role = Integer()  # The domain role of the chassis
+    model = Keyword()  # The model of the chassis
+    manufacturer = Keyword()  # The manufacturer of the chassis
+    system_family = Keyword()  # The system family of the chassis
+    system_sku = Keyword()  # The system SKU of the chassis
+    workgroup = Keyword()  # The workgroup of the chassis
+    serial_number = Keyword()  # The serial number of the chassis
+    chassis_type = Keyword()  # The chassis type of the chassis
 
 
 class AgentLocalUser(InnerDoc):
     '''
     Contains information about a local user on the host
     '''
-    
-    username = Keyword() # The username of the local user
-    terminal = Keyword() # The terminal of the local user
-    host = Keyword() # The host of the local user
-    session_start = Date() # The start time of the local user session
-    groups = Keyword() # The groups the local user belongs to
+
+    username = Keyword()  # The username of the local user
+    terminal = Keyword()  # The terminal of the local user
+    host = Keyword()  # The host of the local user
+    session_start = Date()  # The start time of the local user session
+    groups = Keyword()  # The groups the local user belongs to
+
+
+
+class AgentListeningPorts(InnerDoc):
+
+    pid = Integer()
+    process_name = Keyword()
+    process_path = Keyword()
+    port = Integer()
+    protocol = Keyword()
 
 
 class AgentHostInformation(InnerDoc):
     '''
     Contains information about the host that the agent is running on
     '''
-    timezone = Keyword() # The timezone of the host
+    timezone = Keyword()  # The timezone of the host
     network_interfaces = Nested(AgentNetworkInterface)
     users = Nested(AgentLocalUser)
-    last_reboot = Date() # The last time the host was rebooted
+    last_reboot = Date()  # The last time the host was rebooted
     system = Nested(AgentSystemInfo)
     chassis = Nested(AgentChassisInfo)
+    listening_ports = Nested(AgentListeningPorts)
+
 
 class Agent(base.BaseDocument):
     '''
@@ -255,9 +308,9 @@ class Agent(base.BaseDocument):
     healthy = Boolean()  # Is the agent in a healthy state?
     health_issues = Keyword()  # A list of issues that have been found with the agent
     agent_policy = Keyword()  # The agent policy that controls this agent
-    version = Keyword() # What is the version of this policy?
-    is_pluggable = Boolean() # Is this agent pluggable?
-    updated_required = Boolean() # Does this agent need to be updated?
+    version = Keyword()  # What is the version of this policy?
+    is_pluggable = Boolean()  # Is this agent pluggable?
+    updated_required = Boolean()  # Does this agent need to be updated?
     host_information = Nested(AgentHostInformation)
 
     class Index:  # pylint: disable=too-few-public-methods
@@ -313,9 +366,8 @@ class Agent(base.BaseDocument):
 
         if self.is_pluggable:
             roles = [role for role in roles if role in PLUGGABLE_SUPPORTED_ROLES]
-            
-        return list(set(roles))
 
+        return list(set(roles))
 
     @property
     def _policy(self):
@@ -336,7 +388,8 @@ class Agent(base.BaseDocument):
             policy = policies[0]
 
             if self.is_pluggable:
-                policy['roles'] = [role for role in policy.roles if role in PLUGGABLE_SUPPORTED_ROLES]
+                policy['roles'] = [
+                    role for role in policy.roles if role in PLUGGABLE_SUPPORTED_ROLES]
 
             return policy
         else:
@@ -396,7 +449,7 @@ class Agent(base.BaseDocument):
                 priority=0,
                 revision=0
             )
-        
+
     def is_default_org(self):
         ''' Checks to see if the user belongs to the default org'''
         return False
@@ -407,9 +460,9 @@ class Agent(base.BaseDocument):
         permissions to perform an API action
         '''
 
-        #role = user.Role.search().query('match', members=self.uuid).execute()
+        # role = user.Role.search().query('match', members=self.uuid).execute()
         # if role:
-        #role = role[0]
+        # role = role[0]
 
         # return bool(getattr(role.permissions, permission))
         role = user.Role.search()
