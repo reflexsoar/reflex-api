@@ -68,8 +68,41 @@ mod_agent_listening_ports = api.model('AgentListeningPorts', {
     'pid': fields.Integer,
     'process_name': fields.String,
     'process_path': fields.String,
+    'process_user': fields.String,
     'port': fields.Integer,
     'protocol': fields.String,
+    'status': fields.String,
+    'family': fields.String,
+    'parent_pid': fields.Integer,
+    'parent_process_name': fields.String,
+    'parent_process_path': fields.String,
+    'parent_process_user': fields.String,
+})
+
+mod_agent_services = api.model('AgentServices', {
+    'display_name': fields.String,
+    'binpath': fields.String,
+    'username': fields.String,
+    'start_type': fields.String,
+    'status': fields.String,
+    'pid': fields.Integer,
+    'name': fields.String,
+    'description': fields.String
+})
+
+mod_agent_software_package = api.model('AgentSoftwarePackage', {
+    'name': fields.String,
+    'version': fields.String,
+    'vendor': fields.String,
+    'identifying_number': fields.String,
+    'install_date': fields.String,
+    'install_source': fields.String,
+    'local_package': fields.String,
+    'package_cache': fields.String,
+    'package_code': fields.String,
+    'package_name': fields.String,
+    'url_info_about': fields.String,
+    'language': fields.String
 })
 
 mod_agent_host_information = api.model('AgentHostInformation', {
@@ -79,8 +112,11 @@ mod_agent_host_information = api.model('AgentHostInformation', {
     'last_reboot': ISO8601,
     'system': fields.Nested(mod_agent_system_info),
     'chassis': fields.Nested(mod_agent_chassis_info),
-    'listening_ports': fields.List(fields.Nested(mod_agent_listening_ports))
+    'listening_ports': fields.List(fields.Nested(mod_agent_listening_ports)),
+    'services': fields.List(fields.Nested(mod_agent_services)),
+    'installed_software': fields.List(fields.Nested(mod_agent_software_package))
 })
+
 
 mod_agent_list = api.model('AgentList', {
     'uuid': fields.String,
@@ -542,11 +578,14 @@ class AgentPolicyInputs(Resource):
             "inputs": inputs
         }
 
+agent_details_parser = api.parser()
+agent_details_parser.add_argument('include_host_info', type=xinputs.boolean, location='args', default=False, required=False)
+
 @api.route("/<uuid>")
 class AgentDetails(Resource):
 
     @api.doc(security="Bearer")
-    @api.expect(mod_agent_create)
+    @api.expect(mod_agent_create, agent_details_parser)
     @api.marshal_with(mod_agent_details)
     @token_required
     @user_has('update_agent')
@@ -565,6 +604,12 @@ class AgentDetails(Resource):
 
             #if 'roles' in api.payload:
             #    redistribute_detections(organization=agent.organization)
+
+            args = agent_details_parser.parse_args()
+
+            if args.include_host_info is False:
+                # Remove the host_information from the response
+                agent.host_information = None
 
             return agent
         else:
@@ -589,12 +634,21 @@ class AgentDetails(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_agent_details)
+    @api.expect(agent_details_parser)
     @token_required
     @user_has('view_agents')
     def get(self, uuid, current_user):
         ''' Gets the details of a Agent '''
         agent = Agent.get_by_uuid(uuid=uuid)
         if agent:
+
+            args = agent_details_parser.parse_args()
+
+            if args.include_host_info is False:
+                # Remove the host_information from the response
+                agent.host_information = None
+
+
             return agent
         else:
 

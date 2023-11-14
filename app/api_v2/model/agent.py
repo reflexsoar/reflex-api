@@ -266,16 +266,48 @@ class AgentLocalUser(InnerDoc):
     session_start = Date()  # The start time of the local user session
     groups = Keyword()  # The groups the local user belongs to
 
-
+class AgentServices(InnerDoc):
+    display_name = Keyword()
+    binpath = Keyword()
+    username = Keyword()
+    start_type = Keyword()
+    status = Keyword()
+    pid = Integer()
+    name = Keyword()
+    description = Keyword()
 
 class AgentListeningPorts(InnerDoc):
 
     pid = Integer()
     process_name = Keyword()
     process_path = Keyword()
+    process_user = Keyword()
     port = Integer()
     protocol = Keyword()
+    status = Keyword()
+    family = Keyword()
+    parent_pid = Integer()
+    parent_process_name = Keyword()
+    parent_process_path = Keyword()
+    parent_process_user = Keyword()
 
+
+class AgentSoftwarePackage(InnerDoc):
+    '''
+    Contains information about a software package installed on the host
+    '''
+    name = Keyword()  # The name of the software package
+    version = Keyword()  # The version of the software package
+    vendor = Keyword()  # The vendor of the software package
+    identifying_number = Keyword()  # The identifying number of the software package
+    install_date = Keyword()  # The install date of the software package
+    install_source = Keyword()  # The install source of the software package
+    local_package = Keyword()  # The local package of the software package
+    package_cache = Keyword()  # The package cache of the software package
+    package_code = Keyword()  # The package code of the software package
+    package_name = Keyword()  # The package name of the software package
+    url_info_about = Keyword()  # The URL info about of the software package
+    language = Keyword()  # The language of the software package
 
 class AgentHostInformation(InnerDoc):
     '''
@@ -288,7 +320,8 @@ class AgentHostInformation(InnerDoc):
     system = Nested(AgentSystemInfo)
     chassis = Nested(AgentChassisInfo)
     listening_ports = Nested(AgentListeningPorts)
-
+    services = Nested(AgentServices)
+    installed_software = Nested(AgentSoftwarePackage)
 
 class Agent(base.BaseDocument):
     '''
