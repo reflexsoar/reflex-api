@@ -101,6 +101,13 @@ from .data_source import DataSourceTemplate, DataSourceDefinition
 from .schedule import Schedule
 from .fim import FimRule
 from .tag import AgentTag
+from .benchmark import (
+    BenchmarkRule,
+    BenchmarkRuleset,
+    BenchmarkException,
+    BenchmarkResultHistory,
+    BenchmarkResult
+)
 
 VERSION = (2, 0, 0)
 __version__ = VERSION
@@ -179,5 +186,10 @@ __all__ = [
     'DataSourceDefinition',
     'Schedule',
     'FimRule',
-    'AgentTag'
+    'AgentTag',
+    'BenchmarkRule',
+    'BenchmarkRuleset',
+    'BenchmarkException',
+    'BenchmarkResultHistory',
+    'BenchmarkResult'
 ]

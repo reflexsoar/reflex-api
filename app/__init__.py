@@ -39,14 +39,16 @@ from app.api_v2.model import (
         AgentLogMessage, EmailNotificationTemplate, ServiceAccount, Asset, DetectionRepository,
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState, RepositorySyncLog,
         Integration, IntegrationConfiguration, IntegrationLog, IntegrationActionQueue, SSOProvider,
-        RoleMappingPolicy, Package, DataSourceTemplate, Schedule, FimRule, AgentTag
+        RoleMappingPolicy, Package, DataSourceTemplate, Schedule, FimRule, AgentTag,
+        BenchmarkRule, BenchmarkRuleset, BenchmarkException, BenchmarkResultHistory,
+        BenchmarkResult
 )
 
 from .defaults import (
     create_default_case_status, create_admin_role, create_default_email_templates, create_default_organization, initial_settings, create_agent_role,
     create_default_closure_reasons, create_default_case_templates, create_default_data_types,
     create_default_event_status, create_analyst_role,create_admin_user, set_install_uuid, send_telemetry,
-     reset_detection_state
+     reset_detection_state, load_benchmark_rules
 )
 
 from .upgrades import upgrades
@@ -151,7 +153,8 @@ def upgrade_indices(app):
         DetectionRepositoryToken, DetectionRepositorySubscription, DetectionState,
         RepositorySyncLog, Integration, IntegrationConfiguration, IntegrationLog,
         IntegrationActionQueue, SSOProvider, RoleMappingPolicy, Package, DataSourceTemplate,
-        Schedule, FimRule, AgentTag
+        Schedule, FimRule, AgentTag, BenchmarkRule, BenchmarkRuleset,
+        BenchmarkException, BenchmarkResultHistory, BenchmarkResult
     ]
     
     def do_upgrade(model):
@@ -316,6 +319,8 @@ def create_app(environment='development'):
         #scheduler.add_job(func=register_integrations, trigger="interval", seconds=app.config['INTEGRATION_LOADER_INTERVAL']*60)
 
     reset_detection_state()
+
+    load_benchmark_rules(app)
 
     if app.config['ELASTIC_APM_ENABLED']:
         app.config['ELASTIC_APM'] = {

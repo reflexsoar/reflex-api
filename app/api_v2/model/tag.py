@@ -30,7 +30,7 @@ class AgentTag(base.BaseDocument):
     description = Keyword(fields={'text': Text()})
     color = Keyword()
     dynamic = Boolean()
-    criteria = Keyword()
+    query = Keyword()
 
     class Index:
     

@@ -227,7 +227,19 @@ mod_permissions = Model('Permissions', {
     'view_schedules': fields.Boolean,
     'create_schedule': fields.Boolean,
     'update_schedule': fields.Boolean,
-    'delete_schedule': fields.Boolean
+    'delete_schedule': fields.Boolean,
+    'view_benchmarks': fields.Boolean,
+    'create_benchmark_rule': fields.Boolean,
+    'update_benchmark_rule': fields.Boolean,
+    'view_benchmark_rulesets': fields.Boolean,
+    'create_benchmark_ruleset': fields.Boolean,
+    'update_benchmark_ruleset': fields.Boolean,
+    'delete_benchmark_ruleset': fields.Boolean,
+    'view_benchmark_exceptions': fields.Boolean,
+    'create_benchmark_exclusion': fields.Boolean,
+    'update_benchmark_exclusion': fields.Boolean,
+    'delete_benchmark_exclusion': fields.Boolean,
+    'create_benchmark_result': fields.Boolean,
 })
 
 mod_role_create = Model('RoleCreate', {

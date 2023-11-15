@@ -1,10 +1,15 @@
 import pathlib
 
+from flask import current_app
+
+import yaml
+
 from datetime import datetime
 from uuid import uuid4
 from app.api_v2.model.user import Organization, User
 from app.api_v2.model.case import Case
 from app.api_v2.model.event import Event
+from app.api_v2.model.benchmark import BenchmarkRule
 
 from app.api_v2.model.detection import DetectionState
 
@@ -243,7 +248,19 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         'view_fim_rules': True,
         'create_fim_rule': True,
         'update_fim_rule': True,
-        'delete_fim_rule': True
+        'delete_fim_rule': True,
+        'view_benchmarks': True,
+        'create_benchmark_rule': True,
+        'update_benchmark_rule': True,
+        'view_benchmark_rulesets': True,
+        'create_benchmark_ruleset': True,
+        'update_benchmark_ruleset': True,
+        'delete_benchmark_ruleset': True,
+        'view_benchmark_exceptions': True,
+        'create_benchmark_exclusion': True,
+        'update_benchmark_exclusion': True,
+        'delete_benchmark_exclusion': True,
+        'create_benchmark_result': False
     }
 
     role_contents = {
@@ -430,7 +447,19 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         'view_fim_rules': True,
         'create_fim_rule': False,
         'update_fim_rule': False,
-        'delete_fim_rule': False
+        'delete_fim_rule': False,
+        'view_benchmarks': True,
+        'create_benchmark_rule': False,
+        'update_benchmark_rule': False,
+        'view_benchmark_rulesets': False,
+        'create_benchmark_ruleset': False,
+        'update_benchmark_ruleset': False,
+        'delete_benchmark_ruleset': False,
+        'view_benchmark_exceptions': False,
+        'create_benchmark_exclusion': False,
+        'update_benchmark_exclusion': False,
+        'delete_benchmark_exclusion': False,
+        'create_benchmark_result': False
     }
 
     role_contents = {
@@ -495,7 +524,9 @@ def create_agent_role(cls, org_id, check_for_default=False):
         "delete_service_account": False,
         "view_packages": True,
         "view_data_source_templates": True,
-        'view_fim_rules': True
+        'view_fim_rules': True,
+        'view_benchmarks': True,
+        'create_benchmark_result': True
     }
 
     role_contents = {
@@ -720,6 +751,39 @@ def send_telemetry():
 
     # TODO: Add the API call to telemetry.reflexsoar.com using requests
     print(telemetry_body)
+
+
+def load_benchmark_rules(app):
+    '''
+    Converts all the rules from the benchmark_rules folder into BenchmarkRules
+    '''
+
+    # Find all the yml files in the benchmarks_rules folder and load each one
+    # as a JSON object
+    rules = []
+    app.logger.info('Loading benchmark rules')
+    for rule in pathlib.Path('app/benchmark_rules').glob('**/*.yml'):
+        with open(rule, 'r') as f:
+            try:
+                rules.append(yaml.load(f, Loader=yaml.FullLoader))
+            except Exception as e:
+                app.logger.error(f'Failed to load {rule} - {e}')
+                continue
+
+    # Create a BenchmarkRule object for each rule and save it to the database
+    for rule in rules:
+        # If the rule already exists and the version is older than the loaded
+        # version, update the rule
+        existing_rule = BenchmarkRule.search().filter('term', rule_id=rule['rule_id']).execute()
+        if existing_rule:
+            existing_rule = existing_rule[0]
+            if existing_rule.version < rule['version']:
+                app.logger.info(f'Updating rule {rule["rule_id"]} to version {rule["version"]}')
+                existing_rule.update(**rule)
+        else:
+            app.logger.info(f'Creating rule {rule["rule_id"]} version {rule["version"]}')
+            new_rule = BenchmarkRule(**rule, system_managed=True, organization=None)
+            new_rule.save()
 
 
 def initial_settings(cls, org_id, check_for_default=False):
