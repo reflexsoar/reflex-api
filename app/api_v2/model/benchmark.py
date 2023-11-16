@@ -72,6 +72,7 @@ class BenchmarkRule(base.BaseDocument):
     framework = Keyword(fields={'text': Text()})  # The frameworks the rule applies to, e.g. NIST, CIS, etc.
     version = Integer()  # The version of the rule
     system_managed = Boolean()  # Whether or not the rule is managed by the system
+    current = Boolean()  # Whether or not the rule is the current version
 
     class Index:
         name = 'reflex-benchmark-rules'
@@ -141,7 +142,8 @@ class BenchmarkResult(base.BaseDocument):
     '''
 
     agent = Keyword(fields={'text': Text()})  # The agent UUID the result is for
-    rule_id = Keyword(fields={'text': Text()})  # The rule ID the result is for
+    rule_id = Keyword(fields={'text': Text()})  # The rule ID the result is for (persistent id)
+    rule_uuid = Keyword(fields={'text': Text()})  # The rule UUID the result is for (version id)
     status = Keyword(fields={'text': Text()})  # The status of the rule, e.g. pass, fail, etc.
     output = Keyword(fields={'text': Text()})  # The output of the rule if any
     assessed_at = Date()  # The timestamp of the result

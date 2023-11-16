@@ -1,6 +1,6 @@
 rule_id: e0a2be17-ffc0-4cfe-9c95-4891c2cff2f3
 name: Ensure Sysmon64 is installed and running
-version: 1
+version: 2
 platform:
   - windows
 description: Ensure Sysmon64 is installed and actively running on the system. Sysmon64, a critical tool for enhanced system logging, forensics, and auditing, provides detailed information about process creations, network connections, and changes to file creation time. This rule checks that Sysmon64 is not only installed on the system but is also operational and actively monitoring system activities. This is essential for maintaining robust security logs, enabling effective forensic analysis, and ensuring comprehensive auditing of system events. The rule is particularly crucial in high-security environments where tracking detailed system activity is imperative for identifying and mitigating potential security threats.
