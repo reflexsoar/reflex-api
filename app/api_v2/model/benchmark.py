@@ -33,6 +33,8 @@ class status(Enum):
     ERROR = 'error'
     SKIPPED = 'skipped'
 
+BENCHMARK_STATUSES = [status.PASSED.value, status.FAILED.value, status.ERROR.value, status.SKIPPED.value]
+
 
 class BenchmarkAssessScript(InnerDoc):
     '''
@@ -162,6 +164,7 @@ class BenchmarkResult(base.BaseDocument):
         historical_result = BenchmarkResultHistory(
             agent=self.agent,
             rule_id=self.rule_id,
+            rule_uuid=self.rule_uuid,
             status=self.status,
             output=self.output,
             assessed_at=self.assessed_at,

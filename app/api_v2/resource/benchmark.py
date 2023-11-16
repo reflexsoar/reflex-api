@@ -6,7 +6,7 @@ from .shared import ISO8601, mod_user_list
 from app.api_v2.model import Q
 
 from app.api_v2.model.benchmark import (
-    BenchmarkRule, BenchmarkRuleset, BenchmarkResult
+    BenchmarkRule, BenchmarkRuleset, BenchmarkResult, BENCHMARK_STATUSES
 )
 
 api = Namespace('Benchmark', description='Benchmark', path='/benchmark')
@@ -60,7 +60,8 @@ mod_benchmark_metric = api.model('BenchmarkMetric', {
     'total': fields.Integer(description='The total number of results for the rule'),
     'passed': fields.Integer(description='The number of results that passed'),
     'failed': fields.Integer(description='The number of results that failed'),
-    'error': fields.Integer(description='The number of results that had an error')
+    'error': fields.Integer(description='The number of results that had an error'),
+    'skipped': fields.Integer(description='The number of results that were skipped')
 })
 
 mod_benchmark_result_metrics = api.model('BenchmarkResultMetrics', {
@@ -69,12 +70,15 @@ mod_benchmark_result_metrics = api.model('BenchmarkResultMetrics', {
 
 mod_benchmark_result_create = api.model('BenchmarkResultCreate', {
     'rule_id': fields.String(required=True, description='The rule ID'),
-    'rule_uuid': fields.String(description='The rule UUID'),
-    'agent': fields.String(description='The agent UUID'),
-    'status': fields.String(description='The result status'),
+    'rule_uuid': fields.String(required=True, description='The rule UUID'),
+    'status': fields.String(required=True, description='The result status'),
     'output': fields.String(description='The output of the check'),
-    'assessed_at': ISO8601(description='The date and time the rule was assessed'),
-    'rule_version': fields.Integer(description='The version of the rule')
+    'assessed_at': ISO8601(required=True, description='The date and time the rule was assessed'),
+    'rule_version': fields.Integer(required=True, description='The version of the rule')
+})
+
+mod_benchmark_result_create_bulk = api.model('BenchmarkResultCreateBulk', {
+    'results': fields.List(fields.Nested(mod_benchmark_result_create), description='The List of Results')
 })
 
 @api.route("/metrics")
@@ -109,7 +113,8 @@ class BenchmarkRuleMetrics(Resource):
                     'total': 0,
                     'passed': 0,
                     'failed': 0,
-                    'error': 0
+                    'error': 0,
+                    'skipped': 0
                 }
             
             rule_metrics[result.rule_id]['total'] += 1
@@ -142,11 +147,73 @@ class BenchmarkRuleDetails(Resource):
         return {'rules': list(results)}, 200
     
 
+def process_benchmark_result(data, current_user):
+    '''
+    Processes a benchmark result, can be called as a single
+    result or as part of a bulk request
+    '''
+    # Check to see if there is already an existing result for this
+    # rule, organization, agent, version and status
+    search = BenchmarkResult.search()
+
+    search = search.filter('term', rule_id=data['rule_id'])
+    search = search.filter('term', agent=current_user.uuid)
+    search = search.filter('term', rule_version=data['rule_version'])
+
+    results = search.execute()
+
+    # If there is an existing result, check to see if the status has changed
+    # If the status has changed, create a new result and move the old result
+    # to the history index
+    if len(results) > 0:
+        result = results[0]
+
+        if result.status != data['status']:
+            result.create_history_entry()
+
+            result.status = data['status']
+            result.output = data['output']
+            result.assessed_at = data['assessed_at']
+            result.save()
+
+            return result
+    else:
+        # If there is no existing result, create a new one
+        result = BenchmarkResult(**data)
+        result.save()
+    return result
+
+@api.route("/result/_bulk")
+class BenchmarkResultCreateBulk(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_benchmark_result_create_bulk, validate=True)
+    #@api.marshal_with(mod_benchmark_result_create)
+    @api.response(201, 'Success')
+    @api.response(401, 'Unauthorized')
+    @token_required
+    @user_has('create_benchmark_result')
+    def post(self, current_user):
+        '''Create Benchmark Result'''
+        data = api.payload
+
+        if 'results' in data and isinstance(data['results'], list):
+            for result in data['results']:
+
+                # Skip results that don't have a valid status
+                if result['status'] not in BENCHMARK_STATUSES:
+                    continue
+
+                process_benchmark_result(result, current_user)
+
+        return "Success", 201
+
+
 @api.route("/result")
 class BenchmarkResultCreate(Resource):
 
     @api.doc(security="Bearer")
-    @api.expect(mod_benchmark_result_create)
+    @api.expect(mod_benchmark_result_create, validate=True)
     @api.marshal_with(mod_benchmark_result_create)
     @api.response(200, 'Success')
     @api.response(401, 'Unauthorized')
@@ -156,34 +223,11 @@ class BenchmarkResultCreate(Resource):
         '''Create Benchmark Result'''
         data = api.payload
 
-        # Check to see if there is already an existing result for this
-        # rule, organization, agent, version and status
-        search = BenchmarkResult.search()
+        if data:
 
-        search = search.filter('term', rule_id=data['rule_id'])
-        search = search.filter('term', agent=data['agent'])
-        search = search.filter('term', rule_version=data['rule_version'])
-
-        results = search.execute()
-
-        # If there is an existing result, check to see if the status has changed
-        # If the status has changed, create a new result and move the old result
-        # to the history index
-        if len(results) > 0:
-            result = results[0]
-
-            if result.status != data['status']:
-                result.create_history_entry()
-
-                result.status = data['status']
-                result.output = data['output']
-                result.assessed_at = data['assessed_at']
-                result.save()
-
-                return result, 200
-        
-        # If there is no existing result, create a new one
-        result = BenchmarkResult(**data)
-        result.save()
+            if data['status'] not in BENCHMARK_STATUSES:
+                return "Invalid status", 400
+            
+            result = process_benchmark_result(data, current_user)
 
         return result, 200
