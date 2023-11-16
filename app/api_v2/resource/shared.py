@@ -5,6 +5,11 @@ from flask_restx import Model, fields, reqparse
 from opensearch_dsl import AttrDict
 
 
+class NullableString(fields.String):
+    ''' Returns a String or None '''
+    __schema_type__ = ['string', 'null']
+    __schema_example__ = 'string or null'
+
 class AsAttrDict(fields.Raw):
     ''' Converts an AttrDict to a normal Dict'''
 

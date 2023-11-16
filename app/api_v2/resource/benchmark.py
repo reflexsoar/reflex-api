@@ -1,7 +1,7 @@
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 
 from ..utils import token_required, user_has
-from .shared import ISO8601, mod_user_list
+from .shared import ISO8601, mod_user_list, NullableString
 
 from app.api_v2.model import Q
 
@@ -72,7 +72,7 @@ mod_benchmark_result_create = api.model('BenchmarkResultCreate', {
     'rule_id': fields.String(required=True, description='The rule ID'),
     'rule_uuid': fields.String(required=True, description='The rule UUID'),
     'status': fields.String(required=True, description='The result status'),
-    'output': fields.String(description='The output of the check'),
+    'output': NullableString(required=False, description='The output of the check'),
     'assessed_at': ISO8601(required=True, description='The date and time the rule was assessed'),
     'rule_version': fields.Integer(required=True, description='The version of the rule')
 })
