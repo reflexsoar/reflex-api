@@ -31,7 +31,7 @@ mod_benchmark_rule_details = api.model('BenchmarkRuleDetails', {
     'severity': fields.Integer(description='The rule severity'),
     'auto_remediate': fields.Boolean(description='Should the rule be automatically remediated?'),
     'category': fields.List(fields.String(description='The rule category')),
-    'framework': fields.List(fields.String(description='The rule framework')),
+    'frameworks': fields.List(fields.String(description='The rule framework')),
     'platform': fields.List(fields.String(description='The rule platform')),
     'created_at': ISO8601(description='The date and time the rule was created'),
     'updated_at': ISO8601(description='The date and time the rule was last updated'),
@@ -81,27 +81,39 @@ mod_benchmark_result_create_bulk = api.model('BenchmarkResultCreateBulk', {
     'results': fields.List(fields.Nested(mod_benchmark_result_create), description='The List of Results')
 })
 
+metric_parser = api.parser()
+metric_parser.add_argument('rule_uuids', type=str, action='split',
+                           required=False,
+                           help='The rule to filter on', location='args',
+                           default=None)
+
 @api.route("/metrics")
 class BenchmarkRuleMetrics(Resource):
 
     @api.doc(security="Bearer")
-    #@api.marshal_with(mod_benchmark_result_metrics)
+    @api.expect(metric_parser)
     @api.response(200, 'Success')
     @api.response(401, 'Unauthorized')
     @token_required
     @user_has('view_benchmarks')
     def get(self, current_user):
         '''List Benchmark Results'''
-        search = BenchmarkRule.search(skip_org_check=True)
 
-        # Filter for organization is None or organization is the user's organization
-        search = search.filter('bool', should=[Q('term', system_managed=True), Q('term', organization=current_user.organization)])
+        args = metric_parser.parse_args()
 
-        search = search.filter('term', current=True)
+        if args.rule_uuids is None:
+            search = BenchmarkRule.search(skip_org_check=True)
 
-        results = search.scan()
+            # Filter for organization is None or organization is the user's organization
+            search = search.filter('bool', should=[Q('term', system_managed=True), Q('term', organization=current_user.organization)])
 
-        rule_uuids = [r.uuid for r in results]
+            search = search.filter('term', current=True)
+
+            results = search.scan()
+
+            rule_uuids = [r.uuid for r in results]
+        else:
+            rule_uuids = args.rule_uuids
 
         rule_metrics = {}
         
@@ -124,7 +136,7 @@ class BenchmarkRuleMetrics(Resource):
 
 
 @api.route("/rules")
-class BenchmarkRuleDetails(Resource):
+class BenchmarkRuleList(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_benchmark_rule_list)
@@ -145,6 +157,30 @@ class BenchmarkRuleDetails(Resource):
         results = search.scan()
 
         return {'rules': list(results)}, 200
+    
+
+@api.route("/rules/<uuid>")
+class BenchmarkRuleDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_benchmark_rule_details)
+    @api.response(200, 'Success')
+    @api.response(401, 'Unauthorized')
+    @token_required
+    @user_has('view_benchmarks')
+    def get(self, current_user, uuid):
+        '''Get Benchmark Rule Details'''
+
+        search = BenchmarkRule.search(skip_org_check=True)
+
+        search = search.filter('bool', should=[Q('term', system_managed=True), Q('term', organization=current_user.organization)])
+
+        result = search.filter('term', uuid=uuid).execute()
+
+        if result:
+            return result[0], 200
+        else:
+            return "Not Found", 404
     
 
 def process_benchmark_result(data, current_user):
