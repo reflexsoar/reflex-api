@@ -7,6 +7,10 @@
                 {
                     "title": "File Integrity Monitoring (BETA)",
                     "description": "Reflex now supports adding File Integrity Monitoring (FIM) rules to your organization. FIM rules allow you to monitor for changes to files on your endpoints. For more information, see [File Integrity Monitoring](https://docs.reflexsoar.com/en/latest/agents/roles/file-integrity-monitoring).  Note: This is a Beta feature and requires a special agent."
+                },
+                {
+                    "title": "Asset Benchmarking (BETA)",
+                    "description": "Reflex now supports benchmarking your assets against compliance Benchmarks.  For more information, see [Asset Benchmarking](https://docs.reflexsoar.com/en/latest/agents/roles/asset-benchmarking).  Note: This is a Beta feature and requires a special agent."
                 }
             ]
         },

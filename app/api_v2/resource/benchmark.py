@@ -215,7 +215,7 @@ def process_benchmark_result(data, current_user):
             return result
     else:
         # If there is no existing result, create a new one
-        result = BenchmarkResult(**data)
+        result = BenchmarkResult(**data, agent=current_user.uuid)
         result.save()
     return result
 

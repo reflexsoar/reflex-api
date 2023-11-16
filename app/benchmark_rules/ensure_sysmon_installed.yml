@@ -1,27 +1,32 @@
 rule_id: e0a2be17-ffc0-4cfe-9c95-4891c2cff2f3
 name: Ensure Sysmon64 is installed and running
-version: 2
+version: 1
 platform:
   - windows
 description: Ensure Sysmon64 is installed and actively running on the system. Sysmon64, a critical tool for enhanced system logging, forensics, and auditing, provides detailed information about process creations, network connections, and changes to file creation time. This rule checks that Sysmon64 is not only installed on the system but is also operational and actively monitoring system activities. This is essential for maintaining robust security logs, enabling effective forensic analysis, and ensuring comprehensive auditing of system events. The rule is particularly crucial in high-security environments where tracking detailed system activity is imperative for identifying and mitigating potential security threats.
 assess:
   script: |
+    $service_name = "Sysmon64"
     $sysmon_path = "C:\Windows\Sysmon64.exe"
+    Write-Host "[-] Checking if Sysmon binary exists"
     if ([System.IO.File]::Exists($sysmon_path)) {
-      $sysmon_running = try {
-        $null -ne (Get-Service -Name Sysmon64 | Where-Object { $_.Status -eq "Running"})
-      } catch {
-        exit 2
-      }
+        Write-Host "[-] Fetching Sysmon Service"
+        $service = Get-Service -Name $service_name -ErrorAction SilentlyContinue
+        if($null -eq $service) {
+           Write-Host "[!] Sysmon Service Missing.  Exit Code: 2"
+           exit 2
+        }
     } else {
-      exit 3
+      Write-Host "[!] Sysmon executable missing.  Exit Code: 2"
+      exit 2
     }
+    Write-Host "[*] Sysmon installed and running. Exit Code: 0"
     exit 0
     # SIG # Begin signature block
     # MIInggYJKoZIhvcNAQcCoIInczCCJ28CAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
     # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-    # AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUfcpLyn2TX/E4GsPNv2E5Ybc9
-    # j3WggiCQMIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+    # AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUJu2Hrwvh/0vFiwdxKrnEJlXI
+    # 8iWggiCQMIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
     # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
     # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
     # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -199,37 +204,38 @@ assess:
     # BgNVBAMTJVNlY3RpZ28gUHVibGljIENvZGUgU2lnbmluZyBDQSBFViBSMzYCEQCU
     # Gf1TxmVJ6q8PeKroqq48MAkGBSsOAwIaBQCgeDAYBgorBgEEAYI3AgEMMQowCKAC
     # gAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsx
-    # DjAMBgorBgEEAYI3AgEVMCMGCSqGSIb3DQEJBDEWBBROraqPG68lmx5g0xMjpaa3
-    # BDWEDzANBgkqhkiG9w0BAQEFAASCAgBq12G90VoxJ5Hx74FKSLl76lSkdREJaA9u
-    # QuLgTtVfEz583F/AtGURb7W2/ZbBNIZTe7kostESjkJkLmXwWT0lZ2jGHaiwmZ0U
-    # Hdp+YoTaWaEOTGdBeqZYVLKORxxRisuuPRVdkyBLzLyLck1yD2Kw4PGXD0FU1UGy
-    # SRivpALqXyz5+yH3AtbIP25MNB+YOhAIY3p6J7yj9/WNrqtOMmzwlcg8JGj2uu0g
-    # lRYa11M55C8UldJ9YkJGu2gKKALI2/mUkBbTDu2MoHd8YcjvFhzyFoOL3ZGF2Rcr
-    # hjwhNlF2EYDQ8no3t8VZGH/vKpAUDQbQmzBq1IcFLOmp/4Yfev/nUE/a9z1DLGSt
-    # C0h0fs6LBReNVXhAmcdEmTeb1SQvR06mX5O0z0P4rsgo0zoXsr963EiN6k0gwFSA
-    # rK7rejXpUE87fhO+qQzRXL+Td9wr8EHfitvEd01/L1AIn/UNr8A/n2fvCh3Lmg8l
-    # 6N+PmAGy9SjCCJIcEzYzLv0+oKoV1ORbAQNVY6auY6YBR9fCqTT02uMPKMEudvVK
-    # 8gMhBZhDS5H2Is5fn4RMoujcvaH8+gCSrTUqSiE4HgCLxHOscUK4xCjCLOApPy1v
-    # xpg0NEQlc3JscY0zr/paQJAJRS0cPJiXOpFLggf9PfrZdMEPd5AlUz0b1xYotXUN
-    # 7flqscakq6GCA0swggNHBgkqhkiG9w0BCQYxggM4MIIDNAIBATCBkTB9MQswCQYD
+    # DjAMBgorBgEEAYI3AgEVMCMGCSqGSIb3DQEJBDEWBBRD3mZb8/pJTZJti9hCpCmL
+    # USXYszANBgkqhkiG9w0BAQEFAASCAgAKLkrJx5D9Ji8p1aDf6J+tEvUUUCdfLR7y
+    # Je9nNIloajNXTLxTNvLUKCTxSpJ8RxtWOhzbuf1BLwKqyy1sCjUDm7yiqpvztlFE
+    # TBv8ids/tk5s3v6EhpMZzAG01Rq4tIM3BkTvA0pcPQXru7QIPf3wjEQFoP97TQwS
+    # rsQkPziaE0hdTCdkmd8YE/y2gqqYTJdep0DuD3exBblj4rOTvRdQkpawSnOVxyII
+    # Lm+Xb7mKlkw/jPkBiAo6QPHc+bfAJ/NvRblV6wQ1YDBStGVPlTQDlfwr3JuUy3vm
+    # daQ/RdEp+cn5KtAoAfBOgP528kVmb6a8FDoGr79bva3mSrQ2sQpSWOMat9W4eP8B
+    # vZXnzojLfSv5U50Amou7EAMEBRxHBVoSd3PrYdX2n82aG/ce5R/DWPUbtv5jINOM
+    # 6uYLSbgUvuW0zG4FqLMAjIkYqMKD3U6lOzsJvBGS0RvpwQqFz0zW6BOLM15YwQMo
+    # jSWHku/edxa/P1/dZ7lPmJWsuzAttlGo4UrpQlWaOVbkdl4tI+rMxgkXdcvxl1rV
+    # KgCM0ZYEFmoLrktrBJVxbTH4xv0fSMFq7KVRiEyvWfN3e64hgrmqELYzhryXovOg
+    # MA2C4v85er/vQU4D6t4XDrpx6iNi0p400lov/+/GE2ilYAXDoZjd8mcezz6LMJE4
+    # KPv1VdBA1KGCA0swggNHBgkqhkiG9w0BCQYxggM4MIIDNAIBATCBkTB9MQswCQYD
     # VQQGEwJHQjEbMBkGA1UECBMSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYDVQQHEwdT
     # YWxmb3JkMRgwFgYDVQQKEw9TZWN0aWdvIExpbWl0ZWQxJTAjBgNVBAMTHFNlY3Rp
     # Z28gUlNBIFRpbWUgU3RhbXBpbmcgQ0ECEDlMJeF8oG0nqGXiO9kdItQwDQYJYIZI
     # AWUDBAICBQCgeTAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJ
-    # BTEPFw0yMzExMTUxNzQ1MzFaMD8GCSqGSIb3DQEJBDEyBDC6URxf5viLIwMvSu3t
-    # jSXBrD8abI83OXOqyAPF5rE76POxVQpCOIPJxXi7lEYg+2YwDQYJKoZIhvcNAQEB
-    # BQAEggIAV3mV5tHKGJIRtzH9djnR+0A0jIXL5KTb8hIzyFgpY4P0eg3PeBTydhG/
-    # uhhSY/gFHTYL1rXG+mWAD1LKCVTw1qJZ3gSUellCL//hK7fOD8woeAQb51QgXzN3
-    # d5c6ZYlLGTm3wc5yyLtgpu4Wqqg6FHyGNcZF15JBLJm9qBzNuAm5T4nwfIieSwUB
-    # eOlumjYq4ci6XTipVooii29xV2RlHbDIno7fHen2hUf/FXr9EAqRuGP+n+b3g+4S
-    # 30UfJfAguk5Vk+xXKNBP/a6yIezlE00OOA+V2YLNWH6aLNxC1TdHyUJLIJ5btuSL
-    # xTdCwgRXml0Dc+o2Ag7ep7M23llDn9oBuab+oBwZiaKNsDjYVVPrQmfQhiq08y2D
-    # hzYS22+3JXgC1AvzjpkmW2qIpmD8ppXJ30iT5HxBb1tFgl3lUVsspw5/ncR3RNvt
-    # W+Mv3px2HmIEIiLzW9Ggv0D8z1aAmmwPmKW0lVsXV2+dPQavy5Swj1MwRC8bPy/B
-    # zCiJN6uIyXLvRrP0M1rlgF5OJZdTTMykKeQpdUV+/ZSR+RGsTQ4U1yz3vQvF5oC9
-    # Tu5D0zxEoeDYyq//zXBC60wJObnAShrp1+ubSsaoaRy2qmHDdk+LNl4YgleKtYWD
-    # sVngZf99QPkhivjBYr2CmxG2tXKXpBA32ntEUBrDO1939QlhUZg=
+    # BTEPFw0yMzExMTYyMTQ3NDdaMD8GCSqGSIb3DQEJBDEyBDCCDBVSc7Is6g2kCWCi
+    # lFvkWpCm2d6hIWKhGiQgpxJE+diVI9e2aI+OIrTEo3ZrGTwwDQYJKoZIhvcNAQEB
+    # BQAEggIAlbmzdZHVHPeH35x2N/9s/DBjREQYeUUFBEuFduwWiqogVknDsN1oxKiA
+    # BN0l3/iDG1KPlXs9bXo9SYxLhxIWHt+IGMB5ZkOdJcVgjkIffJpNjSecp3i3ovYA
+    # 5B8MzhARZyRZEQVaayGxnVSkL+YStzS91Jty5HvMPyya+A8AKb+SMjx3ORZR0Hvq
+    # K7W2+0b7j0TePQ//krRcZU6GjGyshJsmJujf+Ztu4aYUq8Skusd7ghZyGUd6t9G2
+    # Ix0kk0LiThKyUp7nkacVYN0caWmV6XU6J5MA5MyGtAAtZ3MK8sX0wsx7Yq5H6vhx
+    # gVharPGUNzXn/wJhtVbNFuvgauhMzQ0tZ6U0MqtiKXJsjzpVlg0jikpjgIlV8LxW
+    # tHmLjr/EjC6hW8RHc6ffwBy/iPgndh4/8PTsahDQbRHvyfhh14LWWGSkzumEignE
+    # 0KjyTQVimBRE61Nzq0fEXAidhIk3PwVWc8vTliKBj3MCsaOuQxqDjP9lKbqTTdgE
+    # 6gthczDgzLXo92k7F9jvG4TK5rU6wRKOsAQ3vUxuS3rfn4e6wkDQMkUeDayTiGYu
+    # 95S6xOy/JVbaoIL8NtlWDj46fD843efzNzH1O4L3Os867l02sNvbmvX2UU1l490Q
+    # VQD74sHav9DcUZPJYBr8CvNXNRxtF2Cm9+BzOyvVkn3DkvfmarE=
     # SIG # End signature block
+
   language: powershell
   success: 0
   args: []
