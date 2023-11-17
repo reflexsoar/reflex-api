@@ -447,11 +447,13 @@ class AgentHeartbeat(Resource):
                     except Exception:
                         api.payload['geo'] = None
 
-                agent_tags = AgentTag.set_agent_tags(agent)
-
                 agent.update(last_heartbeat=datetime.datetime.utcnow(),
-                             tags=agent_tags,
                              **api.payload, refresh=True)
+                
+                agent_tags = AgentTag.set_agent_tags(agent)
+                if agent.tags != agent_tags:
+                    agent.tags = agent_tags
+                    agent.save(refresh=True)
 
                 return {'message': 'Your heart still beats!'}
         else:
