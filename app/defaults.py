@@ -254,7 +254,11 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         'create_benchmark_exclusion': True,
         'update_benchmark_exclusion': True,
         'delete_benchmark_exclusion': True,
-        'create_benchmark_result': False
+        'create_benchmark_result': False,
+        'view_agent_tags': True,
+        'create_agent_tag': True,
+        'update_agent_tag': True,
+        'delete_agent_tag': True
     }
 
     role_contents = {
@@ -453,7 +457,11 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         'create_benchmark_exclusion': False,
         'update_benchmark_exclusion': False,
         'delete_benchmark_exclusion': False,
-        'create_benchmark_result': False
+        'create_benchmark_result': False,
+        'view_agent_tags': True,
+        'create_agent_tag': False,
+        'update_agent_tag': False,
+        'delete_agent_tag': False
     }
 
     role_contents = {

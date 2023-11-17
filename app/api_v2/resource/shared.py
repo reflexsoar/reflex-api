@@ -297,7 +297,11 @@ mod_permissions = Model('Permissions', {
     'create_benchmark_exclusion': fields.Boolean,
     'update_benchmark_exclusion': fields.Boolean,
     'delete_benchmark_exclusion': fields.Boolean,
-    'create_benchmark_result': fields.Boolean
+    'create_benchmark_result': fields.Boolean,
+    'view_agent_tags': fields.Boolean,
+    'create_agent_tag': fields.Boolean,
+    'update_agent_tag': fields.Boolean,
+    'delete_agent_tag': fields.Boolean
 }, strict=True)
 
 mod_user_list = Model('UserList', {

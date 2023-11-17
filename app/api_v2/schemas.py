@@ -240,6 +240,10 @@ mod_permissions = Model('Permissions', {
     'update_benchmark_exclusion': fields.Boolean,
     'delete_benchmark_exclusion': fields.Boolean,
     'create_benchmark_result': fields.Boolean,
+    'view_agent_tags': fields.Boolean,
+    'create_agent_tag': fields.Boolean,
+    'update_agent_tag': fields.Boolean,
+    'delete_agent_tag': fields.Boolean
 })
 
 mod_role_create = Model('RoleCreate', {
@@ -1198,7 +1202,7 @@ mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, #mod_event_
 mod_observable_brief, mod_observable_create, mod_observable_update, mod_raw_log, mod_permissions,
 mod_api_key,mod_user_create, mod_user_update, mod_user_create_success, mod_settings, mod_persistent_pairing_token,
 mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list,
-mod_credential_return, mod_input_create, mod_input_list, mod_agent_list, mod_agent_create,
+mod_credential_return, mod_input_create, mod_input_list, mod_agent_create, #mod_agent_list,
 mod_list_list, mod_list_create, mod_data_type_list,
 mod_data_type_create, mod_user_role_no_perms, mod_user_brief, mod_role_list, mod_role_create,
 mod_case_history, mod_comment, mod_comment_create, mod_case_close_reason, mod_case_template_create,

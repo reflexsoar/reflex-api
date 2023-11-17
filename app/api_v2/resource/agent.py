@@ -3,12 +3,14 @@ from flask import request
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 
 from app.api_v2.model.integration import IntegrationConfiguration, Integration
+from app.api_v2.resource.agent_tag import mod_agent_tag_short
 from ..model import (
     Agent,
     AgentLogMessage,
     Settings,
     Role,
     AgentGroup,
+    AgentTag,
     ExpiredToken
 )
 
@@ -22,8 +24,6 @@ from ..schemas import mod_input_list
 
 api = Namespace(
     'Agent', description='Reflex Agent administration', path='/agent', strict=True)
-
-
 
 mod_agent_network_interfaces = api.model('AgentNetworkInterfaces', {
     'name': fields.String,
@@ -107,7 +107,7 @@ mod_agent_software_package = api.model('AgentSoftwarePackage', {
 
 mod_agent_host_information = api.model('AgentHostInformation', {
     'timezone': fields.String,
-    'network_interfaces': fields.List(fields.Nested(mod_agent_network_interfaces)),
+    'network_adapters': fields.List(fields.Nested(mod_agent_network_interfaces)),
     'users': fields.List(fields.Nested(mod_agent_local_users)),
     'last_reboot': ISO8601,
     'system': fields.Nested(mod_agent_system_info),
@@ -116,7 +116,6 @@ mod_agent_host_information = api.model('AgentHostInformation', {
     'services': fields.List(fields.Nested(mod_agent_services)),
     'installed_software': fields.List(fields.Nested(mod_agent_software_package))
 })
-
 
 mod_agent_list = api.model('AgentList', {
     'uuid': fields.String,
@@ -132,7 +131,8 @@ mod_agent_list = api.model('AgentList', {
     'last_heartbeat': ISO8601(attribute='last_heartbeat'),
     'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
     'version': fields.String,
-    'is_pluggable': fields.Boolean(default=False)
+    'is_pluggable': fields.Boolean(default=False),
+    'tags': fields.List(fields.Nested(mod_agent_tag_short))
 })
 
 
@@ -151,7 +151,8 @@ mod_agent_details = api.model('AgentList', {
     'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
     'version': fields.String,
     'is_pluggable': fields.Boolean(default=False),
-    'host_information': fields.Nested(mod_agent_host_information)
+    'host_information': fields.Nested(mod_agent_host_information),
+    'tags': fields.List(fields.Nested(mod_agent_tag_short))
 })
 
 mod_agent_inputs = api.model('AgentInputs', {
@@ -366,19 +367,11 @@ class AgentHeartbeat(Resource):
             if current_user.uuid == agent.uuid:
                 agent.last_heartbeat = datetime.datetime.utcnow()
 
-                last_agent_health = agent.healthy
+                agent_tags = AgentTag.set_agent_tags(agent)
 
                 agent.update(last_heartbeat=datetime.datetime.utcnow(),
+                             tags=agent_tags,
                              **api.payload, refresh=True)
-                
-                #if 'detector' in agent.roles:
-                    # If agent was previously healthy and is not now redistribute detections
-                    #if api.payload['healthy'] == False and last_agent_health == True:
-                    #    redistribute_detections(organization=agent.organization)
-
-                    # If agent was previously unhealthy and is now healthy redistribute detections
-                    #if api.payload['healthy'] == True and last_agent_health in [False, None]:
-                    #    redistribute_detections(organization=agent.organization)
 
                 return {'message': 'Your heart still beats!'}
         else:

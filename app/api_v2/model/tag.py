@@ -6,6 +6,8 @@ from . import (
     Integer
 )
 
+from app.api_v2.rql.parser import QueryParser
+
 class AgentTag(base.BaseDocument):
     '''
     A Tag is a way to group agents together for easier management.  An example
@@ -38,3 +40,42 @@ class AgentTag(base.BaseDocument):
         settings = {
             'refresh_interval': '5s',
         }
+
+    @classmethod
+    def set_agent_tags(cls, agent):
+        '''
+        Checks the agent against all tags and applies the tags that match
+        '''
+
+        tags = cls.search().filter('term', organization=agent.organization).scan()
+
+        agent_data = agent.to_dict()
+        tags_to_apply = []
+        for tag in tags:
+            if tag.check_tag(agent_data):
+                tags_to_apply.append({
+                    'namespace': tag.namespace,
+                    'value': tag.value,
+                    'color': tag.color,
+                })
+
+        return tags_to_apply
+
+    def check_tag(self, agent: dict) -> bool:
+        '''
+        Checks if the agent matches the tag criteria
+        '''
+        
+        if not self.dynamic:
+            return True
+
+        if not self.query:
+            return False
+        
+        qp = QueryParser()
+        parsed_query = qp.parser.parse(self.query)
+
+        results = [r for r in qp.run_search({'agent': agent}, parsed_query)]
+        if results:
+            return True
+        return False

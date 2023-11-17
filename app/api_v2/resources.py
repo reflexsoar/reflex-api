@@ -95,7 +95,8 @@ from .resource import (
     ns_schedule_v2,
     ns_release_notes_v2,
     ns_fim_v2,
-    ns_benchmark_v2
+    ns_benchmark_v2,
+    ns_agent_tags_v2
 )
 
 show_swagger_docs = (os.getenv('REFLEX_SHOW_SWAGGER_DOCS', 'False').lower() == 'true')
@@ -161,6 +162,7 @@ api2.add_namespace(ns_schedule_v2)
 api2.add_namespace(ns_release_notes_v2)
 api2.add_namespace(ns_fim_v2)
 api2.add_namespace(ns_benchmark_v2)
+api2.add_namespace(ns_agent_tags_v2)
 
 # Register the integration base 
 from app.integrations.base import IntegrationApi as ns_integration_base_v2
@@ -905,10 +907,6 @@ class TagList(Resource):
             return {'message': 'Successfully created the tag.'}
         else:
             ns_tag_v2.abort(409, 'Tag already exists.')
-
-
-
-
 
 
 @ns_credential_v2.route('/encrypt')

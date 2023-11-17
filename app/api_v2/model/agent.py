@@ -314,7 +314,7 @@ class AgentHostInformation(InnerDoc):
     Contains information about the host that the agent is running on
     '''
     timezone = Keyword()  # The timezone of the host
-    network_interfaces = Nested(AgentNetworkInterface)
+    network_adapters = Nested(AgentNetworkInterface)
     users = Nested(AgentLocalUser)
     last_reboot = Date()  # The last time the host was rebooted
     system = Nested(AgentSystemInfo)
@@ -322,6 +322,16 @@ class AgentHostInformation(InnerDoc):
     listening_ports = Nested(AgentListeningPorts)
     services = Nested(AgentServices)
     installed_software = Nested(AgentSoftwarePackage)
+
+
+class AgentTag(InnerDoc):
+    '''
+    A brief agent tag
+    '''
+    namespace = Keyword()  # The namespace of the tag
+    value = Keyword()  # The value of the tag
+    color = Keyword()  # The color of the tag
+
 
 class Agent(base.BaseDocument):
     '''
@@ -345,6 +355,7 @@ class Agent(base.BaseDocument):
     is_pluggable = Boolean()  # Is this agent pluggable?
     updated_required = Boolean()  # Does this agent need to be updated?
     host_information = Nested(AgentHostInformation)
+    tags = Nested(AgentTag)  # Tags to categorize this agent
 
     class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

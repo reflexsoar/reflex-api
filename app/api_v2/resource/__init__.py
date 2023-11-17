@@ -32,6 +32,7 @@ from .schedule import api as ns_schedule_v2
 from .release_notes import api as ns_release_notes_v2
 from .fim import api as ns_fim_v2
 from .benchmark import api as ns_benchmark_v2
+from .agent_tag import api as ns_agent_tags_v2
 
 __all__ = [
     'ns_playbook_v2',
@@ -68,5 +69,6 @@ __all__ = [
     'ns_schedule_v2',
     'ns_release_notes_v2',
     'ns_fim_v2',
-    'ns_benchmark_v2'
+    'ns_benchmark_v2',
+    'ns_agent_tags_v2'
 ]
