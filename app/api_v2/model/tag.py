@@ -52,7 +52,7 @@ class AgentTag(base.BaseDocument):
         agent_data = agent.to_dict()
         tags_to_apply = []
         for tag in tags:
-            if tag.check_tag(agent_data):
+            if tag.check_tag(agent_data) is True:
                 tags_to_apply.append({
                     'namespace': tag.namespace,
                     'value': tag.value,
@@ -66,16 +66,18 @@ class AgentTag(base.BaseDocument):
         Checks if the agent matches the tag criteria
         '''
         
-        if not self.dynamic:
-            return True
-
         if not self.query:
             return False
         
-        qp = QueryParser()
-        parsed_query = qp.parser.parse(self.query)
+        try:
+            qp = QueryParser()
+            parsed_query = qp.parser.parse(self.query)
+        except:
+            print(f"Error parsing query: {self.query}")
+            return False
 
         results = [r for r in qp.run_search({'agent': agent}, parsed_query)]
-        if results:
+        
+        if len(results) > 0:
             return True
         return False
