@@ -5,6 +5,8 @@ from app.api_v2.model import (
     Agent
 )
 
+from app.api_v2.rql.parser import QueryParser
+
 from .shared import NullableString, ISO8601, mod_user_list
 from ..utils import token_required, user_has
 
@@ -50,7 +52,7 @@ agent_tag_parser.add_argument('namespace', type=str, action='split', default=Non
 agent_tag_parser.add_argument('value', type=str, action='split', default=None, required=False, help='The value of the tag')
 agent_tag_parser.add_argument('organization', type=str, required=False, action='split', default=None, help='The organization the tag belongs to')
 
-@api.route('/')
+@api.route('')
 class AgentTagList(Resource):
     '''Shows a list of all agent tags, and lets you POST to add new tags'''
 
@@ -110,6 +112,53 @@ class AgentTagList(Resource):
         new_tag.save()
 
         return new_tag, 201
+
+
+mod_tag_test = api.model('TagTest', {
+    'query': fields.String(required=True, description='The query to test'),
+    'organization': fields.String(required=False, description='The organization to test against')
+})
+
+mod_tag_test_results = api.model('TagTestResults', {
+    'hits': fields.Integer(required=True, description='The number of hits')
+})
+
+@api.route("/test")
+class AgentTagTestAll(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_tag_test, validate=True)
+    @api.marshal_with(mod_tag_test_results)
+    @token_required
+    @user_has('view_agent_tags')
+    def post(self, current_user):
+
+        if 'query' not in api.payload:
+            api.abort(400, 'A query is required')
+        
+        if api.payload['query'] == '':
+            api.abort(400, 'A query is required')
+
+        organization = current_user.organization
+        if 'organization' in api.payload:
+            if api.payload['organization'] != current_user.organization and current_user.is_default_org() is False:
+                api.abort(403, 'You can only test tags for your own organization')
+            organization = api.payload['organization']
+                
+        search = Agent.search()
+
+        search = search.filter('term', organization=organization)
+
+        agents = [{'agent': a.to_dict()} for a in search.scan()]
+
+        qp = QueryParser()
+        parsed_query = qp.parser.parse(api.payload['query'])
+        results = [r for r in qp.run_search(agents, parsed_query)]
+
+        return {
+            'hits': len(results)
+        }
+
     
 @api.route('/test/<agent_uuid>')
 class AgentTagTest(Resource):
