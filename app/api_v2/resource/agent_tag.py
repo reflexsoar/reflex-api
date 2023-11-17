@@ -106,12 +106,86 @@ class AgentTagList(Resource):
         search = search.filter('term', value=api.payload['value'])
 
         if search.count() > 0:
-            api.abort(400, 'Tag already exists')
+            api.abort(400, 'Tag with the same namespace and value already exists')
 
         new_tag = AgentTag(**api.payload)
         new_tag.save()
 
         return new_tag, 201
+
+
+@api.route('/<tag_uuid>')
+class AgentTagDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_agent_tag_detailed)
+    @token_required
+    @user_has('view_agent_tags')
+    def get(self, tag_uuid, current_user):
+        '''Get a specific agent tag'''
+
+        tag = AgentTag.get_by_uuid(tag_uuid)
+
+        if tag:
+            if current_user.is_default_org() is False or current_user.organization != tag.organization:
+                api.abort(403, 'Tag not found')
+
+            return tag
+        else:
+            api.abort(404, 'Tag not found')
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_agent_tag, validate=True)
+    @api.marshal_with(mod_agent_tag_detailed)
+    @token_required
+    @user_has('update_agent_tag')
+    def put(self, tag_uuid, current_user):
+        '''Update a specific agent tag'''
+
+        tag = AgentTag.get_by_uuid(tag_uuid)
+
+        if tag:
+            if current_user.is_default_org() is False or current_user.organization != tag.organization:
+                api.abort(404, 'Tag not found')
+
+            # Check to see if a tag with the same namespace and value already exists
+            search = AgentTag.search()
+            
+            search = search.filter('term', organization=tag.organization)
+            search = search.filter('term', namespace=api.payload['namespace'])
+            search = search.filter('term', value=api.payload['value'])
+
+            existing_tag = search.execute()
+            if len(existing_tag) > 0:
+                if existing_tag[0].uuid != tag_uuid:
+                    api.abort(400, 'Tag with the same namespace and value already exists')
+
+            tag.update(**api.payload)
+
+            return tag
+        else:
+            api.abort(404, 'Tag not found')
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_agent_tag_detailed)
+    @token_required
+    @user_has('delete_agent_tag')
+    def delete(self, tag_uuid, current_user):
+        '''Delete a specific agent tag'''
+
+        tag = AgentTag.get_by_uuid(tag_uuid)
+
+        if tag:
+            if current_user.is_default_org() is False and current_user.organization != tag.organization:
+                api.abort(404, 'Tag not found')
+
+            tag.delete()
+
+            return tag
+        else:
+            api.abort(404, 'Tag not found')
+
+
 
 
 mod_tag_test = api.model('TagTest', {
