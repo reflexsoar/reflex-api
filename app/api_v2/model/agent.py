@@ -15,7 +15,8 @@ from . import (
     inout,
     InnerDoc,
     Nested,
-    Object
+    Object,
+    Float
 )
 
 PLUGGABLE_SUPPORTED_ROLES = ['fim']
@@ -333,6 +334,23 @@ class AgentTag(InnerDoc):
     color = Keyword()  # The color of the tag
 
 
+class AgentGeo(InnerDoc):
+    '''
+    Contains geo information about the agent
+    '''
+    latitude = Float()  # The latitude of the agent
+    longitude = Float()  # The longitude of the agent
+    metro_code = Keyword()  # The metro code of the agent
+    time_zone = Keyword()  # The timezone of the agent
+    city = Keyword()  # The city of the agent
+    iso_code = Keyword()  # The ISO code of the agent
+    continent = Keyword()  # The continent of the agent
+    continent_code = Keyword()  # The continent code of the agent
+    country = Keyword()  # The country of the agent
+    country_code = Keyword()  # The country code of the agent
+    state = Keyword()  # The state of the agent
+    state_code = Keyword()  # The state name of the agent
+
 class Agent(base.BaseDocument):
     '''
     A Reflex agent performs plugin actions, polls external sources
@@ -347,6 +365,8 @@ class Agent(base.BaseDocument):
     groups = Keyword()  # A list of UUIDs that the agent belongs to
     active = Boolean()  # Is this agent active?
     ip_address = Ip()  # The IP address of the agent
+    console_visible_ip = Ip()  # The IP address of the agent as seen by the console
+    geo = Nested(AgentGeo)  # Geo information about the agent
     last_heartbeat = Date()  # The last time this agent was heard from
     healthy = Boolean()  # Is the agent in a healthy state?
     health_issues = Keyword()  # A list of issues that have been found with the agent

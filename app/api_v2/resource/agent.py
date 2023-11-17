@@ -1,4 +1,8 @@
 import datetime
+
+# Import geolite library for geoip lookups
+from geolite2 import geolite2
+
 from flask import request
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 
@@ -15,9 +19,8 @@ from ..model import (
 )
 
 from app.api_v2.model.agent import PLUGGABLE_SUPPORTED_ROLES
-from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
-from .utils import redistribute_detections
-from ..utils import check_org, token_required, user_has, ip_approved, page_results, generate_token, default_org
+from .shared import mod_pagination, ISO8601
+from ..utils import token_required, user_has, page_results, generate_token, default_org
 from .agent_group import mod_agent_group_list
 from .agent_policy import mod_agent_policy_detailed, mod_agent_policy_v2
 from ..schemas import mod_input_list
@@ -117,6 +120,20 @@ mod_agent_host_information = api.model('AgentHostInformation', {
     'installed_software': fields.List(fields.Nested(mod_agent_software_package))
 })
 
+mod_agent_geo_information = api.model('AgentGeoInformation', {
+    'country': fields.String,
+    'country_code': fields.String,
+    'continent': fields.String,
+    'continent_code': fields.String,
+    'city': fields.String,
+    'state': fields.String,
+    'state_code': fields.String,
+    'latitude': fields.Float,
+    'longitude': fields.Float,
+    'metro_code': fields.Integer,
+    'time_zone': fields.String
+})
+
 mod_agent_list = api.model('AgentList', {
     'uuid': fields.String,
     'organization': fields.String,
@@ -126,6 +143,8 @@ mod_agent_list = api.model('AgentList', {
     #'groups': fields.List(fields.Nested(mod_agent_group_list), attribute="_groups"),
     'active': fields.Boolean,
     'ip_address': fields.String,
+    'console_visible_ip': fields.String,
+    'geo': fields.Nested(mod_agent_geo_information),
     'healthy': fields.Boolean,
     'health_issues': fields.List(fields.String, default=[]),
     'last_heartbeat': ISO8601(attribute='last_heartbeat'),
@@ -145,6 +164,8 @@ mod_agent_details = api.model('AgentList', {
     'groups': fields.List(fields.Nested(mod_agent_group_list), attribute="_groups"),
     'active': fields.Boolean,
     'ip_address': fields.String,
+    'console_visible_ip': fields.String,
+    'geo': fields.Nested(mod_agent_geo_information),
     'healthy': fields.Boolean,
     'health_issues': fields.List(fields.String),
     'last_heartbeat': ISO8601(attribute='last_heartbeat'),
@@ -353,6 +374,42 @@ class AgentList(Resource):
             api.abort(409, "Agent already exists.")
 
 
+def parse_geo_info(geo_info):
+    '''
+    Returns geo_info if the proper fields are present
+    '''
+
+    data = {}
+
+    if 'location' in geo_info:
+        data['latitude'] = geo_info['location'].get('latitude', None)
+        data['longitude'] = geo_info['location'].get('longitude', None)
+        data['metro_code'] = geo_info['location'].get('metro_code', None)
+        data['time_zone'] = geo_info['location'].get('time_zone', None)
+
+    if 'city' in geo_info:
+        data['city'] = geo_info['city']['names'].get('en', None)
+
+    if 'registered_country' in geo_info:
+        data['iso_code'] = geo_info['registered_country'].get('iso_code', None)
+
+    if 'continent' in geo_info:
+        data['continent'] = geo_info['continent']['names'].get('en', None)
+        data['continent_code'] = geo_info['continent'].get('code', None)
+
+    if 'country' in geo_info:
+        data['country'] = geo_info['country']['names'].get('en', None)
+        data['country_code'] = geo_info['country'].get('iso_code', None)
+
+    if 'subdivisions' in geo_info:
+        if len(geo_info['subdivisions']) > 0:
+            data['state'] = geo_info['subdivisions'][0]['names'].get('en', None)
+            data['state_code'] = geo_info['subdivisions'][0].get('iso_code', None)
+
+    return data
+    
+
+
 @api.route("/heartbeat/<uuid>")
 class AgentHeartbeat(Resource):
 
@@ -366,6 +423,29 @@ class AgentHeartbeat(Resource):
         if agent:
             if current_user.uuid == agent.uuid:
                 agent.last_heartbeat = datetime.datetime.utcnow()
+
+                # Determine the agents console_visible_ip address from the request
+                if 'X-Forwarded-For' in request.headers:
+                    api.payload['console_visible_ip'] = request.headers['X-Forwarded-For']
+                else:
+                    api.payload['console_visible_ip'] = request.remote_addr
+
+                if ',' in api.payload['console_visible_ip']:
+                    api.payload['console_visible_ip'] = api.payload['console_visible_ip'].split(',')[0]
+
+                if 'console_visible_ip' in api.payload:
+                    
+                    try:
+                        geo = geolite2.reader()
+                    
+                        geo_info = geo.get(api.payload['console_visible_ip'])
+
+                        if geo_info:
+                            api.payload['geo'] = parse_geo_info(geo_info)
+                        else:
+                            api.payload['geo'] = None
+                    except Exception:
+                        api.payload['geo'] = None
 
                 agent_tags = AgentTag.set_agent_tags(agent)
 
