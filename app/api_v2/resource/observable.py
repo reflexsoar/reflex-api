@@ -13,7 +13,8 @@ from ..model import (
     Event,
     Q,
     ThreatValue,
-    ThreatList
+    ThreatList,
+    Agent
 )
 
 api = Namespace('Observable', description="Observable operations", path="/observable")
@@ -154,8 +155,6 @@ class ObservableHits(Resource):
         results = search.execute()
         total_cases = results.aggregations.cases.value
 
-        
-
         threat_search = ThreatValue.search()
         threat_search = threat_search.filter('term', value=value)
 
@@ -221,6 +220,22 @@ class ObservableHits(Resource):
         #    url_haus = {}
 
         overall_risk_score = 0
+
+        # If the observable is a host, check to see if it is a Reflex Agent
+        # and if it is, pull the agent data
+        #if args.data_type == 'host':
+            #agent_search = Agent.search()
+#
+            #if args['organization'] and user_in_default_org:
+                #agent_search = agent_search.filter('term', organization=args['organization'])
+            #else:
+                #agent_search = agent_search.filter('term', organization=current_user.organization)
+#
+            #agent_search = agent_search.filter('term', name=value)
+#
+            #agent = agent_search.execute()
+            #if agent:
+                #print(agent)
 
 
         response = {'system_wide_events': total_events,

@@ -138,6 +138,7 @@ mod_agent_list = api.model('AgentList', {
     'uuid': fields.String,
     'organization': fields.String,
     'name': fields.String,
+    'identifier': fields.String,
     'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
     'roles': fields.List(fields.String, default=[]),
     #'groups': fields.List(fields.Nested(mod_agent_group_list), attribute="_groups"),
@@ -159,6 +160,7 @@ mod_agent_details = api.model('AgentList', {
     'uuid': fields.String,
     'organization': fields.String,
     'name': fields.String,
+    'identifier': fields.String,
     'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
     'roles': fields.List(fields.String),
     'groups': fields.List(fields.Nested(mod_agent_group_list), attribute="_groups"),
@@ -186,7 +188,8 @@ mod_agent_heartbeat = api.model('AgentHeartbeat', {
     'recovered': fields.Boolean,
     'version': fields.String,
     'is_pluggable': fields.Boolean,
-    'host_information': fields.Nested(mod_agent_host_information)
+    'host_information': fields.Nested(mod_agent_host_information),
+    'identifier': fields.String,
 })
 
 mod_agent_list_paged = api.model('AgentListPaged', {
