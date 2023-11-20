@@ -238,7 +238,7 @@ class EventRuleList(Resource):
                 api.abort(400, 'expire_days should be an integer.')
 
         # Compute when the rule should expire
-        if 'expire' in api.payload and api.payload['expire']:
+        if 'expire' in api.payload and api.payload['expire'] is True:
             if 'expire_days' in api.payload:
                 expire_days = api.payload['expire_days']
 
@@ -393,7 +393,7 @@ class EventRuleDetails(Resource):
                 api.payload['global_rule'] = False
 
             # Computer when the rule should expire
-            if 'expire' in api.payload and api.payload['expire']:
+            if 'expire' in api.payload and api.payload['expire'] is True:
                 if 'expire_days' in api.payload:
                     expire_days = api.payload['expire_days']
 
