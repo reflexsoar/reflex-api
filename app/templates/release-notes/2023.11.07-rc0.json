@@ -29,6 +29,10 @@
                 {
                     "title": "Events",
                     "description": "- Occassionaly the dismiss event modal would load before the target organizations dismiss reasons were loaded, wiping out an analysts selection; this has been resolved."
+                },
+                {
+                    "title": "Event Rules",
+                    "description": "- Fixed an issue where `expire` even when set to `False` was still expiring events.  This only happens when creating an Event Rule from an Event Card."
                 }
             ]
         }
