@@ -1,3 +1,6 @@
+import io
+import gzip
+import json
 import datetime
 
 # Import geolite library for geoip lookups
@@ -19,8 +22,9 @@ from ..model import (
 )
 
 from app.api_v2.model.agent import PLUGGABLE_SUPPORTED_ROLES
+from app.api_v2.rql.parser import QueryParser
 from .shared import mod_pagination, ISO8601
-from ..utils import token_required, user_has, page_results, generate_token, default_org
+from ..utils import token_required, page_results, user_has, generate_token, default_org
 from .agent_group import mod_agent_group_list
 from .agent_policy import mod_agent_policy_detailed, mod_agent_policy_v2
 from ..schemas import mod_input_list
@@ -278,7 +282,9 @@ agent_list_parser.add_argument(
 agent_list_parser.add_argument(
     'sort_direction', type=str, location='args', default='desc', required=False
 )
-
+agent_list_parser.add_argument(
+    'filter_query', type=str, location='args', default=None, required=False
+)
 
 @api.route("")
 class AgentList(Resource):
@@ -311,6 +317,22 @@ class AgentList(Resource):
         agents, total_results, pages = page_results(
             agents, args.page, args.page_size)
 
+        #agents = list(agents)
+
+        #filter_error = None
+        #if args.filter_query:
+            #print(args.filter_query)
+#
+            #try:
+                #qp = QueryParser()
+                #parsed_query = qp.parser.parse(args.filter_query)
+                #_agents = [{'agent': a.to_dict()} for a in agents]
+                #results = [r for r in qp.run_search(_agents, parsed_query)]
+                #agents = [a['agent'] for a in results]
+            #except Exception as e:
+                #filter_error = str(e)
+                #parsed_query = None
+
         response = {
             'agents': list(agents),
             'pagination': {
@@ -318,7 +340,8 @@ class AgentList(Resource):
                 'pages': pages,
                 'page': args['page'],
                 'page_size': args['page_size']
-            }
+            },
+            'filter_error': None
         }
 
         return response
@@ -745,7 +768,20 @@ class AgentLog(Resource):
 
         agent = Agent.get_by_uuid(uuid=current_user.uuid)
         if agent:
-            for message in api.payload['messages']:
+            # If the content is gzip encoded, decode it
+            if 'Content-Encoding' in request.headers:
+                if request.headers['Content-Encoding'] == 'gzip':
+                    try:
+                        compress_data = io.BytesIO(request.data)
+                        gzip_data = gzip.GzipFile(fileobj=compress_data, mode='r')
+                        text_data = gzip_data.read()
+                        request_data = json.loads(text_data.decode('utf-8'))
+                    except Exception as e:
+                        api.abort(400, f'Error decoding gzip content. {e}')
+            else:
+                request_data = api.payload
+            
+            for message in request_data['messages']:
                 log = AgentLogMessage(agent_uuid=current_user.uuid,
                     **message)
                 log.save()
