@@ -199,7 +199,8 @@ class AgentLogMessage(base.BaseDocument):
         ''' Defines the index to use '''
         name = 'reflex-agent-logs'
         settings = {
-            'refresh_interval': '1s'
+            'refresh_interval': '1s',
+            'number_of_shards': 2,
         }
 
     agent_uuid = Keyword()  # The UUID of the agent that generated this log message
