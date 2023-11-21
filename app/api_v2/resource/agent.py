@@ -247,7 +247,8 @@ mod_agent_log_message = api.model('AgentLogMessage', {
     'process': fields.Nested(mod_agent_log_process_meta),
     'line': fields.Integer,
     'message': fields.String,
-    'module': fields.String
+    'module': fields.String,
+    'formatted': fields.String(required=False)
 })
 
 mod_create_log_messages = api.model('AgentLogMessages', {
@@ -755,9 +756,64 @@ class AgentDetails(Resource):
 
             api.abort(404, 'Agent not found.')
 
+mod_formatted_log = api.model('FormattedLog', {
+    'formatted': fields.String
+})
+
+mod_agent_logs = api.model('AgentLogs', {
+    'logs': fields.List(fields.String)
+})
+
+agent_log_parser = api.parser()
+agent_log_parser.add_argument('agent', action='split', default=[], location='args', required=False)
+agent_log_parser.add_argument('module', action='split', default=[], location='args', required=False)
+agent_log_parser.add_argument('level', action='split', default=[], location='args', required=False)
+agent_log_parser.add_argument('organization', action='split', default=[], location='args', required=False)
+agent_log_parser.add_argument('start_date', type=str, location='args', required=False)
+agent_log_parser.add_argument('end_date', type=str, location='args', required=False)
 
 @api.route("/log")
 class AgentLog(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(agent_log_parser)
+    @api.marshal_with(mod_agent_logs)
+    @token_required
+    @user_has('view_agent_logs')
+    def get(self, current_user):
+
+        args = agent_log_parser.parse_args()
+
+        search = AgentLogMessage.search()
+
+        if args.agent:
+            search = search.filter('terms', agent_uuid=args.agent)
+
+        if args.module:
+            search = search.filter('terms', module=args.module)
+
+        if args.level:
+            search = search.filter('terms', level__name=args.level)
+
+        if args.organization:
+            if current_user.is_default_org():
+                search = search.filter('terms', organization=args.organization)
+
+        if args.start_date:
+            search = search.filter('range', timestamp={'gte': args.start_date})
+
+        if args.end_date:
+            search = search.filter('range', timestamp={'lte': args.end_date})
+
+        # Newest logs first
+        search = search.sort('-timestamp')
+
+        print(json.dumps(search.to_dict(), indent=2))
+
+        logs = [l.formatted for l in search.scan()]
+
+        return {'logs': logs}
+
 
     @api.doc(security="Bearer")
     @api.expect(mod_create_log_messages)
