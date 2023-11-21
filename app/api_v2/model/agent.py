@@ -274,6 +274,11 @@ class AgentLocalUser(InnerDoc):
     session_start = Date()  # The start time of the local user session
     groups = Keyword()  # The groups the local user belongs to
 
+
+class AgentLocalUsers(InnerDoc):
+    username = Keyword()
+    groups = Keyword()
+
 class AgentServices(InnerDoc):
     display_name = Keyword()
     binpath = Keyword()
@@ -330,6 +335,7 @@ class AgentHostInformation(InnerDoc):
     listening_ports = Nested(AgentListeningPorts)
     services = Nested(AgentServices)
     installed_software = Nested(AgentSoftwarePackage)
+    local_users = Nested(AgentLocalUsers)
 
 
 class AgentTag(InnerDoc):

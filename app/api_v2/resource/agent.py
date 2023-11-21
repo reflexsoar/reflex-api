@@ -48,6 +48,11 @@ mod_agent_local_users = api.model('AgentLocalUsers', {
     'groups': fields.List(fields.String)
 })
 
+mod_local_user_brief = api.model('LocalUserBrief', {
+    'username': fields.String,
+    'groups': fields.List(fields.String)
+})
+
 mod_agent_system_info = api.model('AgentSystemInfo', {
     'type': fields.String,
     'os_release': fields.String,
@@ -121,7 +126,8 @@ mod_agent_host_information = api.model('AgentHostInformation', {
     'chassis': fields.Nested(mod_agent_chassis_info),
     'listening_ports': fields.List(fields.Nested(mod_agent_listening_ports)),
     'services': fields.List(fields.Nested(mod_agent_services)),
-    'installed_software': fields.List(fields.Nested(mod_agent_software_package))
+    'installed_software': fields.List(fields.Nested(mod_agent_software_package)),
+    'local_users': fields.List(fields.Nested(mod_local_user_brief)),
 })
 
 mod_agent_geo_information = api.model('AgentGeoInformation', {
@@ -807,8 +813,6 @@ class AgentLog(Resource):
 
         # Newest logs first
         search = search.sort('-timestamp')
-
-        print(json.dumps(search.to_dict(), indent=2))
 
         logs = [l.formatted for l in search.scan()]
 
