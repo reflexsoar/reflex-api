@@ -216,6 +216,12 @@ class AgentLogMessage(base.BaseDocument):
     thread = Object(AgentLogThreadMeta)
     process = Object(AgentLogProcessMeta)  # The process that generated the log message
 
+    @property
+    def formatted(self):
+        ''' Returns a formatted version of the log message '''
+        
+        return f"{self.timestamp} | {self.level.name} | {self.host.name} | { self.module }.{self.function}:{self.line} - { self.message }"
+
 
 class AgentNetworkInterface(InnerDoc):
     '''
