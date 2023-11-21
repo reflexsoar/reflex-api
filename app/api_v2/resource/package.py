@@ -16,17 +16,17 @@ mod_package_brief = api.model('PackageBrief', {
     'description': fields.String(required=True, description='The Package Description'),
     'source': fields.String(required=True, description='The Package Source'),
     'source_checksum': fields.String(required=True, description='The Package Source Checksum'),
-    'install_command': fields.String(required=True, description='The Package Install Command'),
+    'install_command': fields.List(fields.String, required=True, description='The Package Install Command'),
     'install_working_directory': fields.String(required=True, description='The Package Install Working Directory'),
     'install_timeout': fields.Integer(required=True, description='The Package Install Timeout'),
     'configuration_source': fields.String(required=True, description='The Package Configuration Source'),
     'configuration_destination': fields.String(required=True, description='The Package Configuration Destination'),
     'config_checksum': fields.String(required=True, description='The Package Configuration Checksum'),
-    'start_command': fields.String(required=True, description='The Package Start Command'),
-    'stop_command': fields.String(required=True, description='The Package Stop Command'),
-    'uninstall_command': fields.String(description='The Package Uninstall Command'),
-    'reconfigure_command': fields.String(description='The Package Reconfigure Command'),
-    'dependencies': fields.String(description='The Package Dependencies'),
+    'start_command': fields.List(fields.String, required=True, description='The Package Start Command'),
+    'stop_command': fields.List(fields.String, required=True, description='The Package Stop Command'),
+    'uninstall_command': fields.List(fields.String, description='The Package Uninstall Command'),
+    'reconfigure_command': fields.List(fields.String, description='The Package Reconfigure Command'),
+    'dependencies': fields.List(fields.String, description='The Package Dependencies'),
 })
 
 mod_package_create = api.inherit('PackageCreate', mod_package_brief, {
@@ -61,7 +61,7 @@ mod_package_list = api.model('PackageList', {
 
 # Individual Package Operations
 
-@api.route('<uuid>')
+@api.route('/<uuid>')
 class PackageDetails(Resource):
 
     @api.doc(security="Bearer")
