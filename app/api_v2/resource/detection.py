@@ -685,6 +685,8 @@ class DetectionList(Resource):
         if args.tactics and len(args.tactics) > 0 and args.tactics != [""]:
             search = search.filter('nested', path='tactics', query={
                                    'terms': {'tactics.external_id': args.tactics}})
+            
+        print(json.dumps(search.to_dict()))
 
         # If the agent parameter is provided do not page the results, load them all
         if 'agent' in args and args.agent not in (None, ''):
@@ -720,6 +722,8 @@ class DetectionList(Resource):
 
             total_results = len(detections)
             pages = 1
+
+            
         else:
             search, total_results, pages = page_results(
                 search, args.page, args.page_size)
@@ -1238,6 +1242,9 @@ class AddDetectionException(Resource):
         detection = Detection.get_by_uuid(uuid=uuid)
         if detection:
 
+            if 'field' not in api.payload or api.payload['field'] in [None, '']:
+                api.abort(400, 'Field is required')
+
             # Create the exception inner document and add the auditing meta data
             exception = DetectionException(
                 **api.payload,
@@ -1621,6 +1628,11 @@ class DetectionDetails(Resource):
                 if detection.active == False:
                     if 'warnings' in api.payload:
                         api.payload['warnings'] = []
+
+            if 'exceptions' in api.payload:
+                for exception in api.payload['exceptions']:
+                    if 'field' not in exception or exception['field'] in [None, '']:
+                        api.abort(400, 'Exception field is required')
 
             if isinstance(current_user, Agent):
                 detection.update(**api.payload, refresh=True)
