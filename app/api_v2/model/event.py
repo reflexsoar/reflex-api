@@ -161,6 +161,7 @@ class Event(base.BaseDocument):
     description = Text(fields={'keyword':Keyword()})
     reference = Keyword()
     case = Keyword()
+    category = Keyword()
     source = Text(fields={'keyword':Keyword()})
     source_uuid = Keyword()
     tlp = Integer()

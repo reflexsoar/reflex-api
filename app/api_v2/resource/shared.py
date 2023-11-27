@@ -5,6 +5,11 @@ from flask_restx import Model, fields, reqparse
 from opensearch_dsl import AttrDict
 
 
+class NullableString(fields.String):
+    ''' Returns a String or None '''
+    __schema_type__ = ['string', 'null']
+    __schema_example__ = 'string or null'
+
 class AsAttrDict(fields.Raw):
     ''' Converts an AttrDict to a normal Dict'''
 
@@ -273,10 +278,30 @@ mod_permissions = Model('Permissions', {
     'update_data_source_template': fields.Boolean,
     'delete_data_source_template': fields.Boolean,
     'view_data_source_templates': fields.Boolean,
+    'view_fim_rules': fields.Boolean,
+    'create_fim_rule': fields.Boolean,
+    'update_fim_rule': fields.Boolean,
+    'delete_fim_rule': fields.Boolean,
     'create_schedule': fields.Boolean,
     'update_schedule': fields.Boolean,
     'delete_schedule': fields.Boolean,
     'view_schedules': fields.Boolean,
+    'view_benchmarks': fields.Boolean,
+    'create_benchmark_rule': fields.Boolean,
+    'update_benchmark_rule': fields.Boolean,
+    'view_benchmark_rulesets': fields.Boolean,
+    'create_benchmark_ruleset': fields.Boolean,
+    'update_benchmark_ruleset': fields.Boolean,
+    'delete_benchmark_ruleset': fields.Boolean,
+    'view_benchmark_exceptions': fields.Boolean,
+    'create_benchmark_exclusion': fields.Boolean,
+    'update_benchmark_exclusion': fields.Boolean,
+    'delete_benchmark_exclusion': fields.Boolean,
+    'create_benchmark_result': fields.Boolean,
+    'view_agent_tags': fields.Boolean,
+    'create_agent_tag': fields.Boolean,
+    'update_agent_tag': fields.Boolean,
+    'delete_agent_tag': fields.Boolean
 }, strict=True)
 
 mod_user_list = Model('UserList', {

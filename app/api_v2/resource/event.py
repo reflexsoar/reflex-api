@@ -78,7 +78,8 @@ mod_event_create = api.model('EventCreate', {
     'observables': fields.List(fields.Nested(mod_observable_create)),
     'raw_log': fields.String,
     'detection_id': fields.String,
-    'risk_score': fields.Integer(default=0)
+    'risk_score': fields.Integer(default=0),
+    'category': fields.String(default='alert')
 })
 
 mod_event_list = api.model('EventList', {
@@ -107,6 +108,7 @@ mod_event_list = api.model('EventList', {
     'response_phase': fields.String,
     'acknowledged': fields.Boolean,
     'acknowledged_by': fields.Nested(mod_user_list),
+    'category': fields.String(default='alert')
 })
 
 mod_event_paged_list = api.model('PagedEventList', {
@@ -198,7 +200,8 @@ mod_event_details = api.model('EventDetails', {
     'response_phase': fields.String,
     'acknowledged': fields.Boolean,
     'acknowledged_by': fields.Nested(mod_user_list),
-    'integration_output': fields.List(AsAttrDict)
+    'integration_output': fields.List(AsAttrDict),
+    'category': fields.String(default='alert')
 })
 
 

@@ -1,0 +1,44 @@
+{
+    "version": "2023.11.27-rc0",
+    "sections": [
+        {
+            "title": "Feature",
+            "items": [
+                {
+                    "title": "File Integrity Monitoring (BETA)",
+                    "description": "Reflex now supports adding File Integrity Monitoring (FIM) rules to your organization. FIM rules allow you to monitor for changes to files on your endpoints. For more information, see [File Integrity Monitoring](https://docs.reflexsoar.com/en/latest/agents/roles/file-integrity-monitoring).  Note: This is a Beta feature and requires a special agent."
+                },
+                {
+                    "title": "Asset Benchmarking (BETA)",
+                    "description": "Reflex now supports benchmarking your assets against compliance Benchmarks.  For more information, see [Asset Benchmarking](https://docs.reflexsoar.com/en/latest/agents/roles/asset-benchmarking).  Note: This is a Beta feature and requires a special agent."
+                },
+                {
+                    "title": "Package Manager (BETA)",
+                    "description": "Reflex now supports a package management functionality that will allow the Reflex agent to install and update packages on your endpoints.  For more information, see [Package Manager](https://docs.reflexsoar.com/en/latest/agents/roles/package-manager).  Note: This is a Beta feature and requires a special agent."
+                }
+            ]
+        },
+        {
+            "title": "Enhancements",
+            "items": [
+                    {
+                        "title": "Agents",
+                        "description": "- Agents will now be flagged as `is_pluggable` if they are running the new pluggable agent.  This is for backwards compatibility purposes.\n- Agents now report important information about the machine they are installed on every time they heartbeat.  Requires the new Pluggable Agent\n- Agents now support dynamic tagging (BETA).  These tags can be used to dynamically add agent policies, upgrade the agents (future release) and group agents in to more manageable buckets, see [Agent Tags](http://docs.reflexsoar.com/en/latest/agents/tags)."
+                    }
+            ]
+        },
+        {
+            "title": "Bug Fixes",
+            "items": [
+                {
+                    "title": "Events",
+                    "description": "- Occassionaly the dismiss event modal would load before the target organizations dismiss reasons were loaded, wiping out an analysts selection; this has been resolved."
+                },
+                {
+                    "title": "Event Rules",
+                    "description": "- Fixed an issue where `expire` even when set to `False` was still expiring events.  This only happens when creating an Event Rule from an Event Card."
+                }
+            ]
+        }
+    ]
+}

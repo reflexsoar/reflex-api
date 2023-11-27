@@ -1,19 +1,30 @@
+import io
+import gzip
+import json
 import datetime
+
+# Import geolite library for geoip lookups
+from geolite2 import geolite2
+
 from flask import request
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 
 from app.api_v2.model.integration import IntegrationConfiguration, Integration
+from app.api_v2.resource.agent_tag import mod_agent_tag_short
 from ..model import (
     Agent,
     AgentLogMessage,
     Settings,
     Role,
     AgentGroup,
+    AgentTag,
     ExpiredToken
 )
-from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
-from .utils import redistribute_detections
-from ..utils import check_org, token_required, user_has, ip_approved, page_results, generate_token, default_org
+
+from app.api_v2.model.agent import PLUGGABLE_SUPPORTED_ROLES
+from app.api_v2.rql.parser import QueryParser
+from .shared import mod_pagination, ISO8601
+from ..utils import token_required, page_results, user_has, generate_token, default_org
 from .agent_group import mod_agent_group_list
 from .agent_policy import mod_agent_policy_detailed, mod_agent_policy_v2
 from ..schemas import mod_input_list
@@ -21,37 +32,160 @@ from ..schemas import mod_input_list
 api = Namespace(
     'Agent', description='Reflex Agent administration', path='/agent', strict=True)
 
+mod_agent_network_interfaces = api.model('AgentNetworkInterfaces', {
+    'name': fields.String,
+    'mac': fields.String,
+    'ip': fields.String,
+    'netmask': fields.String,
+    'broadcast': fields.String,
+})
+
+mod_agent_local_users = api.model('AgentLocalUsers', {
+    'username': fields.String,
+    'terminal': fields.String,
+    'host': fields.String,
+    'session_start': ISO8601,
+    'groups': fields.List(fields.String)
+})
+
+mod_local_user_brief = api.model('LocalUserBrief', {
+    'username': fields.String,
+    'groups': fields.List(fields.String)
+})
+
+mod_agent_system_info = api.model('AgentSystemInfo', {
+    'type': fields.String,
+    'os_release': fields.String,
+    'os_version': fields.String,
+    'os_name': fields.String,
+    'machine': fields.String,
+    'hostname': fields.String,
+    'processor': fields.String,
+    'architecture': fields.String,
+})
+
+mod_agent_chassis_info = api.model('AgentChassisInfo', {
+    'domain': fields.String,
+    'domain_role': fields.Integer,
+    'model': fields.String,
+    'manufacturer': fields.String,
+    'system_family': fields.String,
+    'system_sku': fields.String,
+    'workgroup': fields.String,
+    'serial_number': fields.String,
+    'chassis_type': fields.String,
+})
+
+mod_agent_listening_ports = api.model('AgentListeningPorts', {
+    'pid': fields.Integer,
+    'process_name': fields.String,
+    'process_path': fields.String,
+    'process_user': fields.String,
+    'port': fields.Integer,
+    'protocol': fields.String,
+    'status': fields.String,
+    'family': fields.String,
+    'parent_pid': fields.Integer,
+    'parent_process_name': fields.String,
+    'parent_process_path': fields.String,
+    'parent_process_user': fields.String,
+})
+
+mod_agent_services = api.model('AgentServices', {
+    'display_name': fields.String,
+    'binpath': fields.String,
+    'username': fields.String,
+    'start_type': fields.String,
+    'status': fields.String,
+    'pid': fields.Integer,
+    'name': fields.String,
+    'description': fields.String
+})
+
+mod_agent_software_package = api.model('AgentSoftwarePackage', {
+    'name': fields.String,
+    'version': fields.String,
+    'vendor': fields.String,
+    'identifying_number': fields.String,
+    'install_date': fields.String,
+    'install_source': fields.String,
+    'local_package': fields.String,
+    'package_cache': fields.String,
+    'package_code': fields.String,
+    'package_name': fields.String,
+    'url_info_about': fields.String,
+    'language': fields.String
+})
+
+mod_agent_host_information = api.model('AgentHostInformation', {
+    'timezone': fields.String,
+    'network_adapters': fields.List(fields.Nested(mod_agent_network_interfaces)),
+    'users': fields.List(fields.Nested(mod_agent_local_users)),
+    'last_reboot': ISO8601,
+    'system': fields.Nested(mod_agent_system_info),
+    'chassis': fields.Nested(mod_agent_chassis_info),
+    'listening_ports': fields.List(fields.Nested(mod_agent_listening_ports)),
+    'services': fields.List(fields.Nested(mod_agent_services)),
+    'installed_software': fields.List(fields.Nested(mod_agent_software_package)),
+    'local_users': fields.List(fields.Nested(mod_local_user_brief)),
+})
+
+mod_agent_geo_information = api.model('AgentGeoInformation', {
+    'country': fields.String,
+    'country_code': fields.String,
+    'continent': fields.String,
+    'continent_code': fields.String,
+    'city': fields.String,
+    'state': fields.String,
+    'state_code': fields.String,
+    'latitude': fields.Float,
+    'longitude': fields.Float,
+    'metro_code': fields.Integer,
+    'time_zone': fields.String
+})
 
 mod_agent_list = api.model('AgentList', {
     'uuid': fields.String,
     'organization': fields.String,
     'name': fields.String,
+    'identifier': fields.String,
     'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
     'roles': fields.List(fields.String, default=[]),
     #'groups': fields.List(fields.Nested(mod_agent_group_list), attribute="_groups"),
     'active': fields.Boolean,
     'ip_address': fields.String,
+    'console_visible_ip': fields.String,
+    'geo': fields.Nested(mod_agent_geo_information),
     'healthy': fields.Boolean,
     'health_issues': fields.List(fields.String, default=[]),
     'last_heartbeat': ISO8601(attribute='last_heartbeat'),
     'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
     'version': fields.String,
+    'is_pluggable': fields.Boolean(default=False),
+    'tags': fields.List(fields.Nested(mod_agent_tag_short))
 })
+
 
 mod_agent_details = api.model('AgentList', {
     'uuid': fields.String,
     'organization': fields.String,
     'name': fields.String,
+    'identifier': fields.String,
     'inputs': fields.List(fields.Nested(mod_input_list), attribute="_inputs"),
     'roles': fields.List(fields.String),
     'groups': fields.List(fields.Nested(mod_agent_group_list), attribute="_groups"),
     'active': fields.Boolean,
     'ip_address': fields.String,
+    'console_visible_ip': fields.String,
+    'geo': fields.Nested(mod_agent_geo_information),
     'healthy': fields.Boolean,
     'health_issues': fields.List(fields.String),
     'last_heartbeat': ISO8601(attribute='last_heartbeat'),
     'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
     'version': fields.String,
+    'is_pluggable': fields.Boolean(default=False),
+    'host_information': fields.Nested(mod_agent_host_information),
+    'tags': fields.List(fields.Nested(mod_agent_tag_short))
 })
 
 mod_agent_inputs = api.model('AgentInputs', {
@@ -63,6 +197,9 @@ mod_agent_heartbeat = api.model('AgentHeartbeat', {
     'health_issues': fields.List(fields.String),
     'recovered': fields.Boolean,
     'version': fields.String,
+    'is_pluggable': fields.Boolean,
+    'host_information': fields.Nested(mod_agent_host_information),
+    'identifier': fields.String,
 })
 
 mod_agent_list_paged = api.model('AgentListPaged', {
@@ -83,8 +220,45 @@ mod_agent_create = api.model('AgentCreate', {
     'inputs': fields.List(fields.String)
 })
 
-mod_create_log_message = api.model('AgentLogMessage', {
+mod_agent_log_host_meta = api.model('AgentLogHostMeta', {
+    'name': fields.String
+})
+
+mod_agent_log_level_meta = api.model('AgentLogLevelMeta', {
+    'name': fields.String,
+    'no': fields.Integer
+})
+
+mod_agent_log_file_meta = api.model('AgentLogFileMeta', {
+    'name': fields.String,
+    'path': fields.String
+})
+
+mod_agent_log_thread_meta = api.model('AgentLogThreadMeta', {
+    'name': fields.String,
+    'id': fields.Integer
+})
+
+mod_agent_log_process_meta = api.model('AgentLogProcessMeta', {
+    'name': fields.String,
+    'id': fields.Integer
+})
+
+mod_agent_log_message = api.model('AgentLogMessage', {
+    'timestamp': ISO8601,
+    'host': fields.Nested(mod_agent_log_host_meta),
+    'level': fields.Nested(mod_agent_log_level_meta),
+    'file': fields.Nested(mod_agent_log_file_meta),
+    'thread': fields.Nested(mod_agent_log_thread_meta),
+    'process': fields.Nested(mod_agent_log_process_meta),
+    'line': fields.Integer,
     'message': fields.String,
+    'module': fields.String,
+    'formatted': fields.String(required=False)
+})
+
+mod_create_log_messages = api.model('AgentLogMessages', {
+    'messages': fields.List(fields.Nested(mod_agent_log_message))
 })
 
 
@@ -115,7 +289,9 @@ agent_list_parser.add_argument(
 agent_list_parser.add_argument(
     'sort_direction', type=str, location='args', default='desc', required=False
 )
-
+agent_list_parser.add_argument(
+    'filter_query', type=str, location='args', default=None, required=False
+)
 
 @api.route("")
 class AgentList(Resource):
@@ -148,6 +324,22 @@ class AgentList(Resource):
         agents, total_results, pages = page_results(
             agents, args.page, args.page_size)
 
+        #agents = list(agents)
+
+        #filter_error = None
+        #if args.filter_query:
+            #print(args.filter_query)
+#
+            #try:
+                #qp = QueryParser()
+                #parsed_query = qp.parser.parse(args.filter_query)
+                #_agents = [{'agent': a.to_dict()} for a in agents]
+                #results = [r for r in qp.run_search(_agents, parsed_query)]
+                #agents = [a['agent'] for a in results]
+            #except Exception as e:
+                #filter_error = str(e)
+                #parsed_query = None
+
         response = {
             'agents': list(agents),
             'pagination': {
@@ -155,7 +347,8 @@ class AgentList(Resource):
                 'pages': pages,
                 'page': args['page'],
                 'page_size': args['page_size']
-            }
+            },
+            'filter_error': None
         }
 
         return response
@@ -171,6 +364,12 @@ class AgentList(Resource):
 
         agent = Agent.get_by_name(name=api.payload['name'])
         if not agent:
+
+            # Pluggable agents can't be detectors as of 2023-11-06
+            if 'roles' in api.payload and 'is_pluggable' in api.payload:
+                for role in api.payload['roles']:
+                    if role not in PLUGGABLE_SUPPORTED_ROLES:
+                        api.abort(400, f"Role {role} is not supported by pluggable agents.")
 
             groups = None
             if 'groups' in api.payload and api.payload['groups']:
@@ -208,6 +407,42 @@ class AgentList(Resource):
             api.abort(409, "Agent already exists.")
 
 
+def parse_geo_info(geo_info):
+    '''
+    Returns geo_info if the proper fields are present
+    '''
+
+    data = {}
+
+    if 'location' in geo_info:
+        data['latitude'] = geo_info['location'].get('latitude', None)
+        data['longitude'] = geo_info['location'].get('longitude', None)
+        data['metro_code'] = geo_info['location'].get('metro_code', None)
+        data['time_zone'] = geo_info['location'].get('time_zone', None)
+
+    if 'city' in geo_info:
+        data['city'] = geo_info['city']['names'].get('en', None)
+
+    if 'registered_country' in geo_info:
+        data['iso_code'] = geo_info['registered_country'].get('iso_code', None)
+
+    if 'continent' in geo_info:
+        data['continent'] = geo_info['continent']['names'].get('en', None)
+        data['continent_code'] = geo_info['continent'].get('code', None)
+
+    if 'country' in geo_info:
+        data['country'] = geo_info['country']['names'].get('en', None)
+        data['country_code'] = geo_info['country'].get('iso_code', None)
+
+    if 'subdivisions' in geo_info:
+        if len(geo_info['subdivisions']) > 0:
+            data['state'] = geo_info['subdivisions'][0]['names'].get('en', None)
+            data['state_code'] = geo_info['subdivisions'][0].get('iso_code', None)
+
+    return data
+    
+
+
 @api.route("/heartbeat/<uuid>")
 class AgentHeartbeat(Resource):
 
@@ -222,19 +457,36 @@ class AgentHeartbeat(Resource):
             if current_user.uuid == agent.uuid:
                 agent.last_heartbeat = datetime.datetime.utcnow()
 
-                last_agent_health = agent.healthy
+                # Determine the agents console_visible_ip address from the request
+                if 'X-Forwarded-For' in request.headers:
+                    api.payload['console_visible_ip'] = request.headers['X-Forwarded-For']
+                else:
+                    api.payload['console_visible_ip'] = request.remote_addr
+
+                if ',' in api.payload['console_visible_ip']:
+                    api.payload['console_visible_ip'] = api.payload['console_visible_ip'].split(',')[0]
+
+                if 'console_visible_ip' in api.payload:
+                    
+                    try:
+                        geo = geolite2.reader()
+                    
+                        geo_info = geo.get(api.payload['console_visible_ip'])
+
+                        if geo_info:
+                            api.payload['geo'] = parse_geo_info(geo_info)
+                        else:
+                            api.payload['geo'] = None
+                    except Exception:
+                        api.payload['geo'] = None
 
                 agent.update(last_heartbeat=datetime.datetime.utcnow(),
                              **api.payload, refresh=True)
                 
-                #if 'detector' in agent.roles:
-                    # If agent was previously healthy and is not now redistribute detections
-                    #if api.payload['healthy'] == False and last_agent_health == True:
-                    #    redistribute_detections(organization=agent.organization)
-
-                    # If agent was previously unhealthy and is now healthy redistribute detections
-                    #if api.payload['healthy'] == True and last_agent_health in [False, None]:
-                    #    redistribute_detections(organization=agent.organization)
+                agent_tags = AgentTag.set_agent_tags(agent)
+                if agent.tags != agent_tags:
+                    agent.tags = agent_tags
+                    agent.save(refresh=True)
 
                 return {'message': 'Your heart still beats!'}
         else:
@@ -315,7 +567,8 @@ class AgentPolicy(Resource):
                     'detector': agent._policy.detector_config,
                     'poller': agent._policy.poller_config,
                     'runner': agent._policy.runner_config,
-                    'mitre': agent._policy.mitre_config
+                    'mitre': agent._policy.mitre_mapper_config,
+                    'fim': agent._policy.fim_config
                 },
                 'settings': {
                     'health_check_interval': agent._policy.health_check_interval,
@@ -332,6 +585,10 @@ class AgentPolicy(Resource):
                 'created_by': agent._policy.created_by,
                 'updated_by': agent._policy.updated_by
             }
+
+            # Only return pluggable roles if the agent is pluggable
+            if agent.is_pluggable:
+                policy['roles'] = [r for r in policy['roles'] if r in PLUGGABLE_SUPPORTED_ROLES]
 
             return policy
         else:
@@ -429,11 +686,14 @@ class AgentPolicyInputs(Resource):
             "inputs": inputs
         }
 
+agent_details_parser = api.parser()
+agent_details_parser.add_argument('include_host_info', type=xinputs.boolean, location='args', default=False, required=False)
+
 @api.route("/<uuid>")
 class AgentDetails(Resource):
 
     @api.doc(security="Bearer")
-    @api.expect(mod_agent_create)
+    @api.expect(mod_agent_create, agent_details_parser)
     @api.marshal_with(mod_agent_details)
     @token_required
     @user_has('update_agent')
@@ -442,10 +702,22 @@ class AgentDetails(Resource):
         agent = Agent.get_by_uuid(uuid=uuid)
         if agent:
 
-            agent.update(**api.payload, refresh=True)
+            # Pluggable agents can't be detectors as of 2023-11-06
+            if 'roles' in api.payload and agent.is_pluggable:
+                for role in api.payload['roles']:
+                    if role not in PLUGGABLE_SUPPORTED_ROLES:
+                        api.abort(400, f"Role {role} is not supported by pluggable agents.")
+
+            agent.update(**api.payload, refresh=True)          
 
             #if 'roles' in api.payload:
             #    redistribute_detections(organization=agent.organization)
+
+            args = agent_details_parser.parse_args()
+
+            if args.include_host_info is False:
+                # Remove the host_information from the response
+                agent.host_information = None
 
             return agent
         else:
@@ -470,33 +742,109 @@ class AgentDetails(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_agent_details)
+    @api.expect(agent_details_parser)
     @token_required
     @user_has('view_agents')
     def get(self, uuid, current_user):
         ''' Gets the details of a Agent '''
         agent = Agent.get_by_uuid(uuid=uuid)
         if agent:
+
+            args = agent_details_parser.parse_args()
+
+            if args.include_host_info is False:
+                # Remove the host_information from the response
+                agent.host_information = None
+
+
             return agent
         else:
 
             api.abort(404, 'Agent not found.')
 
+mod_formatted_log = api.model('FormattedLog', {
+    'formatted': fields.String
+})
+
+mod_agent_logs = api.model('AgentLogs', {
+    'logs': fields.List(fields.String)
+})
+
+agent_log_parser = api.parser()
+agent_log_parser.add_argument('agent', action='split', default=[], location='args', required=False)
+agent_log_parser.add_argument('module', action='split', default=[], location='args', required=False)
+agent_log_parser.add_argument('level', action='split', default=[], location='args', required=False)
+agent_log_parser.add_argument('organization', action='split', default=[], location='args', required=False)
+agent_log_parser.add_argument('start_date', type=str, location='args', required=False)
+agent_log_parser.add_argument('end_date', type=str, location='args', required=False)
 
 @api.route("/log")
 class AgentLog(Resource):
 
     @api.doc(security="Bearer")
-    @api.expect(mod_create_log_message)
+    @api.expect(agent_log_parser)
+    @api.marshal_with(mod_agent_logs)
     @token_required
-    @user_has('create_agent_log')
+    @user_has('view_agent_logs')
+    def get(self, current_user):
+
+        args = agent_log_parser.parse_args()
+
+        search = AgentLogMessage.search()
+
+        if args.agent:
+            search = search.filter('terms', agent_uuid=args.agent)
+
+        if args.module:
+            search = search.filter('terms', module=args.module)
+
+        if args.level:
+            search = search.filter('terms', level__name=args.level)
+
+        if args.organization:
+            if current_user.is_default_org():
+                search = search.filter('terms', organization=args.organization)
+
+        if args.start_date:
+            search = search.filter('range', timestamp={'gte': args.start_date})
+
+        if args.end_date:
+            search = search.filter('range', timestamp={'lte': args.end_date})
+
+        # Newest logs first
+        search = search.sort('-timestamp')
+
+        logs = [l.formatted for l in search.scan()]
+
+        return {'logs': logs}
+
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_create_log_messages)
+    @token_required
+    @user_has('create_agent_log_message')
     def post(self, current_user):
         ''' Creates a log message for an Agent '''
-        print(current_user.to_dict())
+
         agent = Agent.get_by_uuid(uuid=current_user.uuid)
         if agent:
-            log = AgentLogMessage(agent_uuid=current_user.uuid,
-                message=api.payload['message'])
-            log.save()
+            # If the content is gzip encoded, decode it
+            if 'Content-Encoding' in request.headers:
+                if request.headers['Content-Encoding'] == 'gzip':
+                    try:
+                        compress_data = io.BytesIO(request.data)
+                        gzip_data = gzip.GzipFile(fileobj=compress_data, mode='r')
+                        text_data = gzip_data.read()
+                        request_data = json.loads(text_data.decode('utf-8'))
+                    except Exception as e:
+                        api.abort(400, f'Error decoding gzip content. {e}')
+            else:
+                request_data = api.payload
+            
+            for message in request_data['messages']:
+                log = AgentLogMessage(agent_uuid=current_user.uuid,
+                    **message)
+                log.save()
             return {'message': 'Log message successfully created.'}
         else:
 

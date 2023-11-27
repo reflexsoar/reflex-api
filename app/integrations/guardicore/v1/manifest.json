@@ -71,6 +71,22 @@
                         "secret": false,
                         "description": "IP Address to label"
                     }
+                },
+                "configuration": {
+                    "test": {
+                        "label": "Hostname Source Fields",
+                        "type": "int",
+                        "required": false,
+                        "default": 9000,
+                        "description": "A source field to fetch the hostnames from"
+                    },
+                    "hostname_source_fields": {
+                        "label": "Hostname Source Fields",
+                        "type": "str-multiple",
+                        "required": false,
+                        "default": [],
+                        "description": "A source field to fetch the hostnames from"
+                    }
                 }
             },
             {

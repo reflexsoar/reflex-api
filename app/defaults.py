@@ -1,12 +1,11 @@
-import pathlib
 
 from datetime import datetime
 from uuid import uuid4
-from app.api_v2.model.user import Organization, User
-from app.api_v2.model.case import Case
-from app.api_v2.model.event import Event
 
+from app.api_v2.model.case import Case
 from app.api_v2.model.detection import DetectionState
+from app.api_v2.model.event import Event
+from app.api_v2.model.user import Organization, User
 
 
 def reset_detection_state():
@@ -239,7 +238,27 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         'create_schedule': True,
         'view_schedules': True,
         'update_schedule': True,
-        'delete_schedule': True
+        'delete_schedule': True,
+        'view_fim_rules': True,
+        'create_fim_rule': True,
+        'update_fim_rule': True,
+        'delete_fim_rule': True,
+        'view_benchmarks': True,
+        'create_benchmark_rule': True,
+        'update_benchmark_rule': True,
+        'view_benchmark_rulesets': True,
+        'create_benchmark_ruleset': True,
+        'update_benchmark_ruleset': True,
+        'delete_benchmark_ruleset': True,
+        'view_benchmark_exceptions': True,
+        'create_benchmark_exclusion': True,
+        'update_benchmark_exclusion': True,
+        'delete_benchmark_exclusion': True,
+        'create_benchmark_result': False,
+        'view_agent_tags': True,
+        'create_agent_tag': True,
+        'update_agent_tag': True,
+        'delete_agent_tag': True
     }
 
     role_contents = {
@@ -285,26 +304,6 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["create_integration_configuration"] = True
                     perms["update_integration_configuration"] = True
                     perms["delete_integration_configuration"] = True
-                    perms["create_sso_provider"] = True
-                    perms["update_sso_provider"] = True
-                    perms["delete_sso_provider"] = True
-                    perms["view_sso_providers"] = True
-                    perms["create_sso_mapping_policy"] = True
-                    perms["update_sso_mapping_policy"] = True
-                    perms["delete_sso_mapping_policy"] = True
-                    perms["view_sso_mapping_policies"] = True
-                    perms["view_packages"] = True
-                    perms["create_package"] = True
-                    perms["update_package"] = True
-                    perms["delete_package"] = True
-                    perms["create_data_source_template"] = True
-                    perms["view_data_source_templates"] = True
-                    perms["update_data_source_template"] = True
-                    perms["delete_data_source_template"] = True
-                    perms["create_schedule"] = True
-                    perms["view_schedules"] = True
-                    perms["update_schedule"] = True
-                    perms["delete_schedule"] = True
                 else:
                     perms['view_organizations'] = False
                     perms['add_organization'] = False
@@ -328,26 +327,6 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["create_integration_configuration"] = False
                     perms["update_integration_configuration"] = False
                     perms["delete_integration_configuration"] = False
-                    perms["create_sso_provider"] = True
-                    perms["update_sso_provider"] = True
-                    perms["delete_sso_provider"] = True
-                    perms["view_sso_providers"] = True
-                    perms["create_sso_mapping_policy"] = True
-                    perms["update_sso_mapping_policy"] = True
-                    perms["delete_sso_mapping_policy"] = True
-                    perms["view_sso_mapping_policies"] = True
-                    perms["view_packages"] = True
-                    perms["create_package"] = True
-                    perms["update_package"] = True
-                    perms["delete_package"] = True
-                    perms["create_data_source_template"] = True
-                    perms["view_data_source_templates"] = True
-                    perms["update_data_source_template"] = True
-                    perms["delete_data_source_template"] = True
-                    perms["create_schedule"] = True
-                    perms["view_schedules"] = True
-                    perms["update_schedule"] = True
-                    perms["delete_schedule"] = True
                 role = role[0]
                 role.permissions = perms
                 role.save()
@@ -462,7 +441,27 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         'create_schedule': False,
         'view_schedules': True,
         'update_schedule': False,
-        'delete_schedule': False
+        'delete_schedule': False,
+        'view_fim_rules': True,
+        'create_fim_rule': False,
+        'update_fim_rule': False,
+        'delete_fim_rule': False,
+        'view_benchmarks': True,
+        'create_benchmark_rule': False,
+        'update_benchmark_rule': False,
+        'view_benchmark_rulesets': False,
+        'create_benchmark_ruleset': False,
+        'update_benchmark_ruleset': False,
+        'delete_benchmark_ruleset': False,
+        'view_benchmark_exceptions': False,
+        'create_benchmark_exclusion': False,
+        'update_benchmark_exclusion': False,
+        'delete_benchmark_exclusion': False,
+        'create_benchmark_result': False,
+        'view_agent_tags': True,
+        'create_agent_tag': False,
+        'update_agent_tag': False,
+        'delete_agent_tag': False
     }
 
     role_contents = {
@@ -527,6 +526,9 @@ def create_agent_role(cls, org_id, check_for_default=False):
         "delete_service_account": False,
         "view_packages": True,
         "view_data_source_templates": True,
+        'view_fim_rules': True,
+        'view_benchmarks': True,
+        'create_benchmark_result': True
     }
 
     role_contents = {
@@ -751,7 +753,6 @@ def send_telemetry():
 
     # TODO: Add the API call to telemetry.reflexsoar.com using requests
     print(telemetry_body)
-
 
 def initial_settings(cls, org_id, check_for_default=False):
 
