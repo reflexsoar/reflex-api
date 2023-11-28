@@ -782,7 +782,10 @@ class Detection(base.BaseDocument):
         if active in [True, False]:
             response = response.filter('term', active=active)
 
-        response = list(response.scan())
+        try:
+            response = list(response.scan())
+        except Exception as e:
+            print(f"Error fetching detections for organization {organization}: {e} - {response.to_dict()}")
 
         if len(response) > 0:
             return response
