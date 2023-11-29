@@ -685,8 +685,6 @@ class DetectionList(Resource):
         if args.tactics and len(args.tactics) > 0 and args.tactics != [""]:
             search = search.filter('nested', path='tactics', query={
                                    'terms': {'tactics.external_id': args.tactics}})
-            
-        print(json.dumps(search.to_dict()))
 
         # If the agent parameter is provided do not page the results, load them all
         if 'agent' in args and args.agent not in (None, ''):
