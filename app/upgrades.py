@@ -75,6 +75,6 @@ def migrate_intel_list_data_feeds_to_static_names():
 
 upgrades = [
     migrate_intel_list_data_feeds_to_static_names,
-    migrate_all_threshold_configs_to_list_keys,
-    set_required_fields_on_detections
+    migrate_all_threshold_configs_to_list_keys
+    #set_required_fields_on_detections
 ]
