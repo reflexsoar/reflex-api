@@ -775,8 +775,8 @@ agent_log_parser.add_argument('agent', action='split', default=[], location='arg
 agent_log_parser.add_argument('module', action='split', default=[], location='args', required=False)
 agent_log_parser.add_argument('level', action='split', default=[], location='args', required=False)
 agent_log_parser.add_argument('organization', action='split', default=[], location='args', required=False)
-agent_log_parser.add_argument('start_date', type=str, location='args', required=False)
-agent_log_parser.add_argument('end_date', type=str, location='args', required=False)
+agent_log_parser.add_argument('start_date', type=str, location='args', default='now-1d', required=False)
+agent_log_parser.add_argument('end_date', type=str, location='args', default='now', required=False)
 
 @api.route("/log")
 class AgentLog(Resource):
@@ -813,6 +813,9 @@ class AgentLog(Resource):
 
         # Newest logs first
         search = search.sort('-timestamp')
+
+        # Max 1000 logs
+        search = search[:500]
 
         logs = [l.formatted for l in search.scan()]
 
