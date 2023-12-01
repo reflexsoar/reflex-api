@@ -18,7 +18,9 @@ from . import (
     Text,
     Boolean,
     Object,
-    Search
+    Search,
+    Nested,
+    Integer
 )
 
 class IntegrationLog(base.BaseDocument):
@@ -256,15 +258,18 @@ class IntegrationConfiguration(base.BaseDocument):
     integration_uuid = Keyword()  # The UUID of the integration this configuration is for
     # Contains a JSON string that defines the configuration for the integrations actions
     # and any global settings
-    actions = Object()
-    global_settings = Object()
+    actions = Object(enabled=False)
+    global_settings = Object(enabled=False)
     enabled = Boolean()  # Whether the integration is enabled or not
+    system_managed = Boolean() # Whether the configuration is managed by the system or not
+    revision = Integer() # The revision number of the configuration
 
     class Index:
         name = 'reflex-integration-configurations'
         settings = {
             'refresh_interval': '5s',
         }
+        version = "0.1.6"
 
 class IntegrationActionQueue(base.BaseDocument):
     """
