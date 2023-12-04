@@ -319,10 +319,12 @@ def process_benchmark_result(data, current_user):
 
             result.status = data['status']
             result.output = data['output']
-            result.assessed_at = data['assessed_at']
-            result.save()
 
-            return result
+        # Always update the last assessment date
+        result.assessed_at = data['assessed_at']
+        result.save()
+
+        return result
     else:
         # If there is no existing result, create a new one
         result = BenchmarkResult(**data, agent=current_user.uuid)
