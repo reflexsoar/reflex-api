@@ -24,7 +24,7 @@
                 "name": "subscribe_to_channels",
                 "description": "Subscribe to Windows Event Log channels",
                 "type": "input",
-                "input_type": ["windows-event-log"],
+                "agent_role": "winlog",
                 "run_from": "agent",
                 "trigger": [
                     "manual"
