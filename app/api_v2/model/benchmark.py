@@ -8,7 +8,9 @@ from . import (
     Integer,
     base,
     Object,
-    Date
+    Date,
+    Q,
+    UpdateByQuery
 )
 
 class platform(Enum):
@@ -55,6 +57,30 @@ class BenchmarkRemediationScript(InnerDoc):
     args = Keyword(fields={'text': Text()})  # Arguments to pass to the remediation script
     success = Integer()  # The expected success code from the script
 
+class BenchmarkFrameworkRule(base.BaseDocument):
+    '''
+    Defines a Framework Control rule for a Benchmark Framework.'''
+    benchmark_name = Keyword(fields={'text': Text()})  # The name of the benchmark
+    benchmark_version = Keyword(fields={'text': Text()})  # The version of the benchmark
+    platform = Keyword(fields={'text': Text()})  # The platforms the rule applies to, e.g. Windows, Linux, etc.
+    control_name = Keyword(fields={'text': Text()})  # The name of the control
+    control_id = Keyword(fields={'text': Text()})  # The ID of the control
+    control_description = Keyword(fields={'text': Text()})  # The description of the control
+    control_rationale = Keyword(fields={'text': Text()})  # The rationale of the control
+    control_remediation = Keyword(fields={'text': Text()})  # The remediation of the control
+    control_impact = Keyword(fields={'text': Text()})  # The impact of the control
+    control_references = Keyword(fields={'text': Text()})  # The references of the control
+    control_audit = Keyword(fields={'text': Text()})  # The audit of the control
+    framework = Keyword(fields={'text': Text()})  # The frameworks the rule applies to, e.g. NIST, CIS, etc.
+    is_automated = Boolean()  # Whether or not the rule is automated
+
+    class Index:
+        name = 'reflex-benchmark-framework-rules'
+        settings = {
+            'refresh_interval': '5s',
+        }
+
+
 class BenchmarkRule(base.BaseDocument):
     '''
     Defines a Benchmark Rule.  Benchmark Rules are used for 
@@ -68,6 +94,7 @@ class BenchmarkRule(base.BaseDocument):
     assess = Object(BenchmarkAssessScript)  # The script to assess the rule
     remediate = Object(BenchmarkRemediationScript)  # The script to remediate the rule
     risk_score = Integer()  # The risk score of the rule
+    secure_score = Integer()  # The secure score of the rule from 1 to 10
     severity = Integer() # The severity of the rule
     auto_remediate = Boolean()  # Whether or not the rule should be automatically remediated
     category = Keyword(fields={'text': Text()})  # The category of the rule
@@ -127,16 +154,40 @@ class BenchmarkResultHistory(base.BaseDocument):
 
     agent = Keyword(fields={'text': Text()})  # The agent UUID the result is for
     rule_id = Keyword(fields={'text': Text()})  # The rule ID the result is for
+    rule_uuid = Keyword(fields={'text': Text()})  # The rule UUID the result is for
     status = Keyword(fields={'text': Text()})  # The status of the rule, e.g. pass, fail, etc.
     output = Keyword(fields={'text': Text()})  # The output of the rule if any
     rule_version = Integer()  # The version of the rule
     assessed_at = Date()  # The timestamp of the result
+    archived = Boolean()  # Whether or not the result has been archived
 
     class Index:
         name = 'reflex-benchmark-results-history'
         settings = {
             'refresh_interval': '5s',
         }
+        version = "0.1.5"
+
+    def archive_agent_results(self, agent_uuid):
+        '''
+        Archives all results for an agent
+        '''
+        
+        update_query = UpdateByQuery(
+            index=BenchmarkResultHistory.Index.name,
+            conflicts='proceed',
+            refresh=True
+        ).query(
+            'bool',
+            must=[
+                Q('term', agent=agent_uuid),
+                Q('term', archived=False)
+            ]
+        ).script(
+            source='ctx._source.archived = true'
+        )
+
+        update_query.execute()
 
 class BenchmarkResult(base.BaseDocument):
     '''
@@ -150,6 +201,7 @@ class BenchmarkResult(base.BaseDocument):
     output = Keyword(fields={'text': Text()})  # The output of the rule if any
     assessed_at = Date()  # The timestamp of the result
     rule_version = Integer()  # The version of the rule
+    archived = Boolean()  # Whether or not the result has been archived
 
     class Index:
         name = 'reflex-benchmark-results'
@@ -171,3 +223,24 @@ class BenchmarkResult(base.BaseDocument):
             rule_version=self.rule_version
         )
         historical_result.save()
+
+def archive_agent_results(result_class, agent_uuid):
+    '''
+    Archives all results for an agent
+    '''
+    
+    update_query = UpdateByQuery(
+        index=result_class.Index.name,
+        conflicts='proceed',
+        refresh=True
+    ).query(
+        'bool',
+        must=[
+            Q('term', agent=agent_uuid),
+            Q('term', archived=False)
+        ]
+    ).script(
+        source='ctx._source.archived = true'
+    )
+
+    update_query.execute()

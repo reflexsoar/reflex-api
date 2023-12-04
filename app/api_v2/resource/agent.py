@@ -21,6 +21,12 @@ from ..model import (
     ExpiredToken
 )
 
+from app.api_v2.model.benchmark import (
+    archive_agent_results,
+    BenchmarkResultHistory,
+    BenchmarkResult
+)
+
 from app.api_v2.model.agent import PLUGGABLE_SUPPORTED_ROLES
 from app.api_v2.rql.parser import QueryParser
 from .shared import mod_pagination, ISO8601
@@ -734,6 +740,10 @@ class AgentDetails(Resource):
             role = Role.get_by_name(
                 name='Agent', organization=agent.organization)
             role.remove_user_from_role(uuid)
+
+            archive_agent_results(BenchmarkResultHistory, agent.uuid)
+            archive_agent_results(BenchmarkResult, agent.uuid)
+
             agent.delete()
             return {'message': 'Agent successfully delete.'}
         else:
