@@ -786,7 +786,8 @@ def initial_settings(cls, org_id, check_for_default=False):
         'slow_detection_threshold': 5000,
         'high_volume_threshold': 5000,
         'slow_detection_warning_threshold': 1000,
-        'high_volume_warning_threshold': 1000
+        'high_volume_warning_threshold': 1000,
+        'benchmark_history_retention': 365
     }
 
     if check_for_default == False:

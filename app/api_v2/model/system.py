@@ -176,7 +176,7 @@ class Settings(base.BaseDocument):
     slow_detection_threshold = Integer() # The number of milliseconds before a detection is considered slow
     high_volume_warning_threshold = Integer() # The number of events per run before a detection is considered high volume
     high_volume_threshold = Integer() # The number of events per run before a detection is considered high volume
-
+    benchmark_history_retention = Integer() # The number of days to retain benchmark history, active or archived, defaults to 365 days
 
     class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
