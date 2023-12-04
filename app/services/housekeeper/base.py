@@ -17,7 +17,8 @@ from app.api_v2.model import (
     Event,
     EventRule,
     DetectionRepositorySubscription,
-    DetectionRepository
+    DetectionRepository,
+    Organization
 )
 from app.api_v2.model.benchmark import (
     BenchmarkResult, BenchmarkResultHistory,
@@ -439,19 +440,29 @@ class HouseKeeper(object):
     def prune_old_benchmark_results(self):
         ''' Removes old benchmark history where the entry is greater than 1 year old'''
 
-        days_ago = datetime.datetime.utcnow(
-        ) - datetime.timedelta(days=365)
+        organizations = Organization.search()
 
-        search = BenchmarkResult.search()
+        for organization in organizations.scan():
 
-        search = search.filter('term', archived=True)
+            self.logger.info(f"Removing old benchmarks for {organization.uuid}")
 
-        # Find all benchmark results that are older than 1 year
-        search = search.filter('range', assessed_at={
-            'lte': days_ago.isoformat()
-        })
+            settings = Settings.load(organization.uuid)
 
-        search.delete()
+            days_ago = datetime.datetime.utcnow(
+            ) - datetime.timedelta(days=settings.benchmark_history_retention)
+
+            search = BenchmarkResult.search()
+
+            search = search.filter('term', organization=organization.uuid)
+
+            search = search.filter('term', archived=True)
+
+            # Find all benchmark results that are older than 1 year
+            search = search.filter('range', assessed_at={
+                'lte': days_ago.isoformat()
+            })
+
+            search.delete()
 
     def lock_old_users(self, days_back=90):
         ''' Automatically locks users that have not used the system in
