@@ -106,7 +106,8 @@ from .benchmark import (
     BenchmarkRuleset,
     BenchmarkException,
     BenchmarkResultHistory,
-    BenchmarkResult
+    BenchmarkResult,
+    BenchmarkFrameworkRule
 )
 
 VERSION = (2, 0, 0)
@@ -191,5 +192,6 @@ __all__ = [
     'BenchmarkRuleset',
     'BenchmarkException',
     'BenchmarkResultHistory',
-    'BenchmarkResult'
+    'BenchmarkResult',
+    'BenchmarkFrameworkRule'
 ]

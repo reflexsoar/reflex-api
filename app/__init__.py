@@ -42,7 +42,7 @@ from app.api_v2.model import (
         Integration, IntegrationConfiguration, IntegrationLog, IntegrationActionQueue, SSOProvider,
         RoleMappingPolicy, Package, DataSourceTemplate, Schedule, FimRule, AgentTag,
         BenchmarkRule, BenchmarkRuleset, BenchmarkException, BenchmarkResultHistory,
-        BenchmarkResult
+        BenchmarkResult, BenchmarkFrameworkRule
 )
 
 from .defaults import (
@@ -155,7 +155,7 @@ def upgrade_indices(app):
         RepositorySyncLog, Integration, IntegrationConfiguration, IntegrationLog,
         IntegrationActionQueue, SSOProvider, RoleMappingPolicy, Package, DataSourceTemplate,
         Schedule, FimRule, AgentTag, BenchmarkRule, BenchmarkRuleset,
-        BenchmarkException, BenchmarkResultHistory, BenchmarkResult
+        BenchmarkException, BenchmarkResultHistory, BenchmarkResult, BenchmarkFrameworkRule
     ]
     
     def do_upgrade(model):
