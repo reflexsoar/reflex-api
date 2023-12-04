@@ -353,6 +353,11 @@ def create_app(environment='development'):
                 seconds=app.config['AGENT_PRUNE_INTERVAL']
             )
             scheduler.add_job(
+                func=housekeeper.prune_old_benchmark_results,
+                trigger="interval",
+                seconds=app.config['BENCHMARK_RESULT_PRUNE_INTERVAL']
+            )
+            scheduler.add_job(
                 func=housekeeper.prune_old_tasks,
                 trigger="interval",
                 seconds=app.config['TASK_PRUNE_INTERVAL']
