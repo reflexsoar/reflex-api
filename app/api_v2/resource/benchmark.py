@@ -3,10 +3,11 @@ from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..utils import token_required, user_has
 from .shared import ISO8601, mod_user_list, NullableString
 
-from app.api_v2.model import Q
+from app.api_v2.model import Q, Agent
 
 from app.api_v2.model.benchmark import (
-    BenchmarkRule, BenchmarkRuleset, BenchmarkResult, BENCHMARK_STATUSES
+    BenchmarkRule, BenchmarkRuleset, BenchmarkResult, BENCHMARK_STATUSES,
+    BenchmarkResultHistory
 )
 
 api = Namespace('Benchmark', description='Benchmark', path='/benchmark')
@@ -107,6 +108,9 @@ class BenchmarkRuleMetrics(Resource):
             # Filter for organization is None or organization is the user's organization
             search = search.filter('bool', should=[Q('term', system_managed=True), Q('term', organization=current_user.organization)])
 
+            # archived must not be true
+            search = search.filter('bool', must_not=[Q('term', archived=True)])
+
             search = search.filter('term', current=True)
 
             results = search.scan()
@@ -181,6 +185,112 @@ class BenchmarkRuleDetails(Resource):
             return result[0], 200
         else:
             return "Not Found", 404
+    
+mod_benchmark_asset = api.model('BenchmarkAsset', {
+    'hostname': fields.String(required=True, description='The hostname of the asset'),
+    'agent': fields.String(required=True, description='The agent UUID'),
+    'status': fields.String(required=True, description='The result status'),
+    'output': NullableString(required=False, description='The output of the check'),
+    'assessed_at': ISO8601(required=True, description='The date and time the rule was assessed'),
+    'rule_version': fields.Integer(required=True, description='The version of the rule')
+})
+
+mod_benchmark_asset_list = api.model('BenchmarkAssetList', {
+    'assets': fields.Nested(mod_benchmark_asset)
+})
+
+@api.route("/rules/<uuid>/assets")
+class BenchmarkRuleAssets(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_benchmark_asset_list)
+    @api.response(200, 'Success')
+    @api.response(401, 'Unauthorized')
+    @token_required
+    @user_has('view_benchmarks')
+    def get(self, current_user, uuid):
+        '''Gets the results for a specific rule on a per asset basis
+        so that it can be displayed in the UI
+        '''
+
+        asset_results = []
+
+        rule = BenchmarkRule.search()
+
+        rule = rule.filter('bool', should=[Q('term', system_managed=True), Q('term', organization=current_user.organization)])
+
+        rule = rule.filter('term', uuid=uuid).execute()
+
+        # If there are no results, return an empty list
+        if not rule:
+            return {'assets': asset_results}, 200
+        
+        # If the rule is not system managed and the organization does not match
+        # the user's organization, return an empty list
+        if not rule[0].system_managed and rule[0].organization != current_user.organization:
+            return {'assets': asset_results}, 200
+
+        search = BenchmarkResult.search()
+
+        search = search.filter('term', organization=current_user.organization)
+
+        search = search.filter('term', rule_uuid=uuid)
+
+        results = list(search.scan())
+        
+        agent_uuids = [r.agent for r in results]
+        
+        agents = Agent.search().filter('terms', uuid=agent_uuids).scan()
+
+        agent_map = {a.uuid: a for a in agents}
+
+        for result in results:
+            try:
+                agent = agent_map[result.agent]
+                
+                asset_results.append({
+                    'hostname': agent.name if agent else 'Unknown',
+                    'agent': result.agent,
+                    'status': result.status,
+                    'output': result.output,
+                    'assessed_at': result.assessed_at,
+                    'rule_version': result.rule_version
+                })
+            except KeyError:
+                pass
+
+        return {'assets': asset_results}, 200
+
+mod_benchmark_rule_asset_history = api.model('BenchmarkRuleAssetHistory', {
+    'history': fields.List(fields.Nested(mod_benchmark_result_create), description='The List of Results')
+})
+
+@api.route("/rules/<uuid>/assets/<asset_uuid>/history")
+class BenchmarkRuleAssetHistory(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_benchmark_rule_asset_history)
+    @api.response(200, 'Success')
+    @api.response(401, 'Unauthorized')
+    @token_required
+    @user_has('view_benchmarks')
+    def get(self, current_user, uuid, asset_uuid):
+        '''Get Benchmark Rule Asset History'''
+
+        search = BenchmarkResultHistory.search()
+
+        search = search.filter('term', organization=current_user.organization)
+
+        search = search.filter('term', rule_uuid=uuid)
+
+        search = search.filter('term', agent=asset_uuid)
+
+        results = search.scan()
+
+        # Sort the results by created_at
+        results = sorted(results, key=lambda x: x.created_at, reverse=True)
+
+        return {'history': list(results)}, 200
     
 
 def process_benchmark_result(data, current_user):
