@@ -131,6 +131,7 @@ class BenchmarkRule(base.BaseDocument):
     description = Keyword(fields={'text': Text()})  # A description of the rule
     platform = Keyword(fields={'text': Text()})  # The platforms the rule applies to, e.g. Windows, Linux, etc.
     assess = Object(BenchmarkAssessScript)  # The script to assess the rule
+    remediation_advice = Keyword(fields={'text': Text()})  # The remediation advice for the rule
     remediate = Object(BenchmarkRemediationScript)  # The script to remediate the rule
     risk_score = Integer()  # The risk score of the rule
     secure_score = Integer()  # The secure score of the rule from 1 to 10
