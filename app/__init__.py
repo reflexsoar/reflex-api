@@ -18,7 +18,7 @@ from app.services.notifier import Notifier
 from app.services.action_runner import ActionRunner
 from app.tasks.assess_rules import flag_rules_for_periodic_assessment
 from app.tasks.case.auto_close import auto_close_cases
-from app.tasks.benchmark.load_rules import load_benchmark_rules
+from app.tasks.benchmark.load_rules import load_benchmark_rules_from_remote
 from app.integrations.base.loader import register_integrations
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -433,8 +433,8 @@ def create_app(environment='development'):
     scheduler.add_job(func=auto_close_cases, trigger="date", run_date=datetime.datetime.now()) # On System Startup
     scheduler.add_job(func=auto_close_cases, trigger="interval", seconds=24*60*60) # Once a day
 
-    scheduler.add_job(func=load_benchmark_rules, trigger="date", run_date=datetime.datetime.now(), args=(app, )) # On System Startup
-    scheduler.add_job(func=load_benchmark_rules, trigger="interval", seconds=60*60, args=(app, )) # Every hour
+    scheduler.add_job(func=load_benchmark_rules_from_remote, trigger="date", run_date=datetime.datetime.now(), args=(app, )) # On System Startup
+    scheduler.add_job(func=load_benchmark_rules_from_remote, trigger="interval", seconds=60*60, args=(app, )) # Every hour
 
     if not app.config['EVENT_PROCESSOR']['DISABLED']:
         try:
