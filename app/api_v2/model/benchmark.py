@@ -62,6 +62,7 @@ class BenchmarkFrameworkRule(base.BaseDocument):
     Defines a Framework Control rule for a Benchmark Framework.'''
     benchmark_name = Keyword(fields={'text': Text()})  # The name of the benchmark
     benchmark_version = Keyword(fields={'text': Text()})  # The version of the benchmark
+    benchmark_date = Date()  # The date of the benchmark, when was this version introduced
     platform = Keyword(fields={'text': Text()})  # The platforms the rule applies to, e.g. Windows, Linux, etc.
     control_name = Keyword(fields={'text': Text()})  # The name of the control
     control_id = Keyword(fields={'text': Text()})  # The ID of the control
@@ -71,14 +72,52 @@ class BenchmarkFrameworkRule(base.BaseDocument):
     control_impact = Keyword(fields={'text': Text()})  # The impact of the control
     control_references = Keyword(fields={'text': Text()})  # The references of the control
     control_audit = Keyword(fields={'text': Text()})  # The audit of the control
+    control_level = Integer()  # The level of the control 1 or 2
     framework = Keyword(fields={'text': Text()})  # The frameworks the rule applies to, e.g. NIST, CIS, etc.
-    is_automated = Boolean()  # Whether or not the rule is automated
+    automated = Boolean()  # Whether or not the rule is automated
+    internal_id = Keyword(fields={'text': Text()})  # The internal ID of the rule which is a combination of the framework, platform and control_id (e.g. cis:windows:1.1.1.)
 
     class Index:
         name = 'reflex-benchmark-framework-rules'
         settings = {
             'refresh_interval': '5s',
         }
+
+    def save(self, **kwargs):
+        ''' Overrides the default save() function to set the internal_id '''
+        
+        if self.framework and self.platform and self.control_id:
+            self.internal_id = f"{self.framework}:{self.platform}:{self.control_id}"
+
+        # Always store the framework name in lowercase
+        if self.framework:
+            self.framework = self.framework.lower()
+
+        # Always store the platform name in lowercase
+        if self.platform:
+            self.platform = self.platform.lower()
+
+        return super().save(**kwargs)
+    
+    def update(self, **kwargs):
+        ''' Overrides the default update() function to set the internal_id if
+        it does not exist, is empty or is different from the current internal_id
+        '''
+        
+        if self.framework and self.platform and self.control_id:
+            _internal_id = f"{self.framework}:{self.platform}:{self.control_id}"
+            if not self.internal_id or self.internal_id == "" or self.internal_id != _internal_id:
+                self.internal_id = _internal_id
+
+        # Always store the framework name in lowercase
+        if self.framework:
+            self.framework = self.framework.lower()
+
+        # Always store the platform name in lowercase
+        if self.platform:
+            self.platform = self.platform.lower()
+
+        return super().update(**kwargs)
 
 
 class BenchmarkRule(base.BaseDocument):
@@ -156,6 +195,7 @@ class BenchmarkResultHistory(base.BaseDocument):
     rule_id = Keyword(fields={'text': Text()})  # The rule ID the result is for
     rule_uuid = Keyword(fields={'text': Text()})  # The rule UUID the result is for
     status = Keyword(fields={'text': Text()})  # The status of the rule, e.g. pass, fail, etc.
+    sub_status = Keyword(fields={'text': Text()})  # The sub status of the rule, e.g. gpo-blocked, etc.
     output = Keyword(fields={'text': Text()})  # The output of the rule if any
     rule_version = Integer()  # The version of the rule
     assessed_at = Date()  # The timestamp of the result
@@ -197,7 +237,8 @@ class BenchmarkResult(base.BaseDocument):
     agent = Keyword(fields={'text': Text()})  # The agent UUID the result is for
     rule_id = Keyword(fields={'text': Text()})  # The rule ID the result is for (persistent id)
     rule_uuid = Keyword(fields={'text': Text()})  # The rule UUID the result is for (version id)
-    status = Keyword(fields={'text': Text()})  # The status of the rule, e.g. pass, fail, etc.
+    status = Keyword(fields={'text': Text()})  # The status of the rule, e.g. passed, failed, error, warning
+    sub_status = Keyword(fields={'text': Text()})  # The sub status of the rule, e.g. gpo-blocked, etc.
     output = Keyword(fields={'text': Text()})  # The output of the rule if any
     assessed_at = Date()  # The timestamp of the result
     rule_version = Integer()  # The version of the rule
@@ -218,6 +259,7 @@ class BenchmarkResult(base.BaseDocument):
             rule_id=self.rule_id,
             rule_uuid=self.rule_uuid,
             status=self.status,
+            sub_status=self.sub_status,
             output=self.output,
             assessed_at=self.assessed_at,
             rule_version=self.rule_version

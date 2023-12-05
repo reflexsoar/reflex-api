@@ -73,6 +73,7 @@ mod_benchmark_result_create = api.model('BenchmarkResultCreate', {
     'rule_id': fields.String(required=True, description='The rule ID'),
     'rule_uuid': fields.String(required=True, description='The rule UUID'),
     'status': fields.String(required=True, description='The result status'),
+    'sub_status': fields.String(required=False, description='The result sub status'),
     'output': NullableString(required=False, description='The output of the check'),
     'assessed_at': ISO8601(required=True, description='The date and time the rule was assessed'),
     'rule_version': fields.Integer(required=True, description='The version of the rule')
@@ -190,6 +191,7 @@ mod_benchmark_asset = api.model('BenchmarkAsset', {
     'hostname': fields.String(required=True, description='The hostname of the asset'),
     'agent': fields.String(required=True, description='The agent UUID'),
     'status': fields.String(required=True, description='The result status'),
+    'sub_status': fields.String(required=False, description='The result sub status'),
     'output': NullableString(required=False, description='The output of the check'),
     'assessed_at': ISO8601(required=True, description='The date and time the rule was assessed'),
     'rule_version': fields.Integer(required=True, description='The version of the rule')
@@ -252,6 +254,7 @@ class BenchmarkRuleAssets(Resource):
                     'hostname': agent.name if agent else 'Unknown',
                     'agent': result.agent,
                     'status': result.status,
+                    'sub_status': result.sub_status,
                     'output': result.output,
                     'assessed_at': result.assessed_at,
                     'rule_version': result.rule_version
@@ -318,6 +321,7 @@ def process_benchmark_result(data, current_user):
             result.create_history_entry()
 
             result.status = data['status']
+            result.sub_status = data['sub_status']
             result.output = data['output']
 
         # Always update the last assessment date
