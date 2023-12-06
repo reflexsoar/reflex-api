@@ -174,6 +174,7 @@ class SourceMonitorConfig(base.InnerDoc):
     source_lists = Keyword()
     excluded_sources = Keyword()
     excluded_source_lists = Keyword()
+    autodiscover_data_streams = Boolean()
     delta_change = Boolean()  # True = delta change, False = absolute change
     delta_window = Integer()  # How far back to look for the delta
     operator = Keyword()  # The operator to use e.g. >, <, >=, <=, ==, !=

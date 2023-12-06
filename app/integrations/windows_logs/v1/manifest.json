@@ -1,0 +1,260 @@
+{
+    "name": "Windows Event Logs",
+    "product_identifier": "dab1a493-8d9c-4729-81e0-1f430999cc94",
+    "brief_description": "A Windows Event Log integration for ReflexSOAR",
+    "description": "## Overview\nThe Windows Event Log integration allows for enabling Windows Event Log channels that will be picked up by the Reflex Agent",
+    "author": "Brian Carroll <brian@hasecuritysolutions.com>",
+    "tags": [
+        "logging"
+    ],
+    "category": [
+        "Logging",
+        "Operations"
+    ],
+    "enabled": false,
+    "contributor": [
+        "Justin Henderson <justin@hasecuritysolutions>"
+    ],
+    "license": "H&A Security Solutions - Premium Support",
+    "version": "1.0.0",
+    "manifest": {
+        "actions": [
+            {
+                "friendly_name": "Channels",
+                "name": "subscribe_to_channels",
+                "description": "Subscribe to Windows Event Log channels",
+                "type": "input",
+                "agent_role": "winlog",
+                "run_from": "agent",
+                "trigger": [
+                    "manual"
+                ],
+                "configuration": {
+                    "per_channel_test": {
+                        "label": "Channels",
+                        "type": "item-config",
+                        "required": true,
+                        "description": "Select the channels to subscribe to",
+                        "items": [
+                            {
+                                "id": "sysmon",
+                                "name": "Microsoft-Windows-Sysmon/Operational"
+                            },
+                            {
+                                "id": "wmi",
+                                "name": "Microsoft-Windows-WMI-Activity/Operational"
+                            },
+                            {
+                                "id": "taskscheduler",
+                                "name": "Microsoft-Windows-TaskScheduler/Operational"
+                            },
+                            {
+                                "id": "rdp",
+                                "name": "Microsoft-Windows-TerminalServices-RDPClient/Operational"
+                            },
+                            {
+                                "id": "local_session_manager",
+                                "name": "Microsoft-Windows-TerminalServices-LocalSessionManager/Admin"
+                            },
+                            {
+                                "id": "local_session_manager_operational",
+                                "name": "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational"
+                            },
+                            {
+                                "id": "group_policy",
+                                "name": "Microsoft-Windows-GroupPolicy/Operational"
+                            },
+                            {
+                                "id": "driver_frameworks_usermode",
+                                "name": "Microsoft-Windows-DriverFrameworks-UserMode/Operational"
+                            },
+                            {
+                                "id": "system",
+                                "name": "System"
+                            },
+                            {
+                                "id": "security",
+                                "name": "Security"
+                            },
+                            {
+                                "id": "application",
+                                "name": "Application"
+                            },
+                            {
+                                "id": "forwarded_events",
+                                "name": "ForwardedEvents"
+                            },
+                            {
+                                "id": "powershell",
+                                "name": "Windows PowerShell"
+                            },
+                            {
+                                "id": "powershell_operational",
+                                "name": "Microsoft-Windows-PowerShell/Operational"
+                            },
+                            {
+                                "id": "applocker",
+                                "name": "Microsoft-Windows-AppLocker/EXE and DLL"
+                            },
+                            {
+                                "id": "appmodel_runtime",
+                                "name": "Microsoft-Windows-AppModel-Runtime/Admin"
+                            },
+                            {
+                                "id": "appx_deployment_server",
+                                "name": "Microsoft-Windows-AppXDeploymentServer/Operational"
+                            },
+                            {
+                                "id": "appx_packaging",
+                                "name": "Microsoft-Windows-AppXPackaging/OM/Operational"
+                            },
+                            {
+                                "id": "bits_client",
+                                "name": "Microsoft-Windows-Bits-Client/Operational"
+                            },
+                            {
+                                "id": "code_integrity",
+                                "name": "Microsoft-Windows-CodeIntegrity/Operational"
+                            },
+                            {
+                                "id": "diagnosis_scripted",
+                                "name": "Microsoft-Windows-Diagnosis-Scripted/Admin"
+                            },
+                            {
+                                "id": "dns_client",
+                                "name": "Microsoft-Windows-DNS-Client/Operational"
+                            },
+                            {
+                                "id": "dns_server",
+                                "name": "Microsoft-Windows-DNS-Server/Analytical"
+                            },
+                            {
+                                "id": "kernel_pnp_devicedriverframework",
+                                "name": "Microsoft-Windows-Kernel-PnP/DeviceDriverFramework/Operational"
+                            },
+                            {
+                                "id": "windows_firewall_with_advanced_security",
+                                "name": "Microsoft-Windows-Windows Firewall With Advanced Security/Firewall"
+                            },
+                            {
+                                "id": "active_directory_domain_service",
+                                "name": "Microsoft-Windows-ActiveDirectory_DomainService/LDAP Debug"
+                            },
+                            {
+                                "id": "lsa",
+                                "name": "Microsoft-Windows-LSA/Operational"
+                            },
+                            {
+                                "id": "servicebus_client",
+                                "name": "Microsoft-ServiceBus-Client/Operational"
+                            },
+                            {
+                                "id": "ntlm",
+                                "name": "Microsoft-Windows-NTLM/Operational"
+                            },
+                            {
+                                "id": "openssh",
+                                "name": "Microsoft-Windows-OpenSSH/Operational"
+                            },
+                            {
+                                "id": "print_service",
+                                "name": "Microsoft-Windows-PrintService/Admin"
+                            },
+                            {
+                                "id": "print_service_operational",
+                                "name": "Microsoft-Windows-PrintService/Operational"
+                            },
+                            {
+                                "id": "security_mitigations_kernelmode",
+                                "name": "Microsoft-Windows-Security-Mitigations/KernelMode"
+                            },
+                            {
+                                "id": "shell_core",
+                                "name": "Microsoft-Windows-Shell-Core/Operational"
+                            },
+                            {
+                                "id": "smbclient_connectivity",
+                                "name": "Microsoft-Windows-SMBClient/Connectivity"
+                            },
+                            {
+                                "id": "smbclient_security",
+                                "name": "Microsoft-Windows-SMBClient/Security"
+                            },
+                            {
+                                "id": "windows_defender",
+                                "name": "Microsoft-Windows-Windows Defender/Operational"
+                            }
+                        ],
+                        "properties": [
+                            {
+                                "name": "lookbehind",
+                                "label": "Lookbehind",
+                                "type": "int",
+                                "description": "The number of days to look behind for events"
+                            },
+                            {
+                                "name": "tags",
+                                "label": "Tags",
+                                "type": "str-multiple",
+                                "description": "Tags to apply to the events",
+                                "default": []
+                            },
+                            {
+                                "name": "excluded_event_ids",
+                                "label": "Excluded Event IDs",
+                                "type": "str-multiple",
+                                "description": "Event IDs to exclude from the subscription",
+                                "default": []
+                            },
+                            {
+                                "name": "included_event_ids",
+                                "label": "Included Event IDs",
+                                "type": "str-multiple",
+                                "description": "Event IDs to include in the subscription",
+                                "default": []
+                            },
+                            {
+                                "name": "include_host_meta",
+                                "label": "Include Host Meta",
+                                "type": "bool",
+                                "description": "Include host metadata in the event",
+                                "default": false                                
+                            },
+                            {
+                                "name": "preserve_original_event",
+                                "label": "Preserve Original Event",
+                                "type": "bool",
+                                "description": "Preserve the original event",
+                                "default": false
+                            },
+                            {
+                                "name": "resolve_sids",
+                                "label": "Resolve SIDs",
+                                "type": "bool",
+                                "description": "Resolve SIDs in the event",
+                                "default": false
+                            },
+                            {
+                                "name": "auto_enable",
+                                "label": "Auto Enable",
+                                "type": "bool",
+                                "description": "Automatically enable the channel if it is not already enabled",
+                                "default": false
+                            }
+                        ]
+                    }
+                }
+            }
+        ],
+        "configuration": {
+            "global_outputs": {
+                "label": "Outputs",
+                "type": "str-multiple",
+                "default": [],
+                "default_options_from": "integration_outputs",
+                "description": "The API key for SentinelOne"
+            }
+        }
+    },
+    "logo": "data:image/png;base64,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"
+}

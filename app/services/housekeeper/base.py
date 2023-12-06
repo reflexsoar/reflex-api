@@ -17,7 +17,12 @@ from app.api_v2.model import (
     Event,
     EventRule,
     DetectionRepositorySubscription,
-    DetectionRepository
+    DetectionRepository,
+    Organization
+)
+from app.api_v2.model.benchmark import (
+    BenchmarkResult, BenchmarkResultHistory,
+    archive_agent_results
 )
 
 
@@ -406,6 +411,10 @@ class HouseKeeper(object):
                 else:
                     agent_group.remove_agent(agent.uuid)
 
+            # Flag the agents benchmark results as archived
+            archive_agent_results(BenchmarkResult, agent.uuid)
+            archive_agent_results(BenchmarkResultHistory, agent.uuid)
+
             # Remove the agent from the Agent Group
             agent.delete()
 
@@ -427,6 +436,33 @@ class HouseKeeper(object):
             'lte': days_ago.isoformat()
         })
         search.delete()
+
+    def prune_old_benchmark_results(self):
+        ''' Removes old benchmark history where the entry is greater than 1 year old'''
+
+        organizations = Organization.search()
+
+        for organization in organizations.scan():
+
+            self.logger.info(f"Removing old benchmarks for {organization.uuid}")
+
+            settings = Settings.load(organization.uuid)
+
+            days_ago = datetime.datetime.utcnow(
+            ) - datetime.timedelta(days=settings.benchmark_history_retention)
+
+            search = BenchmarkResult.search()
+
+            search = search.filter('term', organization=organization.uuid)
+
+            search = search.filter('term', archived=True)
+
+            # Find all benchmark results that are older than 1 year
+            search = search.filter('range', assessed_at={
+                'lte': days_ago.isoformat()
+            })
+
+            search.delete()
 
     def lock_old_users(self, days_back=90):
         ''' Automatically locks users that have not used the system in

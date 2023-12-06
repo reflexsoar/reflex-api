@@ -3,7 +3,7 @@ import json
 import datetime
 import ipaddress
 from app import cache
-from flask import render_template, make_response
+from flask import render_template, make_response, current_app
 from flask_restx import Resource, Namespace, fields
 from ..utils import default_org, token_required, user_has
 from .utils import check_ip_whois_io
@@ -72,7 +72,7 @@ class Reporting(Resource):
         report_days = args.days
         soc_start_hour = args.soc_start_hour
         soc_end_hour = args.soc_end_hour
-        base_url = "http://localhost:8080"
+        base_url = current_app.config['SSO_BASE_URL']
 
         if timezone.startswith('-'):
             offset = int(timezone[1:3])*-1

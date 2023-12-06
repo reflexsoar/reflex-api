@@ -624,6 +624,7 @@ mod_settings = Model('SettingsList', {
     'high_volume_threshold': fields.Integer,
     'slow_detection_warning_threshold': fields.Integer,
     'high_volume_warning_threshold': fields.Integer,
+    'benchmark_history_retention': fields.Integer(default=365),
     'case_auto_close': fields.Boolean(default=False),
     'case_auto_close_days': fields.Integer(default=7),
     'case_auto_close_reason': fields.String,

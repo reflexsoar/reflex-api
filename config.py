@@ -81,6 +81,11 @@ class Config(object):
     AGENT_HEALTH_CHECK_INPUT_INTERVAL = int(os.getenv('REFLEX_AGENT_HEALTH_INPUT_INTERVAL', 5))*60 # Defaults to 5 minutes
     TASK_PRUNE_INTERVAL = int(os.getenv('REFLEX_TASK_PRUNE_INTERVAL')) if os.getenv('REFLEX_TASK_PRUNE_INTERVAL') else 3600 # Default to every hour
     TASK_PRUNE_LIFETIME = int(os.getenv('REFLEX_TASK_PRUNE_LIFETIME')) if os.getenv('REFLEX_TASK_PRUNE_LIFETIME') else 30 # Default to 30 days
+    BENCHMARK_RESULT_PRUNE_INTERVAL = int(os.getenv('REFLEX_BENCHMARK_RESULT_PRUNE_INTERVAL')) if os.getenv('REFLEX_BENCHMARK_RESULT_PRUNE_INTERVAL') else 3600 # Default to every hour
+
+    # TODO - Replace these URLS at some point with benchmarks.tellaro.ai URLs
+    BENCHMARK_RULES_URL = os.getenv('REFLEX_BENCHMARK_RULES_URL') if os.getenv('REFLEX_BENCHMARK_RULES_URL') else 'https://h-a-security-solutions-llc.github.io/tellaro-benchmarks'
+    BENCHMARK_FRAMEWORKS_URL = os.getenv('REFLEX_BENCHMARK_FRAMEWORKS_URL') if os.getenv('REFLEX_BENCHMARK_FRAMEWORKS_URL') else 'https://h-a-security-solutions-llc.github.io/tellaro-benchmarks'
 
     # Define Housekeeper settings for Silent Event Rule checks, default to 60 seconds, 7 days, 0 hits
     EVENT_RULE_SILENT_CHECK_ENABLED = as_bool(os.getenv('REFLEX_EVENT_RULE_SILENT_CHECK_ENABLED')) if os.getenv('REFLEX_EVENT_RULE_SILENT_CHECK_ENABLED') else False
