@@ -1,0 +1,40 @@
+{
+    "version": "2023.12.06-rc0",
+    "sections": [
+        {
+            "title": "Feature",
+            "items": [
+                {
+                    "title": "File Integrity Monitoring (BETA)",
+                    "description": "Reflex now supports adding File Integrity Monitoring (FIM) rules to your organization. FIM rules allow you to monitor for changes to files on your endpoints. For more information, see [File Integrity Monitoring](https://docs.reflexsoar.com/en/latest/agents/roles/file-integrity-monitoring).  Note: This is a Beta feature and requires a special agent."
+                },
+                {
+                    "title": "Asset Benchmarking (BETA)",
+                    "description": "Reflex now supports benchmarking your assets against compliance Benchmarks.  For more information, see [Asset Benchmarking](https://docs.reflexsoar.com/en/latest/agents/roles/asset-benchmarking).  Note: This is a Beta feature and requires a special agent."
+                },
+                {
+                    "title": "Package Manager (BETA)",
+                    "description": "Reflex now supports a package management functionality that will allow the Reflex agent to install and update packages on your endpoints.  For more information, see [Package Manager](https://docs.reflexsoar.com/en/latest/agents/roles/package-manager).  Note: This is a Beta feature and requires a special agent."
+                }
+            ]
+        },
+        {
+            "title": "Enhancements",
+            "items": [
+                    {
+                        "title": "Detections",
+                        "description": "- Data Source Monitoring rules now support Automatic Data Stream discovery."
+                    }
+            ]
+        },
+        {
+            "title": "Bug Fixes",
+            "items": [
+                {
+                    "title": "SOC Report",
+                    "description": "- The Security Operations Center report would link to https://localhost instead of the correct URL.  It will now properly use the configured base URL of the platform."
+                }
+            ]
+        }
+    ]
+}
