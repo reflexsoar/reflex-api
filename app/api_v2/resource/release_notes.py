@@ -30,7 +30,6 @@ class ReleaseNotes(Resource):
             'previous_versions': []
         }
         
-        
         # Find all the previous versions in the templates/release-notes folder
         template_path = os.path.join(current_app.root_path,
                                         current_app.template_folder,
@@ -53,5 +52,8 @@ class ReleaseNotes(Resource):
             payload['previous_versions'].remove(current_version)
         except ValueError:
             pass
+
+        # Sort the previous versions list alphabetically
+        payload['previous_versions'].sort(reverse=True)
 
         return payload
