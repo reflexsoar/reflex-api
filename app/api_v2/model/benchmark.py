@@ -158,6 +158,7 @@ class BenchmarkRuleset(base.BaseDocument):
     name = Keyword(fields={'text': Text()})  # The name of the ruleset
     rules = Keyword(fields={'text': Text()})  # A list of rule_ids that are in the ruleset
     description = Keyword(fields={'text': Text()})  # A description of the ruleset
+    schedules = Keyword(fields={'text': Text()})  # A list of schedules the ruleset is assigned to
     system_managed = Boolean()  # Whether or not the ruleset is managed by the system
 
     class Index:
