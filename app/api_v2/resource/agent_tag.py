@@ -210,7 +210,7 @@ class AgentTagTestAll(Resource):
         if 'query' not in api.payload:
             api.abort(400, 'A query is required')
         
-        if api.payload['query'] == '':
+        if api.payload['query'] in ['',' ']:
             api.abort(400, 'A query is required')
 
         organization = current_user.organization
@@ -226,7 +226,11 @@ class AgentTagTestAll(Resource):
         agents = [{'agent': a.to_dict()} for a in search.scan()]
 
         qp = QueryParser()
-        parsed_query = qp.parser.parse(api.payload['query'])
+        try:
+            parsed_query = qp.parser.parse(api.payload['query'])
+        except ValueError as e:
+            api.abort(400, f'Error parsing query: {e}')
+            
         results = [r for r in qp.run_search(agents, parsed_query)]
 
         return {
