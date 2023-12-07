@@ -188,8 +188,6 @@ class SentinelOne(IntegrationBase):
         #    mac_address = [
         #        o.value for o in self.extract_observables_by_type(events, "mac")]
 
-        ip_address = ['192.168.1.218']
-
         if ip_address is None:
             ip_address = []
         
