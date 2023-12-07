@@ -102,6 +102,7 @@ mod_source_monitor_config = api.model('SourceMonitorConfig', {
     'excluded_sources': fields.List(fields.String),
     'excluded_source_lists': fields.List(fields.Nested(mod_intel_list)),
     'autodiscover_data_streams': fields.Boolean(default=False),
+    'ignore_data_streams_older_than_days': fields.Integer(default=0),
     'delta_change': fields.Boolean,
     'delta_window': fields.Integer,
     'operator': fields.String,
