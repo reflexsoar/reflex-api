@@ -114,7 +114,6 @@ class SentinelOne(IntegrationBase):
             response_json = response.json()
 
             if 'data' in response_json:
-                print(response_json)
                 if response_json['data']['affected'] == 0:
                     sentinelone.log_message(
                         f"Could not add note: {response.text}", configuration.uuid, configuration.name, action=action_name)
