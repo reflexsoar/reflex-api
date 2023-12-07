@@ -1587,6 +1587,11 @@ class EventDetails(Resource):
         event = Event.get_by_uuid(uuid)
         if event:
             event.event_observables = fetch_observables_from_history(event.event_observables, organization=event.organization)
+
+            # Sort the intergration_output by the created_at field so newer items are at the top
+            if 'integration_output' in event:
+                event.integration_output.sort(key = lambda x: x['created_at'], reverse=True)
+                
             return event
         else:
             api.abort(404, 'Event not found.')
