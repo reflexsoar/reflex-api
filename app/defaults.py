@@ -461,7 +461,11 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         'view_agent_tags': True,
         'create_agent_tag': False,
         'update_agent_tag': False,
-        'delete_agent_tag': False
+        'delete_agent_tag': False,
+        'view_lists': True,
+        'add_list': False,
+        'update_list': False,
+        'delete_list': False
     }
 
     role_contents = {
