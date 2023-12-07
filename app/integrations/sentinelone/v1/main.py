@@ -29,7 +29,8 @@ class SentinelOne(IntegrationBase):
         Gets agent details from SentinelOne
         """
 
-        hostname = []
+        if hostname is None:
+            hostname = []
 
         action_name = "get_agent_details"
 
