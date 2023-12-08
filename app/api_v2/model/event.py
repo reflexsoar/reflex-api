@@ -24,8 +24,10 @@ from . import (
     utils,
     Nested,
     InnerDoc,
-    UpdateByQuery
+    UpdateByQuery,
 )
+
+from app.api_v2.model.comment import Comment
 
 from .utils import IndexedDict
 
@@ -255,6 +257,19 @@ class Event(base.BaseDocument):
             self.comments = [comment]
         else:
             self.comments.append(comment)
+
+        # Create a new related object for the comment
+        related_object = EventRelatedObject(
+            event={
+                'uuid': self.uuid,
+                'organization': self.organization
+            },
+            entry={
+                'type': 'comment'
+            },
+            comment=comment
+        )
+        related_object.save()
 
         if not skip_save:
             self.save()
@@ -1019,3 +1034,111 @@ class EventRule(base.BaseDocument):
             return True
         
         return False
+
+
+class EventRelatedObject(base.BaseDocument):
+    """ An EventLogEntry is an object related to an event that is stored
+    separately to facilitate speed, searching, filtering, and correlation and
+    to preserve the structure of the related object.  For example, a related
+    object may be a Comment made on an Event, or the output of a script that
+    ran in relation to the Event."""
+
+    event = Object(properties={
+        'uuid': Keyword(),
+        'organization': Keyword()
+    })
+
+    entry = Object(properties={
+        'type': Keyword(),
+    }) 
+
+    from_integration = Boolean()
+    integration = Object(properties={
+        'uuid': Keyword(),
+        'name': Keyword(),
+        'action': Keyword(),
+        'configuration': Keyword(),
+        'output': Keyword(),
+        'output_format': Keyword(),
+        'created_at': Date(),
+    })
+
+    comment = Object(properties={
+        'uuid': Keyword(),
+        'comment': Keyword(),
+        'organization': Keyword(),
+        'created_by': Keyword(),
+        'created_at': Date(),
+    })
+
+    log = Object(properties={
+        'message': Text(fields={'keyword':Keyword()}),
+        'format': Keyword(), # The format of the log, e.g. json, text, etc
+        'user': Object(properties={
+            'name': Keyword(),
+            'target': Object(properties={
+                'name': Keyword()
+            })
+        }),
+        'source': Object(properties={
+            'ip': Keyword()
+        }),
+        'destination': Object(properties={
+            'ip': Keyword()
+        }),
+        'host': Object(properties={
+            'name': Keyword()
+        })
+    })
+
+    change = Object(properties={
+        'field': Keyword(),
+        'old_value': Keyword(),
+        'new_value': Keyword(),
+        'when_changed': Date()
+    })
+    
+    reference = Object(properties={
+        'type': Keyword(), # A url, file, etc.
+        'value': Keyword(), # The value of the reference
+    })
+
+    vulnerability = Object(properties={
+        'name': Keyword(),
+        'description': Keyword(),
+        'cve': Keyword(),
+        'cvss': Keyword(),
+        'severity': Keyword(),
+        'solution': Keyword(),
+        'references': Keyword(),
+        'published': Date(),
+        'modified': Date(),
+        'discovered': Date(),
+        'source': Keyword()
+    })
+
+    search = Object(properties={
+        'saved_search_id': Keyword(),
+        'query': Keyword(),
+        'query_language': Keyword(),
+        'hits': Keyword(),
+        'total': Keyword(),
+        'took': Keyword()
+    })
+
+    class Index: # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
+        name = 'reflex-event-related-objects'
+        settings = {
+            'refresh_interval': '1s'
+        }
+
+    def save(self, skip_update_by=False, **kwargs):
+
+        if not hasattr(self, 'from_integration') or self.from_integration is None:
+            self.from_integration = False
+
+        if hasattr(self, 'integration') and self.integration is None:
+            self.from_integration = True
+
+        return super(EventRelatedObject, self).save(**kwargs)
