@@ -16,6 +16,7 @@ from .schemas import *
 from .model import (
     Event,
     EventRule,
+    EventRelatedObject,
     Observable,
     Observable,
     User,
@@ -1415,15 +1416,116 @@ class DashboardMetrics(Resource):
             'new_events': new_events.count(),
             'time_since_last_event': last_event.created_at.isoformat()+"Z" if last_event else "Never"
         }
+    
+mod_search_filter = api2.model('SearchFilter', {
+    'field': fields.String(required=True),
+    'value': fields.List(fields.String(required=True)),
+    'operator': fields.String(required=True),
+    'active': fields.Boolean(required=True),
+    'exclude': fields.Boolean(required=True)
+})
+
+mod_date_range = api2.model('DateRange', {
+    'start': fields.String(required=True),
+    'end': fields.String(required=True)
+})
+
+mod_search_query = api2.model('SearchQuery', {
+    'query': fields.String(required=True),
+    'dataset': fields.String(required=True),
+    'index': fields.String(required=False),
+    'filters': fields.List(fields.Nested(mod_search_filter), required=False),
+    'date_range': fields.Nested(mod_date_range, required=False)
+})
 
 @ns_hunting_v2.route("/query")
 class HuntingQuery(Resource):
 
     @token_required
+    @api2.expect(mod_search_query)
     def post(self, current_user):
 
-        search = Search(index='reflex-events-*')
-        search = search.query('query_string', query=api2.payload['query'])
-        results = search.execute()
-        return results.to_dict()
+        dataset_mapping = {
+            'events': Event,
+            'cases': Case,
+            'artifacts': EventRelatedObject,
+            'logs': None
+        }
+
+        if 'dataset' not in api2.payload:
+            ns_hunting_v2.abort(400, 'Dataset is required.')
+        
+        if 'dataset' in api2.payload and api2.payload['dataset'] not in dataset_mapping:
+            ns_hunting_v2.abort(400, 'Invalid dataset.')
+
+        if 'query' not in api2.payload:
+            ns_hunting_v2.abort(400, 'Query is required.')
+
+        if api2.payload['dataset'] == 'logs':
+
+            # This will be a proxied search, we need to return a search_id and 
+            # tell a search proxy agent to complete the search, the UI will then
+            # monitor the search using search-status and get the results from
+            # the search-results endpoint
+            return {'message': 'Not yet implemented.'}
+        
+        else:
+            search = dataset_mapping[api2.payload['dataset']].search()
+
+            search = search.query('query_string', query=api2.payload['query'])
+
+            if 'filters' in api2.payload:
+                _not_filters = []
+                filter_map = {}
+                for f in api2.payload['filters']:
+                    if f['exclude']:
+                        _not_filters.append(f)
+                    else:
+                        # Map all the fields and values to a field: [values] dictionary
+                        if f['field'] not in filter_map:
+                            filter_map[f['field']] = []
+
+                        if isinstance(f['value'], list):
+                            filter_map[f['field']].extend(f['value'])
+                        else:
+                            filter_map[f['field']].append(f['value'])
+
+                # Add the filters to the search
+                for field, values in filter_map.items():
+                    search = search.filter('terms', **{field: values})
+
+                if len(_not_filters) > 0:
+
+                    # Map all the fields and values to a field: [values] dictionary
+                    exclusion_map = {}
+                    for f in _not_filters:
+                        if f['field'] not in exclusion_map:
+                            exclusion_map[f['field']] = []
+
+                        if isinstance(f['value'], list):
+                            exclusion_map[f['field']].extend(f['value'])
+                        else:
+                            exclusion_map[f['field']].append(f['value'])
+
+                    # Add the filters to the search
+                    for field, values in exclusion_map.items():
+                        search = search.exclude('terms', **{field: values})
+
+            if 'date_range' in api2.payload:
+                # If only a start is provided
+                if api2.payload['date_range']['start'] and not api2.payload['date_range']['end']:
+                    search = search.filter('range', **{'created_at': {'gte': api2.payload['date_range']['start']}})
+
+                # If only an end is provided
+                if api2.payload['date_range']['end'] and not api2.payload['date_range']['start']:
+                    search = search.filter('range', **{'created_at': {'lte': api2.payload['date_range']['end']}})
+
+                # If both are provided
+                if api2.payload['date_range']['start'] and api2.payload['date_range']['end']:
+                    search = search.filter('range', **{'created_at': {'gte': api2.payload['date_range']['start'], 'lte': api2.payload['date_range']['end']}})
+
+            print(json.dumps(search.to_dict(), indent=2))
+            results = search.execute()
+            
+            return results.to_dict()
 

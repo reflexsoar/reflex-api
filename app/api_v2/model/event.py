@@ -1099,8 +1099,8 @@ class EventRelatedObject(base.BaseDocument):
     })
     
     reference = Object(properties={
-        'type': Keyword(), # A url, file, etc.
-        'value': Keyword(), # The value of the reference
+        'type': Keyword(), # A url, file, threat_id, asset_id, external_case_id, etc.
+        'value': Keyword(), # The value of the reference,
     })
 
     vulnerability = Object(properties={

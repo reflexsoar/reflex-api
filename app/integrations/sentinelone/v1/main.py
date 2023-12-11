@@ -5,11 +5,11 @@ from flask_restx import Resource, fields
 from typing import List
 
 from app.integrations.base import IntegrationBase, IntegrationApi
+from app.api_v2.model import EventRelatedObject
 
 mod_test = IntegrationApi.model('Test', {
     'test': fields.String
 })
-
 
 class SentinelOne(IntegrationBase):
 
@@ -20,13 +20,103 @@ class SentinelOne(IntegrationBase):
 
         print(f"Isolating host {hostname} {mac_address} {ip_address}")
 
-    def action_get_threat_details(self, configuration_uuid, threat_id,
-                                  events=None, *args, **kwargs):
+    def action_get_threat_details(self, configuration_uuid, threat_id="1835084204235949886",
+                                  events=None, threat_id_field=None,
+                                  *args, **kwargs):
         """
         Gets threat details from SentinelOne
         """
 
-        pass
+        action_name = "get_threat_details"
+        endpoint = f"/web/api/v2.1/threats/{threat_id}/explore/events"
+
+        configuration = self.load_configuration(configuration_uuid)
+
+        if not configuration:
+            raise ValueError(
+                f"Could not find configuration with UUID {configuration_uuid}")
+        
+        if not 'from_event_rule' in kwargs or not kwargs['from_event_rule']:
+            events = self.load_events(uuid=events)
+
+        s = Session()
+
+        if not hasattr(configuration, 'global_settings'):
+            sentinelone.log_message(f"Configuration {configuration_uuid} does not have global settings",
+                                    configuration.uuid, configuration.name, action=action_name, level="ERROR")
+            raise ValueError(
+                f"Configuration {configuration_uuid} does not have global settings")
+        
+        if not configuration.global_settings.api_key:
+            sentinelone.log_message(f"Configuration {configuration_uuid} does not have a global API key set",
+                                    configuration.uuid, configuration.name, action=action_name, level="ERROR")
+            raise ValueError(
+                f"Configuration {configuration_uuid} does not have a global API key set")
+        
+        s.headers.update(
+            {'Authorization': f"ApiToken {configuration.global_settings.api_key}"})
+        s.headers.update({'Content-Type': 'application/json'})
+
+        api_url = configuration.global_settings.api_url
+
+        # Make sure the API URL does not end with a /
+        if api_url.endswith('/'):
+            api_url = api_url[:-1]
+
+        url = f"{api_url}{endpoint}"
+        # Page through all the results until pagination['nextCursor'] is None
+        pagination = {'nextCursor': 'invalid_cursor'}
+        threat_details = []
+
+        while pagination['nextCursor'] is not None:
+            if pagination['nextCursor'] not in ['invalid_cursor', None]:
+                params = {'cursor': pagination['nextCursor']}
+            else:
+                params = None
+
+            response = s.get(url, params=params)
+
+            if response.status_code != 200:
+                sentinelone.log_message(
+                    f"Could not get threat details: {response.text}", configuration.uuid, configuration.name, action=action_name)
+                raise Exception(f"Could not get threat details: {response.text}")
+
+            response_json = response.json()
+
+            if 'data' in response_json:
+                threat_details.extend(response_json['data'])
+
+            if 'pagination' in response_json:
+                pagination = response_json['pagination']
+
+        if len(threat_details) > 0:
+            
+            for threat_detail in threat_details:
+
+                # TODO: Summarize the events in the threat detail
+
+                # Remove fields that are empty or None
+                threat_detail = {k: v for k, v in threat_detail.items() if v not in [None, ""]}
+
+                related_object = EventRelatedObject(
+                    event={
+                        'uuid': events[0].uuid,
+                        'organization': events[0].organization,
+                    },
+                    entry={
+                        'type': 'log'
+                    },
+                    log={
+                        'message': json.dumps(threat_detail, default=str)
+                    },
+                    from_integration=True,
+                    integration={
+                        'uuid': self.product_identifier,
+                        'name': self.name.lower(),
+                        'configuration': configuration.uuid,
+                        'action': action_name
+                    })
+                related_object.save()
 
     def action_add_threat_note(self, configuration_uuid: str, ids: List[str], note: str,
                                threat_id_source_field: str = None,
@@ -56,6 +146,7 @@ class SentinelOne(IntegrationBase):
                                     configuration.uuid, configuration.name, action=action_name, level="ERROR")
             raise ValueError(
                 f"Configuration {configuration_uuid} does not have global settings")
+        
         if not configuration.global_settings.api_key:
             sentinelone.log_message(f"Configuration {configuration_uuid} does not have a global API key set",
                                     configuration.uuid, configuration.name, action=action_name, level="ERROR")
