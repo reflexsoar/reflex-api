@@ -1494,6 +1494,17 @@ class HuntingQuery(Resource):
             # the search-results endpoint
             index = api2.payload['dataset']
 
+            # We don't want to allow users to search certain system indexes
+            if index == '*' or index.startswith('reflex') or index.startswith('*') or index.startswith('.'):
+                ns_hunting_v2.abort(400, 'Invalid dataset.')
+
+            # If the index has a wildcard check if it would match against the word reflex and
+            # if it does then abort
+            if '*' in index:
+                expression = re.compile(index.replace('*', '.*'))
+                if expression.match('reflex'):
+                    ns_hunting_v2.abort(400, 'Invalid dataset.')
+
             # Create a search against an index using the global connection
             search = Search(index=index)
         else:
@@ -1537,7 +1548,7 @@ class HuntingQuery(Resource):
 
                 # If both are provided
                 if start and end:
-                    search = search.filter('range', **{'created_at': {'gte': start, 'lte': end}})
+                    search = search.filter('range', **{date_field: {'gte': start, 'lte': end}})
 
                 if start is not None:
                     if '+' in start:
