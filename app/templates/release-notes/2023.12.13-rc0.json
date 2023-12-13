@@ -1,0 +1,14 @@
+{
+    "version": "2023.12.13-rc0",
+    "sections": [
+        {
+            "title": "Feature",
+            "items": [
+                {
+                    "title": "Search Workspace (BETA)",
+                    "description": "A new Search Workspace has been added to the platform to allow for more granular searching of data within the platform.  In a future release, the Search Workspace will allow for proxying searches to external data sources using a SearchProxy role in the agent."
+                }
+            ]
+        }
+    ]
+}
