@@ -4,6 +4,8 @@ import datetime
 import os
 import json
 import hashlib
+import math
+import uuid # THIS IS TEMPORARY
 
 from app.api_v2.model.user import Organization
 from zipfile import ZipFile
@@ -25,6 +27,7 @@ from .model import (
     Credential,
     Input,
     Agent,
+    AgentLogMessage,
     ThreatList,
     ExpiredToken,
     DataType,
@@ -1438,94 +1441,155 @@ mod_search_query = api2.model('SearchQuery', {
     'date_range': fields.Nested(mod_date_range, required=False)
 })
 
+mod_search_results = api2.model('SearchResults', {
+    'response': fields.Raw(),
+    'pages': fields.Integer(),
+    'search_id': fields.String(),
+    'details': fields.Raw(),
+    'timefield': fields.String()
+})
+
 @ns_hunting_v2.route("/query")
 class HuntingQuery(Resource):
 
     @token_required
     @api2.expect(mod_search_query)
+    @api2.marshal_with(mod_search_results)
     def post(self, current_user):
 
         dataset_mapping = {
             'events': Event,
             'cases': Case,
             'artifacts': EventRelatedObject,
+            'agent-logs': AgentLogMessage,
             'logs': None
         }
+
+        page_size = 500
+        page = 1
+        if page == 1:
+            start_from = 0
+        else:
+            start_from = page_size * page
+
+        date_field = '@timestamp'
+
+        if 'datefield' in api2.payload:
+            date_field = api2.payload['datefield']
 
         if 'dataset' not in api2.payload:
             ns_hunting_v2.abort(400, 'Dataset is required.')
         
-        if 'dataset' in api2.payload and api2.payload['dataset'] not in dataset_mapping:
-            ns_hunting_v2.abort(400, 'Invalid dataset.')
+        #if 'dataset' in api2.payload and api2.payload['dataset'] not in dataset_mapping:
+        #    ns_hunting_v2.abort(400, 'Invalid dataset.')
 
         if 'query' not in api2.payload:
             ns_hunting_v2.abort(400, 'Query is required.')
 
-        if api2.payload['dataset'] == 'logs':
+        if api2.payload['dataset'] not in dataset_mapping:
 
             # This will be a proxied search, we need to return a search_id and 
             # tell a search proxy agent to complete the search, the UI will then
             # monitor the search using search-status and get the results from
             # the search-results endpoint
-            return {'message': 'Not yet implemented.'}
-        
+            index = api2.payload['dataset']
+
+            # Create a search against an index using the global connection
+            search = Search(index=index)
         else:
             search = dataset_mapping[api2.payload['dataset']].search()
 
-            search = search.query('query_string', query=api2.payload['query'])
+            date_field = 'created_at'
 
-            if 'filters' in api2.payload:
-                _not_filters = []
-                filter_map = {}
-                for f in api2.payload['filters']:
-                    if f['exclude']:
-                        _not_filters.append(f)
-                    else:
-                        # Map all the fields and values to a field: [values] dictionary
-                        if f['field'] not in filter_map:
-                            filter_map[f['field']] = []
+        search = search.query('query_string', query=api2.payload['query'])
 
-                        if isinstance(f['value'], list):
-                            filter_map[f['field']].extend(f['value'])
-                        else:
-                            filter_map[f['field']].append(f['value'])
+        if 'filters' in api2.payload:
+            _not_filters = []
+            filter_map = {}
+            for f in api2.payload['filters']:
+                if f['exclude']:
+                    search = search.exclude('match_phrase', **{f['field']: f['value']})
+                else:
+                    search = search.filter('match_phrase', **{f['field']: f['value']})
 
-                # Add the filters to the search
-                for field, values in filter_map.items():
-                    search = search.filter('terms', **{field: values})
-
-                if len(_not_filters) > 0:
-
-                    # Map all the fields and values to a field: [values] dictionary
-                    exclusion_map = {}
-                    for f in _not_filters:
-                        if f['field'] not in exclusion_map:
-                            exclusion_map[f['field']] = []
-
-                        if isinstance(f['value'], list):
-                            exclusion_map[f['field']].extend(f['value'])
-                        else:
-                            exclusion_map[f['field']].append(f['value'])
-
-                    # Add the filters to the search
-                    for field, values in exclusion_map.items():
-                        search = search.exclude('terms', **{field: values})
-
+            extended_bounds = None
+            
             if 'date_range' in api2.payload:
+
+                start = None
+                end = None
+                if 'start' in api2.payload['date_range']:
+                    start = api2.payload['date_range']['start']
+
+                if 'end' in api2.payload['date_range']:
+                    end = api2.payload['date_range']['end']
+
+                if start is None:
+                    start = 'now-15m'
+
                 # If only a start is provided
-                if api2.payload['date_range']['start'] and not api2.payload['date_range']['end']:
-                    search = search.filter('range', **{'created_at': {'gte': api2.payload['date_range']['start']}})
+                if start and not end:
+                    search = search.filter('range', **{date_field: {'gte': start}})
 
                 # If only an end is provided
-                if api2.payload['date_range']['end'] and not api2.payload['date_range']['start']:
-                    search = search.filter('range', **{'created_at': {'lte': api2.payload['date_range']['end']}})
+                if end and not start:
+                    search = search.filter('range', **{date_field: {'lte': end}})
 
                 # If both are provided
-                if api2.payload['date_range']['start'] and api2.payload['date_range']['end']:
-                    search = search.filter('range', **{'created_at': {'gte': api2.payload['date_range']['start'], 'lte': api2.payload['date_range']['end']}})
+                if start and end:
+                    search = search.filter('range', **{'created_at': {'gte': start, 'lte': end}})
 
-            print(json.dumps(search.to_dict(), indent=2))
-            results = search.execute()
+                if start is not None:
+                    if '+' in start:
+                        extended_bounds = {
+                            'max': start
+                        }
+
+                        if end is not None:
+                            extended_bounds['min'] = end
+                    else:
+                        extended_bounds = {
+                            'min': start
+                        }
+
+                        if end is not None:
+                            extended_bounds['max'] = end
+
+            bucket_options = {
+                'field': date_field,
+                'fixed_interval': '12h',
+                'min_doc_count': 0
+            }
+
+            if extended_bounds is not None:
+                bucket_options['extended_bounds'] = extended_bounds
+
+            search.aggs.bucket('time_buckets', 'date_histogram', **bucket_options)
+
+            # Set the search size to 500
+            search = search[0:500]
+
+            search_dict = search.to_dict()
+
+            try:
+                results = search.execute()
+            except Exception as e:
+                ns_hunting_v2.abort(400, f'Invalid search. {e}')
+
+            # Calculate the number of pages based on the page size
             
-            return results.to_dict()
+            if 'page_size' in api2.payload:
+                page_size = api2.payload['page_size']
+
+            pages = math.ceil(results.hits.total.value / page_size)
+
+            response = {
+                'response': results.to_dict(),
+                'pages': pages,
+                'search_id': str(uuid.uuid4()), # TODO: This will be used for the search proxy
+                'details': search_dict,
+                'timefield': date_field
+            }
+            
+            return response
 
