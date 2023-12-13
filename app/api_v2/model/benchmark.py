@@ -273,18 +273,20 @@ def archive_agent_results(result_class, agent_uuid):
     Archives all results for an agent
     '''
     
-    update_query = UpdateByQuery(
-        index=result_class.Index.name,
-        conflicts='proceed',
-        refresh=True
-    ).query(
-        'bool',
-        must=[
-            Q('term', agent=agent_uuid),
-            Q('term', archived=False)
-        ]
-    ).script(
-        source='ctx._source.archived = true'
-    )
+    try:
+        update_query = UpdateByQuery(
+            index=result_class.Index.name,
+            refresh=True
+        ).query(
+            'bool',
+            must=[
+                Q('term', agent=agent_uuid),
+                Q('term', archived=False)
+            ]
+        ).script(
+            source='ctx._source.archived = true'
+        )
 
-    update_query.execute()
+        update_query.execute()
+    except Exception as e:
+        print(f"Failed to archive results for agent {agent_uuid} - {e}")
