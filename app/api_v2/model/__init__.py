@@ -110,6 +110,10 @@ from .benchmark import (
     BenchmarkFrameworkRule
 )
 
+from .search import (
+    SearchProxyJob
+)
+
 VERSION = (2, 0, 0)
 __version__ = VERSION
 __versionstr__ = '.'.join(map(str, VERSION))
@@ -194,5 +198,6 @@ __all__ = [
     'BenchmarkResultHistory',
     'BenchmarkResult',
     'BenchmarkFrameworkRule',
-    'EventRelatedObject'
+    'EventRelatedObject',
+    'SearchProxyJob'
 ]
