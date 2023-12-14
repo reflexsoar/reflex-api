@@ -100,7 +100,8 @@ from .resource import (
     ns_release_notes_v2,
     ns_fim_v2,
     ns_benchmark_v2,
-    ns_agent_tags_v2
+    ns_agent_tags_v2,
+    ns_search_v2
 )
 
 show_swagger_docs = (os.getenv('REFLEX_SHOW_SWAGGER_DOCS', 'False').lower() == 'true')
@@ -167,6 +168,7 @@ api2.add_namespace(ns_release_notes_v2)
 api2.add_namespace(ns_fim_v2)
 api2.add_namespace(ns_benchmark_v2)
 api2.add_namespace(ns_agent_tags_v2)
+api2.add_namespace(ns_search_v2)
 
 # Register the integration base 
 from app.integrations.base import IntegrationApi as ns_integration_base_v2
@@ -1419,188 +1421,3 @@ class DashboardMetrics(Resource):
             'new_events': new_events.count(),
             'time_since_last_event': last_event.created_at.isoformat()+"Z" if last_event else "Never"
         }
-    
-mod_search_filter = api2.model('SearchFilter', {
-    'field': fields.String(required=True),
-    'value': fields.List(fields.String(required=True)),
-    'operator': fields.String(required=True),
-    'active': fields.Boolean(required=True),
-    'exclude': fields.Boolean(required=True)
-})
-
-mod_date_range = api2.model('DateRange', {
-    'start': fields.String(required=True),
-    'end': fields.String(required=True)
-})
-
-mod_search_query = api2.model('SearchQuery', {
-    'query': fields.String(required=True),
-    'dataset': fields.String(required=True),
-    'index': fields.String(required=False),
-    'filters': fields.List(fields.Nested(mod_search_filter), required=False),
-    'date_range': fields.Nested(mod_date_range, required=False)
-})
-
-mod_search_results = api2.model('SearchResults', {
-    'response': fields.Raw(),
-    'pages': fields.Integer(),
-    'search_id': fields.String(),
-    'details': fields.Raw(),
-    'timefield': fields.String()
-})
-
-@ns_hunting_v2.route("/query")
-class HuntingQuery(Resource):
-
-    @token_required
-    @api2.expect(mod_search_query)
-    @api2.marshal_with(mod_search_results)
-    def post(self, current_user):
-
-        dataset_mapping = {
-            'events': Event,
-            'cases': Case,
-            'artifacts': EventRelatedObject,
-            'agent-logs': AgentLogMessage,
-            'logs': None
-        }
-
-        page_size = 500
-        page = 1
-        if page == 1:
-            start_from = 0
-        else:
-            start_from = page_size * page
-
-        date_field = '@timestamp'
-
-        if 'datefield' in api2.payload:
-            date_field = api2.payload['datefield']
-
-        if 'dataset' not in api2.payload:
-            ns_hunting_v2.abort(400, 'Dataset is required.')
-        
-        #if 'dataset' in api2.payload and api2.payload['dataset'] not in dataset_mapping:
-        #    ns_hunting_v2.abort(400, 'Invalid dataset.')
-
-        if 'query' not in api2.payload:
-            ns_hunting_v2.abort(400, 'Query is required.')
-
-        if api2.payload['dataset'] not in dataset_mapping:
-
-            # This will be a proxied search, we need to return a search_id and 
-            # tell a search proxy agent to complete the search, the UI will then
-            # monitor the search using search-status and get the results from
-            # the search-results endpoint
-            index = api2.payload['dataset']
-
-            # We don't want to allow users to search certain system indexes
-            if index == '*' or index.startswith('reflex') or index.startswith('*') or index.startswith('.'):
-                ns_hunting_v2.abort(400, 'Invalid dataset.')
-
-            # If the index has a wildcard check if it would match against the word reflex and
-            # if it does then abort
-            if '*' in index:
-                expression = re.compile(index.replace('*', '.*'))
-                if expression.match('reflex'):
-                    ns_hunting_v2.abort(400, 'Invalid dataset.')
-
-            # Create a search against an index using the global connection
-            search = Search(index=index)
-        else:
-            search = dataset_mapping[api2.payload['dataset']].search()
-
-            date_field = 'created_at'
-
-        search = search.query('query_string', query=api2.payload['query'])
-
-        if 'filters' in api2.payload:
-            _not_filters = []
-            filter_map = {}
-            for f in api2.payload['filters']:
-                if f['exclude']:
-                    search = search.exclude('match_phrase', **{f['field']: f['value']})
-                else:
-                    search = search.filter('match_phrase', **{f['field']: f['value']})
-
-            extended_bounds = None
-            
-            if 'date_range' in api2.payload:
-
-                start = None
-                end = None
-                if 'start' in api2.payload['date_range']:
-                    start = api2.payload['date_range']['start']
-
-                if 'end' in api2.payload['date_range']:
-                    end = api2.payload['date_range']['end']
-
-                if start is None:
-                    start = 'now-15m'
-
-                # If only a start is provided
-                if start and not end:
-                    search = search.filter('range', **{date_field: {'gte': start}})
-
-                # If only an end is provided
-                if end and not start:
-                    search = search.filter('range', **{date_field: {'lte': end}})
-
-                # If both are provided
-                if start and end:
-                    search = search.filter('range', **{date_field: {'gte': start, 'lte': end}})
-
-                if start is not None:
-                    if '+' in start:
-                        extended_bounds = {
-                            'max': start
-                        }
-
-                        if end is not None:
-                            extended_bounds['min'] = end
-                    else:
-                        extended_bounds = {
-                            'min': start
-                        }
-
-                        if end is not None:
-                            extended_bounds['max'] = end
-
-            bucket_options = {
-                'field': date_field,
-                'fixed_interval': '12h',
-                'min_doc_count': 0
-            }
-
-            if extended_bounds is not None:
-                bucket_options['extended_bounds'] = extended_bounds
-
-            search.aggs.bucket('time_buckets', 'date_histogram', **bucket_options)
-
-            # Set the search size to 500
-            search = search[0:500]
-
-            search_dict = search.to_dict()
-
-            try:
-                results = search.execute()
-            except Exception as e:
-                ns_hunting_v2.abort(400, f'Invalid search. {e}')
-
-            # Calculate the number of pages based on the page size
-            
-            if 'page_size' in api2.payload:
-                page_size = api2.payload['page_size']
-
-            pages = math.ceil(results.hits.total.value / page_size)
-
-            response = {
-                'response': results.to_dict(),
-                'pages': pages,
-                'search_id': str(uuid.uuid4()), # TODO: This will be used for the search proxy
-                'details': search_dict,
-                'timefield': date_field
-            }
-            
-            return response
-
