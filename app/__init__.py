@@ -24,6 +24,7 @@ from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_mail import Mail
 from flask_caching import Cache
+from flask_socketio import SocketIO
 from apscheduler.schedulers.background import BackgroundScheduler
 from elasticapm.contrib.flask import ElasticAPM
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -42,7 +43,7 @@ from app.api_v2.model import (
         Integration, IntegrationConfiguration, IntegrationLog, IntegrationActionQueue, SSOProvider,
         RoleMappingPolicy, Package, DataSourceTemplate, Schedule, FimRule, AgentTag,
         BenchmarkRule, BenchmarkRuleset, BenchmarkException, BenchmarkResultHistory,
-        BenchmarkResult, BenchmarkFrameworkRule, EventRelatedObject
+        BenchmarkResult, BenchmarkFrameworkRule, EventRelatedObject, SearchProxyJob
 )
 
 from .defaults import (
@@ -83,6 +84,7 @@ apm = ElasticAPM()
 ep = EventProcessor()
 memcached_client = MemcachedClient()
 notifier = Notifier()
+sock = SocketIO()
 
 def security_headers(response):
     '''
@@ -155,7 +157,8 @@ def upgrade_indices(app):
         RepositorySyncLog, Integration, IntegrationConfiguration, IntegrationLog,
         IntegrationActionQueue, SSOProvider, RoleMappingPolicy, Package, DataSourceTemplate,
         Schedule, FimRule, AgentTag, BenchmarkRule, BenchmarkRuleset, EventRelatedObject,
-        BenchmarkException, BenchmarkResultHistory, BenchmarkResult, BenchmarkFrameworkRule
+        BenchmarkException, BenchmarkResultHistory, BenchmarkResult, BenchmarkFrameworkRule,
+        SearchProxyJob
     ]
     
     def do_upgrade(model):
@@ -278,6 +281,7 @@ def create_app(environment='development'):
     cors.init_app(app)
     mail.init_app(app)
     cache.init_app(app)
+    sock.init_app(app, cors_allowed_origins="*")
 
     try:
         memcached_client.init_app(app)
