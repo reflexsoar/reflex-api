@@ -3,6 +3,11 @@
 Contains all the logic for Agent interaction with the API
 """
 
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from cryptography.fernet import Fernet
+
+import base64
+
 from . import (
     Keyword,
     Ip,
@@ -391,7 +396,6 @@ class Agent(base.BaseDocument):
     updated_required = Boolean()  # Does this agent need to be updated?
     host_information = Nested(AgentHostInformation)
     tags = Nested(AgentTag)  # Tags to categorize this agent
-    public_key = Keyword()  # The public key of the agent used for encrypting data to the agent
 
     class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -591,7 +595,6 @@ class Agent(base.BaseDocument):
         if len(response) > 0:
             return response
         return []
-
 
 class AgentGroup(base.BaseDocument):
     '''
