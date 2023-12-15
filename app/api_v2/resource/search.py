@@ -162,10 +162,6 @@ class HuntingQuery(Resource):
 
             return response
 
-            # Create a search against an index using the global connection
-            search = Search(index=index)
-
-
         else:
             search = dataset_mapping[api.payload['dataset']].search()
 
@@ -173,9 +169,10 @@ class HuntingQuery(Resource):
 
         search = search.query('query_string', query=api.payload['query'])
 
+        # Default sort by the date_field with the newest first
+        search = search.sort({date_field: {'order': 'desc'}})
+
         if 'filters' in api.payload:
-            _not_filters = []
-            filter_map = {}
             for f in api.payload['filters']:
                 if f['exclude']:
                     search = search.exclude(
@@ -232,11 +229,9 @@ class HuntingQuery(Resource):
 
             bucket_options = {
                 'field': date_field,
-                'fixed_interval': '12h',
+                'fixed_interval': '12h', # TODO: Make this configurable or auto
                 'min_doc_count': 0
             }
-
-            print(search.to_dict())
 
             if extended_bounds is not None:
                 bucket_options['extended_bounds'] = extended_bounds
@@ -347,7 +342,7 @@ def check_user_permissions(user, organization):
     
     return False
 
-@sock.on('join-agent-control')
+@sock.on('join-agent-sp-control')
 @ws_token_required
 def agent_control(data, current_user):
     """ Joins a client to the room to exchange information.  The room
@@ -355,12 +350,10 @@ def agent_control(data, current_user):
     search belongs to search_uuid:organization_uuid
     """
 
-    emit('message', {
-        'message': 'ping!'})
+    emit('join-ack', {
+        'message': f'{current_user.uuid} has joined'})
     
-    join_room(f"agent-control:{current_user.organization}")
-
-    print(f"{current_user.uuid} has joined room agent-control:{current_user.organization}")
+    join_room(f"agent-sp-control:{current_user.organization}")
 
     
 @sock.on('join')
@@ -379,15 +372,13 @@ def join(data, current_user, search_uuid, organization, room):
 
     join_room(room)
 
-    print(f"{current_user.uuid} has joined room {room}")
-
     emit('message', {
     'message': f'{current_user.uuid} has joined'}, to=room)
 
     # Find the next available healthy agent that is a member of the search
     # jobs organization and has the searchproxy role
     agent = Agent.search()
-    agent = agent.filter('term', healthy=True)
+    #agent = agent.filter('term', healthy=True)
     agent = agent.filter('term', organization=organization)
     #agent = agent.filter('term', roles='searchproxy')
     agent = agent.execute()
@@ -418,17 +409,46 @@ def join(data, current_user, search_uuid, organization, room):
 
     # Send the job to the agent
     emit('job', {
-        **job.to_dict()['job_details'], 'uuid': job.uuid, 'organization': job.organization }, to=f"agent-control:{organization}")
+        **job.to_dict()['job_details'], 'uuid': job.uuid, 'organization': job.organization }, to=f"agent-sp-control:{organization}")
+
+
+@sock.on('search-failed')
+@ws_token_required
+@room_required
+def search_failed(data, current_user, search_uuid, organization, room):
+
+    job = SearchProxyJob.get_by_uuid(search_uuid)
+
+    if job is None:
+        return False
+
+    job.status = 'failed'
+    job.reason = data['reason']
+    job.complete = True
+    job.save(refresh='wait_for')
+
+    emit('message', {
+        'message': f'Search failed. {data["reason"]}'}, to=room)
     
-    print(f"Sending job to agent {agent.uuid}")
-        
-    
-@sock.on('results')
+@sock.on('results-push')
+@ws_token_required
+@room_required
+def results_push(data, current_user, search_uuid, organization, room):
+    """
+    Receives results from the agent and pushes them to the search
+    UI.
+    """
+    # Chunk the results into 200 item chunks
+    hits = data['hits']
+
+    emit('result-hits', hits, to=room)
+
+@sock.on('search-finish')
 @ws_token_required
 @room_required
 def results(data, current_user, search_uuid, organization, room):
 
-    emit('results', data['results'], to=room, broadcast=True)
+    emit('result-summary', data['results'], to=room)
 
     # Locate the search job and mark it as complete
     job = SearchProxyJob.get_by_uuid(search_uuid)
@@ -440,5 +460,7 @@ def results(data, current_user, search_uuid, organization, room):
     job.assigned_agent = current_user.uuid
     job.status = 'complete'
     job.save(refresh='wait_for')
+
+    emit('result-finish', {}, to=room)
 
     leave_room(room)
