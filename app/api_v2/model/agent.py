@@ -391,6 +391,7 @@ class Agent(base.BaseDocument):
     updated_required = Boolean()  # Does this agent need to be updated?
     host_information = Nested(AgentHostInformation)
     tags = Nested(AgentTag)  # Tags to categorize this agent
+    public_key = Keyword()  # The public key of the agent used for encrypting data to the agent
 
     class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
