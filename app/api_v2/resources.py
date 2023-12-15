@@ -4,8 +4,10 @@ import datetime
 import os
 import json
 import hashlib
-import math
-import uuid # THIS IS TEMPORARY
+
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
+            
 
 from app.api_v2.model.user import Organization
 from zipfile import ZipFile
@@ -1013,7 +1015,11 @@ class DecryptPassword(Resource):
     @token_required
     @user_has('decrypt_credential')
     def get(self, uuid, current_user):
-        ''' Decrypts the credential for use '''
+        ''' Decrypts the credential for use
+        DEPRECATION WARNING: This endpoint will be unsupported in an upcoming
+        release as agents use a different method for retrieving credential data
+        see `/api/v2.0/credential/retrieve/<uuid>` for the new method
+        '''
         credential = Credential.get_by_uuid(uuid=uuid)
         if credential:
             value = credential.decrypt(current_app.config['MASTER_PASSWORD'])
@@ -1023,6 +1029,46 @@ class DecryptPassword(Resource):
                 ns_credential_v2.abort(401, 'Invalid master password.')
         else:
             ns_credential_v2.abort(404, 'Credential not found.')
+
+
+mod_credential_retrieve = api2.model('CredentialRetrieve', {
+    'key': fields.String(required=True, description='The public key of the agent')
+})
+
+mod_credential_retrive_reply = api2.model('CredentialRetrieveReply', {
+    'secret': fields.String(required=True, description='The encrypted secret'),
+    'key': fields.String(required=True, description='The public key of the server')
+})
+
+@ns_credential_v2.route('/retrieve/<uuid>')
+class RetrieveCredential(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_credential_retrieve)
+    @api2.marshal_with(mod_credential_retrive_reply)
+    @api2.response('404', 'Credential not found.')
+    @token_required
+    @user_has('decrypt_credential')
+    def post(self, uuid, current_user):
+        ''' Sends the credential encrypted using the users
+        public key, which can then be decrypted post transmission
+        on the client side using the private key.
+        '''
+        credential = Credential.get_by_uuid(uuid=uuid)
+        if credential:
+            value = credential.decrypt(current_app.config['MASTER_PASSWORD'])
+            print(value)
+
+            agent_public_key = base64.b64decode(api2.payload['key'])
+            agent_public_key = RSA.importKey(agent_public_key)
+
+            cipher = PKCS1_OAEP.new(agent_public_key)
+            
+            encrypted_secret = cipher.encrypt(value.encode())
+
+            data = {'secret': base64.b64encode(encrypted_secret).decode('utf-8')}
+
+            return data
 
 
 @ns_credential_v2.route('/<uuid>')
