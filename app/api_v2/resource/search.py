@@ -1,6 +1,8 @@
 import re
 import math
 import uuid
+import random
+import json
 from flask_restx import Resource, Namespace, fields
 from flask import render_template, make_response, request
 from flask_socketio import send, emit, join_room, leave_room
@@ -10,7 +12,7 @@ from .shared import ISO8601, mod_user_list
 
 from app.api_v2.model import (
     Event, Case, EventRelatedObject, AgentLogMessage, Search,
-    SearchProxyJob
+    SearchProxyJob, Agent
 )
 
 from app.api_v2.utils import _check_token
@@ -138,6 +140,8 @@ class HuntingQuery(Resource):
                 if expression.match('reflex'):
                     api.abort(400, 'Invalid dataset.')
 
+            api.payload['timefield'] = date_field
+
             proxy_job = SearchProxyJob(
                 job_details=api.payload,
                 status='pending',
@@ -232,6 +236,8 @@ class HuntingQuery(Resource):
                 'min_doc_count': 0
             }
 
+            print(search.to_dict())
+
             if extended_bounds is not None:
                 bucket_options['extended_bounds'] = extended_bounds
 
@@ -297,15 +303,30 @@ def ws_token_required(f):
 
         try:
             current_user = _check_token()
-            data = args[0]
-            if data and isinstance(data, dict):
-                if 'room' in data:
-                    room = data['room']
-                    search_uuid, organization = room.split(':')
         except Exception as e:
             pass
 
-        return f(*args, **kwargs, current_user=current_user, search_uuid=search_uuid, organization=organization, room=room)
+        return f(*args, **kwargs, current_user=current_user)
+
+    wrapper.__doc__ = f.__doc__
+    wrapper.__name__ = f.__name__
+    return wrapper
+
+def room_required(f):
+
+    def wrapper(*args, **kwargs):
+
+        room = None
+        search_uuid = None
+        organization = None
+
+        data = args[0]
+        if data and isinstance(data, dict):
+            if 'room' in data:
+                room = data['room']
+                search_uuid, organization = room.split(':')
+
+        return f(*args, **kwargs, search_uuid=search_uuid, organization=organization, room=room)
 
     wrapper.__doc__ = f.__doc__
     wrapper.__name__ = f.__name__
@@ -326,18 +347,30 @@ def check_user_permissions(user, organization):
     
     return False
 
-    
-@sock.on('join')
+@sock.on('join-agent-control')
 @ws_token_required
-def join(data, current_user, search_uuid, organization, room):
+def agent_control(data, current_user):
     """ Joins a client to the room to exchange information.  The room
     name is a combination of the search_uuid and the organization the
     search belongs to search_uuid:organization_uuid
     """
 
-    print(f"CURRENT USER: {current_user} | SEARCH UUID: {search_uuid} | ORGANIZATION: {organization} | ROOM: {room}")
-    print(f"CHECK USER PERMISSIONS: {check_user_permissions(current_user, organization)}")
+    emit('message', {
+        'message': 'ping!'})
+    
+    join_room(f"agent-control:{current_user.organization}")
 
+    print(f"{current_user.uuid} has joined room agent-control:{current_user.organization}")
+
+    
+@sock.on('join')
+@ws_token_required
+@room_required
+def join(data, current_user, search_uuid, organization, room):
+    """ Joins a client to the room to exchange information.  The room
+    name is a combination of the search_uuid and the organization the
+    search belongs to search_uuid:organization_uuid
+    """
     
     job = SearchProxyJob.get_by_uuid(search_uuid)
 
@@ -350,9 +383,62 @@ def join(data, current_user, search_uuid, organization, room):
 
     emit('message', {
     'message': f'{current_user.uuid} has joined'}, to=room)
+
+    # Find the next available healthy agent that is a member of the search
+    # jobs organization and has the searchproxy role
+    agent = Agent.search()
+    agent = agent.filter('term', healthy=True)
+    agent = agent.filter('term', organization=organization)
+    #agent = agent.filter('term', roles='searchproxy')
+    agent = agent.execute()
+
+    if len(agent.hits) == 0:
+        emit('message', {
+            'message': 'No agents available to run search.'}, to=room)
+        
+        # Abort the job
+        job.status = 'failed'
+        job.reason = 'No agents available to run search.'
+        job.complete = True
+        job.save(refresh='wait_for')
+
+        return False
+    
+    # Select a random agent from the list of healthy agents
+    agent = random.choice(agent.hits)
+
+    # Assign the job to the agent
+    job.assigned_agent = agent.uuid
+    job.status = 'running'
+    job.save(refresh='wait_for')
+
+    # Let the client know that the job is running
+    emit('message', {
+        'message': 'Sending job to agent.'}, to=room)
+
+    # Send the job to the agent
+    emit('job', {
+        **job.to_dict()['job_details'], 'uuid': job.uuid, 'organization': job.organization }, to=f"agent-control:{organization}")
+    
+    print(f"Sending job to agent {agent.uuid}")
+        
     
 @sock.on('results')
 @ws_token_required
+@room_required
 def results(data, current_user, search_uuid, organization, room):
 
     emit('results', data['results'], to=room, broadcast=True)
+
+    # Locate the search job and mark it as complete
+    job = SearchProxyJob.get_by_uuid(search_uuid)
+
+    if job is None:
+        return False
+    
+    job.complete = True
+    job.assigned_agent = current_user.uuid
+    job.status = 'complete'
+    job.save(refresh='wait_for')
+
+    leave_room(room)
