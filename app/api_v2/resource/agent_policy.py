@@ -36,6 +36,7 @@ mod_poller_config = api.model('PollerRoleConfig', {
     'logging_level': fields.String(default='ERROR'),
     'max_input_attempts': fields.Integer(default=3),
     'signature_cache_ttl': fields.Integer(default=3600),
+    'ignore_signature_cache': fields.Boolean(default=False)
 })
 
 mod_mitre_mapper_config = api.model('MitreMapperConfig', {

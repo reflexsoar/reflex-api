@@ -67,6 +67,7 @@ class PollerRoleConfig(InnerDoc):
     max_input_attempts = Integer()
     # How long should the poller keep a cached copy of the event signature
     signature_cache_ttl = Integer()
+    ignore_signature_cache = Boolean()  # Should the poller ignore the signature cache?
 
 
 class MitreMapperConfig(InnerDoc):
