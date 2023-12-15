@@ -23,6 +23,7 @@ class Credential(base.BaseDocument):
     description = Text(fields={'keyword':Keyword()})
     username = Text(fields={'keyword':Keyword()})
     secret = Text(fields={'keyword':Keyword()})
+    credential_type = Keyword() # password, api_key, ssh_key, signing_key, etc.
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
