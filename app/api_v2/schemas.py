@@ -636,10 +636,11 @@ mod_persistent_pairing_token = Model('PeristentPairingToken', {
 })
 
 mod_credential_create = Model('CredentialCreate', {
-    'username': fields.String(required=True),
+    'username': fields.String(required=False),
     'secret': fields.String(required=True),
     'name': fields.String(required=True),
-    'description': fields.String(required=True)
+    'description': fields.String(required=True),
+    'credential_type': fields.String(required=True)
 })
 
 mod_credential_update = Model('CredentialUpdate', {
@@ -647,7 +648,8 @@ mod_credential_update = Model('CredentialUpdate', {
     'secret': fields.String,
     'name': fields.String,
     'description': fields.String,
-    'organization': fields.String
+    'organization': fields.String,
+    'credential_type': fields.String
 })
 
 mod_credential_full = Model('Credential', {
@@ -655,7 +657,8 @@ mod_credential_full = Model('Credential', {
     'organization': fields.String,
     'username': fields.String,
     'name': fields.String,
-    'description': fields.String
+    'description': fields.String,
+    'credential_type': fields.String,
 })
 
 mod_credential_list = Model('CredentialLIst', {
@@ -663,7 +666,8 @@ mod_credential_list = Model('CredentialLIst', {
     'organization': fields.String,
     'name': fields.String,
     'username': fields.String,
-    'description': fields.String
+    'description': fields.String,
+    'credential_type': fields.String,
 })
 
 mod_credential_list_paged = Model('CredentialListPaged', {

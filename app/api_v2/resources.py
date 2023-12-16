@@ -960,6 +960,9 @@ cred_parser.add_argument(
 cred_parser.add_argument(
     'sort_direction', type=str, location='args', default='desc', required=False
 )
+cred_parser.add_argument(
+    'type', type=str, location='args', default=None, required=False
+)
 
 @ns_credential_v2.route("")
 class CredentialList(Resource):
@@ -980,6 +983,9 @@ class CredentialList(Resource):
 
         if 'organization' in args and args.organization not in [None, '']:
             credentials = credentials.filter('term', organization=args.organization)
+
+        if 'type' in args and args.type not in [None, ""]:
+            credentials = credentials.filter('term', credential_type=args.type)
 
         credentials = credentials.sort(args.sort_by)
 
