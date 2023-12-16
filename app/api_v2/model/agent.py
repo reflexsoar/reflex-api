@@ -108,6 +108,19 @@ class FIMConfig(InnerDoc):
     # Should the FIM attempt a graceful exit when asked to shut down
     graceful_exit = Boolean()
 
+class SearchProxyConfig(InnerDoc):
+    '''Contains information about the Search Proxy configuration
+    '''
+
+    target_input = Keyword()  # The input to target
+    user_roles = Keyword()  # The roles of the user
+    sudo_user = Keyword()  # The user to masquerade as when authenticating to remote systems
+    query_timeout = Integer()  # The timeout for the query
+    max_results = Integer()  # The maximum number of results to return
+    event_wait_timeout = Integer()  # The timeout for the event wait
+    max_concurrent_searches = Integer()  # The maximum number of concurrent searches
+    logging_level = Keyword()  # What logging level should the role use for its logs?
+    credential = Keyword()  # The credentials to use for the search proxy
 
 class AgentPolicy(base.BaseDocument):
     '''
@@ -143,6 +156,7 @@ class AgentPolicy(base.BaseDocument):
     detector_config = Nested(DetectorRoleConfig)
     # What is the configuration for the runner role?
     runner_config = Nested(RunnerRoleConfig)
+    search_proxy_config = Nested(SearchProxyConfig)
     mitre_mapper_config = Nested(MitreMapperConfig)
     fim_config = Nested(FIMConfig)
     tags = Keyword()  # Tags to categorize this policy
