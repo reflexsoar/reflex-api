@@ -2,11 +2,11 @@
 
 Contains all the logic for Agent interaction with the API
 """
+import json
+from functools import cached_property
 
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-from cryptography.fernet import Fernet
+from hashlib import sha1
 
-import base64
 
 from . import (
     Keyword,
@@ -129,6 +129,9 @@ class AgentPolicy(base.BaseDocument):
     at the agent using agent parameters at run time or using environmental 
     variables
     '''
+    
+    def __repr__(self):
+        return f"AgentPolicy(index='{self.meta.index}', name='{self.name}', uuid='{self.uuid})', priority={self.priority})"
 
     class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -136,6 +139,7 @@ class AgentPolicy(base.BaseDocument):
         settings = {
             'refresh_interval': '1s'
         }
+        version = '0.1.5'
 
     name = Keyword()  # What is a friendly name for this agent policy
     # A description of the policy
@@ -162,6 +166,7 @@ class AgentPolicy(base.BaseDocument):
     tags = Keyword()  # Tags to categorize this policy
     priority = Integer()  # What is the priority of this policy?
     revision = Integer()  # What is the revision of this policy?
+    agent_tags = Keyword() # Agent tags that this policy should apply to
 
     @classmethod
     def get_by_name(cls, name, organization=None):
@@ -183,7 +188,35 @@ class AgentPolicy(base.BaseDocument):
             usr = response[0]
             return usr
         return response
+    
+    @classmethod
+    def get_by_agent_tags(cls, tags: list, organization=None):
+        '''
+        Fetches Agent policies by the tags assigned to the agent
+        '''
 
+        search = cls.search()
+
+        if isinstance(tags, list):
+            search = search.filter('terms', agent_tags=tags)
+
+        if organization:
+            search = search.filter('term', organization=organization)
+
+        response = search.scan()
+        return list(response)
+    
+    @cached_property
+    def policy_hash(self):
+        ''' Returns a SHA1 hash of the policy '''
+        try:
+            s = sha1()
+            s.update(json.dumps(self.to_dict(), default=str, sort_keys=True).encode('utf-8'))
+            return s.hexdigest()
+        except Exception:
+            s = sha1()
+            s.update(str(self.revision).encode('utf-8'))
+            return s.hexdigest()
 
 class AgentLogHostMeta(InnerDoc):
 
@@ -448,7 +481,7 @@ class Agent(base.BaseDocument):
         groups = AgentGroup.get_by_uuid(uuid=self.groups)
         return list(groups)
 
-    @property
+    @cached_property
     def merged_roles(self):
         '''
         Returns a combined list of the roles assigned to this agent directly or by policy
@@ -467,7 +500,7 @@ class Agent(base.BaseDocument):
 
         return list(set(roles))
 
-    @property
+    @cached_property
     def _policy(self):
         '''
         Fetches the agent policy assigned to this agent
@@ -480,10 +513,51 @@ class Agent(base.BaseDocument):
                     [policies.append(ap) for ap in AgentPolicy.get_by_uuid(
                         uuid=group.agent_policy)]
 
-        if policies:
-            policies.sort(key=lambda x: x.priority)
+        # Get the policy assigned to the agent by the agents tags
 
-            policy = policies[0]
+        if self.tags:
+            policies_with_tags = []
+            try:
+                _tags = []
+                for tag in self.tags:
+                    _tags.append(tag.uuid)
+
+                policies_with_tags = AgentPolicy.get_by_agent_tags(tags=_tags, organization=self.organization)
+                [policies.append(p) for p in policies_with_tags if p not in policies]
+            except Exception as e:
+                print(e)
+
+        if policies:
+            policies.sort(key=lambda x: x.priority, reverse=True)
+
+            # Starting with the policy with the lowest priority, loop through each policy
+            # and replace the values of the policy with the higher priority policy if the
+            # value is not set or is different
+            final_policy = None
+            for policy in policies:
+
+                # Set the final policy to the first policy
+                if final_policy is None:
+                    final_policy = policy
+                    continue  # Move to the next policy
+
+                # If the policy has roles that are not in the final policy, add them
+                _new_roles = [role for role in policy.roles if role not in final_policy.roles]
+                if _new_roles:
+                    [final_policy.roles.append(role) for role in _new_roles]
+
+                # For each role applied to the final policy check if the next overriding
+                # policy has the same role and if so, replace the configuration of the role
+                # on the final policy with the configuration of the role on the overriding policy
+                for role in final_policy.roles:
+                    if role in policy.roles:
+                        role_config_key = f"{role}_config"
+                        role_config = getattr(policy, role_config_key)
+                        if role_config:
+                            # Replace the roles configuration on the final policy
+                            setattr(final_policy, role_config_key, role_config)
+
+            policy = final_policy
 
             if self.is_pluggable:
                 policy['roles'] = [
