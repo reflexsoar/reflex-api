@@ -19,10 +19,12 @@ mod_agent_tag = api.model('AgentTag', {
     'description': NullableString(required=False, description='A description of the tag'),
     'color': fields.String(required=False, description='A color to represent the tag in hex format'),
     'dynamic': fields.Boolean(required=False, description='Is this tag dynamic or static?'),
-    'query': fields.String(required=False, description='The criteria to use for dynamic tags using RQL')
+    'query': fields.String(required=False, description='The criteria to use for dynamic tags using RQL'),
+    'full_name': fields.String(required=False, description='The full name of the tag')
 })
 
 mod_agent_tag_short = api.model('AgentTagShort', {
+    'uuid': fields.String,
     'namespace': fields.String,
     'value': fields.String,
     'color': fields.String
