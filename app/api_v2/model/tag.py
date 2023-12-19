@@ -54,6 +54,7 @@ class AgentTag(base.BaseDocument):
         for tag in tags:
             if tag.check_tag(agent_data) is True:
                 tags_to_apply.append({
+                    'uuid': tag.uuid,
                     'namespace': tag.namespace,
                     'value': tag.value,
                     'color': tag.color,
@@ -81,3 +82,7 @@ class AgentTag(base.BaseDocument):
         if len(results) > 0:
             return True
         return False
+    
+    @property
+    def full_name(self):
+        return self.namespace + ': ' + self.value
