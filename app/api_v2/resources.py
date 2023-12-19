@@ -1043,7 +1043,8 @@ mod_credential_retrieve = api2.model('CredentialRetrieve', {
 
 mod_credential_retrive_reply = api2.model('CredentialRetrieveReply', {
     'secret': fields.String(required=True, description='The encrypted secret'),
-    'key': fields.String(required=True, description='The public key of the server')
+    'key': fields.String(required=True, description='The public key of the server'),
+    'type': fields.String(required=True, description='The type of credential')
 })
 
 @ns_credential_v2.route('/retrieve/<uuid>')
@@ -1063,7 +1064,6 @@ class RetrieveCredential(Resource):
         credential = Credential.get_by_uuid(uuid=uuid)
         if credential:
             value = credential.decrypt(current_app.config['MASTER_PASSWORD'])
-            print(value)
 
             agent_public_key = base64.b64decode(api2.payload['key'])
             agent_public_key = RSA.importKey(agent_public_key)
@@ -1072,7 +1072,10 @@ class RetrieveCredential(Resource):
             
             encrypted_secret = cipher.encrypt(value.encode())
 
-            data = {'secret': base64.b64encode(encrypted_secret).decode('utf-8')}
+            data = {
+                'secret': base64.b64encode(encrypted_secret).decode('utf-8'),
+                'type': credential.credential_type
+            }
 
             return data
 
