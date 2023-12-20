@@ -546,6 +546,8 @@ detection_list_parser.add_argument(
 detection_list_parser.add_argument(
     'organization', location='args', action='split', type=str, required=False)
 detection_list_parser.add_argument(
+    'organization__not', location='args', action='split', type=str, required=False)
+detection_list_parser.add_argument(
     'repo_synced', location='args', type=xinputs.boolean, required=False, default=True)
 detection_list_parser.add_argument(
     'tags', location='args', action='split', type=str, required=False)
@@ -608,6 +610,9 @@ class DetectionList(Resource):
 
         if args.organization and len(args.organization) > 0 and args.organization != ['']:
             search = search.filter('terms', organization=args.organization)
+
+        if args.organization__not and len(args.organization__not) > 0 and args.organization__not != ['']:
+            search = search.exclude('terms', organization=args.organization__not)
 
         if args.repo_synced is False:
             search = search.filter('term', from_repo_sync=False)
@@ -886,6 +891,9 @@ class DetectionUUIDsByFilter(Resource):
             if args.organization and len(args.organization) > 0 and args.organization != ['']:
                 detections = detections.filter(
                     'terms', organization=args.organization)
+            if args.organizaiton__not and len(args.organization__not) > 0 and args.organization__not != ['']:
+                detections = detections.exclude(
+                    'terms', organization=args.organization__not)
                 
         # Use scan() to return all results
         detections = detections.scan()
