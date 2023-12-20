@@ -84,6 +84,8 @@ class User(base.BaseDocument):
     notification_settings = Object(UserNotificationSettings)
     hide_product_updates = Boolean()
     access_scope = Nested(OrganizationScope)
+    profile_picture = Keyword() # A base64 encoded image
+    profile_picture_type = Keyword() # The type of image (png, jpg, etc)
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

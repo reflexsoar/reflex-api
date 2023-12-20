@@ -1,10 +1,14 @@
 import random
 import string
+import base64
+import imghdr
 from io import BytesIO
 
 import pyqrcode
 from flask_restx import Namespace, Resource, fields
 from flask_restx import inputs as xinputs
+from flask import make_response, request
+from werkzeug.utils import secure_filename
 
 from ..model import Organization, Role, User
 from ..utils import (check_org, ip_approved, log_event, page_results,
@@ -324,6 +328,108 @@ class UnlockUser(Resource):
         else:
             api.abort(404, 'User not found.')
 
+def validate_image(stream):
+    header = stream.read(512)
+    stream.seek(0)
+    format = imghdr.what(None, header)
+    if not format:
+        return None
+    return (format if format in ['jpeg', 'png', 'jpg'] else 'jpg')
+
+from werkzeug.datastructures import FileStorage
+profile_picture_parser = api.parser()
+profile_picture_parser.add_argument('profile_picture_input', location='files', type=FileStorage, required=True)
+    
+@api.route("/<uuid>/profile_picture")
+class ProfilePicture(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    def get(self, uuid, current_user):
+        """ Returns an HTTP response containing the users profile picture.
+        Sets the appropriate content-type header based on the file extension
+        of the profile picture.  ANd informs the browser to cache the image
+        for several minutes.
+        """
+
+        content_type_map = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png'
+        }
+
+        user = User.get_by_uuid(uuid)
+        if user:
+            if user.profile_picture:
+                response_headers = {
+                    'Accept': 'image/jpeg, image/png',
+                    'Content-Type': content_type_map[user.profile_picture_type],
+                    'Cache-Control': 'max-age=300',
+                    'Pragma': 'cache',
+                    'Expires': '300',
+                }
+
+                image_data = base64.b64decode(user.profile_picture)
+
+                response = make_response(image_data, 200, response_headers)
+                return response
+            else:
+                return {'message': 'User has no profile picture.'}, 400
+        
+        api.abort(404, 'File not found')
+
+   
+    @api.doc(security="Bearer")
+    @api.expect(profile_picture_parser)
+    @token_required
+    def post(self, uuid, current_user):
+        """ Updates the users profile picture.  The profile picture is stored
+        as a base64 encoded string in the database.  The file extension is
+        stored in the profile_picture_type field.
+        """
+
+        MAX_IMAGE_SIZE = 1024 * 1024 * 5 # 5MB
+        SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png']
+
+        user = User.get_by_uuid(uuid)
+        if user:
+            if user != current_user:
+                api.abort(404, 'User not found.')
+
+            uploaded_file = request.files['profile_picture_input']
+            filename = secure_filename(uploaded_file.filename)
+            if filename != '':
+                file_extension = filename.split('.')[-1]
+                if file_extension in SUPPORTED_EXTENSIONS and file_extension == validate_image(uploaded_file.stream):
+                    if uploaded_file.content_length < MAX_IMAGE_SIZE:
+                        user.profile_picture = base64.b64encode(uploaded_file.read()).decode('utf-8')
+                        user.profile_picture_type = file_extension
+                        user.update(profile_picture=user.profile_picture, profile_picture_type=user.profile_picture_type, refresh='wait_for')
+                        return {'message': 'Profile picture updated.'}, 200
+                    else:
+                        api.abort(400, 'File too large.')
+                else:
+                    print(f'Invalid file type. {file_extension} is not {validate_image(uploaded_file.stream)}')
+                    api.abort(400, 'Invalid file type.')
+        else:
+            api.abort(404, 'User not found.')
+
+    @api.doc(security="Bearer")
+    @token_required
+    def delete(self, uuid, current_user):
+        ''' Removes the users current profile picture '''
+
+        user = User.get_by_uuid(uuid)
+
+        if user:
+            if user != current_user:
+                api.abort(403, 'User not found.')
+
+            user.update(profile_picture=None, profile_picture_type=None, refresh='wait_for')
+
+            return {'message': 'Profile picture removed.'}, 200
+        
+        api.abort(404, 'User not found.')
 
 user_parser = api.parser()
 user_parser.add_argument('username', location='args', required=False)
