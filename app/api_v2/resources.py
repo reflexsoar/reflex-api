@@ -1307,9 +1307,6 @@ class GlobalSettings(Resource):
         ''' Retrieves the global settings for the system '''
 
         args = settings_parser.parse_args()
-
-        print(args.organization, current_user.organization)
-
         if args.organization:
             if current_user.is_default_org():
                 settings = Settings.load(organization=args.organization)
