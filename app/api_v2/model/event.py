@@ -1,6 +1,8 @@
 import datetime
 import hashlib
 import json
+import chevron
+from functools import cached_property
 from uuid import uuid4
 from app.api_v2.model.exceptions import EventRuleFailure
 from app.api_v2.model.notification import Notification
@@ -208,6 +210,12 @@ class Event(base.BaseDocument):
             'refresh_interval': '1s',
             'max_inner_result_window': 10000
         }
+
+    @cached_property
+    def templated_description(self):
+        self.raw_log = json.loads(self.raw_log)
+        return chevron.render(self.description, self.to_dict())
+
 
     @property
     def observables(self):

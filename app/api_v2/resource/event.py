@@ -88,6 +88,7 @@ mod_event_list = api.model('EventList', {
     'title': fields.String(required=True),
     'reference': fields.String(required=True),
     'description': fields.String(required=True),
+    'templated_description': fields.String,
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'status': fields.Nested(mod_event_status),
