@@ -50,6 +50,9 @@ class FieldMap(InnerDoc):
     ioc = Boolean()
     safe = Boolean()
     spotted = Boolean()
+    signature_field = Boolean()
+    tag_field = Boolean()
+    observable_field = Boolean()
     tags = Keyword()
 
 
