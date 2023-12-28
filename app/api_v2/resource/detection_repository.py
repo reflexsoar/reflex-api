@@ -82,7 +82,7 @@ mod_repo_subscribe = api.model('DetectionRepositorySubscribe', {
     'sync_interval': fields.Integer,
     'sync_settings': fields.Nested(mod_repo_subscription_sync_settings),
     'default_input': fields.String() ,
-    'default_field_template': fields.String(),
+    'default_field_template': fields.List(fields.String()),
 })
 
 mod_detection_add = api.model('DetectionRepositoryAddDetections', {
@@ -338,6 +338,8 @@ class DetectionRepositorySubscriptionDetails(Resource):
 
         if not subscription:
             api.abort(404, 'Subscription not found')
+
+        api.payload['last_sync_status'] = "pending"
 
         subscription.update(**api.payload)
 

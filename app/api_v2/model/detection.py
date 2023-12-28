@@ -1106,11 +1106,11 @@ class DetectionRepository(base.BaseDocument):
             return response
         return response
 
-    def get_subscription(self):
+    def get_subscription(self, organization = None):
         '''
         Returns the subscription for this repository
         '''
-        return DetectionRepositorySubscription.get_by_repository(self.uuid)
+        return DetectionRepositorySubscription.get_by_repository(self.uuid, organization=organization)
 
     def subscribe(self, sync_settings, sync_interval=60, default_input=None,
                   default_field_template=None):
@@ -1208,8 +1208,6 @@ class DetectionRepository(base.BaseDocument):
         Checks all active detection repository subscriptions and synchronizes
         them based on the configured sync interval
         '''
-
-        print("Checking detection repository subscriptions for sync")
 
         subs = DetectionRepositorySubscription.search()
         subs = subs.filter('term', active=True)
@@ -1420,6 +1418,7 @@ class DetectionRepository(base.BaseDocument):
                 subscription.next_sync = datetime.datetime.utcnow(
                 ) + datetime.timedelta(minutes=subscription.sync_interval)
                 subscription.synchronizing = False
+                subscription.last_sync_status = 'success'
                 subscription.save(refresh="wait_for")
 
     def add_detections(self, detections):
