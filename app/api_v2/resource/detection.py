@@ -132,6 +132,9 @@ mod_observable_field = api.model('ObservableField', {
     'alias': fields.String,
     'data_type': fields.String,
     'sigma_field': fields.String,
+    'signature_field': fields.Boolean(default=False),
+    'tag_field': fields.Boolean(default=False),
+    'observable_field': fields.Boolean(default=True),
     'tlp': fields.Integer,
     'tags': fields.List(fields.String)
 })
@@ -441,7 +444,8 @@ mod_sigma = api.model('Sigma', {
 
 mod_detection_field_settings = api.model('DetectionFieldSettings', {
     'fields': fields.List(fields.Nested(mod_observable_field)),
-    'signature_fields': fields.List(fields.String)
+    'signature_fields': fields.List(fields.String),
+    'tag_fields': fields.List(fields.String),
 })
 
 mod_detection_import = api.model('ImportDetection', {
@@ -1701,23 +1705,43 @@ class DetectionFieldSettings(Resource):
         if detection:
 
             final_fields = []
+            observable_fields = []
             signature_fields = []
+            tag_fields = []
 
             final_fields = detection.get_field_settings()
 
             source_input = None
 
+            # If the detection specifies its own signature fields, use those as a base
             if detection.signature_fields:
                 signature_fields = detection.signature_fields
 
+            # If the final_fields has any signature_fields, add them to the signature_fields list
+            # then deduplicate the list and sort it alphabetically
+            if any('signature_field' in field and field['signature_field'] is True for field in final_fields):
+                signature_fields.extend([field['field'] for field in final_fields if 'signature_field' in field and field['signature_field'] is True])
+
+            # Sort the signature fields alphabetically
+            signature_fields = sorted(signature_fields)
+
+            # Determine which fields are tag fields
+            tag_fields.extend([field['field'] for field in final_fields if 'tag_field' in field and field['tag_field'] is True])
+
+            # Include only fields that are marked as observable fields
+            """ DEPRECATION WARNING: The inclusion of fields missing the observable_field flag will
+                be removed in a future release.  We maintain backwards compatibility for now but
+                this will be removed in a future release. """
+            observable_fields = [field for field in final_fields if ('observable_field' in field and field['observable_field'] is True) or 'observable_field' not in field]
+
             # If the detection rule has no field settings or signature fields
-            # fetch the settings from the source input
-            if not final_fields or not signature_fields:
+            # or tag fields, fetch the settings from the source input            
+            if not observable_fields or not signature_fields or not tag_fields:
                 source_input = Input.get_by_uuid(detection.source.uuid)
 
                 # If no final_fields were determined, default to the source input field mapping
-                if not final_fields:
-                    final_fields = source_input.get_field_settings()
+                if not observable_fields:
+                    observable_fields = source_input.get_field_settings()
 
                 # If no signature fields were determined, default to the source input signature fields
                 if not signature_fields:
@@ -1726,9 +1750,18 @@ class DetectionFieldSettings(Resource):
                     else:
                         signature_fields = []
 
+                # If no tag_fields were determined, default to the source input tag fields
+                if not tag_fields:
+                    # Get any tag fields from the input
+                    if hasattr(source_input.config, 'tag_fields'):
+                        tag_fields.extend(source_input.config['tag_fields'])
+                    else:
+                        tag_fields = []
+
             response = {
-                "fields": final_fields,
-                "signature_fields": signature_fields
+                "fields": observable_fields,
+                "signature_fields": signature_fields,
+                "tag_fields": tag_fields
             }
 
             return response

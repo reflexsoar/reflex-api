@@ -806,7 +806,7 @@ class Detection(base.BaseDocument):
             templates = templates.filter(
                 'bool',
                 should=[
-                    Q('bool', must=[Q('term', is_global=True)]),
+                    Q('bool', must=[Q('term', is_global=True), Q('terms', uuid=self.field_templates)]),
                     Q('bool', must=[Q('term', organization=self.organization), Q('terms', uuid=self.field_templates)])
                 ]
             )
@@ -819,8 +819,13 @@ class Detection(base.BaseDocument):
                     replaced = False
                     for field in final_fields:
                         if field['field'] == template_field['field']:
+                            # If the field is currently a signature field make sure it stays that way
+                            if 'signature_field' in field and field['signature_field'] is True:
+                                template_field['signature_field'] = True
+
                             final_fields[final_fields.index(
                                 field)] = template_field
+                            
                             replaced = True
                             break
 
