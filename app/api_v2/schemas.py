@@ -243,7 +243,8 @@ mod_permissions = Model('Permissions', {
     'view_agent_tags': fields.Boolean,
     'create_agent_tag': fields.Boolean,
     'update_agent_tag': fields.Boolean,
-    'delete_agent_tag': fields.Boolean
+    'delete_agent_tag': fields.Boolean,
+    'sync_local_subscribers': fields.Boolean
 })
 
 mod_role_create = Model('RoleCreate', {

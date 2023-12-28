@@ -1184,6 +1184,7 @@ class DetectionRepository(base.BaseDocument):
                 self.uuid, organization=organization)
             if subscription:
                 self.__dict__['subscribed'] = True
+                self.__dict__['subscription'] = subscription
 
         # Also perform an ownership check
         self.check_ownership(organization)
