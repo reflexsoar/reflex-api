@@ -213,7 +213,11 @@ class Event(base.BaseDocument):
 
     @cached_property
     def templated_description(self):
-        self.raw_log = json.loads(self.raw_log)
+        if self.raw_log is not None:
+            try:
+                self.raw_log = json.loads(self.raw_log)
+            except Exception as e:
+                print(f"Error loading raw log: {e} - {self.raw_log}")
         return chevron.render(self.description, self.to_dict())
 
 
