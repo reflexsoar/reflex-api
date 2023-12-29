@@ -1052,6 +1052,9 @@ class PublicKey(Resource):
                 private_key = credential.decrypt(current_app.config['MASTER_PASSWORD'])
 
                 # Derive the public key from the private key
+                if not hasattr(credential, 'key_type'):
+                    credential.key_type = 'ec'
+                    
                 public_key = derive_public_key(private_key, credential.key_type)
 
                 if public_key is None:
