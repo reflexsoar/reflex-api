@@ -10,6 +10,7 @@ from Crypto.Cipher import PKCS1_OAEP
             
 
 from app.api_v2.model.user import Organization
+from app.api_v2.resource.utils import generate_private_key, derive_public_key
 from zipfile import ZipFile
 #import pyminizip
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
@@ -937,7 +938,27 @@ class EncryptPassword(Resource):
             credential = Credential.get_by_name(api2.payload['name'])
 
         if not credential:
-            pw = api2.payload.pop('secret')
+
+            # Get the secret from the payload so it can be encrypted
+            pw = api2.payload.pop('secret', None)
+
+            generate = api2.payload.pop('generate_secret', False)
+            key_type = api2.payload.pop('key_type', 'ec')
+
+            # If the user has requested the secret be generated and it is a private_key credential_type
+            # call the generate_private_key method to generate a new private key
+            if api2.payload['credential_type'] == 'private_key' and generate is True:
+                private_key = generate_private_key(key_type=key_type)
+                if private_key is not None:
+                    pw = private_key
+            else:
+                if pw is None:
+                    ns_credential_v2.abort(400, 'Secret value is required.')
+
+            # If this is a private key put the key_type property back into the payload
+            if api2.payload['credential_type'] == 'private_key':
+                api2.payload['key_type'] = key_type
+
             credential = Credential(**api2.payload)
             credential.save()
             credential.encrypt(pw.encode(
@@ -1010,6 +1031,38 @@ class CredentialList(Resource):
         }
 
         return response
+
+@ns_credential_v2.route('/public_key/<uuid>')
+class PublicKey(Resource):
+    
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_credential_public_key)
+    @api2.response('404', 'Credential not found.')
+    @api2.response('400', 'Credential is not a private key.')
+    @api2.response('400', 'Unable to derive public key from private key.')
+    @token_required
+    @user_has('view_credentials')
+    def get(self, uuid, current_user):
+        ''' Returns the public key for a private key credential '''
+        credential = Credential.get_by_uuid(uuid=uuid)
+        if credential:
+            if credential.credential_type == 'private_key':
+                
+                # Decrypt the private key
+                private_key = credential.decrypt(current_app.config['MASTER_PASSWORD'])
+
+                # Derive the public key from the private key
+                public_key = derive_public_key(private_key, credential.key_type)
+
+                if public_key is None:
+                    ns_credential_v2.abort(400, 'Unable to derive public key from private key.')
+
+                return {'public_key': public_key}
+
+            else:
+                ns_credential_v2.abort(400, 'Credential is not a private key.')
+        else:
+            ns_credential_v2.abort(404, 'Credential not found.')
 
 
 @ns_credential_v2.route('/decrypt/<uuid>')
@@ -1120,9 +1173,24 @@ class CredentialDetails(Resource):
                     if cred.uuid != uuid:
                         ns_credential_v2.abort(
                             409, 'Credential name already exists.')
+                        
+            generate = api2.payload.pop('generate_secret', False)
+            key_type = api2.payload.pop('key_type', 'ec')
+                        
+            # Generate a new private key if the user has flagged generate on update
+            if api2.payload['credential_type'] == 'private_key' and generate:
+                private_key = generate_private_key(key_type=key_type)
+                if private_key is not None:
+                    api2.payload['secret'] = private_key
 
-            if 'secret' in api2.payload:
-                credential.encrypt(api2.payload.pop('secret').encode(
+            # If this is a private key put the key_type property back into the payload
+            if api2.payload['credential_type'] == 'private_key':
+                api2.payload['key_type'] = key_type
+
+            secret = api2.payload.pop('secret', None)
+
+            if secret:
+                credential.encrypt(secret.encode(
                 ), current_app.config['MASTER_PASSWORD'])
 
             if len(api2.payload) > 0:
