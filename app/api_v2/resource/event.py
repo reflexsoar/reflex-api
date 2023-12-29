@@ -8,13 +8,14 @@ import hashlib
 import json
 import datetime
 import threading
+import zipfile
 from queue import Queue
 from uuid import uuid4
 
 from app.api_v2.model.system import ObservableHistory, Settings
 from app.api_v2.model.user import Organization
 from app.api_v2.model.case import Case
-from flask import current_app, make_response
+from flask import current_app, make_response, send_file
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus, EventRelatedObject
 from ..model.exceptions import EventRuleFailure
@@ -248,6 +249,7 @@ mod_event_export_params = api.model('EventExportParams', {
     'severities': fields.List(fields.Integer),
     'date_range': fields.Nested(mod_event_filter_time_range),
     'as_json': fields.Boolean,
+    'compressed': fields.Boolean
 })
 
 event_list_parser = api.parser()
@@ -680,24 +682,46 @@ class EventExport(Resource):
             # Strip out any non-alphanumeric characters and replace spaces with underscores
             report_name = ''.join(e for e in report_name if e.isalnum() or e == ' ')
 
-
+        response = None
+        report_data = None
+        file_extension = None
         if api.payload['as_json']:
+            file_extension = 'json'
             # Returns as new line delimited JSON
-            data = '\n'.join([json.dumps(event.to_dict(), default=str) for event in events])
-            return make_response(data, 200, {'Content-Type': 'application/json', 'Content-Disposition': f'attachment; filename={report_name}.json'})
-        
+            report_data = '\n'.join([json.dumps(event.to_dict(), default=str) for event in events])
+            response = make_response(report_data, 200, {'Content-Type': 'application/json', 'Content-Disposition': f'attachment; filename={report_name}.json'})        
         else:
+            file_extension = 'csv'
             # Returns as CSV
-
             try:
                 output = io.StringIO()
                 writer = csv.DictWriter(output, fieldnames=api.payload['fields'])
                 writer.writeheader()
                 [writer.writerow(event.as_indexed_dict()) for event in events]
 
-                return make_response(output.getvalue(), 200, {'Content-Type': 'text/csv', 'Content-Disposition': f'attachment; filename={report_name}.csv'})
+                report_data = output.getvalue()
+
+                response = make_response(report_data, 200, {'Content-Type': 'text/csv', 'Content-Disposition': f'attachment; filename={report_name}.csv'})
             except Exception as e:
                 return {'message': f'Failed to export events. {e}'}, 500
+            
+        compressed = api.payload.pop('compressed', False)
+        if compressed is True:
+            # Create a zip file with the file in it
+            zip_buffer = io.BytesIO()
+
+            with zipfile.ZipFile(zip_buffer, 'w') as zf:
+
+                data = zipfile.ZipInfo(f'{report_name}.{file_extension}')
+                data.date_time = datetime.datetime.now().timetuple()
+                data.compress_type = zipfile.ZIP_DEFLATED
+                zf.writestr(data, report_data)
+
+            zip_buffer.seek(0)
+            
+            return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, attachment_filename=f'{report_name}.zip')
+            
+        return response
 
 
 @api.route('/<uuid>/observables/<value>')
