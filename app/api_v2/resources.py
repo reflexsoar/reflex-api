@@ -971,6 +971,7 @@ class EncryptPassword(Resource):
 
 cred_parser = pager_parser.copy()
 cred_parser.add_argument('name', location='args', required=False, type=str)
+cred_parser.add_argument('name__like', location='args', required=False, type=str)
 cred_parser.add_argument('organization', location='args', required=False, type=str)
 cred_parser.add_argument('page', type=int, location='args', default=1, required=False)
 cred_parser.add_argument('sort_by', type=str, location='args', default='-created_at', required=False)
@@ -1001,6 +1002,9 @@ class CredentialList(Resource):
 
         if 'name' in args and args.name not in [None, '']:
             credentials = credentials.filter('match', name=args.name)
+
+        if 'name__like' in args and args.name__like not in [None, '']:
+            credentials = credentials.filter('wildcard', name=f"*{args.name__like}*")
 
         if 'organization' in args and args.organization not in [None, '']:
             credentials = credentials.filter('term', organization=args.organization)
@@ -1054,7 +1058,7 @@ class PublicKey(Resource):
                 # Derive the public key from the private key
                 if not hasattr(credential, 'key_type'):
                     credential.key_type = 'ec'
-                    
+
                 public_key = derive_public_key(private_key, credential.key_type)
 
                 if public_key is None:
