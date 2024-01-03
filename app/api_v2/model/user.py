@@ -911,7 +911,7 @@ class Role(base.BaseDocument):
     description = Text(fields={'keyword':Keyword()})  # A brief description of the role
     members = Keyword()  # Contains a list of user IDs
     permissions = Nested(Permission)
-    tlps = Keyword() # The TLPs that this service account can access
+    tlps = Keyword() # The TLPs that this role can access
     system_generated = Boolean() # If this is a default Role in the system
 
     class Index: # pylint: disable=too-few-public-methods
