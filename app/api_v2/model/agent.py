@@ -375,6 +375,33 @@ class AgentSoftwarePackage(InnerDoc):
     url_info_about = Keyword()  # The URL info about of the software package
     language = Keyword()  # The language of the software package
 
+
+class Container(InnerDoc):
+    '''
+    Contains information about the container that the agent is running
+    '''
+    id = Keyword()  # The ID of the container
+    created = Keyword()  # The created date of the container
+    path = Keyword()  # The path of the container
+    state = Object(enabled=False)
+    image = Keyword()
+    resolv_conf_path = Keyword()
+    hostname_path = Keyword()
+    hosts_path = Keyword()
+    log_path = Keyword()
+    name = Keyword()
+    restart_count = Integer()
+    driver = Keyword()
+    platform = Keyword()
+    mount_label = Keyword()
+    process_label = Keyword()
+    app_armor_profile = Keyword()
+    exec_ids = Keyword()
+    network_settings = Object(enabled=False)
+    config = Object(enabled=False)
+    graph_driver = Object(enabled=False)
+    host_config = Object(enabled=False)
+
 class AgentHostInformation(InnerDoc):
     '''
     Contains information about the host that the agent is running on
@@ -386,6 +413,7 @@ class AgentHostInformation(InnerDoc):
     system = Nested(AgentSystemInfo)
     chassis = Nested(AgentChassisInfo)
     listening_ports = Nested(AgentListeningPorts)
+    containers = Nested(Container)
     services = Nested(AgentServices)
     installed_software = Nested(AgentSoftwarePackage)
     local_users = Nested(AgentLocalUsers)
@@ -539,12 +567,15 @@ class Agent(base.BaseDocument):
                 # Set the final policy to the first policy
                 if final_policy is None:
                     final_policy = policy
+                    if final_policy.roles is None:
+                        final_policy.roles = []
                     continue  # Move to the next policy
 
                 # If the policy has roles that are not in the final policy, add them
-                _new_roles = [role for role in policy.roles if role not in final_policy.roles]
-                if _new_roles:
-                    [final_policy.roles.append(role) for role in _new_roles]
+                if policy.roles is not None:
+                    _new_roles = [role for role in policy.roles if role not in final_policy.roles]
+                    if _new_roles:
+                        [final_policy.roles.append(role) for role in _new_roles]
 
                 # For each role applied to the final policy check if the next overriding
                 # policy has the same role and if so, replace the configuration of the role
