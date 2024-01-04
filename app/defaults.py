@@ -258,7 +258,8 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         'view_agent_tags': True,
         'create_agent_tag': True,
         'update_agent_tag': True,
-        'delete_agent_tag': True
+        'delete_agent_tag': True,
+        'sync_local_subscribers': True
     }
 
     role_contents = {
@@ -304,6 +305,7 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["create_integration_configuration"] = True
                     perms["update_integration_configuration"] = True
                     perms["delete_integration_configuration"] = True
+                    perms["sync_local_subscribers"] = True
                 else:
                     perms['view_organizations'] = False
                     perms['add_organization'] = False
@@ -327,6 +329,7 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
                     perms["create_integration_configuration"] = False
                     perms["update_integration_configuration"] = False
                     perms["delete_integration_configuration"] = False
+                    perms["sync_local_subscribers"] = False
                 role = role[0]
                 role.permissions = perms
                 role.save()
@@ -461,7 +464,12 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         'view_agent_tags': True,
         'create_agent_tag': False,
         'update_agent_tag': False,
-        'delete_agent_tag': False
+        'delete_agent_tag': False,
+        'view_lists': True,
+        'add_list': False,
+        'update_list': False,
+        'delete_list': False,
+        'sync_local_subscribers': False
     }
 
     role_contents = {

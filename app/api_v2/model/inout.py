@@ -8,7 +8,8 @@ from . import (
     Integer,
     AttrList,
     InnerDoc,
-    Date
+    Date,
+    Q
 )
 
 VALID_DATA_TYPES = [
@@ -50,6 +51,9 @@ class FieldMap(InnerDoc):
     ioc = Boolean()
     safe = Boolean()
     spotted = Boolean()
+    signature_field = Boolean()
+    tag_field = Boolean()
+    observable_field = Boolean()
     tags = Keyword()
 
 
@@ -160,7 +164,7 @@ class Input(base.BaseDocument):
         ''' Returns the field mapping as a dict '''
 
         # Pull any field mapping templates assigned to this input and merge them
-        # if hasattr(self, 'field_mapping_templates') and len(self.field_mapping_templates) > 0:
+        # if hasattr(self, 'field_mapping_templates') and len(self.field_mapping_templates) > 0:awd
 
         if isinstance(self.field_mapping, AttrList):
             if self.field_mapping and len(self.field_mapping) >= 1:
@@ -193,15 +197,32 @@ class Input(base.BaseDocument):
         final_fields = []
 
         if self.field_templates:
-            templates = FieldMappingTemplate.get_by_uuid(self.field_templates)
-            templates.sort(key=lambda x: x.priority, reverse=True)
+            templates = FieldMappingTemplate.search(skip_org_check=True)
+
+            # The templates assigned to this detection but only if they belong to the same org
+            # or are flagged as global
+            templates = templates.filter(
+                'bool',
+                should=[
+                    Q('bool', must=[Q('term', is_global=True), Q('terms', uuid=self.field_templates)]),
+                    Q('bool', must=[Q('term', organization=self.organization), Q('terms', uuid=self.field_templates)])
+                ]
+            )
+
+            templates = [t for t in templates.scan()]
+
             for template in templates:
                 for template_field in template.field_mapping:
                     replaced = False
                     for field in final_fields:
                         if field['field'] == template_field['field']:
+                            # If the field is currently a signature field make sure it stays that way
+                            if 'signature_field' in field and field['signature_field'] is True:
+                                template_field['signature_field'] = True
+
                             final_fields[final_fields.index(
                                 field)] = template_field
+                            
                             replaced = True
                             break
 

@@ -29,7 +29,7 @@ from app.api_v2.model.benchmark import (
 
 from app.api_v2.model.agent import PLUGGABLE_SUPPORTED_ROLES
 from app.api_v2.rql.parser import QueryParser
-from .shared import mod_pagination, ISO8601
+from .shared import mod_pagination, ISO8601, JSONField
 from ..utils import token_required, page_results, user_has, generate_token, default_org
 from .agent_group import mod_agent_group_list
 from .agent_policy import mod_agent_policy_detailed, mod_agent_policy_v2
@@ -123,6 +123,104 @@ mod_agent_software_package = api.model('AgentSoftwarePackage', {
     'language': fields.String
 })
 
+mod_container_port_binding = api.model('ContainerPortBinding', {
+    'HostIp': fields.String,
+    'HostPort': fields.String
+})
+
+mod_container_port = api.model('ContainerPort', {
+    'port': fields.String,
+    'protocol': fields.String,
+    'bindings': fields.List(fields.Nested(mod_container_port_binding))
+})
+
+mod_container_network_settings = api.model('ContainerNetworkSettings', {
+    'Bridge': fields.String,
+    'SandboxID': fields.String,
+    'SandboxKey': fields.String,
+    'HairpinMode': fields.Boolean,
+    'LinkLocalIPv6Address': fields.String,
+    'LinkLocalIPv6PrefixLen': fields.Integer,
+    'GlobalIPv6Address': fields.String,
+    'GlobalIPv6PrefixLen': fields.Integer,
+    'Ports': fields.List(fields.Nested(mod_container_port)),
+    'MacAddress': fields.String,
+    'IPv6Gateway': fields.String,
+    'IPAddress': fields.String,
+    'IPPrefixLen': fields.Integer,
+    'IPv6Gateway': fields.String,
+    'Gateway': fields.String,
+    'EndpointID': fields.String,
+    'SecondaryIPAddresses': fields.List(fields.String),
+    'SecondaryIPv6Addresses': fields.List(fields.String),
+})
+
+mod_exposed_port = api.model('ContainerExposedPort', {
+    'port': fields.String,
+    'protocol': fields.String
+})
+
+mod_container_volume = api.model('ContainerVolume', {
+    'name': fields.String,
+})
+
+mod_container_config = api.model('ContainerConfig', {
+    'Hostname': fields.String,
+    'Domainname': fields.String,
+    'User': fields.String,
+    'AttachStdin': fields.Boolean,
+    'AttachStdout': fields.Boolean,
+    'AttachStderr': fields.Boolean,
+    'ExposedPorts': fields.List(fields.Nested(mod_exposed_port)),
+    'Tty': fields.Boolean,
+    'OpenStdin': fields.Boolean,
+    'StdinOnce': fields.Boolean,
+    'Env': fields.List(fields.String),
+    'Cmd': fields.List(fields.String),
+    'Image': fields.String,
+    'Volumes': fields.List(fields.Nested(mod_container_volume)),
+    'WorkingDir': fields.String,
+    'Entrypoint': fields.List(fields.String),
+    'Labels': fields.List(fields.String)
+})
+
+mod_container_state = api.model('ContainerState', {
+    'Status': fields.String,
+    'Running': fields.Boolean,
+    'Paused': fields.Boolean,
+    'Restarting': fields.Boolean,
+    'OOMKilled': fields.Boolean,
+    'Dead': fields.Boolean,
+    'Pid': fields.Integer,
+    'ExitCode': fields.Integer,
+    'Error': fields.String,
+    'StartedAt': ISO8601,
+    'FinishedAt': ISO8601
+})
+
+mod_container_info = api.model('ContainerInfo', {
+    'id' : fields.String,
+    'created' : ISO8601,
+    'path' : fields.String,
+    'state' : fields.Nested(mod_container_state),
+    'image' : fields.String,
+    'resolv_conf_path' : fields.String,
+    'hostname_path' : fields.String,
+    'hosts_path' : fields.String,
+    'log_path' : fields.String,
+    'name' : fields.String,
+    'driver' : fields.String,
+    'restart_count' : fields.Integer,
+    'platform' : fields.String,
+    'mount_label' : fields.String,
+    'process_label' : fields.String,
+    'app_armor_profile' : fields.String,
+    'exec_ids' : fields.List(fields.String),
+    'network_settings': fields.Nested(mod_container_network_settings),
+    'config': fields.Nested(mod_container_config)
+})
+
+
 mod_agent_host_information = api.model('AgentHostInformation', {
     'timezone': fields.String,
     'network_adapters': fields.List(fields.Nested(mod_agent_network_interfaces)),
@@ -134,6 +232,7 @@ mod_agent_host_information = api.model('AgentHostInformation', {
     'services': fields.List(fields.Nested(mod_agent_services)),
     'installed_software': fields.List(fields.Nested(mod_agent_software_package)),
     'local_users': fields.List(fields.Nested(mod_local_user_brief)),
+    'containers': fields.List(fields.Nested(mod_container_info))
 })
 
 mod_agent_geo_information = api.model('AgentGeoInformation', {

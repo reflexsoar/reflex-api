@@ -175,6 +175,7 @@ class SourceMonitorConfig(base.InnerDoc):
     excluded_sources = Keyword()
     excluded_source_lists = Keyword()
     autodiscover_data_streams = Boolean()
+    ignore_data_streams_older_than_days = Integer() # If a data stream is older than this number of days ignore it
     delta_change = Boolean()  # True = delta change, False = absolute change
     delta_window = Integer()  # How far back to look for the delta
     operator = Keyword()  # The operator to use e.g. >, <, >=, <=, ==, !=
@@ -805,7 +806,7 @@ class Detection(base.BaseDocument):
             templates = templates.filter(
                 'bool',
                 should=[
-                    Q('bool', must=[Q('term', is_global=True)]),
+                    Q('bool', must=[Q('term', is_global=True), Q('terms', uuid=self.field_templates)]),
                     Q('bool', must=[Q('term', organization=self.organization), Q('terms', uuid=self.field_templates)])
                 ]
             )
@@ -818,8 +819,13 @@ class Detection(base.BaseDocument):
                     replaced = False
                     for field in final_fields:
                         if field['field'] == template_field['field']:
+                            # If the field is currently a signature field make sure it stays that way
+                            if 'signature_field' in field and field['signature_field'] is True:
+                                template_field['signature_field'] = True
+
                             final_fields[final_fields.index(
                                 field)] = template_field
+                            
                             replaced = True
                             break
 
@@ -1105,11 +1111,11 @@ class DetectionRepository(base.BaseDocument):
             return response
         return response
 
-    def get_subscription(self):
+    def get_subscription(self, organization = None):
         '''
         Returns the subscription for this repository
         '''
-        return DetectionRepositorySubscription.get_by_repository(self.uuid)
+        return DetectionRepositorySubscription.get_by_repository(self.uuid, organization=organization)
 
     def subscribe(self, sync_settings, sync_interval=60, default_input=None,
                   default_field_template=None):
@@ -1183,6 +1189,7 @@ class DetectionRepository(base.BaseDocument):
                 self.uuid, organization=organization)
             if subscription:
                 self.__dict__['subscribed'] = True
+                self.__dict__['subscription'] = subscription
 
         # Also perform an ownership check
         self.check_ownership(organization)
@@ -1206,8 +1213,6 @@ class DetectionRepository(base.BaseDocument):
         Checks all active detection repository subscriptions and synchronizes
         them based on the configured sync interval
         '''
-
-        print("Checking detection repository subscriptions for sync")
 
         subs = DetectionRepositorySubscription.search()
         subs = subs.filter('term', active=True)
@@ -1418,6 +1423,7 @@ class DetectionRepository(base.BaseDocument):
                 subscription.next_sync = datetime.datetime.utcnow(
                 ) + datetime.timedelta(minutes=subscription.sync_interval)
                 subscription.synchronizing = False
+                subscription.last_sync_status = 'success'
                 subscription.save(refresh="wait_for")
 
     def add_detections(self, detections):

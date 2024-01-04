@@ -64,6 +64,9 @@ markdown = "*"
 requests-cache = "*"
 pydantic = "*"
 python3-saml = "*"
+flask-sock = "*"
+flask-socketio = "*"
+pycryptodome = "*"
 
 [requires]
 python_version = "3.8"

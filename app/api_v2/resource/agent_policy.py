@@ -1,13 +1,9 @@
-import datetime
-from flask import request
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 
 from app.api_v2.model.agent import AgentGroup, AgentPolicy
-from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
-from .utils import redistribute_detections
-from ..utils import check_org, token_required, user_has, ip_approved, page_results, generate_token, default_org
-from .agent_group import mod_agent_group_list
-from ..schemas import mod_input_list
+from .shared import mod_pagination, ISO8601, mod_user_list, NullableString
+from ..utils import check_org, token_required, user_has, page_results, default_org
+
 
 api = Namespace(
     'Agent Policy', description='Agent Policy administration', path='/agent_policy', strict=True)
@@ -36,6 +32,7 @@ mod_poller_config = api.model('PollerRoleConfig', {
     'logging_level': fields.String(default='ERROR'),
     'max_input_attempts': fields.Integer(default=3),
     'signature_cache_ttl': fields.Integer(default=3600),
+    'ignore_signature_cache': fields.Boolean(default=False)
 })
 
 mod_mitre_mapper_config = api.model('MitreMapperConfig', {
@@ -59,6 +56,18 @@ mod_fim_config = api.model('FIMConfig', {
     'graceful_exit': fields.Boolean(default=True)
 })
 
+mod_search_proxy_config = api.model('SearchProxyConfig', {
+    'target_input': NullableString,
+    'user_roles': fields.List(fields.String, default=[]),
+    'sudo_user': NullableString,
+    'query_timeout': fields.Integer(default=30),
+    'max_results': fields.Integer(default=500),
+    'event_wait_timeout': fields.Integer(default=30),
+    'max_concurrent_searches': fields.Integer(default=10),
+    'logging_level': fields.String(default='ERROR'),
+    'credential': NullableString,
+})
+
 mod_agent_policy = api.model('AgentPolicy', {
     'name': fields.String,
     'organization': fields.String,
@@ -73,9 +82,12 @@ mod_agent_policy = api.model('AgentPolicy', {
     'detector_config': fields.Nested(mod_detector_config),
     'runner_config': fields.Nested(mod_runner_config),
     'mitre_mapper_config': fields.Nested(mod_mitre_mapper_config),
+    'search_proxy_config': fields.Nested(mod_search_proxy_config),
     'fim_config': fields.Nested(mod_fim_config),
     'tags': fields.List(fields.String, default=[]),
-    'priority': fields.Integer(default=1)
+    'priority': fields.Integer(default=1),
+    'agent_tags': fields.List(fields.String, default=[]),
+    'hash': fields.String(default=None, attribute='policy_hash', readonly=True)
 }, strict=True)
 
 mod_policy_roles = api.model('AgentPolicyRoles', {
@@ -84,6 +96,7 @@ mod_policy_roles = api.model('AgentPolicyRoles', {
     'runner': fields.Nested(mod_runner_config),
     'mitre': fields.Nested(mod_mitre_mapper_config),
     'fim': fields.Nested(mod_fim_config),
+    'search_proxy': fields.Nested(mod_search_proxy_config)
 })
 
 mod_policy_settings = api.model('AgentPolicySettings', {
@@ -103,6 +116,7 @@ mod_agent_policy_v2 = api.model('AgentPolicyV2', {
     'role_settings': fields.Nested(mod_policy_roles),
     'settings': fields.Nested(mod_policy_settings),
     'tags': fields.List(fields.String, default=[]),
+    'agent_tags': fields.List(fields.String, default=[]),
     'priority': fields.Integer(default=1),
     'revision': fields.Integer,
     'created_at': ISO8601,

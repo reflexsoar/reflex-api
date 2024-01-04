@@ -27,6 +27,6 @@ class Comment(base.BaseDocument):
 
     author = Object()
     message = Text(fields={'keyword': Keyword()})
-    parent = Keyword() # THe UUID of the parent object e.g. case.uuid, event.uuid
+    parent = Keyword() # The UUID of the parent object e.g. case.uuid, event.uuid
     mentions = Nested(CommentMention)
     tags = Keyword() # Any tags that appeared in the message body 

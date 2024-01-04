@@ -84,6 +84,8 @@ class User(base.BaseDocument):
     notification_settings = Object(UserNotificationSettings)
     hide_product_updates = Boolean()
     access_scope = Nested(OrganizationScope)
+    profile_picture = Keyword() # A base64 encoded image
+    profile_picture_type = Keyword() # The type of image (png, jpg, etc)
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -909,7 +911,7 @@ class Role(base.BaseDocument):
     description = Text(fields={'keyword':Keyword()})  # A brief description of the role
     members = Keyword()  # Contains a list of user IDs
     permissions = Nested(Permission)
-    tlps = Keyword() # The TLPs that this service account can access
+    tlps = Keyword() # The TLPs that this role can access
     system_generated = Boolean() # If this is a default Role in the system
 
     class Index: # pylint: disable=too-few-public-methods

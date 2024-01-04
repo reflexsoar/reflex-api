@@ -19,10 +19,12 @@ mod_agent_tag = api.model('AgentTag', {
     'description': NullableString(required=False, description='A description of the tag'),
     'color': fields.String(required=False, description='A color to represent the tag in hex format'),
     'dynamic': fields.Boolean(required=False, description='Is this tag dynamic or static?'),
-    'query': fields.String(required=False, description='The criteria to use for dynamic tags using RQL')
+    'query': fields.String(required=False, description='The criteria to use for dynamic tags using RQL'),
+    'full_name': fields.String(required=False, description='The full name of the tag')
 })
 
 mod_agent_tag_short = api.model('AgentTagShort', {
+    'uuid': fields.String,
     'namespace': fields.String,
     'value': fields.String,
     'color': fields.String
@@ -210,7 +212,7 @@ class AgentTagTestAll(Resource):
         if 'query' not in api.payload:
             api.abort(400, 'A query is required')
         
-        if api.payload['query'] == '':
+        if api.payload['query'] in ['',' ']:
             api.abort(400, 'A query is required')
 
         organization = current_user.organization
@@ -226,7 +228,11 @@ class AgentTagTestAll(Resource):
         agents = [{'agent': a.to_dict()} for a in search.scan()]
 
         qp = QueryParser()
-        parsed_query = qp.parser.parse(api.payload['query'])
+        try:
+            parsed_query = qp.parser.parse(api.payload['query'])
+        except ValueError as e:
+            api.abort(400, f'Error parsing query: {e}')
+            
         results = [r for r in qp.run_search(agents, parsed_query)]
 
         return {

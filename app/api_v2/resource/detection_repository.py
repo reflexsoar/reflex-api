@@ -7,6 +7,14 @@ from .shared import mod_pagination, mod_user_list, ISO8601, ValueCount
 
 api = Namespace('DetectionRepository', description='Detection Repository', path='/detection_repository')
 
+mod_subscription_details = api.model('DetectionRepositorySubscriptionDetails', {
+    'uuid': fields.String,
+    'organization': fields.String,
+    'last_sync_status': fields.String,
+    'last_sync': ISO8601(),
+    'synchronizing': fields.Boolean
+})
+
 mod_detection_repo = api.model('DetectionRepository', {
     'uuid': fields.String,
     'name': fields.String,
@@ -19,6 +27,7 @@ mod_detection_repo = api.model('DetectionRepository', {
     'share_type': fields.String,
     'repo_type': fields.String,
     'subscribed': fields.Boolean,
+    'subscription': fields.Nested(mod_subscription_details),
     'read_only': fields.Boolean,
     'url': fields.String,
     'refresh_interval': fields.Integer,
@@ -73,7 +82,7 @@ mod_repo_subscribe = api.model('DetectionRepositorySubscribe', {
     'sync_interval': fields.Integer,
     'sync_settings': fields.Nested(mod_repo_subscription_sync_settings),
     'default_input': fields.String() ,
-    'default_field_template': fields.String(),
+    'default_field_template': fields.List(fields.String()),
 })
 
 mod_detection_add = api.model('DetectionRepositoryAddDetections', {
@@ -248,7 +257,10 @@ class DetectionRepositorySyncLocalSubscribers(Resource):
         repository = DetectionRepository.get_by_uuid(uuid)
 
         # Locate all the local subscriptions for this repository
-        subscriptions = DetectionRepositorySubscription.get_by_repository(uuid=uuid)
+        subscriptions = DetectionRepositorySubscription.get_by_repository(repository=uuid)
+
+        if not isinstance(subscriptions, list):
+            subscriptions = [subscriptions]
 
         # Sync the repository for each local subscriber
         for subscription in subscriptions:
@@ -284,7 +296,7 @@ class DetectionRepositorySync(Resource):
 
 
 @api.route('/<string:uuid>/subscription')
-class DetectionRepositorySubscription(Resource):
+class DetectionRepositorySubscriptionDetails(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_repo_subscribe)
@@ -326,6 +338,8 @@ class DetectionRepositorySubscription(Resource):
 
         if not subscription:
             api.abort(404, 'Subscription not found')
+
+        api.payload['last_sync_status'] = "pending"
 
         subscription.update(**api.payload)
 

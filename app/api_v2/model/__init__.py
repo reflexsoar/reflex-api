@@ -65,7 +65,7 @@ from .user import User, Role, ExpiredToken, Organization, ServiceAccount
 from .agent import Agent, AgentGroup, AgentPolicy, AgentLogMessage
 from .inout import Input, FieldMappingTemplate, VALID_DATA_TYPES
 from .threat import ThreatList, ThreatValue
-from .event import Event, EventRule, EventStatus, EventComment, EventView
+from .event import Event, EventRule, EventStatus, EventComment, EventView, EventRelatedObject
 from .case import (
     Case,
     CaseComment,
@@ -108,6 +108,10 @@ from .benchmark import (
     BenchmarkResultHistory,
     BenchmarkResult,
     BenchmarkFrameworkRule
+)
+
+from .search import (
+    SearchProxyJob
 )
 
 VERSION = (2, 0, 0)
@@ -193,5 +197,7 @@ __all__ = [
     'BenchmarkException',
     'BenchmarkResultHistory',
     'BenchmarkResult',
-    'BenchmarkFrameworkRule'
+    'BenchmarkFrameworkRule',
+    'EventRelatedObject',
+    'SearchProxyJob'
 ]

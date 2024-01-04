@@ -51,6 +51,7 @@ mod_input_details = api.model('InputList', {
     'updated_at': ISO8601(attribute='updated_at'),
     'index_fields': fields.List(fields.String),
     'index_fields_last_updated': ISO8601(attribute='index_fields_last_updated'),
+    'field_templates': fields.List(fields.String, default=[]),
     'sigma_backend': fields.String,
     'sigma_pipeline': fields.String,
     'sigma_field_mapping': fields.String,

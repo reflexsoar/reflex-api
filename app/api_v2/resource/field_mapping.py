@@ -23,6 +23,9 @@ mod_field_mapping = api.model('FieldMapping', {
     'data_type': fields.String(required=True, enum=VALID_DATA_TYPES),
     'sigma_field': fields.String(required=False),
     'tlp': fields.Integer(required=True),
+    'signature_field': fields.Boolean(required=False, default=False),
+    'tag_field': fields.Boolean(required=False, default=False),
+    'observable_field': fields.Boolean(required=False, default=True),
     'tags': fields.List(fields.String, required=False),
 }, strict=True)
 
@@ -33,6 +36,7 @@ mod_create_field_mapping_template = api.model('FieldMappingCreate', {
     'priority': fields.Integer(required=False, default=1),
     'tags': fields.List(fields.String, required=False),
     'field_mapping': fields.List(fields.Nested(mod_field_mapping), required=True),
+    'signature_fields': fields.List(fields.String, required=False, default=[]),
     'organization': fields.String(required=False),
     'is_global': fields.Boolean(required=False, default=False)
 }, strict=True)

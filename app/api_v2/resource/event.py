@@ -8,15 +8,16 @@ import hashlib
 import json
 import datetime
 import threading
+import zipfile
 from queue import Queue
 from uuid import uuid4
 
 from app.api_v2.model.system import ObservableHistory, Settings
 from app.api_v2.model.user import Organization
 from app.api_v2.model.case import Case
-from flask import current_app, make_response
+from flask import current_app, make_response, send_file
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
-from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus
+from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus, EventRelatedObject
 from ..model.exceptions import EventRuleFailure
 from ..utils import token_required, user_has, log_event
 from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged, mod_user_list, ValueCount, AsAttrDict
@@ -88,6 +89,7 @@ mod_event_list = api.model('EventList', {
     'title': fields.String(required=True),
     'reference': fields.String(required=True),
     'description': fields.String(required=True),
+    'templated_description': fields.String,
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'status': fields.Nested(mod_event_status),
@@ -247,6 +249,7 @@ mod_event_export_params = api.model('EventExportParams', {
     'severities': fields.List(fields.Integer),
     'date_range': fields.Nested(mod_event_filter_time_range),
     'as_json': fields.Boolean,
+    'compressed': fields.Boolean
 })
 
 event_list_parser = api.parser()
@@ -513,6 +516,7 @@ class EventListAggregated(Resource):
         
         for event in events:
             observables[event.uuid] = event.observables
+            #event.set_filters(filters=search_filters)
                    
         response = {
             'events': events,
@@ -641,7 +645,6 @@ def fetch_observables_from_history(observables, organization=None):
             if 'tags' in source_observable:
                 observable['tags'] = source_observable['tags']
         
-
     return _observables
 
 
@@ -679,24 +682,46 @@ class EventExport(Resource):
             # Strip out any non-alphanumeric characters and replace spaces with underscores
             report_name = ''.join(e for e in report_name if e.isalnum() or e == ' ')
 
-
+        response = None
+        report_data = None
+        file_extension = None
         if api.payload['as_json']:
+            file_extension = 'json'
             # Returns as new line delimited JSON
-            data = '\n'.join([json.dumps(event.to_dict(), default=str) for event in events])
-            return make_response(data, 200, {'Content-Type': 'application/json', 'Content-Disposition': f'attachment; filename={report_name}.json'})
-        
+            report_data = '\n'.join([json.dumps(event.to_dict(), default=str) for event in events])
+            response = make_response(report_data, 200, {'Content-Type': 'application/json', 'Content-Disposition': f'attachment; filename={report_name}.json'})        
         else:
+            file_extension = 'csv'
             # Returns as CSV
-
             try:
                 output = io.StringIO()
                 writer = csv.DictWriter(output, fieldnames=api.payload['fields'])
                 writer.writeheader()
                 [writer.writerow(event.as_indexed_dict()) for event in events]
 
-                return make_response(output.getvalue(), 200, {'Content-Type': 'text/csv', 'Content-Disposition': f'attachment; filename={report_name}.csv'})
+                report_data = output.getvalue()
+
+                response = make_response(report_data, 200, {'Content-Type': 'text/csv', 'Content-Disposition': f'attachment; filename={report_name}.csv'})
             except Exception as e:
                 return {'message': f'Failed to export events. {e}'}, 500
+            
+        compressed = api.payload.pop('compressed', False)
+        if compressed is True:
+            # Create a zip file with the file in it
+            zip_buffer = io.BytesIO()
+
+            with zipfile.ZipFile(zip_buffer, 'w') as zf:
+
+                data = zipfile.ZipInfo(f'{report_name}.{file_extension}')
+                data.date_time = datetime.datetime.now().timetuple()
+                data.compress_type = zipfile.ZIP_DEFLATED
+                zf.writestr(data, report_data)
+
+            zip_buffer.seek(0)
+            
+            return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, attachment_filename=f'{report_name}.zip')
+            
+        return response
 
 
 @api.route('/<uuid>/observables/<value>')
@@ -1392,6 +1417,116 @@ class EventBulkUpdate(Resource):
         return {'task_id': str(task_id)}
 
 
+related_objects_parser = api.parser()
+
+related_objects_parser.add_argument('page', type=int, help='The page number to return', location='args', default=1)
+related_objects_parser.add_argument('page_size', type=int, help='The number of results to return per page', location='args', default=25)
+related_objects_parser.add_argument('sort', type=str, help='The field to sort the results by', location='args', default='created_at')
+related_objects_parser.add_argument('order', type=str, help='The order to sort the results by', location='args', default='desc')
+related_objects_parser.add_argument('entry_type', type=str, help='The type of entry to return', location='args', default='all')
+
+
+mod_event_related_integration_object = api.model('EventRelatedIntegrationObject', {
+    'uuid': fields.String(required=True, description='The UUID of the related object'),
+    'name': fields.String(required=True, description='The name of the integration'),
+    'configuration': fields.Raw(required=True, description='The configuration of the integration'),
+    'action': fields.String(required=True, description='The action that was performed by the integration'),
+    'output': fields.Raw(required=True, description='The output of the integration'),
+    'output_format': fields.String(required=True, description='The output format of the integration'),
+    'created_at': ISO8601
+})
+
+mod_event_related_object_event = api.model('EventRelatedObjectEvent', {
+    'uuid': fields.String(required=True, description='The UUID of the related object'),
+    'organization': fields.String(required=True, description='The organization of the related object')
+})
+
+mod_event_related_object_entry = api.model('EventRelatedObjectEntry', {
+    'type': fields.String(required=True, description='The type of entry')
+})
+
+mod_event_related_object_log_user = api.model('EventRelatedObjectUser', {
+    'name': fields.String(required=True, description='The name of the user')
+})
+
+mod_ip_geo = api.model('IPGeo', {
+    'country': fields.String(required=True, description='The country of the IP address'),
+    'city': fields.String(required=True, description='The city of the IP address'),
+    'latitude': fields.Float(required=True, description='The latitude of the IP address'),
+    'longitude': fields.Float(required=True, description='The longitude of the IP address')
+})
+
+mod_event_related_object_log_source = api.model('EventRelatedObjectSource', {
+    'ip': fields.String(required=True, description='The IP address of the source'),
+    'port': fields.Integer(required=True, description='The port of the source'),
+    'geo': fields.Nested(mod_ip_geo, description='The geo information of the source')
+})
+
+mod_event_related_object_log_destination = api.clone('EventRelatedObjectDestination', mod_event_related_object_log_source)
+
+mod_event_related_object_log_host = api.model('EventRelatedObjectHost', {
+    'name': fields.String(required=True, description='The hostname of the host')
+})
+
+mod_event_related_object_log = api.model('EventRelatedObjectLog', {
+    'message': fields.String(required=True, description='The message from the log entry'),
+    'format': fields.String(required=True, description='The format of the log entry', default='json'),
+    'user': fields.Nested(mod_event_related_object_log_user),
+    'source': fields.Nested(mod_event_related_object_log_source),
+    'destination': fields.Nested(mod_event_related_object_log_destination),
+    'host': fields.Nested(mod_event_related_object_log_host)
+})
+
+mod_event_related_object = api.model('EventRelatedObject', {
+    'uuid': fields.String(required=True, description='The UUID of the related object'),
+    'entry': fields.Nested(mod_event_related_object_entry, description='The type of entry'),
+    'event': fields.Nested(mod_event_related_object_event, description='The event that the related object is associated with'),
+    'from_integration': fields.Boolean(required=True, description='Whether or not the related object was created by an integration'),
+    'integration': fields.Nested(mod_event_related_integration_object, description='The integration that created the related object'),
+    'log': fields.Nested(mod_event_related_object_log, description='The log entry that was created by the integration')
+})
+
+mod_event_related_objects = api.model('EventRelatedObjects', {
+    'objects': fields.List(fields.Nested(mod_event_related_object), description='The related objects')
+})
+
+@api.route("/<uuid>/related_objects")
+class GetRelatedEventObjects(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_event_related_objects)
+    @api.expect(related_objects_parser)
+    @token_required
+    @user_has('view_events')
+    def get(self, uuid, current_user):
+
+        args = related_objects_parser.parse_args()
+
+        search = EventRelatedObject.search()
+
+        VALID_TYPES = ['comment', 'log', 'change', 'integration',
+                       'vulnerability', 'reference']
+
+        if args.entry_type != 'all':
+            if args.entry_type not in VALID_TYPES:
+                api.abort(400, f'Invalid entry type. Must be one of {VALID_TYPES}')
+
+            search = search.filter('term', entry_type=args.entry_type)
+
+        # Filter by event UUID
+        search = search.filter('term', event__uuid=uuid)
+
+        # Sort the results
+        search = search.sort({args.sort: {'order': args.order}})
+        
+        results = [e.to_dict() for e in search.scan()]
+
+        return {
+            'objects': results
+        }
+
+
+
 @api.route("/<uuid>/comment")
 class EventComment(Resource):
 
@@ -1587,6 +1722,11 @@ class EventDetails(Resource):
         event = Event.get_by_uuid(uuid)
         if event:
             event.event_observables = fetch_observables_from_history(event.event_observables, organization=event.organization)
+
+            # Sort the intergration_output by the created_at field so newer items are at the top
+            if 'integration_output' in event:
+                event.integration_output.sort(key = lambda x: x['created_at'], reverse=True)
+                
             return event
         else:
             api.abort(404, 'Event not found.')

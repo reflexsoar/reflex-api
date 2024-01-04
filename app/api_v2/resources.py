@@ -5,7 +5,12 @@ import os
 import json
 import hashlib
 
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
+            
+
 from app.api_v2.model.user import Organization
+from app.api_v2.resource.utils import generate_private_key, derive_public_key
 from zipfile import ZipFile
 #import pyminizip
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
@@ -16,6 +21,7 @@ from .schemas import *
 from .model import (
     Event,
     EventRule,
+    EventRelatedObject,
     Observable,
     Observable,
     User,
@@ -24,6 +30,7 @@ from .model import (
     Credential,
     Input,
     Agent,
+    AgentLogMessage,
     ThreatList,
     ExpiredToken,
     DataType,
@@ -96,7 +103,8 @@ from .resource import (
     ns_release_notes_v2,
     ns_fim_v2,
     ns_benchmark_v2,
-    ns_agent_tags_v2
+    ns_agent_tags_v2,
+    ns_search_v2
 )
 
 show_swagger_docs = (os.getenv('REFLEX_SHOW_SWAGGER_DOCS', 'False').lower() == 'true')
@@ -163,6 +171,7 @@ api2.add_namespace(ns_release_notes_v2)
 api2.add_namespace(ns_fim_v2)
 api2.add_namespace(ns_benchmark_v2)
 api2.add_namespace(ns_agent_tags_v2)
+api2.add_namespace(ns_search_v2)
 
 # Register the integration base 
 from app.integrations.base import IntegrationApi as ns_integration_base_v2
@@ -929,7 +938,27 @@ class EncryptPassword(Resource):
             credential = Credential.get_by_name(api2.payload['name'])
 
         if not credential:
-            pw = api2.payload.pop('secret')
+
+            # Get the secret from the payload so it can be encrypted
+            pw = api2.payload.pop('secret', None)
+
+            generate = api2.payload.pop('generate_secret', False)
+            key_type = api2.payload.pop('key_type', 'ec')
+
+            # If the user has requested the secret be generated and it is a private_key credential_type
+            # call the generate_private_key method to generate a new private key
+            if api2.payload['credential_type'] == 'private_key' and generate is True:
+                private_key = generate_private_key(key_type=key_type)
+                if private_key is not None:
+                    pw = private_key
+            else:
+                if pw is None:
+                    ns_credential_v2.abort(400, 'Secret value is required.')
+
+            # If this is a private key put the key_type property back into the payload
+            if api2.payload['credential_type'] == 'private_key':
+                api2.payload['key_type'] = key_type
+
             credential = Credential(**api2.payload)
             credential.save()
             credential.encrypt(pw.encode(
@@ -942,6 +971,7 @@ class EncryptPassword(Resource):
 
 cred_parser = pager_parser.copy()
 cred_parser.add_argument('name', location='args', required=False, type=str)
+cred_parser.add_argument('name__like', location='args', required=False, type=str)
 cred_parser.add_argument('organization', location='args', required=False, type=str)
 cred_parser.add_argument('page', type=int, location='args', default=1, required=False)
 cred_parser.add_argument('sort_by', type=str, location='args', default='-created_at', required=False)
@@ -951,6 +981,9 @@ cred_parser.add_argument(
 )
 cred_parser.add_argument(
     'sort_direction', type=str, location='args', default='desc', required=False
+)
+cred_parser.add_argument(
+    'type', type=str, location='args', default=None, required=False
 )
 
 @ns_credential_v2.route("")
@@ -970,8 +1003,14 @@ class CredentialList(Resource):
         if 'name' in args and args.name not in [None, '']:
             credentials = credentials.filter('match', name=args.name)
 
+        if 'name__like' in args and args.name__like not in [None, '']:
+            credentials = credentials.filter('wildcard', name=f"*{args.name__like}*")
+
         if 'organization' in args and args.organization not in [None, '']:
             credentials = credentials.filter('term', organization=args.organization)
+
+        if 'type' in args and args.type not in [None, ""]:
+            credentials = credentials.filter('term', credential_type=args.type)
 
         credentials = credentials.sort(args.sort_by)
 
@@ -997,6 +1036,41 @@ class CredentialList(Resource):
 
         return response
 
+@ns_credential_v2.route('/public_key/<uuid>')
+class PublicKey(Resource):
+    
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_credential_public_key)
+    @api2.response('404', 'Credential not found.')
+    @api2.response('400', 'Credential is not a private key.')
+    @api2.response('400', 'Unable to derive public key from private key.')
+    @token_required
+    @user_has('view_credentials')
+    def get(self, uuid, current_user):
+        ''' Returns the public key for a private key credential '''
+        credential = Credential.get_by_uuid(uuid=uuid)
+        if credential:
+            if credential.credential_type == 'private_key':
+                
+                # Decrypt the private key
+                private_key = credential.decrypt(current_app.config['MASTER_PASSWORD'])
+
+                # Derive the public key from the private key
+                if not hasattr(credential, 'key_type'):
+                    credential.key_type = 'ec'
+
+                public_key = derive_public_key(private_key, credential.key_type)
+
+                if public_key is None:
+                    ns_credential_v2.abort(400, 'Unable to derive public key from private key.')
+
+                return {'public_key': public_key}
+
+            else:
+                ns_credential_v2.abort(400, 'Credential is not a private key.')
+        else:
+            ns_credential_v2.abort(404, 'Credential not found.')
+
 
 @ns_credential_v2.route('/decrypt/<uuid>')
 class DecryptPassword(Resource):
@@ -1007,7 +1081,11 @@ class DecryptPassword(Resource):
     @token_required
     @user_has('decrypt_credential')
     def get(self, uuid, current_user):
-        ''' Decrypts the credential for use '''
+        ''' Decrypts the credential for use
+        DEPRECATION WARNING: This endpoint will be unsupported in an upcoming
+        release as agents use a different method for retrieving credential data
+        see `/api/v2.0/credential/retrieve/<uuid>` for the new method
+        '''
         credential = Credential.get_by_uuid(uuid=uuid)
         if credential:
             value = credential.decrypt(current_app.config['MASTER_PASSWORD'])
@@ -1017,6 +1095,49 @@ class DecryptPassword(Resource):
                 ns_credential_v2.abort(401, 'Invalid master password.')
         else:
             ns_credential_v2.abort(404, 'Credential not found.')
+
+
+mod_credential_retrieve = api2.model('CredentialRetrieve', {
+    'key': fields.String(required=True, description='The public key of the agent')
+})
+
+mod_credential_retrive_reply = api2.model('CredentialRetrieveReply', {
+    'secret': fields.String(required=True, description='The encrypted secret'),
+    'key': fields.String(required=True, description='The public key of the server'),
+    'type': fields.String(required=True, description='The type of credential')
+})
+
+@ns_credential_v2.route('/retrieve/<uuid>')
+class RetrieveCredential(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_credential_retrieve)
+    @api2.marshal_with(mod_credential_retrive_reply)
+    @api2.response('404', 'Credential not found.')
+    @token_required
+    @user_has('decrypt_credential')
+    def post(self, uuid, current_user):
+        ''' Sends the credential encrypted using the users
+        public key, which can then be decrypted post transmission
+        on the client side using the private key.
+        '''
+        credential = Credential.get_by_uuid(uuid=uuid)
+        if credential:
+            value = credential.decrypt(current_app.config['MASTER_PASSWORD'])
+
+            agent_public_key = base64.b64decode(api2.payload['key'])
+            agent_public_key = RSA.importKey(agent_public_key)
+
+            cipher = PKCS1_OAEP.new(agent_public_key)
+            
+            encrypted_secret = cipher.encrypt(value.encode())
+
+            data = {
+                'secret': base64.b64encode(encrypted_secret).decode('utf-8'),
+                'type': credential.credential_type
+            }
+
+            return data
 
 
 @ns_credential_v2.route('/<uuid>')
@@ -1059,9 +1180,24 @@ class CredentialDetails(Resource):
                     if cred.uuid != uuid:
                         ns_credential_v2.abort(
                             409, 'Credential name already exists.')
+                        
+            generate = api2.payload.pop('generate_secret', False)
+            key_type = api2.payload.pop('key_type', 'ec')
+                        
+            # Generate a new private key if the user has flagged generate on update
+            if api2.payload['credential_type'] == 'private_key' and generate:
+                private_key = generate_private_key(key_type=key_type)
+                if private_key is not None:
+                    api2.payload['secret'] = private_key
 
-            if 'secret' in api2.payload:
-                credential.encrypt(api2.payload.pop('secret').encode(
+            # If this is a private key put the key_type property back into the payload
+            if api2.payload['credential_type'] == 'private_key':
+                api2.payload['key_type'] = key_type
+
+            secret = api2.payload.pop('secret', None)
+
+            if secret:
+                credential.encrypt(secret.encode(
                 ), current_app.config['MASTER_PASSWORD'])
 
             if len(api2.payload) > 0:
@@ -1246,9 +1382,6 @@ class GlobalSettings(Resource):
         ''' Retrieves the global settings for the system '''
 
         args = settings_parser.parse_args()
-
-        print(args.organization, current_user.organization)
-
         if args.organization:
             if current_user.is_default_org():
                 settings = Settings.load(organization=args.organization)
@@ -1415,15 +1548,3 @@ class DashboardMetrics(Resource):
             'new_events': new_events.count(),
             'time_since_last_event': last_event.created_at.isoformat()+"Z" if last_event else "Never"
         }
-
-@ns_hunting_v2.route("/query")
-class HuntingQuery(Resource):
-
-    @token_required
-    def post(self, current_user):
-
-        search = Search(index='reflex-events-*')
-        search = search.query('query_string', query=api2.payload['query'])
-        results = search.execute()
-        return results.to_dict()
-

@@ -243,7 +243,8 @@ mod_permissions = Model('Permissions', {
     'view_agent_tags': fields.Boolean,
     'create_agent_tag': fields.Boolean,
     'update_agent_tag': fields.Boolean,
-    'delete_agent_tag': fields.Boolean
+    'delete_agent_tag': fields.Boolean,
+    'sync_local_subscribers': fields.Boolean
 })
 
 mod_role_create = Model('RoleCreate', {
@@ -636,10 +637,17 @@ mod_persistent_pairing_token = Model('PeristentPairingToken', {
 })
 
 mod_credential_create = Model('CredentialCreate', {
-    'username': fields.String(required=True),
-    'secret': fields.String(required=True),
+    'username': fields.String(required=False),
+    'secret': fields.String(required=False),
     'name': fields.String(required=True),
-    'description': fields.String(required=True)
+    'description': fields.String(required=True),
+    'credential_type': fields.String(required=True),
+    'generate_secret': fields.Boolean(required=False, default=False),
+    'key_type': fields.String(required=False, default='ec'),
+})
+
+mod_credential_public_key = Model('CredentialPublicKey', {
+    'public_key': fields.String
 })
 
 mod_credential_update = Model('CredentialUpdate', {
@@ -647,7 +655,10 @@ mod_credential_update = Model('CredentialUpdate', {
     'secret': fields.String,
     'name': fields.String,
     'description': fields.String,
-    'organization': fields.String
+    'organization': fields.String,
+    'credential_type': fields.String(required=True),
+    'generate_secret': fields.Boolean(required=False, default=False),
+    'key_type': fields.String(required=False, default='ec')
 })
 
 mod_credential_full = Model('Credential', {
@@ -655,7 +666,8 @@ mod_credential_full = Model('Credential', {
     'organization': fields.String,
     'username': fields.String,
     'name': fields.String,
-    'description': fields.String
+    'description': fields.String,
+    'credential_type': fields.String,
 })
 
 mod_credential_list = Model('CredentialLIst', {
@@ -663,7 +675,8 @@ mod_credential_list = Model('CredentialLIst', {
     'organization': fields.String,
     'name': fields.String,
     'username': fields.String,
-    'description': fields.String
+    'description': fields.String,
+    'credential_type': fields.String,
 })
 
 mod_credential_list_paged = Model('CredentialListPaged', {
@@ -1221,4 +1234,5 @@ mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plu
 mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rql,
 mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_bulk_event_uuids,
 mod_list_values, mod_input_list_paged, mod_agent_group_list_paged, mod_credential_list_paged, mod_agent_list_paged,
-mod_user_list_paged, mod_password_update, mod_input_index_fields, mod_agent_heartbeat]
+mod_user_list_paged, mod_password_update, mod_input_index_fields, mod_agent_heartbeat,
+mod_credential_public_key]
