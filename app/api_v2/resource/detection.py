@@ -1739,14 +1739,16 @@ class DetectionFieldSettings(Resource):
             if not observable_fields or not signature_fields or not tag_fields:
                 source_input = Input.get_by_uuid(detection.source.uuid)
 
+                _input_fields = source_input.get_field_settings()
+
                 # If no final_fields were determined, default to the source input field mapping
                 if not observable_fields:
-                    observable_fields = source_input.get_field_settings()
+                    observable_fields = _input_fields
 
                 # If no signature fields were determined, default to the source input signature fields
                 if not signature_fields:
                     if hasattr(source_input.config, 'signature_fields'):
-                        signature_fields = source_input.config.signature_fields
+                        signature_fields = [field['field'] for field in _input_fields if 'signature_field' in field and field['signature_field'] is True]
                     else:
                         signature_fields = []
 
@@ -1754,7 +1756,7 @@ class DetectionFieldSettings(Resource):
                 if not tag_fields:
                     # Get any tag fields from the input
                     if hasattr(source_input.config, 'tag_fields'):
-                        tag_fields.extend(source_input.config['tag_fields'])
+                        tag_fields.extend([field['field'] for field in _input_fields if 'tag_field' in field and field['tag_field'] is True])
                     else:
                         tag_fields = []
 
