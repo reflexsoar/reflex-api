@@ -516,6 +516,7 @@ class EventListAggregated(Resource):
         
         for event in events:
             observables[event.uuid] = event.observables
+            #event.set_filters(filters=search_filters)
                    
         response = {
             'events': events,
@@ -644,7 +645,6 @@ def fetch_observables_from_history(observables, organization=None):
             if 'tags' in source_observable:
                 observable['tags'] = source_observable['tags']
         
-
     return _observables
 
 
