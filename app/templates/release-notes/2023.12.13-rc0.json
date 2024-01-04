@@ -23,7 +23,7 @@
                 },
                 {
                     "title": "Field Management",
-                    "description": "- Field Templates can now control if a field is used in the signature hash of an event, has it's values extracted as a tag on an event or is extracted as an observable on an event.\n- Signature hash field ordering for Detections is now locked to alphabetical order to prevent mistakes when adding new fields to the hash.  This change will break any previous signature hashes that were created with a different field ordering.\n"
+                    "description": "- Field Templates can now control if a field is used in the signature hash of an event, has it's values extracted as a tag on an event or is extracted as an observable on an event.\n- Signature hash field ordering for Detections is now locked to alphabetical order to prevent mistakes when adding new fields to the hash.  This change will break any previous signature hashes that were created with a different field ordering.\n- Field Templates can now be assigned to Inputs, Detections will inherit the field templates from the input or merge with the input if there is a descrepancy. (Field Templates will be ignored when polling an input, will be changed in a future release).\n"
                 },
                 {
                     "title": "Credentials",
