@@ -34,6 +34,7 @@ from .fim import api as ns_fim_v2
 from .benchmark import api as ns_benchmark_v2
 from .agent_tag import api as ns_agent_tags_v2
 from .search import api as ns_search_v2
+from .application import api as ns_application_v2
 
 __all__ = [
     'ns_playbook_v2',
@@ -72,5 +73,6 @@ __all__ = [
     'ns_fim_v2',
     'ns_benchmark_v2',
     'ns_agent_tags_v2',
-    'ns_search_v2'
+    'ns_search_v2',
+    'ns_application_v2'
 ]
