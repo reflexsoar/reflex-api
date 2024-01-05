@@ -122,6 +122,25 @@ class SearchProxyConfig(InnerDoc):
     logging_level = Keyword()  # What logging level should the role use for its logs?
     credential = Keyword()  # The credentials to use for the search proxy
 
+class InventoryConfig(InnerDoc):
+    '''
+    Contains information about what information the agent should collect on
+    a regular basis
+    '''
+
+    enabled = Boolean()  # Is inventory collection enabled?
+    # How often should the agent collect inventory information?
+    collection_interval = Integer()
+    cache_expiration = Integer()  # How long should the inventory cache be kept?
+    # What inventory information should be collected?
+    installed_software = Boolean()
+    running_services = Boolean()
+    listening_ports = Boolean()
+    local_users = Boolean()
+    network_adapters = Boolean()
+    containers = Boolean()
+
+
 class AgentPolicy(base.BaseDocument):
     '''
     A Reflex agent policy that controls all the configuration of an agent
@@ -139,7 +158,7 @@ class AgentPolicy(base.BaseDocument):
         settings = {
             'refresh_interval': '1s'
         }
-        version = '0.1.5'
+        version = '0.1.6'
 
     name = Keyword()  # What is a friendly name for this agent policy
     # A description of the policy
@@ -163,6 +182,7 @@ class AgentPolicy(base.BaseDocument):
     search_proxy_config = Nested(SearchProxyConfig)
     mitre_mapper_config = Nested(MitreMapperConfig)
     fim_config = Nested(FIMConfig)
+    inventory_config = Object(InventoryConfig)
     tags = Keyword()  # Tags to categorize this policy
     priority = Integer()  # What is the priority of this policy?
     revision = Integer()  # What is the revision of this policy?
