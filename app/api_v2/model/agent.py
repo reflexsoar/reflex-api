@@ -478,6 +478,7 @@ class Agent(base.BaseDocument):
         settings = {
             'refresh_interval': '1s'
         }
+        version = '0.1.5'
 
     @property
     def all_input_ids(self):
