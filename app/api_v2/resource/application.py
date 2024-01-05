@@ -1,12 +1,9 @@
 from flask_restx import Resource, Namespace, fields
 
 from app.api_v2.model import (
-    Agent
+    ApplicationInventory
 )
 
-from app.api_v2.rql.parser import QueryParser
-
-from .shared import NullableString, ISO8601, mod_user_list
 from ..utils import token_required, user_has
 
 api = Namespace('Application', path="/application", description='Application Inventory allows for the tracking of applications installed on agents')
@@ -25,15 +22,16 @@ mod_application = api.model('Application', {
     'language': fields.String(description='The language of the application')
 })
 
+mod_endpoint = api.model('Endpoint', {
+    'hostname': fields.String(description='The hostname of the endpoint'),
+    'uuid': fields.String(description='The uuid of the endpoint'),
+    'application': fields.Nested(mod_application)
+})
+
 mod_application_summary = api.model('ApplicationSummary', {
     'name': fields.String(description='The name of the application'),
     'vendor': fields.String(description='The vendor of the application'),
     'version_count': fields.Integer(description='The number of versions of this application'),
-    'endpoint_count': fields.Integer(description='The number of endpoints with this application installed')
-})
-
-mod_application_version_summary = api.model('ApplicationVersionSummary', {
-    'version': fields.String(description='The version of the application'),
     'endpoint_count': fields.Integer(description='The number of endpoints with this application installed')
 })
 
@@ -42,9 +40,15 @@ mod_application_list = api.model('ApplicationList', {
     'applications': fields.List(fields.Nested(mod_application_summary))
 })
 
+mod_application_list_endpoints = api.model('ApplicationListEndpoints', {
+    'total': fields.Integer(required=True, description='The total number of endpoints'),
+    'endpoints': fields.List(fields.Nested(mod_endpoint))
+})
+
 application_parser = api.parser()
 
 application_parser.add_argument('name', type=str, action='split', default=None, required=False, help='The name of the application')
+application_parser.add_argument('agent', type=str, default=None, required=False, help='The agent name')
 application_parser.add_argument('version', type=str, action='split', default=None, required=False, help='The version of the application')
 application_parser.add_argument('vendor', type=str, required=False, action='split', default=None, help='The vendor of the application')
 application_parser.add_argument('organization', type=str, required=False, action='split', default=None, help='The organization of the application')
@@ -64,17 +68,20 @@ class ApplicationListView(Resource):
 
         args = application_parser.parse_args()
 
-        search = Agent.search()
+        search = ApplicationInventory.search()
 
         # Apply any args passed in
         if args['name']:
-            search = search.filter('terms', host_information__installed_software__name=args['name'])
+            search = search.filter('terms', name=args['name'])
 
         if args['version']:
-            search = search.filter('terms', host_information__installed_software__version=args['version'])
+            search = search.filter('terms', version=args['version'])
 
         if args['vendor']:
-            search = search.filter('terms', host_information__installed_software__vendor=args['vendor'])
+            search = search.filter('terms', vendor=args['vendor'])
+
+        if args['agent']:
+            search = search.filter('terms', name=args['agent'])
 
         if args['organization'] and current_user.is_default_org():
             search = search.filter('terms', organization=args['organization'])
@@ -82,30 +89,19 @@ class ApplicationListView(Resource):
         # Set a search size of 0 to return only aggregations
         search = search.extra(size=0)
 
-        # Search for applications in the agents installed_software field
-        # aggregated by name, with a version_count and endpoint_count cardinality
-        # aggregation.  We have to nest twice, once for host_information and again
-        # for installed_software
-        search.aggs.bucket('host_info', 'nested', path='host_information') \
-            .bucket('applications', 'nested', path='host_information.installed_software') \
-            .bucket('names', 'terms', field='host_information.installed_software.name', size=10000) \
-            .bucket('vendors', 'terms', field="host_information.installed_software.vendor", size=50)
+        # Aggregate by the software name, vendor and count the total versions per vendor and number of endpoints
+        search.aggs.bucket('name', 'terms', field='name', size=10000) \
+        .bucket('vendor', 'terms', field='vendor', size=50)
+
         
-        # Add a version_count per vendor and per app name
-        search.aggs['host_info'].aggs['applications'].aggs['names'].aggs['vendors'] \
-            .bucket('version_count', 'cardinality', field='host_information.installed_software.version')
-        search.aggs['host_info'].aggs['applications'].aggs['names'].aggs['vendors'] \
-            .bucket('version_count', 'cardinality', field='host_information.installed_software.version')
-        
-        # Add a reverse nest under vendors to get the unique endpoint count
-        search.aggs['host_info'].aggs['applications'].aggs['names'].aggs['vendors'] \
-            .bucket('endpoint', 'reverse_nested') \
-            .bucket('endpoint_count', 'cardinality', field='name')
-        
-        # Add a reverse nest under names to get the unique endpoint count
-        search.aggs['host_info'].aggs['applications'].aggs['names'] \
-            .bucket('endpoint', 'reverse_nested') \
-            .bucket('endpoint_count', 'cardinality', field='name')
+
+        # Aggregate endpoint_count and version_count by name as well in case vendor is not specified
+        search.aggs['name'].bucket('version_count', 'cardinality', field='version')
+        search.aggs['name'].bucket('endpoint_count', 'cardinality', field='agent.name')
+
+        # Aggregate endpoint_count and version_count by vendor
+        search.aggs['name'].aggs['vendor'].bucket('version_count', 'cardinality', field='version')
+        search.aggs['name'].aggs['vendor'].bucket('endpoint_count', 'cardinality', field='agent.name')
         
         # Execute the search
         response = search.execute()
@@ -113,26 +109,63 @@ class ApplicationListView(Resource):
         # Summarize the data for each application into a list of dictionaries that look like
         # { name: <name>, version_count: <version_count>, endpoint_count: <endpoint_count> }
         applications = []
-        for application in response.aggregations.host_info.applications.names.buckets:
-            if len(application.vendors.buckets) > 0:
-                # For each vendor in the application, add a summary
-                for vendor in application.vendors.buckets:
+        for name in response.aggregations.name.buckets:
+            if len(name.vendor.buckets) == 0:
+                applications.append({
+                    'name': name.key,
+                    'vendor': 'N/A',
+                    'version_count': name.version_count.value,
+                    'endpoint_count': name.endpoint_count.value
+                })
+            else:
+                for vendor in name.vendor.buckets:
                     applications.append({
-                        'name': application.key,
+                        'name': name.key,
                         'vendor': vendor.key,
                         'version_count': vendor.version_count.value,
-                        'endpoint_count': vendor.endpoint.endpoint_count.value
+                        'endpoint_count': vendor.endpoint_count.value
                     })
-            else:
-                # If there are no vendors, add a summary with a blank vendor
-                applications.append({
-                    'name': application.key,
-                    'vendor': 'N/A',
-                    'version_count': application.version_count.value,
-                    'endpoint_count': application.endpoint.endpoint_count.value
-                })
 
         return {
             'total': len(applications),
             'applications': applications
+        }
+
+@api.route('/summary/endpoints')
+class ApplicationDetails(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_application_list_endpoints)
+    @api.expect(application_parser)
+    @api.response(200, 'Success')
+    @api.response(400, 'Bad Request')
+    @token_required
+    @user_has('view_agents')
+    def get(self, current_user):
+        '''List all endpoints with a specific application installed'''
+
+        args = application_parser.parse_args()
+
+        search = ApplicationInventory.search()
+
+        # Apply any args passed in
+        if args['name']:
+            search = search.filter('terms', name=args['name'])
+
+        if args['version']:
+            search = search.filter('terms', version=args['version'])
+
+        if args['vendor']:
+            search = search.filter('terms', vendor=args['vendor'])
+
+        if args['organization'] and current_user.is_default_org():
+            search = search.filter('terms', organization=args['organization'])
+
+        print(search.to_dict())
+
+        results = [r for r in search.scan()]
+
+        return {
+            'endpoints': results,
+            'total': len(results)
         }
