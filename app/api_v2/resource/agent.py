@@ -592,7 +592,12 @@ class AgentHeartbeat(Resource):
                     api.payload['tags'] = agent_tags
                 
                 # Inventory the agents installed software
-                installed_software = api.payload.get('host_information', {}).get('installed_software', [])
+                host_information = api.payload.get('host_information', None)
+                installed_software = []
+                if host_information:
+                    
+                    installed_software = host_information.get('installed_software', [])
+
                 if len(installed_software) > 0:
                     ApplicationInventory.bulk_add(agent, installed_software)
 
