@@ -18,7 +18,8 @@ from ..model import (
     Role,
     AgentGroup,
     AgentTag,
-    ExpiredToken
+    ExpiredToken,
+    ApplicationInventory
 )
 
 from app.api_v2.model.benchmark import (
@@ -585,13 +586,19 @@ class AgentHeartbeat(Resource):
                     except Exception:
                         api.payload['geo'] = None
 
-                agent.update(last_heartbeat=datetime.datetime.utcnow(),
-                             **api.payload, refresh=True)
-                
+                # Assign the agents tags if they have changed
                 agent_tags = AgentTag.set_agent_tags(agent)
                 if agent.tags != agent_tags:
-                    agent.tags = agent_tags
-                    agent.save(refresh=True)
+                    api.payload['tags'] = agent_tags
+                
+                # Inventory the agents installed software
+                installed_software = api.payload.get('host_information', {}).get('installed_software', [])
+                if len(installed_software) > 0:
+                    ApplicationInventory.bulk_add(agent, installed_software)
+
+                # Update the agent
+                agent.update(last_heartbeat=datetime.datetime.utcnow(),
+                             **api.payload, refresh=True)
 
                 return {'message': 'Your heart still beats!'}
         else:
