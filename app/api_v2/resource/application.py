@@ -22,10 +22,13 @@ mod_application = api.model('Application', {
     'language': fields.String(description='The language of the application')
 })
 
-mod_endpoint = api.model('Endpoint', {
-    'hostname': fields.String(description='The hostname of the endpoint'),
-    'uuid': fields.String(description='The uuid of the endpoint'),
-    'application': fields.Nested(mod_application)
+mod_agent_info = api.model('AgentInfo', {
+    'name': fields.String(description='The name of the agent'),
+    'uuid': fields.String(description='The uuid of the agent')
+})
+
+mod_endpoint_application = api.clone('EndpointApplication', mod_application, {
+    'agent': fields.Nested(mod_agent_info, description='The agent that has this application installed')
 })
 
 mod_application_summary = api.model('ApplicationSummary', {
@@ -42,7 +45,7 @@ mod_application_list = api.model('ApplicationList', {
 
 mod_application_list_endpoints = api.model('ApplicationListEndpoints', {
     'total': fields.Integer(required=True, description='The total number of endpoints'),
-    'endpoints': fields.List(fields.Nested(mod_endpoint))
+    'endpoints': fields.List(fields.Nested(mod_endpoint_application))
 })
 
 application_parser = api.parser()
