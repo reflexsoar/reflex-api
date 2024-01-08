@@ -80,6 +80,14 @@ mod_inventory_config = api.model('InventoryConfig', {
     'containers': fields.Boolean(default=True)
 })
 
+mod_winlog_config = api.model('WinlogConfig', {
+    'wait_interval': fields.Integer(default=60),
+    'logging_level': fields.String(default='ERROR'),
+    'graceful_exit': fields.Boolean(default=True),
+    'log_source_config': fields.List(fields.String, default=[]),
+    'default_output': fields.List(fields.String, default=[])
+})
+
 mod_agent_policy = api.model('AgentPolicy', {
     'name': fields.String,
     'organization': fields.String,
@@ -97,6 +105,7 @@ mod_agent_policy = api.model('AgentPolicy', {
     'search_proxy_config': fields.Nested(mod_search_proxy_config),
     'fim_config': fields.Nested(mod_fim_config),
     'inventory_config': fields.Nested(mod_inventory_config),
+    'winlog_config': fields.Nested(mod_winlog_config),
     'tags': fields.List(fields.String, default=[]),
     'priority': fields.Integer(default=1),
     'agent_tags': fields.List(fields.String, default=[]),
