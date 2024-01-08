@@ -7,9 +7,19 @@ import random
 import ipaddress
 import math
 import elasticapm
+from functools import lru_cache
 
 from flask import request, current_app, abort
-from .model import EventLog, User, ExpiredToken, Settings, Agent, ServiceAccount
+from .model import EventLog, User, ExpiredToken, Settings, Agent, ServiceAccount, Organization
+
+@lru_cache(maxsize=None)
+def org_uuid_to_name(org_id):
+    """Returns the organizatio name based on the UUID"""
+    if org_id:
+        organization = Organization.get_by_uuid(org_id)
+        if organization:
+            return organization.name
+    return ""
 
 def random_ending(prefix=None, length=10):
     '''

@@ -15,6 +15,7 @@ from jinja2.exceptions import UndefinedError as JinjaUndefinedError
 from pdpyras import EventsAPISession
 from requests.exceptions import ConnectionError
 from app.api_v2.model import Notification, NotificationChannel, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE, Event, Case, Settings, Credential, Detection
+from app.api_v2.utils import org_uuid_to_name
 
 
 class Notifier(object):
@@ -265,19 +266,24 @@ class Notifier(object):
                         if hasattr(detection, 'email_template') and detection.email_template != "":
                             template = detection.email_template
 
-            jinja_template = environment.from_string(template)
+            #jinja_template = environment.from_string(template)
                             
-            if source_object:                
+            if source_object:
 
                 source_dict = source_object.to_dict()
+
+                if 'organization' in source_dict:
+                    source_dict['organization_name'] = org_uuid_to_name(source_dict['organization'])
+
                 if 'raw_log' in source_dict:
                     source_dict['raw_log'] = json.loads(source_dict['raw_log'])
                 try:
-                    message = jinja_template.render(source_dict)
-                except JinjaUndefinedError as e:
+                    #message = jinja_template.render(source_dict)
+                    message = chevron.render(template, source_object.to_dict())
+                except Exception as e:
                     message = template + "\n\n" + f"Error parsing source object: {str(e)}"
 
-                #message = chevron.render(template, source_object.to_dict())
+                
                 return message
 
         return template
