@@ -14,7 +14,7 @@ from .model import EventLog, User, ExpiredToken, Settings, Agent, ServiceAccount
 
 @lru_cache(maxsize=None)
 def org_uuid_to_name(org_id):
-    """Returns the organizatio name based on the UUID"""
+    """Returns the organization name based on the UUID"""
     if org_id:
         organization = Organization.get_by_uuid(org_id)
         if organization:
