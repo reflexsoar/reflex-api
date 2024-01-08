@@ -134,7 +134,7 @@ class InventoryConfig(InnerDoc):
     cache_expiration = Integer()  # How long should the inventory cache be kept?
     # What inventory information should be collected?
     installed_software = Boolean()
-    running_services = Boolean()
+    services = Boolean()
     listening_ports = Boolean()
     local_users = Boolean()
     network_adapters = Boolean()
