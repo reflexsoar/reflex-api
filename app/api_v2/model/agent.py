@@ -24,7 +24,7 @@ from . import (
     Float
 )
 
-PLUGGABLE_SUPPORTED_ROLES = ['fim']
+PLUGGABLE_SUPPORTED_ROLES = ['fim', 'winlog', 'benchmark', 'search_proxy']
 
 
 class RunnerRoleConfig(InnerDoc):
@@ -141,6 +141,18 @@ class InventoryConfig(InnerDoc):
     containers = Boolean()
 
 
+class WinlogConfig(InnerDoc):
+    '''
+    Contains information about how the Winlog agent role is configured
+    for agents consuming the agent policy associated with this config
+    '''
+    wait_interval = Integer()  # How long should the agent wait between runs
+    logging_level = Keyword()  # What logging level should the agent use for its logs?
+    graceful_exit = Boolean()  # Should the agent attempt a graceful exit when asked to shut down
+    log_source_config = Keyword()  # The log sources to collect
+    default_output = Keyword()  # The default output for the agent
+
+
 class AgentPolicy(base.BaseDocument):
     '''
     A Reflex agent policy that controls all the configuration of an agent
@@ -183,6 +195,7 @@ class AgentPolicy(base.BaseDocument):
     mitre_mapper_config = Nested(MitreMapperConfig)
     fim_config = Nested(FIMConfig)
     inventory_config = Object(InventoryConfig)
+    winlog_config = Object(WinlogConfig)
     tags = Keyword()  # Tags to categorize this policy
     priority = Integer()  # What is the priority of this policy?
     revision = Integer()  # What is the revision of this policy?
