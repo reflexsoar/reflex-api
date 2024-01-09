@@ -122,8 +122,7 @@ class LogstashSettings(base.BaseDocument):
     host = Keyword()
     port = Integer()
     auth_method = Keyword()  # One of the options from the LOGSTASH_VALID_AUTH_METHODS list
-    username = Keyword()  # Username for basic auth
-    password = Keyword()  # Password for basic auth
+    credential = Keyword()  # The UUID of the Credential object to use for authentication
     protocol = Keyword()  # One of the options from the LOGSTASH_VALID_PROTOCOLS list
     log_format = Keyword()  # One of the options from the LOGSTASH_VALID_LOG_FORMATS list
     ssl = Boolean()
