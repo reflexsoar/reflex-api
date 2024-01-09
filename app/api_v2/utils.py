@@ -466,6 +466,11 @@ def _check_token():
                 if 'default_org' in token and token['default_org']:
                     current_user.default_org = True
 
+                # Append the users token claims/permissions to their
+                # user object
+                if 'permissions' in token:
+                    current_user.token_permissions = token['permissions']
+
             except ValueError:
                 abort(401, 'Token retired.')
             except jwt.ExpiredSignatureError:
