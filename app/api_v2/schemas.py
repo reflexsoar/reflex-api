@@ -245,10 +245,10 @@ mod_permissions = Model('Permissions', {
     'update_agent_tag': fields.Boolean,
     'delete_agent_tag': fields.Boolean,
     'sync_local_subscribers': fields.Boolean,
-    'create_log_source': fields.Boolean,
-    'update_log_source': fields.Boolean,
-    'delete_log_source': fields.Boolean,
-    'view_log_sources': fields.Boolean
+    #'create_log_source': fields.Boolean,
+    #'update_log_source': fields.Boolean,
+    #'delete_log_source': fields.Boolean,
+    #'view_log_sources': fields.Boolean
 })
 
 mod_role_create = Model('RoleCreate', {

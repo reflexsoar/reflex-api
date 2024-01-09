@@ -121,12 +121,6 @@ from .application import (
     ApplicationInventory
 )
 
-from .log_sources import (
-    LogSource,
-    LogCollectionPolicy,
-    LogOutput
-)
-
 VERSION = (2, 0, 0)
 __version__ = VERSION
 __versionstr__ = '.'.join(map(str, VERSION))
@@ -214,8 +208,5 @@ __all__ = [
     'EventRelatedObject',
     'SearchProxyJob',
     'ApplicationInventory',
-    'bulk',
-    'LogSource',
-    'LogCollectionPolicy',
-    'LogOutput'
+    'bulk'
 ]
