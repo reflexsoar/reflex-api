@@ -302,7 +302,11 @@ mod_permissions = Model('Permissions', {
     'create_agent_tag': fields.Boolean,
     'update_agent_tag': fields.Boolean,
     'delete_agent_tag': fields.Boolean,
-    'sync_local_subscribers': fields.Boolean
+    'sync_local_subscribers': fields.Boolean,
+    'create_log_source': fields.Boolean,
+    'update_log_source': fields.Boolean,
+    'delete_log_source': fields.Boolean,
+    'view_log_sources': fields.Boolean
 }, strict=True)
 
 mod_user_list = Model('UserList', {
