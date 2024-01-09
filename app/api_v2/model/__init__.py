@@ -16,6 +16,7 @@ memcached_client = mc
 
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
     from opensearch_dsl.utils import AttrList
+    
     from opensearch_dsl import (
         Document,
         InnerDoc,
@@ -37,6 +38,7 @@ if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
         Binary,
         analyzer
     )
+    from opensearchpy.helpers import bulk
 else:
     from elasticsearch_dsl.utils import AttrList
     from elasticsearch_dsl import (
@@ -60,6 +62,7 @@ else:
         Binary,
         analyzer
     )
+    from elasticsearch.helpers import bulk
 
 from .user import User, Role, ExpiredToken, Organization, ServiceAccount
 from .agent import Agent, AgentGroup, AgentPolicy, AgentLogMessage
@@ -204,5 +207,6 @@ __all__ = [
     'BenchmarkFrameworkRule',
     'EventRelatedObject',
     'SearchProxyJob',
-    'ApplicationInventory'
+    'ApplicationInventory',
+    'bulk'
 ]

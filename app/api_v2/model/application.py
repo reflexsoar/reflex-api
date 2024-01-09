@@ -4,7 +4,8 @@ from . import (
     Keyword,
     base,
     Object,
-    Boolean
+    Boolean,
+    bulk
 )
 
 class ApplicationInventory(base.BaseDocument):
@@ -35,6 +36,13 @@ class ApplicationInventory(base.BaseDocument):
         settings = {
             'refresh_interval': '5s',
         }
+
+    @classmethod
+    def _bulk(cls, applications: list):
+        '''
+        Bulk adds application inventory data
+        '''
+        bulk(cls._get_connection(), (cls(**x).to_dict(True) for x in applications))
 
     @classmethod
     def bulk_add(cls, agent, applications):
@@ -107,14 +115,15 @@ class ApplicationInventory(base.BaseDocument):
             cls.search().filter('term', agent__uuid=agent.uuid).delete()
         except Exception:
             return
-
+        
         for application in applications:
             application['agent'] = {
                 'name': agent.name,
                 'uuid': agent.uuid
             }
             application['organization'] = agent.organization
-            cls(**application).save()
+        
+        cls._bulk(applications)
 
     @classmethod
     def compute_signature(cls, name, version, vendor):
