@@ -27,6 +27,7 @@ from . import (
     Nested,
     InnerDoc,
     UpdateByQuery,
+    bulk
 )
 
 from app.api_v2.model.comment import Comment
@@ -1144,6 +1145,14 @@ class EventRelatedObject(base.BaseDocument):
         settings = {
             'refresh_interval': '1s'
         }
+
+    @classmethod
+    def bulk(cls, items: list):
+        '''
+        Bulk adds application inventory data
+        '''
+
+        bulk(cls._get_connection(), (cls(**x).to_dict(True) for x in items))
 
     def save(self, skip_update_by=False, **kwargs):
 
