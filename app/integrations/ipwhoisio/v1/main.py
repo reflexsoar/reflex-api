@@ -40,43 +40,24 @@ class IPWhoisIO(IntegrationBase):
 
         markdown_output = ""
 
+        params = {}
+
+        # If we have an API key, add it to the request with security=1
+        # to pull the full data set
         if api_key:
-            if isinstance(ips, list):
-                request = session.get(
-                    f"https://ipwhois.pro/bulk/{','.join(ips)}?key={api_key}&security=1")
-            if isinstance(ips, str):
-                request = session.get(
-                    f"https://ipwhois.pro/bulk/{ips}?key={api_key}&security=1")
+            params = {
+                'key': api_key,
+                'security': 1
+            }
 
-            if request.status_code == 200:
-                data = request.json()
+        if isinstance(ips, str):
+            ips = [ips]
 
-                if isinstance(data, list):
-                    for result in data:
-                        _ip = result.get('ip')
-                        markdown_output += f"## IP Whois for {_ip}\n"
-                        markdown_output += self.dict_as_markdown_table(result)
-                        markdown_output += "\n\n"
-                else:
-                    markdown_output += f"## IP Whois for {ips}\n"
-                    markdown_output += self.dict_as_markdown_table(data)
-                    markdown_output += "\n\n"
-
-        else:
-            if isinstance(ips, list):
-                for ip in ips:
-                    markdown_output += f"## IP Whois for {ip}\n"
-                    request = session.get(f"https://ipwho.is/{ip}")
-                    if request.status_code == 200:
-                        data = request.json()
-                        markdown_output += self.dict_as_markdown_table(data)
-                    else:
-                        markdown_output += f"No IP data found for {ips}"
-                    markdown_output += "\n\n"
-
-            if isinstance(ips, str):
-                request = session.get(f"https://ipwho.is/{ips}")
-                markdown_output += f"## IP Whois for {ips}\n"
+        if isinstance(ips, list):
+            for ip in ips:
+                markdown_output += f"## IP Whois for {ip}\n"
+                url = f"https://ipwhois.io/json/{ip}"                    
+                request = session.get(f"https://ipwho.is/{ip}", params=params)
                 if request.status_code == 200:
                     data = request.json()
                     markdown_output += self.dict_as_markdown_table(data)
