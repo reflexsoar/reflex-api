@@ -1,0 +1,217 @@
+{
+    "name": "VirusTotal",
+    "product_identifier": "49baf7fe-b994-459e-9c9f-77eb4ab9b01f",
+    "brief_description": "Analyse suspicious files, domains, IPs and URLs to detect malware and other breaches, automatically share them with the security community.",
+    "description": "Analyse suspicious files, domains, IPs and URLs to detect malware and other breaches, automatically share them with the security community.",
+    "author": "Brian Carroll <brian@hasecuritysolutions.com>",
+    "tags": [
+        "observable",
+        "event"
+    ],
+    "category": [
+        "Enrichment"
+    ],
+    "enabled": false,
+    "contributor": [
+        "Justin Henderson <justin@hasecuritysolutions.com>"
+    ],
+    "license": "H&A Security Solutions - Premium Support",
+    "version": "1.0.0",
+    "manifest": {
+        "actions": [
+            {
+                "friendly_name": "Scan File",
+                "name": "scan_file",
+                "type": "action",
+                "description": "Submits a file to VirusTotal for scanning",
+                "tags": [
+                    "event",
+                    "observable"
+                ],
+                "target_object": "event",
+                "run_from": "console",
+                "parameters": {},
+                "trigger": [
+                    "event_rule",
+                    "manual"
+                ],
+                "source_object_type": [
+                    "event",
+                    "observable",
+                    "file"
+                ],
+                "configuration": {}
+            },
+            {
+                "friendly_name": "Scan URL",
+                "name": "scan_url",
+                "type": "action",
+                "description": "Submits a URL to VirusTotal for scanning",
+                "tags": [
+                    "event",
+                    "observable"
+                ],
+                "target_object": "event",
+                "run_from": "console",
+                "parameters": {
+                    "url": {
+                        "label": "URL",
+                        "type": "str-select",
+                        "required": false,
+                        "default_options_from": "observables",
+                        "observable_data_type": "url",
+                        "description": "The URL to scan"
+                    }
+                },
+                "trigger": [
+                    "event_rule",
+                    "manual"
+                ],
+                "source_object_type": [
+                    "event",
+                    "observable"
+                ],
+                "configuration": {}
+            },
+            {
+                "friendly_name": "Get Domain Report",
+                "name": "get_domain_report",
+                "type": "action",
+                "description": "Gets a report for a domain from VirusTotal",
+                "tags": [
+                    "event",
+                    "observable"
+                ],
+                "target_object": "event",
+                "run_from": "console",
+                "parameters": {
+                    "domain": {
+                        "label": "Domain",
+                        "type": "str-select",
+                        "required": false,
+                        "default_options_from": "observables",
+                        "observable_data_type": "domain",
+                        "description": "The domain to get a report for"
+                    }
+                },
+                "trigger": [
+                    "event_rule",
+                    "manual"
+                ],
+                "source_object_type": [
+                    "event",
+                    "observable"
+                ],
+                "configuration": {}
+            },
+            {
+                "friendly_name": "Get IP Report",
+                "name": "get_ip_report",
+                "type": "action",
+                "description": "Gets a report for an IP from VirusTotal",
+                "tags": [
+                    "event",
+                    "observable"
+                ],
+                "target_object": "event",
+                "run_from": "console",
+                "parameters": {
+                    "ip": {
+                        "label": "IP",
+                        "type": "str-select",
+                        "required": false,
+                        "default_options_from": "observables",
+                        "observable_data_type": "ip",
+                        "description": "The IP to get a report for"
+                    }
+                },
+                "trigger": [
+                    "event_rule",
+                    "manual"
+                ],
+                "source_object_type": [
+                    "event",
+                    "observable"
+                ],
+                "configuration": {}
+            },
+            {
+                "friendly_name": "Get URL Report",
+                "name": "get_url_report",
+                "type": "action",
+                "description": "Gets a report for a URL from VirusTotal",
+                "tags": [
+                    "event",
+                    "observable"
+                ],
+                "target_object": "event",
+                "run_from": "console",
+                "parameters": {
+                    "url": {
+                        "label": "URL",
+                        "type": "str-select",
+                        "required": false,
+                        "default_options_from": "observables",
+                        "observable_data_type": "url",
+                        "description": "The URL to get a report for"
+                    }
+                },
+                "trigger": [
+                    "event_rule",
+                    "manual"
+                ],
+                "source_object_type": [
+                    "event",
+                    "observable"
+                ],
+                "configuration": {}
+            },
+            {
+                "friendly_name": "Get File Report by Hash",
+                "name": "get_file_report_by_hash",
+                "type": "action",
+                "description": "Gets a report for a file from VirusTotal by hash",
+                "tags": [
+                    "event",
+                    "observable"
+                ],
+                "target_object": "event",
+                "run_from": "console",
+                "parameters": {
+                    "hash": {
+                        "label": "Hash",
+                        "type": "str-select",
+                        "required": false,
+                        "default_options_from": "observables",
+                        "observable_data_type": [
+                            "md5hash",
+                            "sha1hash",
+                            "sha256hash",
+                            "imphash"
+                        ],
+                        "description": "The hash to get a report for"
+                    }
+                },
+                "trigger": [
+                    "event_rule",
+                    "manual"
+                ],
+                "source_object_type": [
+                    "event",
+                    "observable"
+                ],
+                "configuration": {}
+            }
+        ],
+        "configuration": {
+            "api_key": {
+                "label": "API Key",
+                "type": "str",
+                "required": false,
+                "secret": true,
+                "description": "The API key for VirusTotal"
+            }
+        }
+    },
+    "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/VirusTotal_logo.svg/800px-VirusTotal_logo.svg.png"
+}
