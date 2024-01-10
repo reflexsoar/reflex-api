@@ -40,7 +40,14 @@
                     "observable",
                     "file"
                 ],
-                "configuration": {}
+                "configuration": {
+                    "comment_template": {
+                        "label": "Comment Template",
+                        "type": "text",
+                        "required": false,
+                        "description": "The template to use for the comment.  Using {{ variable }} replacement within the comment."
+                    }
+                }
             },
             {
                 "friendly_name": "Scan URL",
@@ -71,7 +78,14 @@
                     "event",
                     "observable"
                 ],
-                "configuration": {}
+                "configuration": {
+                    "comment_template": {
+                        "label": "Comment Template",
+                        "type": "text",
+                        "required": false,
+                        "description": "The template to use for the comment.  Using {{ variable }} replacement within the comment."
+                    }
+                }
             },
             {
                 "friendly_name": "Get Domain Report",
@@ -102,7 +116,14 @@
                     "event",
                     "observable"
                 ],
-                "configuration": {}
+                "configuration": {
+                    "comment_template": {
+                        "label": "Comment Template",
+                        "type": "text",
+                        "required": false,
+                        "description": "The template to use for the comment.  Using {{ variable }} replacement within the comment."
+                    }
+                }
             },
             {
                 "friendly_name": "Get IP Report",
@@ -118,7 +139,7 @@
                 "parameters": {
                     "ip": {
                         "label": "IP",
-                        "type": "str-select",
+                        "type": "str-multiple",
                         "required": false,
                         "default_options_from": "observables",
                         "observable_data_type": "ip",
@@ -133,7 +154,14 @@
                     "event",
                     "observable"
                 ],
-                "configuration": {}
+                "configuration": {
+                    "comment_template": {
+                        "label": "Comment Template",
+                        "type": "text",
+                        "required": false,
+                        "description": "The template to use for the comment.  Using {{ variable }} replacement within the comment."
+                    }
+                }
             },
             {
                 "friendly_name": "Get URL Report",
@@ -164,7 +192,14 @@
                     "event",
                     "observable"
                 ],
-                "configuration": {}
+                "configuration": {
+                    "comment_template": {
+                        "label": "Comment Template",
+                        "type": "text",
+                        "required": false,
+                        "description": "The template to use for the comment.  Using {{ variable }} replacement within the comment."
+                    }
+                }
             },
             {
                 "friendly_name": "Get File Report by Hash",
@@ -200,7 +235,14 @@
                     "event",
                     "observable"
                 ],
-                "configuration": {}
+                "configuration": {
+                    "comment_template": {
+                        "label": "Comment Template",
+                        "type": "text",
+                        "required": false,
+                        "description": "The template to use for the comment.  Using {{ variable }} replacement within the comment."
+                    }
+                }
             }
         ],
         "configuration": {

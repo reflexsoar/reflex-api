@@ -1,9 +1,21 @@
 import requests_cache
+import chevron
 from requests import Session
 from app.integrations.base import IntegrationBase
+from .templates import (
+    IP_COMMENT_TEMPLATE,
+    FILE_REPORT_HASH_COMMENT_TEMPLATE,
+    DOMAIN_REPORT_COMMENT_TEMPLATE
+)
 
 
 class VirusTotal(IntegrationBase):
+
+    comment_template_map = {
+        'get_domain_report': DOMAIN_REPORT_COMMENT_TEMPLATE,
+        'get_ip_report': IP_COMMENT_TEMPLATE,
+        'get_file_report_by_hash': FILE_REPORT_HASH_COMMENT_TEMPLATE
+    }
 
     def _load_configuration_elements(self, uuid, events):
         """ Helper function to load the settings that each action will
@@ -28,7 +40,7 @@ class VirusTotal(IntegrationBase):
                 api_key = configuration.global_settings.api_key
 
         return api_key, configuration, events
-    
+
     def _total_analysis_platforms(self, last_analysis_stats):
         """ Helper function to summarize the last analysis stats """
 
@@ -38,7 +50,6 @@ class VirusTotal(IntegrationBase):
 
         return total_engines
 
-
     def action_scan_file(self, configuration_uuid, events, files=None, *args, **kwargs):
         pass
 
@@ -46,15 +57,19 @@ class VirusTotal(IntegrationBase):
         pass
 
     def action_get_domain_report(self, configuration_uuid, events, domain=None, *args, **kwargs):
-        
+
         action_name = 'get_domain_report'
 
         api_key, configuration, events = self._load_configuration_elements(
             configuration_uuid, events)
 
+        comment_template = self.get_comment_template(configuration, action_name)
+
         session = Session()
 
         markdown_output = ""
+
+        comments = []
 
         if isinstance(domain, str):
             domain = [domain]
@@ -67,29 +82,74 @@ class VirusTotal(IntegrationBase):
                     if request.status_code == 200:
                         data = request.json()
                         markdown_output += f"## Domain Report for {d}\n"
-                        markdown_output += self.dict_as_markdown_table(data['data']['attributes'])
+                        markdown_output += self.dict_as_markdown_table(
+                            data['data']['attributes'])
                         markdown_output += "\n\n"
+                        if comment_template:
+                            comments.append(chevron.render(comment_template, data))
 
         if markdown_output:
             virustotal.add_output_to_event(
                 [e.uuid for e in events], action_name, configuration, markdown_output, output_format="markdown")
+            virustotal.add_event_comment_as_artifact(events, "\n".join(
+                comments), action=action_name, configuration=configuration_uuid)
         else:
             virustotal.add_output_to_event(
                 [e.uuid for e in events], action_name, configuration, "No Domain data found", output_format="markdown")
 
+    def action_get_ip_report(self, configuration_uuid, events, ip=None, *args, **kwargs):
 
-    def action_get_ip_report(self, configuration_uuid, events, ips=None, *args, **kwargs):
-        pass
+        action_name = 'get_ip_report'
+
+        api_key, configuration, events = self._load_configuration_elements(
+            configuration_uuid, events)
+
+        comment_template = self.get_comment_template(configuration, action_name)
+
+        session = Session()
+
+        markdown_output = ""
+
+        # Collect any comments we want to add to the event
+        comments = []
+
+        if isinstance(ip, str):
+            ip = [ip]
+
+        if api_key:
+            if isinstance(ip, list):
+                for i in ip:
+                    request = session.get(
+                        f"https://www.virustotal.com/api/v3/ip_addresses/{i}", headers={'x-apikey': api_key})
+                    if request.status_code == 200:
+                        data = request.json()
+                        markdown_output += f"## IP Report for {i}\n"
+                        markdown_output += self.dict_as_markdown_table(
+                            data['data']['attributes'])
+                        markdown_output += "\n\n"
+                        if comment_template:
+                            comments.append(chevron.render(comment_template, data))
+
+        if markdown_output:
+            virustotal.add_output_to_event(
+                [e.uuid for e in events], action_name, configuration, markdown_output, output_format="markdown")
+            virustotal.add_event_comment_as_artifact(events, "\n".join(
+                comments), action=action_name, configuration=configuration_uuid)
+        else:
+            virustotal.add_output_to_event(
+                [e.uuid for e in events], action_name, configuration, "No IP data found", output_format="markdown")
 
     def action_get_url_report(self, configuration_uuid, events, urls=None, *args, **kwargs):
         pass
 
     def action_get_file_report_by_hash(self, configuration_uuid, events, file_hash=None, *args, **kwargs):
-        
+
         action_name = 'get_file_report_by_hash'
 
         api_key, configuration, events = self._load_configuration_elements(
             configuration_uuid, events)
+
+        comment_template = self.get_comment_template(configuration, action_name)
 
         session = Session()
 
@@ -110,21 +170,19 @@ class VirusTotal(IntegrationBase):
                     if request.status_code == 200:
                         data = request.json()
                         markdown_output += f"## File Report for {h}\n"
-                        markdown_output += self.dict_as_markdown_table(data['data']['attributes'])
+                        markdown_output += self.dict_as_markdown_table(
+                            data['data']['attributes'])
                         markdown_output += "\n\n"
-                        comments.append(f"The file hash `{h}` was found in VirusTotal.  {data['data']['attributes']['last_analysis_stats']['malicious']} out of {self._total_analysis_platforms(data['data']['attributes']['last_analysis_stats'])} AV engines detected this file as malicious.")
+                        if comment_template:
+                            comments.append(chevron.render(comment_template, data))
 
         if markdown_output:
             virustotal.add_output_to_event(
                 [e.uuid for e in events], action_name, configuration, markdown_output, output_format="markdown")
-            #virustotal.add_event_comment([e.uuid for e in events], "\n".join(comments))
-            virustotal.add_event_comment_as_artifact(events, "\n".join(comments), action=action_name, configuration=configuration_uuid)
+            virustotal.add_event_comment_as_artifact(events, "\n".join(
+                comments), action=action_name, configuration=configuration_uuid)
         else:
             virustotal.add_output_to_event(
                 [e.uuid for e in events], action_name, configuration, "No Hash Report found", output_format="markdown")
-
-    def action_test(self):
-        print("HELLO WORLD THIS IS A TEST ACTION")
-
 
 virustotal = VirusTotal()
