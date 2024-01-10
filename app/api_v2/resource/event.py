@@ -1549,16 +1549,29 @@ class EventComment(Resource):
 
         event = Event.get_by_uuid(uuid)
 
-        # TODO: Fetch these from the reflex-comments index instead using the events
+        # Fetch comments reflex-event-related-objects index instead using the events
         # UUID as the parent parameter
-        # comments = Comment.get_by_parent(event.uuid, sort_by='created_at', asc=False)
-        
-        event.comments.sort(key = lambda x: x['created_at'], reverse=True)
+        search = EventRelatedObject.search()
+        search = search.filter('term', event__uuid=uuid)
+        search = search.filter('term', entry__type='comment')
+        search = search.sort({'created_at': {'order': 'desc'}})
+        results = [e.comment.to_dict() for e in search.scan()]
+
+        # DEPRECATION WARNING: Legacy comments will be removed in a future release
+        # and only comments stored in the reflex-event-related-objects index will
+        # be used.
+        _legacy_comments = [c.to_dict() for c in event.comments if not any([c['uuid'] == r['uuid'] for r in results])]
+        results.extend(_legacy_comments)
+
+        # Order the comments by created_at with newest first
+        results = sorted(results, key=lambda k: k['created_at'], reverse=True)
 
         if not event:
             api.abort(404, 'Event not found.')
 
-        return event
+        return {
+            'comments': results
+        }
     
 
     @api.doc(security="Bearer")
