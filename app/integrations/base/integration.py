@@ -7,7 +7,8 @@ from datetime import datetime
 from flask_restx import Namespace, Resource
 from app.api_v2.model import (
     UpdateByQuery,
-    Event
+    Event,
+    EventRelatedObject
 )
 from app.api_v2.model.case import CloseReason
 from app.api_v2.model.threat import ThreatList
@@ -37,7 +38,6 @@ class IntegrationBase(object):
 
         self.manifest = None
         self.load_manifest()
-
 
         self.name = self.manifest.get('name', '')
         self.product_identifier = self.manifest.get('product_identifier', '')
@@ -91,11 +91,24 @@ class IntegrationBase(object):
         keys and the second column as their value
         """
 
+        def format_value(v):
+            if isinstance(v, str) and '\n' in v:
+                return v.replace('\n', '<br>')
+            if isinstance(v, (int, float)):
+                return str(v)
+            return v
+
         # Always flatten the dictionary first
         data = self.flatten_dict(data)
 
         table = "Field | Value\n| --- | --- |\n"
         for key, value in data.items():
+
+            value = format_value(value)
+
+            if isinstance(value, list):
+                value = '<br>'.join(format_value(v) for v in value)
+
             table += f"| **{key}** | {value} |\n"
 
         return table
@@ -314,10 +327,54 @@ class IntegrationBase(object):
         query = query.script(**script)
         query.execute()
 
+    def add_event_comment_as_artifact(self, events, comment, created_by=None, action=None, configuration=None):
+        """
+        Adds a comment as an Event artifact to all provided events.
+        """
+
+        _comments = []
+        for event in events:
+            _comment = {
+                'event': {
+                    'uuid': event.uuid,
+                    'organization': event.organization,
+                },
+                'entry': {
+                    'type': 'comment'
+                },
+                'uuid': str(uuid4()),
+                'comment': {
+                    'uuid': str(uuid4()),
+                    'comment': comment,
+                    'created_at': datetime.utcnow(),
+                    'created_by': created_by if created_by else f"{self.__class__.__name__} integration",
+                    'organization': event.organization
+                },
+                'integration': {
+                    'uuid': self.product_identifier,
+                    'name': self.name,
+                    'action': action,
+                    'configuration': configuration
+
+                },
+                'organization': event.organization,
+                'created_by': {
+                    'username': created_by if created_by else f"{self.__class__.__name__} integration"
+                },
+                'created_at': datetime.utcnow()
+            }
+
+            _comments.append(_comment)
+
+        EventRelatedObject.bulk(_comments)
+
 
     def add_event_comment(self, events, comment, created_by=None):
         """
         Adds a comment to one more events
+        DEPRECATION WARNING: This method will be removed in a future release
+        in favor of comments being added as artifacts instead of directly
+        to the event.
         """
 
         events = self._events_to_list(events)
