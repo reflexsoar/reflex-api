@@ -56,6 +56,9 @@ class VirusTotal(IntegrationBase):
 
         markdown_output = ""
 
+        if isinstance(domain, str):
+            domain = [domain]
+
         if api_key:
             if isinstance(domain, list):
                 for d in domain:
@@ -66,14 +69,6 @@ class VirusTotal(IntegrationBase):
                         markdown_output += f"## Domain Report for {d}\n"
                         markdown_output += self.dict_as_markdown_table(data['data']['attributes'])
                         markdown_output += "\n\n"
-            if isinstance(domain, str):
-                request = session.get(
-                    f"https://www.virustotal.com/api/v3/domains/{domain}", headers={'x-apikey': api_key})
-                if request.status_code == 200:
-                    data = request.json()
-                    markdown_output += f"## Domain Report for {domain}\n"
-                    markdown_output += self.dict_as_markdown_table(data['data']['attributes'])
-                    markdown_output += "\n\n"
 
         if markdown_output:
             virustotal.add_output_to_event(
@@ -89,7 +84,7 @@ class VirusTotal(IntegrationBase):
     def action_get_url_report(self, configuration_uuid, events, urls=None, *args, **kwargs):
         pass
 
-    def action_get_file_report_by_hash(self, configuration_uuid, events, hash=None, *args, **kwargs):
+    def action_get_file_report_by_hash(self, configuration_uuid, events, file_hash=None, *args, **kwargs):
         
         action_name = 'get_file_report_by_hash'
 
@@ -104,9 +99,12 @@ class VirusTotal(IntegrationBase):
         # Collect any comments we want to add to the event
         comments = []
 
+        if isinstance(file_hash, str):
+            file_hash = [file_hash]
+
         if api_key:
-            if isinstance(hash, list):
-                for h in hash:
+            if isinstance(file_hash, list):
+                for h in file_hash:
                     request = session.get(
                         f"https://www.virustotal.com/api/v3/files/{h}", headers={'x-apikey': api_key})
                     if request.status_code == 200:
@@ -115,15 +113,6 @@ class VirusTotal(IntegrationBase):
                         markdown_output += self.dict_as_markdown_table(data['data']['attributes'])
                         markdown_output += "\n\n"
                         comments.append(f"The file hash `{h}` was found in VirusTotal.  {data['data']['attributes']['last_analysis_stats']['malicious']} out of {self._total_analysis_platforms(data['data']['attributes']['last_analysis_stats'])} AV engines detected this file as malicious.")
-            if isinstance(hash, str):
-                request = session.get(
-                    f"https://www.virustotal.com/api/v3/files/{hash}", headers={'x-apikey': api_key})
-                if request.status_code == 200:
-                    data = request.json()
-                    markdown_output += f"## File Report for {hash}\n"
-                    markdown_output += self.dict_as_markdown_table(data['data']['attributes'])
-                    markdown_output += "\n\n"
-                    comments.append(f"The file hash `{hash}` was found in VirusTotal.  {data['data']['attributes']['last_analysis_stats']['malicious']} out of {self._total_analysis_platforms(data['data']['attributes']['last_analysis_stats'])} AV engines detected this file as malicious.")
 
         if markdown_output:
             virustotal.add_output_to_event(
