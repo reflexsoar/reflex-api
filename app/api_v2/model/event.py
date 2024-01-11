@@ -212,6 +212,21 @@ class Event(base.BaseDocument):
             'max_inner_result_window': 10000
         }
 
+    @classmethod
+    def bulk(cls, items: list):
+        '''
+        Bulk adds application inventory data
+        '''
+
+        _items = []
+        for item in items:
+            if isinstance(item, dict):
+                _items.append(cls(**item).to_dict(True))
+            else:
+                _items.append(item.to_dict(True))
+
+        bulk(cls._get_connection(), (i for i in _items))
+
     @cached_property
     def templated_description(self):
         if self.raw_log is not None:
