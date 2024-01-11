@@ -96,6 +96,15 @@ class HouseKeeper(object):
             f"Event Rule High Volume Hits: {self.event_rule_high_volume_hits} hits")
 
         self.check_lock = None
+        self.locks = {
+            'check_agent_health': False,
+            'check_detection_repo_subscription_sync': False,
+            'check_agent_input_health': False,
+            'check_expired_event_rules': False,
+            'check_silent_event_rules': False,
+            'check_high_volume_event_rules': False,
+            'prune_old_agents': False,
+        }
 
     @check_lock
     def check_agent_health(self):
