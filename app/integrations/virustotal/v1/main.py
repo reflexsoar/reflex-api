@@ -53,10 +53,23 @@ class VirusTotal(IntegrationBase):
     def action_scan_file(self, configuration_uuid, events, files=None, *args, **kwargs):
         pass
 
-    def action_scan_url(self, configuration_uuid, events, urls=None, *args, **kwargs):
+    def action_scan_url(self, configuration_uuid, events, url=None, *args, **kwargs):
+        ''' Submits a URL to VirusTotal for analysis and adds the results to the event '''
+
+        # Submit the URL to the https://www.virustotal.com/api/v3/urls endpoint
+        # and store the id
+
+        # Add a comment to the events that the URL was submitted to VirusTotal and
+        # store the id in the comment
+
+        # Submit the id to https://www.virustotal.com/api/v3/analyses/{id} to
+        # check the status and when it is completed get the results from
+        # the property in data.links.self
+
         pass
 
     def action_get_domain_report(self, configuration_uuid, events, domain=None, *args, **kwargs):
+        ''' Retrieves the domain report from VirusTotal and adds it to the event '''
 
         action_name = 'get_domain_report'
 
@@ -91,13 +104,14 @@ class VirusTotal(IntegrationBase):
         if markdown_output:
             virustotal.add_output_to_event(
                 [e.uuid for e in events], action_name, configuration, markdown_output, output_format="markdown")
-            virustotal.add_event_comment_as_artifact(events, "\n".join(
+            virustotal.add_event_comment_as_artifact(events, "\n\n".join(
                 comments), action=action_name, configuration=configuration_uuid)
         else:
             virustotal.add_output_to_event(
                 [e.uuid for e in events], action_name, configuration, "No Domain data found", output_format="markdown")
 
     def action_get_ip_report(self, configuration_uuid, events, ip=None, *args, **kwargs):
+        ''' Retrieves the IP report from VirusTotal and adds it to the event '''
 
         action_name = 'get_ip_report'
 
@@ -133,13 +147,39 @@ class VirusTotal(IntegrationBase):
         if markdown_output:
             virustotal.add_output_to_event(
                 [e.uuid for e in events], action_name, configuration, markdown_output, output_format="markdown")
-            virustotal.add_event_comment_as_artifact(events, "\n".join(
+            virustotal.add_event_comment_as_artifact(events, "\n\n".join(
                 comments), action=action_name, configuration=configuration_uuid)
         else:
             virustotal.add_output_to_event(
                 [e.uuid for e in events], action_name, configuration, "No IP data found", output_format="markdown")
 
-    def action_get_url_report(self, configuration_uuid, events, urls=None, *args, **kwargs):
+    def _get_url_report(self, api_key, url):
+        ''' Retrieves the final analysis report for a URL from VirusTotal '''
+        pass
+
+    def _check_analysis_status(self, api_key, analysis_id):
+        ''' Checks the status of a URL analysis and returns true if 1 and 0
+        if not completed and -1 if any errors occurred'''
+        pass
+    
+    def action_get_url_report(self, configuration_uuid, events, url=None, *args, **kwargs):
+        ''' Retrieves the URL report from VirusTotal and adds it to the event '''
+
+        action_name = 'get_url_report'
+
+        api_key, configuration, events = self._load_configuration_elements(
+            configuration_uuid, events)
+
+        comment_template = self.get_comment_template(configuration, action_name)
+
+        session = Session()
+
+        markdown_output = ""
+
+        comments = []
+
+        
+
         pass
 
     def action_get_file_report_by_hash(self, configuration_uuid, events, file_hash=None, *args, **kwargs):
@@ -179,7 +219,7 @@ class VirusTotal(IntegrationBase):
         if markdown_output:
             virustotal.add_output_to_event(
                 [e.uuid for e in events], action_name, configuration, markdown_output, output_format="markdown")
-            virustotal.add_event_comment_as_artifact(events, "\n".join(
+            virustotal.add_event_comment_as_artifact(events, "\n\n".join(
                 comments), action=action_name, configuration=configuration_uuid)
         else:
             virustotal.add_output_to_event(
