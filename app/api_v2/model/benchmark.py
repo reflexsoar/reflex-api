@@ -275,8 +275,7 @@ def archive_agent_results(result_class, agent_uuid):
     
     try:
         update_query = UpdateByQuery(
-            index=result_class.Index.name,
-            refresh=True
+            index=result_class.Index.name
         ).query(
             'bool',
             must=[
