@@ -310,7 +310,7 @@ def create_app(environment='development'):
 
     # Perform any necessary upgrades to the database
     for upgrade in upgrades:
-        upgrade()
+        upgrade(app)
 
     if not app.config['DISABLE_TELEMETRY']:
         set_install_uuid()
