@@ -4,7 +4,7 @@ in a healthy state, like pruning old jobs or disabling accounts that have
 not been used in a long time
 """
 from uuid import uuid4
-import hashlib
+from hashlib import sha1
 import json
 import time
 import datetime
@@ -567,8 +567,6 @@ class HouseKeeper(object):
         for organization in organizations:
             new_status = EventStatus.get_by_name(name='New', organization=organization)
             for delayed in organizations[organization]['delayed']:
-                s = hashlib.new('sha1', usedforsecurity=False)
-                s.update(f"{delayed['name']}.{delayed['uuid']}".encode())
                 event = Event(
                     uuid=uuid4(),
                     organization=organization,
@@ -583,7 +581,7 @@ class HouseKeeper(object):
                     tlp=1,
                     reference=uuid4(),
                     source='reflex-system',
-                    signature=s.hexdigest(),
+                    signature=sha1(f"{delayed['name']}.{delayed['uuid']}".encode(), usedforsecurity=False).hexdigest(),
                     original_date=datetime.datetime.utcnow(),
                     created_at=datetime.datetime.utcnow(),
                     category='detection-monitor'
@@ -591,8 +589,6 @@ class HouseKeeper(object):
                 events.append(event)
 
             for never_run in organizations[organization]['never_run']:
-                s = hashlib.new('sha1', usedforsecurity=False)
-                s.update(f"{never_run['name']}.{never_run['uuid']}".encode())
                 event = Event(
                     uuid=uuid4(),
                     organization=organization,
@@ -607,7 +603,7 @@ class HouseKeeper(object):
                     tlp=1,
                     reference=uuid4(),
                     source='reflex-system',
-                    signature=s.hexdigest(),
+                    signature=sha1(f"{never_run['name']}.{never_run['uuid']}".encode(), usedforsecurity=False).hexdigest(),
                     original_date=datetime.datetime.utcnow(),
                     created_at=datetime.datetime.utcnow(),
                     category='detection-monitor'
