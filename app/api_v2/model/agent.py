@@ -132,6 +132,8 @@ class InventoryConfig(InnerDoc):
     # How often should the agent collect inventory information?
     collection_interval = Integer()
     cache_expiration = Integer()  # How long should the inventory cache be kept?
+    perf_interval = Integer()  # How often should the agent collect performance information?
+    service_interval = Integer()  # How often should the agent collect service information?
     # What inventory information should be collected?
     installed_software = Boolean()
     services = Boolean()
@@ -139,6 +141,10 @@ class InventoryConfig(InnerDoc):
     local_users = Boolean()
     network_adapters = Boolean()
     containers = Boolean()
+    host_performance = Boolean()
+    container_stats = Boolean()
+    container_services = Boolean()
+    metrics_outputs = Keyword()  # Where should the inventory information be sent?
 
 
 class WinlogConfig(InnerDoc):

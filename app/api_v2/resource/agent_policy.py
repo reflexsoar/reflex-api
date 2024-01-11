@@ -77,7 +77,13 @@ mod_inventory_config = api.model('InventoryConfig', {
     'listening_ports': fields.Boolean(default=True),
     'local_users': fields.Boolean(default=True),
     'network_adapters': fields.Boolean(default=True),
-    'containers': fields.Boolean(default=True)
+    'containers': fields.Boolean(default=True),
+    'perf_interval': fields.Integer(default=30),
+    'service_interval': fields.Integer(default=300),
+    'host_performance': fields.Boolean(default=False),
+    'container_stats': fields.Boolean(default=False),
+    'container_services': fields.Boolean(default=False),
+    'metrics_outputs': fields.List(fields.String, default=[]),
 })
 
 mod_winlog_config = api.model('WinlogConfig', {

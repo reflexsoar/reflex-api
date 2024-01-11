@@ -711,11 +711,14 @@ class AgentPolicy(Resource):
         else:
             api.abort(404, "Agent not found.")
 
+output_parser = api.parser()
+output_parser.add_argument('output_uuid', type=str, action='split', location='args', required=False)
 
 @api.route("/policy/outputs")
 class AgentPolicyOutputs(Resource):
 
     @api.doc(security="Bearer")
+    @api.expect(output_parser)
     @token_required
     @user_has('view_agents')
     def get(self, current_user):
@@ -723,9 +726,15 @@ class AgentPolicyOutputs(Resource):
         for an Agent to use
         '''
 
+        args = output_parser.parse_args()
+
         search = IntegrationConfiguration.search()
         search = search.filter('term', organization=current_user.organization)
         search = search.filter('term', enabled=True)
+        
+        if args.output_uuid:
+            search = search.filter('terms', uuid=args.output_uuid)
+
         results = [r for r in search.scan()]
 
         integrations = Integration.search()
