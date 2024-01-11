@@ -713,6 +713,7 @@ class AgentPolicy(Resource):
 
 output_parser = api.parser()
 output_parser.add_argument('output_uuid', type=str, action='split', location='args', required=False)
+output_parser.add_argument('name__like', type=str, location='args', required=False)
 
 @api.route("/policy/outputs")
 class AgentPolicyOutputs(Resource):
@@ -734,6 +735,9 @@ class AgentPolicyOutputs(Resource):
         
         if args.output_uuid:
             search = search.filter('terms', uuid=args.output_uuid)
+
+        if args.name__like:
+            search = search.filter('wildcard', name=f"*{args.name__like}*")
 
         results = [r for r in search.scan()]
 
