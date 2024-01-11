@@ -5,9 +5,9 @@ from concurrent.futures import ThreadPoolExecutor
 
 from app.api_v2.model.threat import ThreatList
 from app.api_v2.model.detection import Detection
+from app.api_v2.model.credential import Credential
 
-
-def set_required_fields_on_detections():
+def set_required_fields_on_detections(app):
     """ Find all detections that do not have the required fields set
     and set them
     """
@@ -29,7 +29,7 @@ def set_required_fields_on_detections():
                 executor.submit(update_detection, detection)
 
 
-def migrate_all_threshold_configs_to_list_keys():
+def migrate_all_threshold_configs_to_list_keys(app):
     """ Find all threshold rules where key_field is a string
     and turn it into a list
     """
@@ -52,7 +52,7 @@ def migrate_all_threshold_configs_to_list_keys():
             print('Migration complete')
 
 
-def migrate_intel_list_data_feeds_to_static_names():
+def migrate_intel_list_data_feeds_to_static_names(app):
 
     # find all lists that dont currently have the data_type_name field set
     # and set it to the correct value based on the data_type field
@@ -73,8 +73,22 @@ def migrate_intel_list_data_feeds_to_static_names():
             print('Migration complete')
 
 
+
+def migrate_credentials_hmac(app):
+    """ Ugrades all the credentials to use SHA512 HMAC """
+
+    credentials = Credential.search().scan()
+
+    for credential in credentials:
+        credential.encrypt(message=credential.decrypt(app.config['MASTER_PASSWORD'], alg="sha256").encode(),
+                           secret=app.config['MASTER_PASSWORD'],
+                           alg="sha512")
+
+    print('Credential migration complete')
+
 upgrades = [
-    migrate_intel_list_data_feeds_to_static_names,
-    migrate_all_threshold_configs_to_list_keys
+    #migrate_intel_list_data_feeds_to_static_names,
+    #migrate_all_threshold_configs_to_list_keys
     #set_required_fields_on_detections
+    #migrate_credentials_hmac
 ]
