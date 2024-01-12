@@ -440,8 +440,6 @@ class EventListAggregated(Resource):
                 search.aggs['signature']['uuid'].bucket('card', 'top_hits', size=1)
                 search.aggs['signature']['uuid'].metric('max_date', 'max', field='original_date')
 
-                print(json.dumps(search.to_dict(), default=str, indent=2))
-
                 results = search.execute()
 
                 related_events_lookup = {}
