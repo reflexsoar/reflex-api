@@ -537,6 +537,9 @@ detection_list_parser = api.parser()
 detection_list_parser.add_argument(
     'agent', location='args', type=str, required=False)
 detection_list_parser.add_argument(
+    'should_run', location='args', type=xinputs.boolean, required=False
+)
+detection_list_parser.add_argument(
     'active', location='args', action="split", type=xinputs.boolean, required=False)
 detection_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
@@ -726,7 +729,11 @@ class DetectionList(Resource):
                     else:
                         search = search.filter('term', uuid='') # Force it to come back empty
 
-            detections = list(search.scan())
+            if args.should_run:
+                # Only return detections that are due to run
+                detections = [d for d in search.scan() if d.should_run()]
+            else:
+                detections = list(search.scan())
 
             # Remove the fields the agent doesn't need such as guide, setup_guide, testing_guide
             for detection in detections:
@@ -1668,12 +1675,13 @@ class DetectionDetails(Resource):
                         hard_save = detection.source_monitor_config['source_lists'] != api.payload['source_monitor_config']['source_lists']
                 
                 if hard_save:
+                    print("HARD")
                     # Detection configs have changed
                     dsm = SourceMonitorConfig(
                         **api.payload['source_monitor_config'])
                     detection.source_monitor_config = dsm
                     detection.save(refresh='wait_for')
-
+                
                 detection.update(**api.payload, refresh=True, version=increase_version(detection, api.payload))
 
             return detection

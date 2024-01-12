@@ -8,6 +8,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 import math
 import datetime
+from pytz import timezone
 
 from app.api_v2.model.utils import _current_user_id_or_none
 from . import (
@@ -710,6 +711,76 @@ class Detection(base.BaseDocument):
             }
 
         super(Detection, self).save(**kwargs)
+
+    def should_run(self, catchup_period=1440):
+        '''
+        Determines if the last_run + the interval is greater than now
+        '''
+
+        schedule_allows = False
+
+        if hasattr(self, 'schedule'):
+            # Adjust for the timezone if it is set
+            if hasattr(self, 'schedule_timezone'):
+                now = datetime.datetime.now(timezone(self.schedule_timezone))
+            else:
+                now = datetime.datetime.utcnow()
+                
+            for day_of_week in self.schedule:
+                day_config = self.schedule[day_of_week]
+                if 'active' in day_config and day_config['active']:
+                    if day_of_week == now.strftime("%A").lower():
+                        
+                        # For each define from to in hours check if the 
+                        # current hours and minutes is within the range
+                        for time_range in day_config['hours']:
+                            
+                            # Get the current hours and minutes in 24 hour format
+                            now_time = f"{now.hour:02d}{now.minute:02d}"
+                            now_time = int(now_time)
+
+                            # Get the from and to hours and minutes in 24 hour format
+                            from_time = int(time_range["from"].replace(":", ""))
+                            to_time = int(time_range["to"].replace(":", ""))
+
+                            # If the current time is within the range, allow the run
+                            if now_time >= from_time and now_time <= to_time:
+                                schedule_allows = True
+                                break
+                else:
+                    schedule_allows = True
+                    break
+
+        # If the schedule doesn't allow us to run, return False
+        if not schedule_allows:
+            return False
+
+        if hasattr(self, 'last_run'):
+
+            # Convert the last_run ISO8601 UTC timestamp back to a datetime object
+            last_run = self.last_run
+
+            # Determine the next time the rule should run
+            next_run = last_run + datetime.timedelta(minutes=self.interval)
+            next_run = next_run.replace(tzinfo=None)
+
+            # Determine the current time in UTC
+            current_time = datetime.datetime.utcnow()
+
+            # Compute the mute period based on the last_hit property
+            if hasattr(self, 'mute_period') and self.mute_period != None and self.mute_period > 0 and hasattr(self, 'last_hit') and self.last_hit:
+                last_hit = self.last_hit
+                mute_time = last_hit + \
+                    datetime.timedelta(seconds=self.mute_period*60)
+                mute_time = mute_time.replace(tzinfo=None)
+            else:
+                mute_time = current_time
+
+            # If the current_time is greater than the when the detection rule should run again
+            if current_time > next_run and current_time >= mute_time:
+                return True
+            
+        return False
 
     def extract_fields_from_query(self, query=None):
         '''
