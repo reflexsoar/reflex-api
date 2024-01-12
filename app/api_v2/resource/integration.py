@@ -472,7 +472,7 @@ class RunActionResource(Resource):
         """
         Run an action against a set of events, cases, or observables
         """
-        
+
         try:
             integration = integration_registry[api.payload['integration_uuid']]
         except KeyError:

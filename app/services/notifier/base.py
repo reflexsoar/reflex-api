@@ -14,7 +14,10 @@ from jinja2 import Environment
 from jinja2.exceptions import UndefinedError as JinjaUndefinedError
 from pdpyras import EventsAPISession
 from requests.exceptions import ConnectionError
+from concurrent.futures import ThreadPoolExecutor
+
 from app.api_v2.model import Notification, NotificationChannel, NOTIFICATION_CHANNEL_TYPES, SOURCE_OBJECT_TYPE, Event, Case, Settings, Credential, Detection
+from app.api_v2.utils import org_uuid_to_name
 
 
 class Notifier(object):
@@ -77,7 +80,7 @@ class Notifier(object):
         self.app = app
         config = self.app.config.get('NOTIFIER', {
             'LOG_LEVEL': 'DEBUG',
-            'MAX_THREADS': 1,
+            'MAX_THREADS': 3,
             'POLL_INTERVAL': 30
         })
         self.config = config
@@ -100,18 +103,21 @@ class Notifier(object):
         notifications = notifications.scan()
 
         if notifications:
-            for notification in notifications:
-                if not notification.is_native:
-                    channels = self.get_channels(notification)
-                    for channel in channels:
-                        try:
-                            self.notification_type_mapping[channel.channel_type](channel,notification)
-                        except KeyError:
-                            self.logger.error(f"Channel type {channel.channel_type} is not supported")
-                else:
-                    # Send the notification via the organizations configured SMTP server
-                    # if the user has subscribed to events via SMTP
-                    pass
+            with ThreadPoolExecutor(max_workers=self.config['MAX_THREADS']) as executor:
+                for notification in notifications:
+                    if not notification.is_native:
+                        channels = self.get_channels(notification)
+                        for channel in channels:
+                            try:
+                                f = self.notification_type_mapping[channel.channel_type]
+                                executor.submit(f, channel, notification)
+                            except KeyError:
+                                self.logger.error(f"Channel type {channel.channel_type} is not supported")
+                                notification.send_failed(message=[f"Channel type {channel.channel_type} is not supported"])
+                    else:
+                        # Send the notification via the organizations configured SMTP server
+                        # if the user has subscribed to events via SMTP
+                        pass
 
 
     def send_email(self, channel, notification):
@@ -178,8 +184,7 @@ class Notifier(object):
 
                 connection.sendmail(channel_config['mail_from'], channel_config['mail_to'], message.as_string())
             else:
-                
-                
+
                 if 'credential' in channel_config:
                     connection.login(credential.username, secret)
                 connection.sendmail(channel_config['mail_from'], channel_config['mail_to'], message.as_string())
@@ -249,7 +254,6 @@ class Notifier(object):
         }
 
         message = ""
-        environment = Environment()
 
         if source_object_type in SOURCE_OBJECT_TYPE:
             source_object = None
@@ -264,20 +268,23 @@ class Notifier(object):
                     if detection:
                         if hasattr(detection, 'email_template') and detection.email_template != "":
                             template = detection.email_template
-
-            jinja_template = environment.from_string(template)
                             
-            if source_object:                
+            if source_object:
 
                 source_dict = source_object.to_dict()
+
+                if 'organization' in source_dict:
+                    org_name = org_uuid_to_name(source_dict['organization'])
+                    source_dict['organization_name'] = org_name
+
                 if 'raw_log' in source_dict:
                     source_dict['raw_log'] = json.loads(source_dict['raw_log'])
                 try:
-                    message = jinja_template.render(source_dict)
-                except JinjaUndefinedError as e:
+                    message = chevron.render(template, source_dict)
+                except Exception as e:
                     message = template + "\n\n" + f"Error parsing source object: {str(e)}"
 
-                #message = chevron.render(template, source_object.to_dict())
+                
                 return message
 
         return template

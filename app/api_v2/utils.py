@@ -7,9 +7,19 @@ import random
 import ipaddress
 import math
 import elasticapm
+from functools import lru_cache
 
 from flask import request, current_app, abort
-from .model import EventLog, User, ExpiredToken, Settings, Agent, ServiceAccount
+from .model import EventLog, User, ExpiredToken, Settings, Agent, ServiceAccount, Organization
+
+@lru_cache(maxsize=None)
+def org_uuid_to_name(org_id):
+    """Returns the organization name based on the UUID"""
+    if org_id:
+        organization = Organization.get_by_uuid(org_id)
+        if organization:
+            return organization.name
+    return ""
 
 def random_ending(prefix=None, length=10):
     '''
@@ -455,6 +465,11 @@ def _check_token():
 
                 if 'default_org' in token and token['default_org']:
                     current_user.default_org = True
+
+                # Append the users token claims/permissions to their
+                # user object
+                if 'permissions' in token:
+                    current_user.token_permissions = token['permissions']
 
             except ValueError:
                 abort(401, 'Token retired.')

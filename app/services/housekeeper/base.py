@@ -3,7 +3,9 @@ HouseKeeper service runs system jobs that attempt to keep the system
 in a healthy state, like pruning old jobs or disabling accounts that have
 not been used in a long time
 """
-
+from uuid import uuid4
+from hashlib import sha1
+import json
 import time
 import datetime
 import logging
@@ -18,7 +20,9 @@ from app.api_v2.model import (
     EventRule,
     DetectionRepositorySubscription,
     DetectionRepository,
-    Organization
+    Organization,
+    Detection,
+    EventStatus
 )
 from app.api_v2.model.benchmark import (
     BenchmarkResult, BenchmarkResultHistory,
@@ -96,6 +100,15 @@ class HouseKeeper(object):
             f"Event Rule High Volume Hits: {self.event_rule_high_volume_hits} hits")
 
         self.check_lock = None
+        self.locks = {
+            'check_agent_health': False,
+            'check_detection_repo_subscription_sync': False,
+            'check_agent_input_health': False,
+            'check_expired_event_rules': False,
+            'check_silent_event_rules': False,
+            'check_high_volume_event_rules': False,
+            'prune_old_agents': False,
+        }
 
     @check_lock
     def check_agent_health(self):
@@ -481,3 +494,120 @@ class HouseKeeper(object):
             days_since (int): How long its been since they set their password
         '''
         raise NotImplementedError
+
+    def check_for_delayed_detections(self):
+        ''' Checks if any detections are delayed and creates a new
+        event with all the delayed detections'''
+
+        self.logger.info('Checking for delayed detections')
+
+        # Query all active detections
+        detections = Detection.search()
+        detections = detections.filter('term', active=True)
+        detections = detections.filter('range', last_run={
+            'lte': datetime.datetime.utcnow().isoformat()
+        })
+
+        detections = detections.scan()
+        organizations = {}
+        for detection in detections:
+
+            # Using the last_run time and the run interval
+            # determine if the detection is more than 1 interval
+            # behind
+
+            if detection.organization not in organizations:
+                organizations[detection.organization] = {
+                    'never_run': [],
+                    'delayed': []
+                }
+
+            # Ignore detections that have never run
+            try:
+                if detection.last_run is None:
+                        organizations[detection.organization]['never_run'].append(
+                            {
+                            'name': detection.name,
+                            'uuid': detection.uuid,
+                            'last_run': detection.last_run,
+                            'next_run': now,
+                            'lag': f'0',
+                            'lag_as_seconds': 0,
+                        })
+            except Exception as e:
+                self.logger.error(f"Error processing detection {detection.name}, {detection.uuid}: {e}")
+                continue
+
+            
+            try:
+                now = datetime.datetime.utcnow()
+                last_run = detection.last_run
+                interval = detection.interval
+                _next_run = last_run + datetime.timedelta(minutes=interval)
+                _lag = (now - _next_run).total_seconds() / 60
+            except Exception as e:
+                self.logger.error(f"Failed to compute delay for {detection.name}, {detection.uuid}: {e}")
+                continue
+
+            # If the last run is more than 1 hour behind
+            # what the next run should be, then we need to
+            # create a new event for the delayed detections
+            if _lag > 60:
+                organizations[detection.organization]['delayed'].append(
+                    {
+                        'name': detection.name,
+                        'uuid': detection.uuid,
+                        'last_run': detection.last_run,
+                        'next_run': _next_run,
+                        'lag': f'{_lag}',
+                        'lag_as_seconds': _lag * 60,
+                    })
+                    
+        events = []
+        for organization in organizations:
+            new_status = EventStatus.get_by_name(name='New', organization=organization)
+            for delayed in organizations[organization]['delayed']:
+                event = Event(
+                    uuid=uuid4(),
+                    organization=organization,
+                    title=f"Detection Rule Delayed - {delayed['name']}",
+                    detection_id=delayed['uuid'],
+                    risk_score=80,
+                    severity=3,
+                    description=f"The detection rule {delayed['name']} is active and is delayed by more than {delayed['lag']} minutes. Should have run at {delayed['next_run']}.",
+                    tags=['detection-delayed'],
+                    raw_log=json.dumps(delayed, default=str),
+                    status=new_status,
+                    tlp=1,
+                    reference=uuid4(),
+                    source='reflex-system',
+                    signature=sha1(f"{delayed['name']}.{delayed['uuid']}".encode(), usedforsecurity=False).hexdigest(),
+                    original_date=datetime.datetime.utcnow(),
+                    created_at=datetime.datetime.utcnow(),
+                    category='detection-monitor'
+                )
+                events.append(event)
+
+            for never_run in organizations[organization]['never_run']:
+                event = Event(
+                    uuid=uuid4(),
+                    organization=organization,
+                    title=f"Detection Rule Never Run - {never_run['name']}",
+                    detection_id=never_run['uuid'],
+                    risk_score=80,
+                    severity=3,
+                    description=f"The detection rule {never_run['name']} is active and has never run.",
+                    tags=['detection-never-run'],
+                    raw_log=json.dumps(never_run, default=str),
+                    status=new_status,
+                    tlp=1,
+                    reference=uuid4(),
+                    source='reflex-system',
+                    signature=sha1(f"{never_run['name']}.{never_run['uuid']}".encode(), usedforsecurity=False).hexdigest(),
+                    original_date=datetime.datetime.utcnow(),
+                    created_at=datetime.datetime.utcnow(),
+                    category='detection-monitor'
+                )
+                events.append(event)
+
+        Event.bulk(events)

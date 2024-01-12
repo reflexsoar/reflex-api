@@ -277,7 +277,7 @@ class NotificationChannelList(Resource):
         else:
 
             if api.payload['channel_type'] == 'email':
-                if 'credential' in api.payload['email_configuration']:
+                if 'credential' in api.payload['email_configuration'] and api.payload['email_configuration']['credential'] is not None:
                     credential = Credential.get_by_uuid(api.payload['email_configuration']['credential'])
                     if not credential:
                         cred = api.payload['email_configuration']['credential']

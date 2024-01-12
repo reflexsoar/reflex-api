@@ -16,7 +16,7 @@
         "Justin Henderson <justin@hasecuritysolutions>"
     ],
     "license": "H&A Security Solutions - Premium Support",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "manifest": {
         "actions": [
             {
@@ -212,6 +212,19 @@
                                 "type": "str-multiple",
                                 "description": "Event IDs to include in the subscription",
                                 "default": []
+                            },
+                            {
+                                "name": "included_patterns",
+                                "label": "Included Patterns",
+                                "type": "str-multiple",
+                                "description": "Include log messages that match certain patterns",
+                                "default": []
+                            },
+                            {
+                                "name": "exclude_patterns",
+                                "label": "Exclude Patterns",
+                                "type": "str-multiple",
+                                "description": "Exclude log messages that match certain patterns"
                             },
                             {
                                 "name": "include_host_meta",

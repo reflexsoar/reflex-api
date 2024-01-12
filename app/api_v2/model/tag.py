@@ -47,7 +47,10 @@ class AgentTag(base.BaseDocument):
         Checks the agent against all tags and applies the tags that match
         '''
 
-        tags = cls.search().filter('term', organization=agent.organization).scan()
+        tags = cls.search()
+
+        # Get 10000 tags at a time
+        tags = tags.params(size=10000).filter('term', organization=agent.organization).execute()
 
         agent_data = agent.to_dict()
         tags_to_apply = []

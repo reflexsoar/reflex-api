@@ -43,7 +43,8 @@ from app.api_v2.model import (
         Integration, IntegrationConfiguration, IntegrationLog, IntegrationActionQueue, SSOProvider,
         RoleMappingPolicy, Package, DataSourceTemplate, Schedule, FimRule, AgentTag,
         BenchmarkRule, BenchmarkRuleset, BenchmarkException, BenchmarkResultHistory,
-        BenchmarkResult, BenchmarkFrameworkRule, EventRelatedObject, SearchProxyJob
+        BenchmarkResult, BenchmarkFrameworkRule, EventRelatedObject, SearchProxyJob,
+        ApplicationInventory
 )
 
 from .defaults import (
@@ -158,7 +159,7 @@ def upgrade_indices(app):
         IntegrationActionQueue, SSOProvider, RoleMappingPolicy, Package, DataSourceTemplate,
         Schedule, FimRule, AgentTag, BenchmarkRule, BenchmarkRuleset, EventRelatedObject,
         BenchmarkException, BenchmarkResultHistory, BenchmarkResult, BenchmarkFrameworkRule,
-        SearchProxyJob
+        SearchProxyJob, ApplicationInventory
     ]
     
     def do_upgrade(model):
@@ -309,7 +310,7 @@ def create_app(environment='development'):
 
     # Perform any necessary upgrades to the database
     for upgrade in upgrades:
-        upgrade()
+        upgrade(app)
 
     if not app.config['DISABLE_TELEMETRY']:
         set_install_uuid()
@@ -382,6 +383,12 @@ def create_app(environment='development'):
                 func=housekeeper.check_expired_event_rules,
                 trigger="interval",
                 seconds=600
+            )
+
+            scheduler.add_job(
+                func=housekeeper.check_for_delayed_detections,
+                trigger="interval",
+                seconds=300
             )
 
             scheduler.add_job(

@@ -24,7 +24,7 @@ from . import (
     Float
 )
 
-PLUGGABLE_SUPPORTED_ROLES = ['fim']
+PLUGGABLE_SUPPORTED_ROLES = ['fim', 'winlog', 'benchmark', 'search_proxy']
 
 
 class RunnerRoleConfig(InnerDoc):
@@ -122,6 +122,43 @@ class SearchProxyConfig(InnerDoc):
     logging_level = Keyword()  # What logging level should the role use for its logs?
     credential = Keyword()  # The credentials to use for the search proxy
 
+class InventoryConfig(InnerDoc):
+    '''
+    Contains information about what information the agent should collect on
+    a regular basis
+    '''
+
+    enabled = Boolean()  # Is inventory collection enabled?
+    # How often should the agent collect inventory information?
+    collection_interval = Integer()
+    cache_expiration = Integer()  # How long should the inventory cache be kept?
+    perf_interval = Integer()  # How often should the agent collect performance information?
+    service_interval = Integer()  # How often should the agent collect service information?
+    # What inventory information should be collected?
+    installed_software = Boolean()
+    services = Boolean()
+    listening_ports = Boolean()
+    local_users = Boolean()
+    network_adapters = Boolean()
+    containers = Boolean()
+    host_performance = Boolean()
+    container_stats = Boolean()
+    container_services = Boolean()
+    metrics_outputs = Keyword()  # Where should the inventory information be sent?
+
+
+class WinlogConfig(InnerDoc):
+    '''
+    Contains information about how the Winlog agent role is configured
+    for agents consuming the agent policy associated with this config
+    '''
+    wait_interval = Integer()  # How long should the agent wait between runs
+    logging_level = Keyword()  # What logging level should the agent use for its logs?
+    graceful_exit = Boolean()  # Should the agent attempt a graceful exit when asked to shut down
+    log_source_config = Keyword()  # The log sources to collect
+    default_output = Keyword()  # The default output for the agent
+
+
 class AgentPolicy(base.BaseDocument):
     '''
     A Reflex agent policy that controls all the configuration of an agent
@@ -139,7 +176,7 @@ class AgentPolicy(base.BaseDocument):
         settings = {
             'refresh_interval': '1s'
         }
-        version = '0.1.5'
+        version = '0.1.6'
 
     name = Keyword()  # What is a friendly name for this agent policy
     # A description of the policy
@@ -163,6 +200,8 @@ class AgentPolicy(base.BaseDocument):
     search_proxy_config = Nested(SearchProxyConfig)
     mitre_mapper_config = Nested(MitreMapperConfig)
     fim_config = Nested(FIMConfig)
+    inventory_config = Object(InventoryConfig)
+    winlog_config = Object(WinlogConfig)
     tags = Keyword()  # Tags to categorize this policy
     priority = Integer()  # What is the priority of this policy?
     revision = Integer()  # What is the revision of this policy?
@@ -478,6 +517,7 @@ class Agent(base.BaseDocument):
         settings = {
             'refresh_interval': '1s'
         }
+        version = '0.1.5'
 
     @property
     def all_input_ids(self):

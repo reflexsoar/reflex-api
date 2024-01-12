@@ -246,7 +246,8 @@ class User(base.BaseDocument):
             'default_org': organization.default_org if organization else False,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60*jwt_exp),
             'iat': datetime.datetime.utcnow(),
-            'type': 'user'
+            'type': 'user',
+            'permissions': self.permissions,
         }, current_app.config['SECRET_KEY'])
 
         return _access_token
@@ -372,6 +373,13 @@ class User(base.BaseDocument):
         Checks to see if the user has the proper
         permissions to perform an API action
         '''
+
+        # If the user has permissions from their token check
+        # those first, if not fall back to checking against
+        # their role
+        if hasattr(self, 'token_permissions'):
+            if permission in self.token_permissions and self.token_permissions[permission]:
+                return True
 
         permissions = self.permissions
 
@@ -820,6 +828,11 @@ class ServiceAccount(base.BaseDocument):
         '''
         Returns true if the service account has the specified permission
         '''
+
+        if hasattr(self, 'token_permissions'):
+            if permission in self.token_permissions and self.token_permissions[permission]:
+                return True
+
         return getattr(self.permissions, permission)
     
     def has_org_access(self, organization):
@@ -865,7 +878,8 @@ class ServiceAccount(base.BaseDocument):
             'default_org': organization.default_org if organization else False,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=jwt_exp),
             'iat': datetime.datetime.utcnow(),
-            'type': 'service_account'
+            'type': 'service_account',
+            'permissions': self.permissions
         }, current_app.config['SECRET_KEY'])
 
         self.expires_at = (datetime.datetime.utcnow() + datetime.timedelta(days=jwt_exp))

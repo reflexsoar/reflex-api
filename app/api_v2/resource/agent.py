@@ -18,7 +18,8 @@ from ..model import (
     Role,
     AgentGroup,
     AgentTag,
-    ExpiredToken
+    ExpiredToken,
+    ApplicationInventory
 )
 
 from app.api_v2.model.benchmark import (
@@ -585,13 +586,24 @@ class AgentHeartbeat(Resource):
                     except Exception:
                         api.payload['geo'] = None
 
-                agent.update(last_heartbeat=datetime.datetime.utcnow(),
-                             **api.payload, refresh=True)
-                
+                # Assign the agents tags if they have changed
                 agent_tags = AgentTag.set_agent_tags(agent)
                 if agent.tags != agent_tags:
-                    agent.tags = agent_tags
-                    agent.save(refresh=True)
+                    api.payload['tags'] = agent_tags
+                
+                # Inventory the agents installed software
+                host_information = api.payload.get('host_information', None)
+                installed_software = []
+                if host_information:
+                    
+                    installed_software = host_information.get('installed_software', [])
+
+                if len(installed_software) > 0:
+                    ApplicationInventory.bulk_add(agent, installed_software)
+
+                # Update the agent
+                agent.update(last_heartbeat=datetime.datetime.utcnow(),
+                             **api.payload, refresh=True)
 
                 return {'message': 'Your heart still beats!'}
         else:
@@ -699,11 +711,15 @@ class AgentPolicy(Resource):
         else:
             api.abort(404, "Agent not found.")
 
+output_parser = api.parser()
+output_parser.add_argument('output_uuid', type=str, action='split', location='args', required=False)
+output_parser.add_argument('name__like', type=str, location='args', required=False)
 
 @api.route("/policy/outputs")
 class AgentPolicyOutputs(Resource):
 
     @api.doc(security="Bearer")
+    @api.expect(output_parser)
     @token_required
     @user_has('view_agents')
     def get(self, current_user):
@@ -711,9 +727,18 @@ class AgentPolicyOutputs(Resource):
         for an Agent to use
         '''
 
+        args = output_parser.parse_args()
+
         search = IntegrationConfiguration.search()
         search = search.filter('term', organization=current_user.organization)
         search = search.filter('term', enabled=True)
+        
+        if args.output_uuid:
+            search = search.filter('terms', uuid=args.output_uuid)
+
+        if args.name__like:
+            search = search.filter('wildcard', name=f"*{args.name__like}*")
+
         results = [r for r in search.scan()]
 
         integrations = Integration.search()

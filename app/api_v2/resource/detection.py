@@ -10,6 +10,7 @@ from app.api_v2.model.utils import _current_user_id_or_none
 from ..utils import check_org, token_required, user_has, default_org
 from flask import send_file
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
+from app.api_v2.model.detection import SourceMonitorConfig
 from ..model import (
     Detection,
     Organization,
@@ -97,9 +98,9 @@ mod_new_terms_config = api.model('NewTermsConfig', {
 }, strict=True)
 
 mod_source_monitor_config = api.model('SourceMonitorConfig', {
-    'data_sources': fields.List(fields.String),
+    'data_sources': fields.List(fields.String, default=[]),
     'source_lists': fields.List(fields.Nested(mod_intel_list)),
-    'excluded_sources': fields.List(fields.String),
+    'excluded_sources': fields.List(fields.String, default=[]),
     'excluded_source_lists': fields.List(fields.Nested(mod_intel_list)),
     'autodiscover_data_streams': fields.Boolean(default=False),
     'ignore_data_streams_older_than_days': fields.Integer(default=0),
@@ -299,7 +300,7 @@ mod_create_detection = api.model('CreateDetection', {
     'suppression_max_events': fields.Integer,
     'required_fields': fields.List(fields.String, default=[], required=False),
     'field_metrics': fields.List(fields.Nested(mod_field_metric), default=[], required=False)
-}, strict=True)
+})
 
 
 
@@ -1504,7 +1505,7 @@ class DetectionDetails(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_detection_details)
-    @api.expect(mod_create_detection)
+    @api.expect(mod_create_detection, skip_empty=False)
     @token_required
     @user_has('update_detection')
     def put(self, uuid, current_user):
@@ -1649,6 +1650,26 @@ class DetectionDetails(Resource):
             if isinstance(current_user, Agent):
                 detection.update(**api.payload, refresh=True)
             else:
+
+                hard_save = False
+
+                if detection.source_monitor_config:
+                    if 'data_sources' in detection.source_monitor_config:
+                        hard_save = detection.source_monitor_config['data_sources'] != api.payload['source_monitor_config']['data_sources']
+                    if not hard_save and 'excluded_source_lists' in detection.source_monitor_config:
+                        hard_save = detection.source_monitor_config['excluded_source_lists'] != api.payload['source_monitor_config']['excluded_source_lists']
+                    if not hard_save and 'excluded_sources' in detection.source_monitor_config:
+                        hard_save = detection.source_monitor_config['excluded_sources'] != api.payload['source_monitor_config']['excluded_sources']
+                    if not hard_save and 'excluded_source_types' in detection.source_monitor_config:
+                        hard_save = detection.source_monitor_config['source_lists'] != api.payload['source_monitor_config']['source_lists']
+                
+                if hard_save:
+                    # Detection configs have changed
+                    dsm = SourceMonitorConfig(
+                        **api.payload['source_monitor_config'])
+                    detection.source_monitor_config = dsm
+                    detection.save(refresh='wait_for')
+
                 detection.update(**api.payload, refresh=True, version=increase_version(detection, api.payload))
 
             return detection

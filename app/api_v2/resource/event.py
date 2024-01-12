@@ -100,7 +100,7 @@ mod_event_list = api.model('EventList', {
     'observables': fields.List(fields.Nested(mod_observable_list)),
     'case': fields.String,
     'signature': fields.String,
-    'related_events_count': fields.Integer,
+    'related_events_count': fields.Integer(attribute='related_events'),
     'raw_log': fields.Nested(mod_raw_log, attribute='_raw_log'),
     'event_rules': fields.List(fields.String),
     'original_date': ISO8601(attribute='original_date'),
@@ -377,8 +377,6 @@ class EventListAggregated(Resource):
         observables = {}
 
         raw_event_count = 0
-
-
         
         # If not filtering by a signature
         if not args.signature:
@@ -399,7 +397,7 @@ class EventListAggregated(Resource):
                 search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))           
 
             if args.grouped != False:
-                raw_event_count = search.count()
+                #raw_event_count = search.count()
 
                 search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
                 search.aggs['signature'].metric('max_date', 'max', field='original_date')
@@ -439,37 +437,50 @@ class EventListAggregated(Resource):
                 search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
                 search.aggs['signature'].metric('max_date', 'max', field='original_date')
                 search.aggs['signature'].bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=number_of_sigs)
+                search.aggs['signature']['uuid'].bucket('card', 'top_hits', size=1)
                 search.aggs['signature']['uuid'].metric('max_date', 'max', field='original_date')
 
-                events = search.execute()
+                results = search.execute()
+
+                related_events_lookup = {}
+                for signature in results.aggs.signature.buckets:
+                    related_events_lookup[signature['key']] = signature['doc_count']
 
                 #sigs2 = sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'])
-                sigs2 = events.aggs.signature.buckets
-                for signature in sigs2:
-                    event_uuids.append(signature.uuid.buckets[0]['key'])
+                #sigs2 = events.aggs.signature.buckets
+                #for signature in sigs2:
+                #    event_uuids.append(signature.uuid.buckets[0]['key'])
 
                 # END: Second aggregation based on signatures to find first UUID for card display purposes
                 # performance necessary
 
-                search = Event.search()
+                #search = Event.search()
 
-                if args.sort_direction:
-                    if args.sort_direction == "desc":
-                        args.sort_by = f"-{args.sort_by}"
-                    else:
-                        args.sort_by = f"{args.sort_by}"
+                #if args.sort_direction:
+                #    if args.sort_direction == "desc":
+                #        args.sort_by = f"-{args.sort_by}"
+                #    else:
+                #        args.sort_by = f"{args.sort_by}"
 
-                search = search.sort(args.sort_by)
-                search = search.filter('terms', uuid=event_uuids)
-                search = search[0:len(event_uuids)]
+                #search = search.sort(args.sort_by)
+                #search = search.filter('terms', uuid=event_uuids)
+                #search = search[0:len(event_uuids)]
 
-                total_events = search.count()
+                total_events = results.hits.total.value
+                raw_event_count = total_events
                 pages = math.ceil(float(len(sigs) / args.page_size))
                 
-                events = search.execute()
+                #events = search.execute()
+                events = []
+                # Take the card data from the second aggregation and use it to build the event list
+                for signature in results.aggs.signature.buckets:
+                    _event = signature.uuid.buckets[0].card.hits.hits[0]._source
+                    _event.related_events = signature.doc_count
+                    _event = Event(**_event.to_dict())
+                    events.append(_event)
 
                 # Apply search filters to the event for performing related event calcuations
-                [e.set_filters(filters=search_filters) for e in events]
+                #[e.set_filters(filters=search_filters) for e in events]
             else:
 
                 if args.sort_direction:
@@ -1538,16 +1549,29 @@ class EventComment(Resource):
 
         event = Event.get_by_uuid(uuid)
 
-        # TODO: Fetch these from the reflex-comments index instead using the events
+        # Fetch comments reflex-event-related-objects index instead using the events
         # UUID as the parent parameter
-        # comments = Comment.get_by_parent(event.uuid, sort_by='created_at', asc=False)
-        
-        event.comments.sort(key = lambda x: x['created_at'], reverse=True)
+        search = EventRelatedObject.search()
+        search = search.filter('term', event__uuid=uuid)
+        search = search.filter('term', entry__type='comment')
+        search = search.sort({'created_at': {'order': 'desc'}})
+        results = [e.comment.to_dict() for e in search.scan()]
+
+        # DEPRECATION WARNING: Legacy comments will be removed in a future release
+        # and only comments stored in the reflex-event-related-objects index will
+        # be used.
+        _legacy_comments = [c.to_dict() for c in event.comments if not any([c['uuid'] == r['uuid'] for r in results])]
+        results.extend(_legacy_comments)
+
+        # Order the comments by created_at with newest first
+        results = sorted(results, key=lambda k: k['created_at'], reverse=True)
 
         if not event:
             api.abort(404, 'Event not found.')
 
-        return event
+        return {
+            'comments': results
+        }
     
 
     @api.doc(security="Bearer")

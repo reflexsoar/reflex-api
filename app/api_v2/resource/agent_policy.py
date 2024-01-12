@@ -68,6 +68,32 @@ mod_search_proxy_config = api.model('SearchProxyConfig', {
     'credential': NullableString,
 })
 
+mod_inventory_config = api.model('InventoryConfig', {
+    'enabled': fields.Boolean(default=True),
+    'collection_interval': fields.Integer(default=3600),
+    'cache_expiration': fields.Integer(default=300),
+    'installed_software': fields.Boolean(default=True),
+    'services': fields.Boolean(default=True),
+    'listening_ports': fields.Boolean(default=True),
+    'local_users': fields.Boolean(default=True),
+    'network_adapters': fields.Boolean(default=True),
+    'containers': fields.Boolean(default=True),
+    'perf_interval': fields.Integer(default=30),
+    'service_interval': fields.Integer(default=300),
+    'host_performance': fields.Boolean(default=False),
+    'container_stats': fields.Boolean(default=False),
+    'container_services': fields.Boolean(default=False),
+    'metrics_outputs': fields.List(fields.String, default=[]),
+})
+
+mod_winlog_config = api.model('WinlogConfig', {
+    'wait_interval': fields.Integer(default=60),
+    'logging_level': fields.String(default='ERROR'),
+    'graceful_exit': fields.Boolean(default=True),
+    'log_source_config': fields.List(fields.String, default=[]),
+    'default_output': fields.List(fields.String, default=[])
+})
+
 mod_agent_policy = api.model('AgentPolicy', {
     'name': fields.String,
     'organization': fields.String,
@@ -84,6 +110,8 @@ mod_agent_policy = api.model('AgentPolicy', {
     'mitre_mapper_config': fields.Nested(mod_mitre_mapper_config),
     'search_proxy_config': fields.Nested(mod_search_proxy_config),
     'fim_config': fields.Nested(mod_fim_config),
+    'inventory_config': fields.Nested(mod_inventory_config),
+    'winlog_config': fields.Nested(mod_winlog_config),
     'tags': fields.List(fields.String, default=[]),
     'priority': fields.Integer(default=1),
     'agent_tags': fields.List(fields.String, default=[]),

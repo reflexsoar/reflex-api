@@ -7,7 +7,8 @@ from datetime import datetime
 from flask_restx import Namespace, Resource
 from app.api_v2.model import (
     UpdateByQuery,
-    Event
+    Event,
+    EventRelatedObject
 )
 from app.api_v2.model.case import CloseReason
 from app.api_v2.model.threat import ThreatList
@@ -17,7 +18,9 @@ from app.api_v2.model.utils import IndexedDict
 integration_registry = {}
 
 
-api = Namespace('Integrations', description="Exposes API endpoints for every integration that requires one", path="/integrations")
+api = Namespace(
+    'Integrations', description="Exposes API endpoints for every integration that requires one", path="/integrations")
+
 
 class IntegrationJob:
     """
@@ -26,6 +29,7 @@ class IntegrationJob:
     """
     pass
 
+
 class IntegrationBase(object):
     """
     Defines a base class that all integrations should inherit from to ensure
@@ -33,11 +37,12 @@ class IntegrationBase(object):
     in to the Reflex ecosystem
     """
 
+    comment_template_map = {}
+
     def __init__(self, *args, **kwargs):
 
         self.manifest = None
         self.load_manifest()
-
 
         self.name = self.manifest.get('name', '')
         self.product_identifier = self.manifest.get('product_identifier', '')
@@ -47,7 +52,8 @@ class IntegrationBase(object):
         self.contributor = self.manifest.get('contributor', [])
         self.license = self.manifest.get('license', '')
         self.configuration = self.manifest.get('configuration', {})
-        self.unique_name = self.manifest.get('unique_name', f"{self.name}".replace(' ','_').lower())
+        self.unique_name = self.manifest.get(
+            'unique_name', f"{self.name}".replace(' ', '_').lower())
         self.actions = {}
 
         self.setup_routes()
@@ -73,33 +79,48 @@ class IntegrationBase(object):
         Runs a specific action
         """
         if action not in self.actions:
-            self.log_message(f"Action {action} not found", kwargs.get('configuration_uuid'), kwargs.get('configuration_name'), level='ERROR', action=action)
+            self.log_message(f"Action {action} not found", kwargs.get(
+                'configuration_uuid'), kwargs.get('configuration_name'), level='ERROR', action=action)
             raise ValueError(f"Action {action} not found")
 
-        self.log_message(f"Running action {action}", kwargs.get('configuration_uuid'), kwargs.get('configuration_name'), action=action)
+        self.log_message(f"Running action {action}", kwargs.get(
+            'configuration_uuid'), kwargs.get('configuration_name'), action=action)
         return self.actions[action](*args, **kwargs)
-    
+
     def flatten_dict(self, data):
         """
         Flattens a dictionary into a single level dictionary
         """
         return IndexedDict(data)
-    
+
     def dict_as_markdown_table(self, data):
         """
         Converts a dictionary in to a markdown table with the first column as
         keys and the second column as their value
         """
 
+        def format_value(v):
+            if isinstance(v, str) and '\n' in v:
+                return v.replace('\n', '<br>')
+            if isinstance(v, (int, float)):
+                return str(v)
+            return v
+
         # Always flatten the dictionary first
         data = self.flatten_dict(data)
 
         table = "Field | Value\n| --- | --- |\n"
         for key, value in data.items():
+
+            value = format_value(value)
+
+            if isinstance(value, list):
+                value = '<br>'.join(format_value(v) for v in value)
+
             table += f"| **{key}** | {value} |\n"
 
         return table
-    
+
     def log_message(self, message, configuration_uuid, configuration_name=None, level='INFO', action=None):
         """
         Logs a message to the integration log
@@ -152,9 +173,9 @@ class IntegrationBase(object):
         try:
             query.execute()
         except Exception as e:
-            self.log_message(f"Error adding output to event: {e}", configuration.uuid, configuration.name, level='ERROR')
+            self.log_message(
+                f"Error adding output to event: {e}", configuration.uuid, configuration.name, level='ERROR')
             raise e
-            
 
     def load_configuration(self, configuration_uuid):
         """
@@ -162,22 +183,24 @@ class IntegrationBase(object):
         """
         configuration = IntegrationConfiguration.search()
         configuration = configuration.filter('term', uuid=configuration_uuid)
-        configuration = configuration.filter('term', integration_uuid=self.product_identifier)
+        configuration = configuration.filter(
+            'term', integration_uuid=self.product_identifier)
         configuration = configuration.execute()
 
         if not configuration:
-            raise Exception(f"Configuration with UUID {configuration_uuid} not found")
-        
+            raise Exception(
+                f"Configuration with UUID {configuration_uuid} not found")
+
         return configuration[0]
 
     def load_manifest(self):
         """
         Loads the manifest file for the integration
         """
-        
+
         # Find the path of the module that inherits from this class
         dir_path = os.path.dirname(inspect.getfile(self.__class__))
-        
+
         # Load the manifest file
         try:
             with open(f"{dir_path}/manifest.json", "r") as f:
@@ -197,7 +220,7 @@ class IntegrationBase(object):
             _events = [event for event in events if isinstance(event, Event)]
 
         return _events
-    
+
     def get_value_from_source_field(self, source_field, event):
         """
         Returns the value of a source field from an event
@@ -213,8 +236,8 @@ class IntegrationBase(object):
 
         if source_field in event:
             return event[source_field]
-        return None    
-    
+        return None
+
     def extract_observables_by_type(self, events, observable_data_type):
         """
         Returns the observables of a specific type from the events
@@ -225,7 +248,7 @@ class IntegrationBase(object):
                 if observable['data_type'] == observable_data_type:
                     observables.append(observable)
         return observables
-    
+
     def close_event(self, events, reason, comment):
         """
         Closes the event
@@ -236,7 +259,8 @@ class IntegrationBase(object):
             events = self._events_to_list(events)
 
             query = UpdateByQuery(index=Event._index._name)
-            query = query.filter('terms', uuid=[event.uuid for event in events])
+            query = query.filter(
+                'terms', uuid=[event.uuid for event in events])
 
             if reason is None:
                 reason = 'Other'
@@ -264,13 +288,12 @@ class IntegrationBase(object):
                     "dismissed_by": {'username': f"{self.__class__.__name__} integration"}
                 }
             }
-            
+
             query = query.script(**script)
             query.execute()
         except Exception:
             return False
         return True
-
 
     def load_events(self, **kwargs):
 
@@ -283,7 +306,7 @@ class IntegrationBase(object):
 
         results = events.scan()
         return [r for r in results]
-    
+
     def set_event_integration_attribute(self, events, attributes):
         """
         Sets the integration attribute for the event
@@ -314,10 +337,53 @@ class IntegrationBase(object):
         query = query.script(**script)
         query.execute()
 
+    def add_event_comment_as_artifact(self, events, comment, created_by=None, action=None, configuration=None):
+        """
+        Adds a comment as an Event artifact to all provided events.
+        """
+
+        _comments = []
+        for event in events:
+            _comment = {
+                'event': {
+                    'uuid': event.uuid,
+                    'organization': event.organization,
+                },
+                'entry': {
+                    'type': 'comment'
+                },
+                'uuid': str(uuid4()),
+                'comment': {
+                    'uuid': str(uuid4()),
+                    'comment': comment,
+                    'created_at': datetime.utcnow(),
+                    'created_by': created_by if created_by else f"{self.__class__.__name__} integration",
+                    'organization': event.organization
+                },
+                'integration': {
+                    'uuid': self.product_identifier,
+                    'name': self.name,
+                    'action': action,
+                    'configuration': configuration
+
+                },
+                'organization': event.organization,
+                'created_by': {
+                    'username': created_by if created_by else f"{self.__class__.__name__} integration"
+                },
+                'created_at': datetime.utcnow()
+            }
+
+            _comments.append(_comment)
+
+        EventRelatedObject.bulk(_comments)
 
     def add_event_comment(self, events, comment, created_by=None):
         """
         Adds a comment to one more events
+        DEPRECATION WARNING: This method will be removed in a future release
+        in favor of comments being added as artifacts instead of directly
+        to the event.
         """
 
         events = self._events_to_list(events)
@@ -325,7 +391,8 @@ class IntegrationBase(object):
         if len(events) > 0:
             # Use a bulk update to add the comment to each event
             query = UpdateByQuery(index=Event._index._name)
-            query = query.filter('terms', uuid=[event.uuid for event in events])
+            query = query.filter(
+                'terms', uuid=[event.uuid for event in events])
 
             # Using painless script
             # Create the comment object
@@ -357,12 +424,41 @@ class IntegrationBase(object):
 
             query.execute()
 
+    def get_comment_template(self, configuration, action_name):
+        '''
+        Returns the comment template for the action, will use the
+        default templates if not set in the configuration or the template
+        provided is empty.
+        '''
+
+        # Check if the action exists in the configuration
+        if hasattr(configuration.actions, action_name):
+
+            _action_config = getattr(configuration.actions, action_name)
+
+            # Check if the action has a comment template
+            if 'comment_template' in _action_config:
+
+                # Check if the comment template is empty
+                if _action_config.comment_template == "":
+                    return self.comment_template_map[action_name]
+
+                # Return the comment template
+                return _action_config.comment_template
+
+            # Return the default template if the comment template is not set
+            if action_name in self.comment_template_map:
+                return self.comment_template_map[action_name]
+
+        # Return the default template if the action is not in the configuration
+        return None
+
     def create_intel_list(self, list_name: str, list_type: str, data_type: str, values: List[str]) -> str:
         """
         Creates an Intel List and returns the UUID
         """
 
-        if list_type not in ['values','regex','csv']:
+        if list_type not in ['values', 'regex', 'csv']:
             raise ValueError(f"Invalid list type {list_type}")
 
         tl = ThreatList(
@@ -375,7 +471,7 @@ class IntegrationBase(object):
         tl.save()
 
         tl.set_values(values)
-        
+
         return tl.uuid
 
     def setup_routes(self):
@@ -383,14 +479,13 @@ class IntegrationBase(object):
         Locates at any sub-class of IntegrationBase that inherits from
         Resource and loads it in to the api
         """
-        
+
         # Find all classes that are a subclass of Resource
         for _, cls in inspect.getmembers(self, inspect.isclass):
             if issubclass(cls, Resource):
 
                 # Prepend the path with the product identifier and version
                 cls.path = f"/{self.unique_name}/{self.version}{cls.path}"
-                
+
                 # Add the class to the api and include its docstring
                 api.add_resource(cls, cls.path)
-

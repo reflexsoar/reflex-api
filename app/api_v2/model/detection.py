@@ -171,9 +171,9 @@ class SourceMonitorConfig(base.InnerDoc):
     Defines settings for a SourceMonitor detection type
     '''
     data_sources = Keyword()
-    source_lists = Keyword()
+    source_lists = Nested()
     excluded_sources = Keyword()
-    excluded_source_lists = Keyword()
+    excluded_source_lists = Nested()
     autodiscover_data_streams = Boolean()
     ignore_data_streams_older_than_days = Integer() # If a data stream is older than this number of days ignore it
     delta_change = Boolean()  # True = delta change, False = absolute change
@@ -629,13 +629,14 @@ class Detection(base.BaseDocument):
     suppression_max_events = Integer()
     required_fields = Keyword()  # A list of fields that must be present on the source event
     author = Keyword() # A list of authors
-    field_metrics = Keyword() # A list of field metrics
+    field_metrics = Object(enabled=False) # A list of field metrics
 
     class Index:
         name = "reflex-detections"
         settings = {
             "refresh_interval": "1s"
         }
+        version = '0.1.6'
 
     def save(self, **kwargs):
         ''' Override save to set some defaults '''

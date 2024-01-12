@@ -259,7 +259,11 @@ def create_admin_role(cls, admin_id, org_id, org_perms=False, check_for_default=
         'create_agent_tag': True,
         'update_agent_tag': True,
         'delete_agent_tag': True,
-        'sync_local_subscribers': True
+        'sync_local_subscribers': True,
+        'create_log_source': True,
+        'update_log_source': True,
+        'delete_log_source': True,
+        'view_log_sources': True
     }
 
     role_contents = {
@@ -469,7 +473,11 @@ def create_analyst_role(cls, org_id, org_perms=False, check_for_default=False):
         'add_list': False,
         'update_list': False,
         'delete_list': False,
-        'sync_local_subscribers': False
+        'sync_local_subscribers': False,
+        'create_log_source': False,
+        'update_log_source': False,
+        'delete_log_source': False,
+        'view_log_sources': True
     }
 
     role_contents = {
@@ -536,7 +544,8 @@ def create_agent_role(cls, org_id, check_for_default=False):
         "view_data_source_templates": True,
         'view_fim_rules': True,
         'view_benchmarks': True,
-        'create_benchmark_result': True
+        'create_benchmark_result': True,
+        'view_log_sources': True
     }
 
     role_contents = {
