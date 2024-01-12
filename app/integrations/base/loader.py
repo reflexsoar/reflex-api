@@ -49,7 +49,7 @@ def load_integrations():
             continue
 
 
-def register_integrations():
+def register_integrations(primary_node=True):
 
     print("Loading integrations...")
 
@@ -84,4 +84,5 @@ def register_integrations():
                         loaded_integrations[name] = cls
 
     print(f"Loaded {len(loaded_classes)} integrations")
-    load_integrations()
+    if primary_node:
+        load_integrations()
