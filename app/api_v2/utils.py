@@ -417,7 +417,8 @@ def _check_token():
             access_token = auth_header.split(' ')[1]
 
             try:
-                expired = ExpiredToken.search().filter('term', token=access_token).execute()
+                #expired = ExpiredToken.search().filter('term', token=access_token).execute()
+                expired = None
                 if expired:
                     abort(401, 'Token retired.')
             except ConnectionResetError as e:

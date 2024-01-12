@@ -1,11 +1,13 @@
 
 import datetime
+import threading
 from flask import request
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 from ..model import (
     FieldMappingTemplate,
     Organization,
-    VALID_DATA_TYPES
+    VALID_DATA_TYPES,
+    Detection
 )
 from .shared import FormatTags, mod_pagination, ISO8601, mod_user_list
 from .utils import redistribute_detections
@@ -114,6 +116,14 @@ class FieldMappingTemplateDetails(Resource):
                     api.abort(409, "Field Mapping Template with this name already exists")
 
             template.update(**api.payload, refresh=True)
+
+            # Spawn a background thread to find all the detections that use this template
+            # and have them recompute their field_settings
+            
+            #thread = threading.Thread(target=Detection.bulk_update_field_settings(template.uuid))
+            #thread.daemon = True
+            #thread.start()
+
             return template
         else:
             api.abort(404, 'Field Mapping Template not found.')

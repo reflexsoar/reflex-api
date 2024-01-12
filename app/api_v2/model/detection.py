@@ -8,6 +8,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 import math
 import datetime
+from pytz import timezone
 
 from app.api_v2.model.utils import _current_user_id_or_none
 from . import (
@@ -28,7 +29,8 @@ from . import (
     Input,
     Agent,
     Organization,
-    Q
+    Q,
+    bulk
 )
 
 from .inout import FieldMap
@@ -630,6 +632,11 @@ class Detection(base.BaseDocument):
     required_fields = Keyword()  # A list of fields that must be present on the source event
     author = Keyword() # A list of authors
     field_metrics = Object(enabled=False) # A list of field metrics
+    field_settings = Object(properties={
+        'fields': Nested(FieldMap),
+        'signature_fields': Keyword(),
+        'tag_fields': Keyword(),
+    })
 
     class Index:
         name = "reflex-detections"
@@ -704,6 +711,76 @@ class Detection(base.BaseDocument):
             }
 
         super(Detection, self).save(**kwargs)
+
+    def should_run(self, catchup_period=1440):
+        '''
+        Determines if the last_run + the interval is greater than now
+        '''
+
+        schedule_allows = False
+
+        if hasattr(self, 'schedule'):
+            # Adjust for the timezone if it is set
+            if hasattr(self, 'schedule_timezone'):
+                now = datetime.datetime.now(timezone(self.schedule_timezone))
+            else:
+                now = datetime.datetime.utcnow()
+                
+            for day_of_week in self.schedule:
+                day_config = self.schedule[day_of_week]
+                if 'active' in day_config and day_config['active']:
+                    if day_of_week == now.strftime("%A").lower():
+                        
+                        # For each define from to in hours check if the 
+                        # current hours and minutes is within the range
+                        for time_range in day_config['hours']:
+                            
+                            # Get the current hours and minutes in 24 hour format
+                            now_time = f"{now.hour:02d}{now.minute:02d}"
+                            now_time = int(now_time)
+
+                            # Get the from and to hours and minutes in 24 hour format
+                            from_time = int(time_range["from"].replace(":", ""))
+                            to_time = int(time_range["to"].replace(":", ""))
+
+                            # If the current time is within the range, allow the run
+                            if now_time >= from_time and now_time <= to_time:
+                                schedule_allows = True
+                                break
+                else:
+                    schedule_allows = True
+                    break
+
+        # If the schedule doesn't allow us to run, return False
+        if not schedule_allows:
+            return False
+
+        if hasattr(self, 'last_run'):
+
+            # Convert the last_run ISO8601 UTC timestamp back to a datetime object
+            last_run = self.last_run
+
+            # Determine the next time the rule should run
+            next_run = last_run + datetime.timedelta(minutes=self.interval)
+            next_run = next_run.replace(tzinfo=None)
+
+            # Determine the current time in UTC
+            current_time = datetime.datetime.utcnow()
+
+            # Compute the mute period based on the last_hit property
+            if hasattr(self, 'mute_period') and self.mute_period != None and self.mute_period > 0 and hasattr(self, 'last_hit') and self.last_hit:
+                last_hit = self.last_hit
+                mute_time = last_hit + \
+                    datetime.timedelta(seconds=self.mute_period*60)
+                mute_time = mute_time.replace(tzinfo=None)
+            else:
+                mute_time = current_time
+
+            # If the current_time is greater than the when the detection rule should run again
+            if current_time > next_run and current_time >= mute_time:
+                return True
+            
+        return False
 
     def extract_fields_from_query(self, query=None):
         '''
@@ -790,6 +867,110 @@ class Detection(base.BaseDocument):
         if len(response) > 0:
             return response
         return []
+    
+    def update_field_settings(self):
+        '''
+        Updates the field settings for this detection
+        '''
+        self.field_settings = self.final_fields
+
+    @classmethod
+    def bulk_update_field_settings(cls, field_template: str):
+        '''
+        Updates the field settings for a list of detections
+        '''
+
+        detections = [d for d in cls.search().filter('term', field_templates=field_template).scan()]
+
+        for detection in detections:
+            detection.update_field_settings()
+
+        cls.bulk(detections)
+
+    @classmethod
+    def bulk(cls, items: list):
+        '''
+        Bulk adds application inventory data
+        '''
+
+        _items = []
+        for item in items:
+            if isinstance(item, dict):
+                _items.append(cls(**item).to_dict(True))
+            else:
+                _items.append(item.to_dict(True))
+
+        bulk(cls._get_connection(), (i for i in _items))
+    
+    @property
+    def final_fields(self):
+
+        if hasattr(self, 'ignore_final_fields') and self.ignore_final_fields:
+            return {}
+        
+        final_fields = self.get_field_settings()
+
+        source_input = None
+
+        final_fields = []
+        observable_fields = []
+        signature_fields = []
+        tag_fields = []
+
+        # If the detection specifies its own signature fields, use those as a base
+        if self.signature_fields:
+            signature_fields = self.signature_fields
+
+        # If the final_fields has any signature_fields, add them to the signature_fields list
+        # then deduplicate the list and sort it alphabetically
+        if any('signature_field' in field and field['signature_field'] is True for field in final_fields):
+            signature_fields.extend([field['field'] for field in final_fields if 'signature_field' in field and field['signature_field'] is True])
+
+        # Sort the signature fields alphabetically
+        signature_fields = sorted(signature_fields)
+
+        # Determine which fields are tag fields
+        tag_fields.extend([field['field'] for field in final_fields if 'tag_field' in field and field['tag_field'] is True])
+
+        # Include only fields that are marked as observable fields
+        """ DEPRECATION WARNING: The inclusion of fields missing the observable_field flag will
+            be removed in a future release.  We maintain backwards compatibility for now but
+            this will be removed in a future release. """
+        observable_fields = [field for field in final_fields if ('observable_field' in field and field['observable_field'] is True) or 'observable_field' not in field]
+
+        # If the detection rule has no field settings or signature fields
+        # or tag fields, fetch the settings from the source input            
+        if not observable_fields or not signature_fields or not tag_fields:
+            source_input = Input.get_by_uuid(self.source.uuid)
+
+            _input_fields = source_input.get_field_settings()
+
+            # If no final_fields were determined, default to the source input field mapping
+            if not observable_fields:
+                observable_fields = _input_fields
+
+            # If no signature fields were determined, default to the source input signature fields
+            if not signature_fields:
+                if hasattr(source_input.config, 'signature_fields'):
+                    signature_fields = [field['field'] for field in _input_fields if 'signature_field' in field and field['signature_field'] is True]
+                else:
+                    signature_fields = []
+
+            # If no tag_fields were determined, default to the source input tag fields
+            if not tag_fields:
+                # Get any tag fields from the input
+                if hasattr(source_input.config, 'tag_fields'):
+                    tag_fields.extend([field['field'] for field in _input_fields if 'tag_field' in field and field['tag_field'] is True])
+                else:
+                    tag_fields = []
+
+        response = {
+            "fields": observable_fields,
+            "signature_fields": signature_fields,
+            "tag_fields": tag_fields
+        }
+        return response
+    
 
     def get_field_settings(self):
         '''Provides a list of field settings for this detection'''

@@ -174,6 +174,13 @@ mod_detection_schedule = api.model('DetectionSchedule', {
     'sunday': fields.Nested(mod_detection_schedule_day)
 })
 
+
+mod_detection_field_settings = api.model('DetectionFieldSettings', {
+    'fields': fields.List(fields.Nested(mod_observable_field)),
+    'signature_fields': fields.List(fields.String),
+    'tag_fields': fields.List(fields.String),
+})
+
 mod_detection_details = api.model('DetectionDetails', {
     'uuid': fields.String,
     'original_uuid': fields.String,
@@ -235,7 +242,6 @@ mod_detection_details = api.model('DetectionDetails', {
     'schedule_timezone': fields.String(default='Etc/GMT'),
     'schedule': fields.Nested(mod_detection_schedule),
     'assess_rule': fields.Boolean,
-    'hits_over_time': fields.String,
     'average_hits_per_day': fields.Integer,
     'last_assessed': ISO8601,
     'average_query_time': fields.Integer,
@@ -246,8 +252,13 @@ mod_detection_details = api.model('DetectionDetails', {
     'is_hunting_rule': fields.Boolean,
     'suppression_max_events': fields.Integer(default=0),
     'required_fields': fields.List(fields.String, default=[]),
-    'field_metrics': fields.List(fields.Nested(mod_field_metric), default=[])
+    #'field_settings': fields.Nested(mod_detection_field_settings),
 }, strict=True)
+
+mod_detection_details_extended = api.clone('DetectionDetailsExtended', mod_detection_details, {
+    'hits_over_time': fields.String,
+    'field_metrics': fields.List(fields.Nested(mod_field_metric), default=[])
+})
 
 mod_create_detection = api.model('CreateDetection', {
     'name': fields.String(default='Sample Rule', required=True),
@@ -301,8 +312,6 @@ mod_create_detection = api.model('CreateDetection', {
     'required_fields': fields.List(fields.String, default=[], required=False),
     'field_metrics': fields.List(fields.Nested(mod_field_metric), default=[], required=False)
 })
-
-
 
 mod_update_detection = api.model('UpdateDetection', {
     'name': fields.String,
@@ -443,11 +452,6 @@ mod_sigma = api.model('Sigma', {
     'backend': fields.String(default='opensearch')
 })
 
-mod_detection_field_settings = api.model('DetectionFieldSettings', {
-    'fields': fields.List(fields.Nested(mod_observable_field)),
-    'signature_fields': fields.List(fields.String),
-    'tag_fields': fields.List(fields.String),
-})
 
 mod_detection_import = api.model('ImportDetection', {
     'detections': fields.List(fields.Nested(mod_create_detection))
@@ -532,6 +536,9 @@ mod_detection_uuids = api.model('DetectionUUIDs', {
 detection_list_parser = api.parser()
 detection_list_parser.add_argument(
     'agent', location='args', type=str, required=False)
+detection_list_parser.add_argument(
+    'should_run', location='args', type=xinputs.boolean, required=False
+)
 detection_list_parser.add_argument(
     'active', location='args', action="split", type=xinputs.boolean, required=False)
 detection_list_parser.add_argument(
@@ -722,7 +729,11 @@ class DetectionList(Resource):
                     else:
                         search = search.filter('term', uuid='') # Force it to come back empty
 
-            detections = list(search.scan())
+            if args.should_run:
+                # Only return detections that are due to run
+                detections = [d for d in search.scan() if d.should_run()]
+            else:
+                detections = list(search.scan())
 
             # Remove the fields the agent doesn't need such as guide, setup_guide, testing_guide
             for detection in detections:
@@ -1472,7 +1483,7 @@ detection_details_parser.add_argument(
 class DetectionDetails(Resource):
 
     @api.doc(security="Bearer")
-    @api.marshal_with(mod_detection_details)
+    @api.marshal_with(mod_detection_details_extended)
     @api.expect(detection_details_parser)
     @token_required
     @user_has('view_detections')
@@ -1653,7 +1664,7 @@ class DetectionDetails(Resource):
 
                 hard_save = False
 
-                if detection.source_monitor_config:
+                if detection.source_monitor_config and 'source_monitor_config' in api.payload:
                     if 'data_sources' in detection.source_monitor_config:
                         hard_save = detection.source_monitor_config['data_sources'] != api.payload['source_monitor_config']['data_sources']
                     if not hard_save and 'excluded_source_lists' in detection.source_monitor_config:
@@ -1664,12 +1675,13 @@ class DetectionDetails(Resource):
                         hard_save = detection.source_monitor_config['source_lists'] != api.payload['source_monitor_config']['source_lists']
                 
                 if hard_save:
+                    print("HARD")
                     # Detection configs have changed
                     dsm = SourceMonitorConfig(
                         **api.payload['source_monitor_config'])
                     detection.source_monitor_config = dsm
                     detection.save(refresh='wait_for')
-
+                
                 detection.update(**api.payload, refresh=True, version=increase_version(detection, api.payload))
 
             return detection
@@ -1724,73 +1736,9 @@ class DetectionFieldSettings(Resource):
     def get(self, uuid, current_user):
         detection = Detection.get_by_uuid(uuid=uuid)
         if detection:
-
-            final_fields = []
-            observable_fields = []
-            signature_fields = []
-            tag_fields = []
-
-            final_fields = detection.get_field_settings()
-
-            source_input = None
-
-            # If the detection specifies its own signature fields, use those as a base
-            if detection.signature_fields:
-                signature_fields = detection.signature_fields
-
-            # If the final_fields has any signature_fields, add them to the signature_fields list
-            # then deduplicate the list and sort it alphabetically
-            if any('signature_field' in field and field['signature_field'] is True for field in final_fields):
-                signature_fields.extend([field['field'] for field in final_fields if 'signature_field' in field and field['signature_field'] is True])
-
-            # Sort the signature fields alphabetically
-            signature_fields = sorted(signature_fields)
-
-            # Determine which fields are tag fields
-            tag_fields.extend([field['field'] for field in final_fields if 'tag_field' in field and field['tag_field'] is True])
-
-            # Include only fields that are marked as observable fields
-            """ DEPRECATION WARNING: The inclusion of fields missing the observable_field flag will
-                be removed in a future release.  We maintain backwards compatibility for now but
-                this will be removed in a future release. """
-            observable_fields = [field for field in final_fields if ('observable_field' in field and field['observable_field'] is True) or 'observable_field' not in field]
-
-            # If the detection rule has no field settings or signature fields
-            # or tag fields, fetch the settings from the source input            
-            if not observable_fields or not signature_fields or not tag_fields:
-                source_input = Input.get_by_uuid(detection.source.uuid)
-
-                _input_fields = source_input.get_field_settings()
-
-                # If no final_fields were determined, default to the source input field mapping
-                if not observable_fields:
-                    observable_fields = _input_fields
-
-                # If no signature fields were determined, default to the source input signature fields
-                if not signature_fields:
-                    if hasattr(source_input.config, 'signature_fields'):
-                        signature_fields = [field['field'] for field in _input_fields if 'signature_field' in field and field['signature_field'] is True]
-                    else:
-                        signature_fields = []
-
-                # If no tag_fields were determined, default to the source input tag fields
-                if not tag_fields:
-                    # Get any tag fields from the input
-                    if hasattr(source_input.config, 'tag_fields'):
-                        tag_fields.extend([field['field'] for field in _input_fields if 'tag_field' in field and field['tag_field'] is True])
-                    else:
-                        tag_fields = []
-
-            response = {
-                "fields": observable_fields,
-                "signature_fields": signature_fields,
-                "tag_fields": tag_fields
-            }
-
-            return response
+            return detection.final_fields
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')
-
 
 @api.route("/parse_sigma")
 class ParseSigma(Resource):

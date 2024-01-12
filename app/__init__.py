@@ -271,7 +271,14 @@ def create_app(environment='development'):
     app.config['ERROR_404_HELP'] = False
     app.config['BUILD_VERSION'] = BUILD_VERSION
 
+    node_role = app.config['NODE_ROLE']
+
+    if node_role not in ['primary', 'client']:
+        app.logger.error(f"Invalid node role {node_role}. Must be either 'primary' or 'client'")
+        exit()
+
     app.logger.info(f"Starting Reflex version {BUILD_VERSION}.  Base model schema: {REFLEX_VERSION}")
+    app.logger.info(f"Running in {environment} mode as a {node_role} node")
 
     #app.logger.propagate = False
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -296,9 +303,9 @@ def create_app(environment='development'):
 
     # If Reflex is in recovery mode, initial setup will be skipped and indices will be 
     # created empty
-    recovery_mode = app.config['REFLEX_RECOVERY_MODE'] if 'REFLEX_RECOVERY_MODE' in app.config else os.getenv('REFLEX_RECOVERY_MODE') if os.getenv('REFLEX_RECOVERY_MODE') else False    
+    recovery_mode = app.config['REFLEX_RECOVERY_MODE'] if 'REFLEX_RECOVERY_MODE' in app.config else os.getenv('REFLEX_RECOVERY_MODE') if os.getenv('REFLEX_RECOVERY_MODE') else False
 
-    if os.getenv('FLASK_CONFIG') != 'testing':
+    if os.getenv('FLASK_CONFIG') != 'testing' and node_role == 'primary':
         if setup_complete() != True:
             app.logger.info("Setup already complete")
             upgrade_indices(app)
@@ -309,22 +316,16 @@ def create_app(environment='development'):
             setup(app, check_for_default=True)
 
     # Perform any necessary upgrades to the database
-    for upgrade in upgrades:
-        upgrade(app)
+    if node_role == 'primary':
+        for upgrade in upgrades:
+            upgrade(app)
 
     if not app.config['DISABLE_TELEMETRY']:
         set_install_uuid()
         send_telemetry()
 
-    if app.config['INTEGRATIONS_ENABLED']:
-        app.logger.info("Loading integrations")
-        register_integrations()
-        
-
-        # Reload integrations every N minutes
-        #scheduler.add_job(func=register_integrations, trigger="interval", seconds=app.config['INTEGRATION_LOADER_INTERVAL']*60)
-
-    reset_detection_state()
+    if node_role == 'primary':
+        reset_detection_state()
 
     if app.config['ELASTIC_APM_ENABLED']:
         app.config['ELASTIC_APM'] = {
@@ -335,6 +336,23 @@ def create_app(environment='development'):
             'SERVER_URL': app.config['ELASTIC_APM_HOSTNAME']
         }
         apm.init_app(app, logging=True)
+
+    # Disable background services on a non-primary node
+    if node_role != 'primary':
+        app.config['SCHEDULER_DISABLED'] = True
+        app.config['THREAT_POLLER_DISABLED'] = True
+        app.config['HOUSEKEEPER_DISABLED'] = True
+        app.config['SLAMONITOR_DISABLED'] = True
+        app.config['NOTIFIER']['DISABLED'] = True
+        app.config['DETECTION_DAILY_ASSESS'] = False
+
+    if app.config['INTEGRATIONS_ENABLED']:
+        app.logger.info("Loading integrations")
+        # TODO: CHECK THIS
+        register_integrations(node_role == 'primary')
+        
+        # Reload integrations every N minutes
+        #scheduler.add_job(func=register_integrations, trigger="interval", seconds=app.config['INTEGRATION_LOADER_INTERVAL']*60)
 
     if not app.config['SCHEDULER_DISABLED']:
         if not app.config['THREAT_POLLER_DISABLED']:
@@ -433,19 +451,21 @@ def create_app(environment='development'):
         notifier.set_log_level(app.config['NOTIFIER']['LOG_LEVEL'])
         scheduler.add_job(func=notifier.check_notifications, trigger="interval", seconds=app.config['NOTIFIER']['POLL_INTERVAL'])
 
-    action_runner = ActionRunner()
-    scheduler.add_job(func=action_runner.run, trigger="date", run_date=datetime.datetime.now())
+    if node_role == 'primary':
+        action_runner = ActionRunner()
+        scheduler.add_job(func=action_runner.run, trigger="date", run_date=datetime.datetime.now())
 
     # Add scheduled tasks
     if app.config['DETECTION_DAILY_ASSESS']:
         scheduler.add_job(func=flag_rules_for_periodic_assessment, trigger="date", run_date=datetime.datetime.now()) # On System Startup
         scheduler.add_job(func=flag_rules_for_periodic_assessment, trigger="interval", seconds=24*60*60) # Once a day
 
-    scheduler.add_job(func=auto_close_cases, trigger="date", run_date=datetime.datetime.now()) # On System Startup
-    scheduler.add_job(func=auto_close_cases, trigger="interval", seconds=24*60*60) # Once a day
+    if node_role == 'primary':
+        scheduler.add_job(func=auto_close_cases, trigger="date", run_date=datetime.datetime.now()) # On System Startup
+        scheduler.add_job(func=auto_close_cases, trigger="interval", seconds=24*60*60) # Once a day
 
-    scheduler.add_job(func=load_benchmark_rules_from_remote, trigger="date", run_date=datetime.datetime.now(), args=(app, )) # On System Startup
-    scheduler.add_job(func=load_benchmark_rules_from_remote, trigger="interval", seconds=60*60, args=(app, )) # Every hour
+        scheduler.add_job(func=load_benchmark_rules_from_remote, trigger="date", run_date=datetime.datetime.now(), args=(app, )) # On System Startup
+        scheduler.add_job(func=load_benchmark_rules_from_remote, trigger="interval", seconds=60*60, args=(app, )) # Every hour
 
     if not app.config['EVENT_PROCESSOR']['DISABLED']:
         try:

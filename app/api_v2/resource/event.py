@@ -397,7 +397,7 @@ class EventListAggregated(Resource):
                 search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))           
 
             if args.grouped != False:
-                #raw_event_count = search.count()
+                raw_event_count = search.count()
 
                 search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
                 search.aggs['signature'].metric('max_date', 'max', field='original_date')
@@ -434,11 +434,13 @@ class EventListAggregated(Resource):
                 if number_of_sigs == 0:
                     number_of_sigs = 10000
 
-                search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
+                search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=number_of_sigs)
                 search.aggs['signature'].metric('max_date', 'max', field='original_date')
                 search.aggs['signature'].bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=number_of_sigs)
                 search.aggs['signature']['uuid'].bucket('card', 'top_hits', size=1)
                 search.aggs['signature']['uuid'].metric('max_date', 'max', field='original_date')
+
+                print(json.dumps(search.to_dict(), default=str, indent=2))
 
                 results = search.execute()
 
@@ -467,7 +469,7 @@ class EventListAggregated(Resource):
                 #search = search[0:len(event_uuids)]
 
                 total_events = results.hits.total.value
-                raw_event_count = total_events
+                #raw_event_count = total_events
                 pages = math.ceil(float(len(sigs) / args.page_size))
                 
                 #events = search.execute()
@@ -1947,35 +1949,35 @@ class EventStats(Resource):
             search.aggs['range'].bucket('tags', 'terms', field='tags', size=max_tags)
 
         if 'dismiss_reason' in args.metrics:
-            max_reasons = args.top if args.top != 10 else 100
+            max_reasons = args.top if args.top != 10 else 25
             search.aggs['range'].bucket('dismiss_reason', 'terms', field='dismiss_reason.keyword', size=max_reasons, min_doc_count=0)
 
         if 'status' in args.metrics:
-            max_status = args.top if args.top != 10 else 100
+            max_status = args.top if args.top != 10 else 10
             search.aggs['range'].bucket('status', 'terms', field='status.name.keyword', size=max_status, min_doc_count=0)
 
         if 'severity' in args.metrics:
-            max_severity = args.top if args.top != 10 else 100
+            max_severity = args.top if args.top != 10 else 10
             search.aggs['range'].bucket('severity', 'terms', field='severity', size=max_severity, min_doc_count=0)
 
         if 'signature' in args.metrics:
-            max_signature = args.top if args.top != 50 else 100
+            max_signature = args.top if args.top != 10 else 25
             search.aggs['range'].bucket('signature', 'terms', field='signature', size=max_signature)
 
         if 'source' in args.metrics:
-            max_source = args.top if args.top != 10 else 100
+            max_source = args.top if args.top != 10 else 25
             search.aggs['range'].bucket('source', 'terms', field='source.keyword', size=max_source)
 
         if 'event_rule' in args.metrics:
-            max_event_rule = args.top if args.top != 10 else 100
-            search.aggs['range'].bucket('event_rule', 'terms', field='event_rules', size=1000)
+            max_event_rule = args.top if args.top != 10 else 25
+            search.aggs['range'].bucket('event_rule', 'terms', field='event_rules', size=max_event_rule)
 
         if 'organization' in args.metrics:
             max_organizations = args.top if args.top != 10 else 100
             search.aggs['range'].bucket('organization', 'terms', field='organization', size=max_organizations, min_doc_count=0)
 
         if 'observable' in args.metrics:
-            max_observables = args.top if args.top != 10 else 100
+            max_observables = args.top if args.top != 10 else 25
             search.aggs['range'].bucket('observables', 'nested', path="event_observables")
             search.aggs['range']['observables'].bucket('data_type', 'terms', field='event_observables.data_type.keyword', size=max_observables)
             search.aggs['range']['observables'].bucket('value', 'terms', field='event_observables.value.keyword', size=max_observables)
@@ -1983,7 +1985,7 @@ class EventStats(Resource):
         if 'time_per_status' in args.metrics:
             search.aggs['range'].buckets('time_per_status', 'terms', field='status.name.keyword', size=max_status)
 
-        search = search[0:0]
+        search = search.extra(size=0)
 
         events = search.execute()
 

@@ -11,6 +11,7 @@ import jwt
 import onetimepass
 import base64
 import os
+from functools import cached_property
 from flask import current_app, request, render_template
 from flask_bcrypt import Bcrypt
 from .utils import send_system_generated_email
@@ -247,7 +248,7 @@ class User(base.BaseDocument):
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60*jwt_exp),
             'iat': datetime.datetime.utcnow(),
             'type': 'user',
-            #'permissions': self.permissions,
+            #'permissions': [k for k in self.permissions if self.permissions[k] is True],
         }, current_app.config['SECRET_KEY'])
 
         return _access_token
@@ -329,7 +330,7 @@ class User(base.BaseDocument):
 
         raise NotImplementedError
     
-    @property
+    @cached_property
     def permissions(self):
         '''
         Returns a list of all the users permissions
@@ -373,6 +374,16 @@ class User(base.BaseDocument):
         Checks to see if the user has the proper
         permissions to perform an API action
         '''
+
+        search = Role.search()
+        search = search.filter('term', members=self.uuid)
+        search = search.filter('nested', path='permissions', query={'term': {f'permissions.{permission}': True}})
+        count = search.count()
+
+        if count > 0:
+            return True
+        return False
+
 
         # If the user has permissions from their token check
         # those first, if not fall back to checking against
