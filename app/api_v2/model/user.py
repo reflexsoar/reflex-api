@@ -247,7 +247,7 @@ class User(base.BaseDocument):
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60*jwt_exp),
             'iat': datetime.datetime.utcnow(),
             'type': 'user',
-            'permissions': self.permissions,
+            #'permissions': self.permissions,
         }, current_app.config['SECRET_KEY'])
 
         return _access_token
@@ -879,7 +879,7 @@ class ServiceAccount(base.BaseDocument):
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=jwt_exp),
             'iat': datetime.datetime.utcnow(),
             'type': 'service_account',
-            'permissions': self.permissions
+            #'permissions': self.permissions
         }, current_app.config['SECRET_KEY'])
 
         self.expires_at = (datetime.datetime.utcnow() + datetime.timedelta(days=jwt_exp))
