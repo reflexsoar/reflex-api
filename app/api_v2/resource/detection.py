@@ -174,6 +174,13 @@ mod_detection_schedule = api.model('DetectionSchedule', {
     'sunday': fields.Nested(mod_detection_schedule_day)
 })
 
+
+mod_detection_field_settings = api.model('DetectionFieldSettings', {
+    'fields': fields.List(fields.Nested(mod_observable_field)),
+    'signature_fields': fields.List(fields.String),
+    'tag_fields': fields.List(fields.String),
+})
+
 mod_detection_details = api.model('DetectionDetails', {
     'uuid': fields.String,
     'original_uuid': fields.String,
@@ -245,6 +252,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'is_hunting_rule': fields.Boolean,
     'suppression_max_events': fields.Integer(default=0),
     'required_fields': fields.List(fields.String, default=[]),
+    #'field_settings': fields.Nested(mod_detection_field_settings),
 }, strict=True)
 
 mod_detection_details_extended = api.clone('DetectionDetailsExtended', mod_detection_details, {
@@ -444,11 +452,6 @@ mod_sigma = api.model('Sigma', {
     'backend': fields.String(default='opensearch')
 })
 
-mod_detection_field_settings = api.model('DetectionFieldSettings', {
-    'fields': fields.List(fields.Nested(mod_observable_field)),
-    'signature_fields': fields.List(fields.String),
-    'tag_fields': fields.List(fields.String),
-})
 
 mod_detection_import = api.model('ImportDetection', {
     'detections': fields.List(fields.Nested(mod_create_detection))

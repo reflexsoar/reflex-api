@@ -28,7 +28,8 @@ from . import (
     Input,
     Agent,
     Organization,
-    Q
+    Q,
+    bulk
 )
 
 from .inout import FieldMap
@@ -630,6 +631,11 @@ class Detection(base.BaseDocument):
     required_fields = Keyword()  # A list of fields that must be present on the source event
     author = Keyword() # A list of authors
     field_metrics = Object(enabled=False) # A list of field metrics
+    field_settings = Object(properties={
+        'fields': Nested(FieldMap),
+        'signature_fields': Keyword(),
+        'tag_fields': Keyword(),
+    })
 
     class Index:
         name = "reflex-detections"
@@ -790,6 +796,40 @@ class Detection(base.BaseDocument):
         if len(response) > 0:
             return response
         return []
+    
+    def update_field_settings(self):
+        '''
+        Updates the field settings for this detection
+        '''
+        self.field_settings = self.final_fields
+
+    @classmethod
+    def bulk_update_field_settings(cls, field_template: str):
+        '''
+        Updates the field settings for a list of detections
+        '''
+
+        detections = [d for d in cls.search().filter('term', field_templates=field_template).scan()]
+
+        for detection in detections:
+            detection.update_field_settings()
+
+        cls.bulk(detections)
+
+    @classmethod
+    def bulk(cls, items: list):
+        '''
+        Bulk adds application inventory data
+        '''
+
+        _items = []
+        for item in items:
+            if isinstance(item, dict):
+                _items.append(cls(**item).to_dict(True))
+            else:
+                _items.append(item.to_dict(True))
+
+        bulk(cls._get_connection(), (i for i in _items))
     
     @property
     def final_fields(self):
