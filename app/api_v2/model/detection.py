@@ -790,6 +790,76 @@ class Detection(base.BaseDocument):
         if len(response) > 0:
             return response
         return []
+    
+    @property
+    def final_fields(self):
+
+        if hasattr(self, 'ignore_final_fields') and self.ignore_final_fields:
+            return {}
+        
+        final_fields = self.get_field_settings()
+
+        source_input = None
+
+        final_fields = []
+        observable_fields = []
+        signature_fields = []
+        tag_fields = []
+
+        # If the detection specifies its own signature fields, use those as a base
+        if self.signature_fields:
+            signature_fields = self.signature_fields
+
+        # If the final_fields has any signature_fields, add them to the signature_fields list
+        # then deduplicate the list and sort it alphabetically
+        if any('signature_field' in field and field['signature_field'] is True for field in final_fields):
+            signature_fields.extend([field['field'] for field in final_fields if 'signature_field' in field and field['signature_field'] is True])
+
+        # Sort the signature fields alphabetically
+        signature_fields = sorted(signature_fields)
+
+        # Determine which fields are tag fields
+        tag_fields.extend([field['field'] for field in final_fields if 'tag_field' in field and field['tag_field'] is True])
+
+        # Include only fields that are marked as observable fields
+        """ DEPRECATION WARNING: The inclusion of fields missing the observable_field flag will
+            be removed in a future release.  We maintain backwards compatibility for now but
+            this will be removed in a future release. """
+        observable_fields = [field for field in final_fields if ('observable_field' in field and field['observable_field'] is True) or 'observable_field' not in field]
+
+        # If the detection rule has no field settings or signature fields
+        # or tag fields, fetch the settings from the source input            
+        if not observable_fields or not signature_fields or not tag_fields:
+            source_input = Input.get_by_uuid(self.source.uuid)
+
+            _input_fields = source_input.get_field_settings()
+
+            # If no final_fields were determined, default to the source input field mapping
+            if not observable_fields:
+                observable_fields = _input_fields
+
+            # If no signature fields were determined, default to the source input signature fields
+            if not signature_fields:
+                if hasattr(source_input.config, 'signature_fields'):
+                    signature_fields = [field['field'] for field in _input_fields if 'signature_field' in field and field['signature_field'] is True]
+                else:
+                    signature_fields = []
+
+            # If no tag_fields were determined, default to the source input tag fields
+            if not tag_fields:
+                # Get any tag fields from the input
+                if hasattr(source_input.config, 'tag_fields'):
+                    tag_fields.extend([field['field'] for field in _input_fields if 'tag_field' in field and field['tag_field'] is True])
+                else:
+                    tag_fields = []
+
+        response = {
+            "fields": observable_fields,
+            "signature_fields": signature_fields,
+            "tag_fields": tag_fields
+        }
+        return response
+    
 
     def get_field_settings(self):
         '''Provides a list of field settings for this detection'''
