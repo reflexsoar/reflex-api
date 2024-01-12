@@ -397,7 +397,7 @@ class EventListAggregated(Resource):
                 search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))           
 
             if args.grouped != False:
-                #raw_event_count = search.count()
+                raw_event_count = search.count()
 
                 search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
                 search.aggs['signature'].metric('max_date', 'max', field='original_date')
@@ -434,11 +434,13 @@ class EventListAggregated(Resource):
                 if number_of_sigs == 0:
                     number_of_sigs = 10000
 
-                search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
+                search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=number_of_sigs)
                 search.aggs['signature'].metric('max_date', 'max', field='original_date')
                 search.aggs['signature'].bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=number_of_sigs)
                 search.aggs['signature']['uuid'].bucket('card', 'top_hits', size=1)
                 search.aggs['signature']['uuid'].metric('max_date', 'max', field='original_date')
+
+                print(json.dumps(search.to_dict(), default=str, indent=2))
 
                 results = search.execute()
 
@@ -467,7 +469,7 @@ class EventListAggregated(Resource):
                 #search = search[0:len(event_uuids)]
 
                 total_events = results.hits.total.value
-                raw_event_count = total_events
+                #raw_event_count = total_events
                 pages = math.ceil(float(len(sigs) / args.page_size))
                 
                 #events = search.execute()
