@@ -265,7 +265,7 @@ mod_agent_list = api.model('AgentList', {
     'healthy': fields.Boolean,
     'health_issues': fields.List(fields.String, default=[]),
     'last_heartbeat': ISO8601(attribute='last_heartbeat'),
-    'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
+    #'policy': fields.Nested(mod_agent_policy_detailed, attribute="_policy"),
     'version': fields.String,
     'is_pluggable': fields.Boolean(default=False),
     'tags': fields.List(fields.Nested(mod_agent_tag_short))
