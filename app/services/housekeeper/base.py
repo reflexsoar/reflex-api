@@ -581,7 +581,7 @@ class HouseKeeper(object):
                     tlp=1,
                     reference=uuid4(),
                     source='reflex-system',
-                    signature=sha1(f"{delayed['name']}.{delayed['uuid']}".encode(), usedforsecurity=False).hexdigest(),
+                    signature=sha1(f"{delayed['name']}.{delayed['uuid']}".encode()).hexdigest(),
                     original_date=datetime.datetime.utcnow(),
                     created_at=datetime.datetime.utcnow(),
                     category='detection-monitor'
@@ -603,7 +603,7 @@ class HouseKeeper(object):
                     tlp=1,
                     reference=uuid4(),
                     source='reflex-system',
-                    signature=sha1(f"{never_run['name']}.{never_run['uuid']}".encode(), usedforsecurity=False).hexdigest(),
+                    signature=sha1(f"{never_run['name']}.{never_run['uuid']}".encode()).hexdigest(),
                     original_date=datetime.datetime.utcnow(),
                     created_at=datetime.datetime.utcnow(),
                     category='detection-monitor'
