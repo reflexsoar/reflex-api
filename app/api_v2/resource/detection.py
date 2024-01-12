@@ -1657,7 +1657,7 @@ class DetectionDetails(Resource):
 
                 hard_save = False
 
-                if detection.source_monitor_config:
+                if detection.source_monitor_config and 'source_monitor_config' in api.payload:
                     if 'data_sources' in detection.source_monitor_config:
                         hard_save = detection.source_monitor_config['data_sources'] != api.payload['source_monitor_config']['data_sources']
                     if not hard_save and 'excluded_source_lists' in detection.source_monitor_config:
