@@ -403,11 +403,11 @@ def create_app(environment='development'):
                 seconds=600
             )
 
-            scheduler.add_job(
-                func=housekeeper.check_for_delayed_detections,
-                trigger="interval",
-                seconds=300
-            )
+            #scheduler.add_job(
+            #    func=housekeeper.check_for_delayed_detections,
+            #    trigger="interval",
+            #    seconds=300
+            #)
 
             scheduler.add_job(
                 func=DetectionRepository.check_detection_repo_subscription_sync,
