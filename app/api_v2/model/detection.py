@@ -721,7 +721,7 @@ class Detection(base.BaseDocument):
 
         if hasattr(self, 'schedule'):
             # Adjust for the timezone if it is set
-            if hasattr(self, 'schedule_timezone'):
+            if hasattr(self, 'schedule_timezone') and self.schedule_timezone is not None:
                 now = datetime.datetime.now(timezone(self.schedule_timezone))
             else:
                 now = datetime.datetime.utcnow()
@@ -730,7 +730,7 @@ class Detection(base.BaseDocument):
                 day_config = self.schedule[day_of_week]
                 if 'active' in day_config and day_config['active']:
                     if day_of_week == now.strftime("%A").lower():
-                        
+
                         # For each define from to in hours check if the 
                         # current hours and minutes is within the range
                         for time_range in day_config['hours']:
