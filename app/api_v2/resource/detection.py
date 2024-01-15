@@ -721,7 +721,7 @@ class DetectionList(Resource):
             # by pulling back too much data
             if args.limit:
                 search = search[:args.limit]
-                
+
             # Filter to only detections that are assigned to the agent
             # We dont have to define an org because the agent (current_user) 
             # gets its search() calls filtered by org by default
@@ -1734,6 +1734,115 @@ class DetectionDetails(Resource):
             return {}
         else:
             api.abort(400, f'Detection rule for UUID {uuid} not found')
+
+
+mod_bulk_detection_update = api.model('BulkDetectionUpdate', {
+    'uuid': fields.String(required=True),
+    'hits_over_time': fields.String(required=False),
+    'average_hits_per_day': fields.Integer(required=False),
+    'assess_rule': fields.Boolean(required=False),
+    'last_assessed': fields.DateTime(required=False),
+    'last_run': fields.DateTime(required=False),
+    'hits': fields.Integer(required=False, default=0),
+    'warnings': fields.List(fields.String, required=False, default=[]),
+    'time_taken': fields.Integer(required=False, default=0),
+    'query_time_taken': fields.Integer(required=False, default=0),
+    'average_query_time': fields.Integer(required=False, default=0),
+    'field_metrics': fields.List(fields.Nested(mod_field_metric))
+})
+
+mod_bulk_update_detections = api.model('BulkUpdateDetections', {
+    'detections': fields.List(fields.Nested(mod_bulk_detection_update))
+})
+
+@api.route("/_bulk_update_stats")
+class BulkUpdateDetectionStats(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_bulk_update_detections)
+    @token_required
+    @user_has('update_detection')
+    def post(self, current_user):
+        ''' Updates multiple detections in a single request.  Agents use
+        this endpoint from the detection_rule_updater thread to bulk update
+        detections that have been run recently or assessed recently. '''
+
+        THRESHOLD_WARNINGS = [
+            'high-volume',
+            'high-volume-disable',
+            'slow-query',
+            'slow-query-disable'
+        ]
+
+        uuids = [detection['uuid'] for detection in api.payload['detections']]
+        detections = Detection.get_by_uuid(uuid=uuids, all_results=True)
+
+        settings = Settings.load(organization=current_user.organization)
+
+        if detections:    
+            for detection in detections:
+                for update in api.payload['detections']:
+                    if detection.uuid == update['uuid']:
+
+                        # Update the total_hits if it is provided
+                        hits = update.get('hits', 0)
+                        if hits > 0:
+                            if detection.total_hits:
+                                update['total_hits'] = detection.total_hits + hits
+                            else:
+                                update['total_hits'] = hits
+
+                        # Check for any warnings in the payload
+                        warnings = update.get('warnings', [])
+                        query_time_taken = update.get('query_time_taken', 0)
+                        time_taken = update.get('time_taken', 0)
+
+                        # If the hits is greater than the high volume threshold, add the high-volume warning
+                        try:
+                            HIGH_VOLUME_THRESHOLD = getattr(settings, 'high_volume_threshold', 10000)
+                            HIGH_VOLUME_WARNING_THRESHOLD = getattr(settings, 'high_volume_warning_threshold', 5000)
+                            SLOW_DETECTION_THRESHOLD = getattr(settings, 'slow_detection_threshold', 25000)
+                            SLOW_DETECTION_WARNING_THRESHOLD = getattr(settings, 'slow_detection_warning_threshold', 5000)
+                        except:
+                            HIGH_VOLUME_THRESHOLD = 10000
+                            HIGH_VOLUME_WARNING_THRESHOLD = 5000
+                            SLOW_DETECTION_THRESHOLD = 25000
+                            SLOW_DETECTION_WARNING_THRESHOLD = 5000
+
+                        if hits > HIGH_VOLUME_WARNING_THRESHOLD:
+                            warnings.append('high-volume')
+
+                            if hits > HIGH_VOLUME_THRESHOLD:
+                                warnings.append('high-volume-disable')
+                                update['active'] = False
+
+                        if query_time_taken > SLOW_DETECTION_WARNING_THRESHOLD:
+                            warnings.append('slow-query')
+
+                            if query_time_taken > SLOW_DETECTION_THRESHOLD:
+                                warnings.append('slow-query-disable')
+                                update['active'] = False
+
+                        # If the rule has been disabled due to high volume or slow query, create
+                        # a new Event
+                        if len(warnings) > 0:
+                            if detection.warnings:
+                                # Don't copy over any threshold warnings
+                                _detection_warnings = [w for w in detection.warnings if w not in THRESHOLD_WARNINGS and not w.startswith("missing-field")]
+
+                                # Add the new warnings
+                                warnings = _detection_warnings + warnings
+
+                            # Deduplicate the warnings
+                            warnings = list(set(warnings))
+
+                        update['warnings'] = warnings
+
+                        # If this is the last detection in the list supply refresh=True
+                        detection.update(**update)
+
+            # Return a 200 response
+            return {}
 
 
 @api.route("/<uuid>/field_settings")
