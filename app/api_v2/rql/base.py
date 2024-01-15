@@ -231,6 +231,11 @@ class RQLSearch:
                             return self.has_key and any([v in self.target_value for v in self.value])
                 else:                    
                     if isinstance(self.value, list) and isinstance(self.target_value, (list, str)):
+                        if self.target_value is None:
+                            return False
+                        if self.value is None:
+                            return False
+                        
                         return any([v in self.target_value for v in self.value])
                         
                     return self.has_key and self.value in self.target_value
