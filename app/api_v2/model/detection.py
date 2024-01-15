@@ -542,6 +542,30 @@ class DetectionState(base.BaseDocument):
         self.save(refresh="wait_for")
 
 
+class DetectionMetric(base.BaseDocument):
+    '''
+    Tracks metrics for each execution of a detection
+    '''
+
+    detection_uuid = Keyword()  # The UUID of the detection
+    hits = Long()  # The number of hits
+    time_taken = Integer()  # How long the detection took to run
+    start_time = Date()  # When the detection started
+    end_time = Date()  # When the detection finished
+    # Any message related to the log
+    message = Keyword(fields={'text': Text()})
+    error = Boolean()  # True if an error occurred
+    error_message = Keyword(fields={'text': Text()})  # The error message
+    total_execution_time = Integer()  # The total time the detection took to run
+    delay = Integer()  # The delay in seconds between the scheduled run and the actual run
+
+    class Index:
+        name = "reflex-detections-metrics"
+        settings = {
+            "refresh_interval": "1s"
+        }
+
+
 class Detection(base.BaseDocument):
     '''
     A Detection is a rule defined by a security team to look for suspicious or malicious
@@ -908,11 +932,9 @@ class Detection(base.BaseDocument):
         if hasattr(self, 'ignore_final_fields') and self.ignore_final_fields:
             return {}
         
-        final_fields = self.get_field_settings()
+        _final_fields = self.get_field_settings()
 
         source_input = None
-
-        final_fields = []
         observable_fields = []
         signature_fields = []
         tag_fields = []
@@ -923,20 +945,20 @@ class Detection(base.BaseDocument):
 
         # If the final_fields has any signature_fields, add them to the signature_fields list
         # then deduplicate the list and sort it alphabetically
-        if any('signature_field' in field and field['signature_field'] is True for field in final_fields):
-            signature_fields.extend([field['field'] for field in final_fields if 'signature_field' in field and field['signature_field'] is True])
+        if any('signature_field' in field and field['signature_field'] is True for field in _final_fields):
+            signature_fields.extend([field['field'] for field in _final_fields if 'signature_field' in field and field['signature_field'] is True])
 
         # Sort the signature fields alphabetically
         signature_fields = sorted(signature_fields)
 
         # Determine which fields are tag fields
-        tag_fields.extend([field['field'] for field in final_fields if 'tag_field' in field and field['tag_field'] is True])
+        tag_fields.extend([field['field'] for field in _final_fields if 'tag_field' in field and field['tag_field'] is True])
 
         # Include only fields that are marked as observable fields
         """ DEPRECATION WARNING: The inclusion of fields missing the observable_field flag will
             be removed in a future release.  We maintain backwards compatibility for now but
             this will be removed in a future release. """
-        observable_fields = [field for field in final_fields if ('observable_field' in field and field['observable_field'] is True) or 'observable_field' not in field]
+        observable_fields = [field for field in _final_fields if ('observable_field' in field and field['observable_field'] is True) or 'observable_field' not in field]
 
         # If the detection rule has no field settings or signature fields
         # or tag fields, fetch the settings from the source input            
@@ -969,6 +991,7 @@ class Detection(base.BaseDocument):
             "signature_fields": signature_fields,
             "tag_fields": tag_fields
         }
+
         return response
     
 
