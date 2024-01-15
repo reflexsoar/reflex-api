@@ -720,8 +720,8 @@ class DetectionList(Resource):
             # the agents have max parallel detections set so we dont want to overload them
             # by pulling back too much data
             if args.limit:
-                search = search.extra(size=args.limit)
-
+                search = search[:args.limit]
+                
             # Filter to only detections that are assigned to the agent
             # We dont have to define an org because the agent (current_user) 
             # gets its search() calls filtered by org by default
