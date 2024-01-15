@@ -391,11 +391,11 @@ def create_app(environment='development'):
                 seconds=app.config['AGENT_HEALTH_CHECK_INTERVAL']
             )
 
-            scheduler.add_job(
-                func=housekeeper.check_agent_input_health,
-                trigger="interval",
-                seconds=app.config['AGENT_HEALTH_CHECK_INPUT_INTERVAL']
-            )
+            #scheduler.add_job(
+            #    func=housekeeper.check_agent_input_health,
+            #    trigger="interval",
+            #    seconds=app.config['AGENT_HEALTH_CHECK_INPUT_INTERVAL']
+            #)
 
             scheduler.add_job(
                 func=housekeeper.check_expired_event_rules,

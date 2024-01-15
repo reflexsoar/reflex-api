@@ -540,6 +540,9 @@ detection_list_parser.add_argument(
     'should_run', location='args', type=xinputs.boolean, required=False
 )
 detection_list_parser.add_argument(
+    'limit', location='args', type=int, required=False
+)
+detection_list_parser.add_argument(
     'active', location='args', action="split", type=xinputs.boolean, required=False)
 detection_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
@@ -708,7 +711,17 @@ class DetectionList(Resource):
         # If the agent parameter is provided do not page the results, load them all
         if 'agent' in args and args.agent not in (None, ''):
            #search = search.filter('term', assigned_agent=args.agent)
+            
+            # Sort the agents detections by the last run time
+            # oldest first
+            search = search.sort('last_run')
 
+            # Limit the number of detections returned to the limit parameter
+            # the agents have max parallel detections set so we dont want to overload them
+            # by pulling back too much data
+            if args.limit:
+                search = search[:args.limit]
+                
             # Filter to only detections that are assigned to the agent
             # We dont have to define an org because the agent (current_user) 
             # gets its search() calls filtered by org by default
