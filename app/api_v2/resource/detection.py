@@ -1774,6 +1774,8 @@ class BulkUpdateDetectionStats(Resource):
             'slow-query-disable'
         ]
 
+        updates = []
+
         uuids = [detection['uuid'] for detection in api.payload['detections']]
         detections = Detection.get_by_uuid(uuid=uuids, all_results=True)
 
@@ -1838,8 +1840,13 @@ class BulkUpdateDetectionStats(Resource):
 
                         update['warnings'] = warnings
 
-                        # If this is the last detection in the list supply refresh=True
-                        detection.update(**update)
+                        # Update the attributes
+                        for key, value in update.items():
+                            setattr(detection, key, value)
+
+                        updates.append(detection)
+            
+            Detection.bulk(updates)
 
             # Return a 200 response
             return {}
