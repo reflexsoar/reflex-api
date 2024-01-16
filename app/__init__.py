@@ -447,8 +447,8 @@ def create_app(environment='development'):
         scheduler.add_job(func=mattack.download_framework, trigger="date", run_date=datetime.datetime.now())
         scheduler.add_job(func=mattack.download_framework, trigger="interval", seconds=app.config['MITRE_CONFIG']['POLL_INTERVAL'])
 
-        scheduler.start()
-        atexit.register(lambda: scheduler.shutdown())
+    scheduler.start()
+    atexit.register(lambda: scheduler.shutdown())
 
     if not app.config['NOTIFIER']['DISABLED']:
         notifier.init_app(app)
