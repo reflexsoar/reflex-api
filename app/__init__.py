@@ -355,8 +355,8 @@ def create_app(environment='development'):
         # Reload integrations every N minutes
         #scheduler.add_job(func=register_integrations, trigger="interval", seconds=app.config['INTEGRATION_LOADER_INTERVAL']*60)
 
-    # Report node metrics every 60 seconds
-    scheduler.add_job(func=store_system_metrics, trigger="interval", seconds=60, args=(app, ep))
+    # Report node metrics every 30 seconds
+    scheduler.add_job(func=store_system_metrics, trigger="interval", seconds=30, args=(app, ep))
 
     if not app.config['SCHEDULER_DISABLED']:
         if not app.config['THREAT_POLLER_DISABLED']:
