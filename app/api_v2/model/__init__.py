@@ -82,7 +82,7 @@ from .case import (
 )
 from .plugin import Plugin, PluginConfig
 from .credential import Credential
-from .system import Tag, DataType, Settings, Observable, EventLog, ObservableHistory
+from .system import Tag, DataType, Settings, Observable, EventLog, ObservableHistory, APINodeMetric
 from .detection import (
     Detection,
     DetectionLog,
@@ -208,5 +208,6 @@ __all__ = [
     'EventRelatedObject',
     'SearchProxyJob',
     'ApplicationInventory',
-    'bulk'
+    'bulk',
+    'APINodeMetric'
 ]

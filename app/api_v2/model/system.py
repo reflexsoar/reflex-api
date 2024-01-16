@@ -15,7 +15,8 @@ from . import (
     Float,
     Ip,
     user,
-    threat
+    threat,
+    Object
 )
 
 
@@ -556,3 +557,30 @@ class Observable(base.BaseDocument):
 
     def __hash__(self):
         return hash(('data_type', self.data_type, 'value', self.value))
+
+
+class APINodeMetric(base.BaseDocument):
+
+    hostname = Keyword()
+    node_role = Keyword()
+    ip = Keyword()
+    cpu = Float()
+    memory = Float()
+    disk = Float()
+    disk_free = Float()
+    event_processing = Object(properties={
+        'events_processed': Integer(),
+        'workers': Integer(),
+        'worker_restarts': Integer(),
+        'dead_workers': Integer(),
+        'event_queue_size': Integer(),
+        'events_in_processing': Integer()
+    })
+
+    class Index:  # pylint: disable=too-few-public-methods
+        ''' Defines the index to use '''
+        name = 'reflex-api-node-metrics'
+
+        settings = {
+            'refresh_interval': '1s',
+        }
