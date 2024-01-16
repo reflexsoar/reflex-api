@@ -306,6 +306,8 @@ mod_agent_heartbeat = api.model('AgentHeartbeat', {
     'is_pluggable': fields.Boolean,
     'host_information': fields.Nested(mod_agent_host_information),
     'identifier': fields.String,
+    'name': fields.String,
+    'ip_address': fields.String
 })
 
 mod_agent_list_paged = api.model('AgentListPaged', {
@@ -323,7 +325,8 @@ mod_agent_create = api.model('AgentCreate', {
     'roles': fields.List(fields.String),
     'groups': fields.List(fields.String),
     'ip_address': fields.String,
-    'inputs': fields.List(fields.String)
+    'inputs': fields.List(fields.String),
+    'unique_identifier': fields.String
 })
 
 mod_agent_log_host_meta = api.model('AgentLogHostMeta', {
@@ -379,8 +382,28 @@ class AgentPairToken(Resource):
         Generates a short lived pairing token used by the agent to get a long running JWT
         '''
 
+        # Generate a random name for the agent
+        #import random
+        #import string
+        #name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+        #agent = Agent(name=name, organization=current_user.organization)
+        #agent.save(refresh=True)
+#
+        #role = Role.get_by_name(
+                #name='Agent', organization=agent.organization)
+        #role.add_user_to_role(agent.uuid)
+        #token = generate_token(str(
+                        #agent.uuid), 525600*5, token_type='agent', organization=current_user['organization'])
+
         settings = Settings.load()
-        return generate_token(None, settings.agent_pairing_token_valid_minutes, current_user.organization, 'pairing')
+        #return {
+        #    'token': token,
+        #    'uuid': agent.uuid,
+        #}
+        return {
+            'token': generate_token(None, settings.agent_pairing_token_valid_minutes, current_user.organization, 'pairing'),
+            'uuid': None
+        }
 
 
 agent_list_parser = api.parser()
@@ -467,6 +490,27 @@ class AgentList(Resource):
     @user_has('add_agent')
     def post(self, current_user):
         ''' Creates a new Agent '''
+
+        # If the agent has a pre-determined unique_identifier, use that to look up the agent
+        # and return the token for that agent.  We assume the pairing token is
+        # accurate since it passed token_required and the user_has checks.
+        if 'unique_identifier' in api.payload and api.payload['unique_identifier']:
+            search = Agent.search()
+            search = search.filter('term', unique_identifier=api.payload['unique_identifier'])
+            search = search.filter('term', organization=current_user['organization'])
+            agent = search.execute()
+            if agent:
+                token = generate_token(str(
+                    agent[0].uuid), 525600*5, token_type='agent', organization=current_user['organization'])
+                return {'message': 'Successfully created the agent.', 'uuid': str(agent[0].uuid), 'token': token}
+
+            # Check to make sure the UUID isn't taken by another agent
+            search = Agent.search()
+            search = search.filter('term', unique_identifier=api.payload['unique_identifier'])
+            agent = search.execute()
+
+            if agent:
+                api.abort(409, "Invalid unique_identifier generate a new one.")
 
         agent = Agent.get_by_name(name=api.payload['name'])
         if not agent:
