@@ -170,6 +170,8 @@ class BaseDocument(Document):
             kwargs['updated_by'] = utils._current_user_id_or_none()
             #self.updated_at = datetime.datetime.utcnow()
             #self.updated_by = utils._current_user_id_or_none()
+            if 'skip_update_by' in kwargs:
+                del kwargs['skip_update_by']
 
         return super().update(**kwargs)
     

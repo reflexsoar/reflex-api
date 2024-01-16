@@ -19,6 +19,7 @@ from app.services.action_runner import ActionRunner
 from app.tasks.assess_rules import flag_rules_for_periodic_assessment
 from app.tasks.case.auto_close import auto_close_cases
 from app.tasks.benchmark.load_rules import load_benchmark_rules_from_remote
+from app.tasks.node_metrics import store_system_metrics
 from app.integrations.base.loader import register_integrations
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -44,7 +45,7 @@ from app.api_v2.model import (
         RoleMappingPolicy, Package, DataSourceTemplate, Schedule, FimRule, AgentTag,
         BenchmarkRule, BenchmarkRuleset, BenchmarkException, BenchmarkResultHistory,
         BenchmarkResult, BenchmarkFrameworkRule, EventRelatedObject, SearchProxyJob,
-        ApplicationInventory
+        ApplicationInventory, APINodeMetric
 )
 
 from .defaults import (
@@ -159,7 +160,7 @@ def upgrade_indices(app):
         IntegrationActionQueue, SSOProvider, RoleMappingPolicy, Package, DataSourceTemplate,
         Schedule, FimRule, AgentTag, BenchmarkRule, BenchmarkRuleset, EventRelatedObject,
         BenchmarkException, BenchmarkResultHistory, BenchmarkResult, BenchmarkFrameworkRule,
-        SearchProxyJob, ApplicationInventory
+        SearchProxyJob, ApplicationInventory, APINodeMetric
     ]
     
     def do_upgrade(model):
@@ -353,6 +354,9 @@ def create_app(environment='development'):
         
         # Reload integrations every N minutes
         #scheduler.add_job(func=register_integrations, trigger="interval", seconds=app.config['INTEGRATION_LOADER_INTERVAL']*60)
+
+    # Report node metrics every 60 seconds
+    scheduler.add_job(func=store_system_metrics, trigger="interval", seconds=60, args=(app, ep))
 
     if not app.config['SCHEDULER_DISABLED']:
         if not app.config['THREAT_POLLER_DISABLED']:

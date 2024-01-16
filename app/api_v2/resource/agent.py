@@ -603,7 +603,7 @@ class AgentHeartbeat(Resource):
 
                 # Update the agent
                 agent.update(last_heartbeat=datetime.datetime.utcnow(),
-                             **api.payload, refresh=True)
+                             **api.payload)
 
                 return {'message': 'Your heart still beats!'}
         else:
