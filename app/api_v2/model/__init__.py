@@ -118,7 +118,9 @@ from .search import (
 )
 
 from .application import (
-    ApplicationInventory
+    ApplicationInventory,
+    AgentApplicationInventory,
+    ApplicationVulnerability
 )
 
 VERSION = (2, 0, 0)
@@ -208,6 +210,8 @@ __all__ = [
     'EventRelatedObject',
     'SearchProxyJob',
     'ApplicationInventory',
+    'AgentApplicationInventory',
+    'ApplicationVulnerability',
     'bulk',
     'APINodeMetric'
 ]

@@ -1,14 +1,51 @@
-from hashlib import sha1 
+from hashlib import sha256 
 
 from . import (
     Keyword,
     base,
     Object,
     Boolean,
-    bulk
+    bulk,
+    Date,
+    Float,
+    Nested
 )
 
-class ApplicationInventory(base.BaseDocument):
+class CVSSMetrics(base.BaseDocument):
+
+    version = Keyword()  # The CVSS version, e.g 2.0, 3.0, 3.1
+    vector_string = Keyword()  # The CVSS vector string
+    attack_vector = Keyword()  # The CVSS attack vector
+    attack_complexity = Keyword()  # The CVSS attack complexity
+    privileges_required = Keyword()  # The CVSS privileges required
+    user_interaction = Keyword()  # The CVSS user interaction
+    scope = Keyword()  # The CVSS scope
+    confidentiality_impact = Keyword()  # The CVSS confidentiality impact
+    integrity_impact = Keyword()  # The CVSS integrity impact
+    availability_impact = Keyword()  # The CVSS availability impact
+    base_score = Float()  # The CVSS base score
+    base_severity = Keyword()  # The CVSS base severity
+    exploitability_score = Float()  # The CVSS exploitability score
+    impact_score = Float()  # The CVSS impact score
+
+class ApplicationVulnerability(base.BaseDocument):
+
+    cve = Keyword()  # The CVE of the vulnerability
+    published = Date()
+    lastModified = Date()
+    vulnStatus = Keyword()
+    description = Keyword()
+    references = Nested(properties={
+        'source': Keyword(),
+        'url': Keyword(),
+        'tags': Keyword()
+    })
+
+class AgentApplicationInventory(base.BaseDocument):
+    """
+    An index containing a link between agents and applications using
+    the applications application_signature field
+    """
 
     agent = Object(
         properties={
@@ -19,6 +56,7 @@ class ApplicationInventory(base.BaseDocument):
     name = Keyword()  # The name of the software package
     version = Keyword()  # The version of the software package
     vendor = Keyword()  # The vendor of the software package
+    application_signature = Keyword()  # The application signature
     identifying_number = Keyword()  # The identifying number of the software package
     install_date = Keyword()  # The install date of the software package
     install_source = Keyword()  # The install source of the software package
@@ -28,21 +66,100 @@ class ApplicationInventory(base.BaseDocument):
     package_name = Keyword()  # The package name of the software package
     url_info_about = Keyword()  # The URL info about of the software package
     language = Keyword()  # The language of the software package
+    platform = Keyword()  # The platform the software package is installed on (windows, linux, macos, etc)
+
+    class Index:
+        name = 'reflex-agent-application-inventory'
+        settings = {
+            'refresh_interval': '1s',
+        }
+
+    @classmethod
+    def delete_by_agent_and_application_sig(cls, agent_uuid: str, application_signatures: list):
+        '''
+        Deletes an agent application inventory item by agent and application signature
+        '''
+        try:
+            cls.search().filter('term', agent__uuid=agent_uuid).filter('terms', application_signature=application_signatures).delete()
+        except Exception as e:
+            print(e)
+            return
+        
+    @classmethod
+    def bulk(cls, items: list):
+        '''
+        Bulk adds application inventory data
+        '''
+        _items = []
+        for item in items:
+            if isinstance(item, dict):
+                _items.append(cls(**item).to_dict(True))
+            else:
+                _items.append(item.to_dict(True))
+
+        bulk(cls._get_connection(), (i for i in _items))
+
+
+class ApplicationInventory(base.BaseDocument):
+
+    name = Keyword()  # The name of the software package
+    version = Keyword()  # The version of the software package
+    vendor = Keyword()  # The vendor of the software package
     application_signature = Keyword()  # The hash of the software package, which is a combination of the name, version, and vendor
-    deleted = Boolean()
+    platform = Keyword()  # The platform the software package is installed on (windows, linux, macos, etc)
+    is_vulnerable = Boolean()  # Whether or not the software package is vulnerable
+    cpes = Keyword()  # Contains a list of CPEs for this software package
     
     class Index:
         name = 'reflex-application-inventory'
         settings = {
-            'refresh_interval': '5s',
+            'refresh_interval': '1s',
         }
 
+    @property
+    def vendor_shortname(self):
+        '''
+        Returns the vendor shortname for the application, which is just the
+        first part of the vendor string (e.g. Microsoft, Inc. -> Microsoft)
+        lowercased
+        '''
+
+        return self.vendor.split(' ')[0].lower()
+
+    def _compute_cpes(self):
+        '''
+        Returns the CPE for the application
+        '''
+
+        PLATFORM_VENDOR_MAP = {
+            'windows': 'microsoft',
+            'linux': 'linux',
+            'macos': 'apple'
+        }
+
+        _platform = self.platform.lower()
+        if _platform not in PLATFORM_VENDOR_MAP:
+            return []
+        _os_vendor = PLATFORM_VENDOR_MAP[_platform]
+
+        self.cpes = [
+            f"cpe:2.3:a:{self.vendor_shortname}:{self.name.lower()}:{self.version}",
+            f"cpe:2.3:o:{_os_vendor}:{_platform}:-"
+        ]
+
     @classmethod
-    def _bulk(cls, applications: list):
+    def _bulk(cls, items: list):
         '''
         Bulk adds application inventory data
         '''
-        bulk(cls._get_connection(), (cls(**x).to_dict(True) for x in applications))
+        _items = []
+        for item in items:
+            if isinstance(item, dict):
+                _items.append(cls(**item).to_dict(True))
+            else:
+                _items.append(item.to_dict(True))
+
+        bulk(cls._get_connection(), (i for i in _items))
 
     @classmethod
     def bulk_add(cls, agent, applications):
@@ -126,23 +243,24 @@ class ApplicationInventory(base.BaseDocument):
         cls._bulk(applications)
 
     @classmethod
-    def compute_signature(cls, name, version, vendor):
+    def compute_signature(cls, name: str, version: str, vendor: str, platform: str):
         '''
         Computes the application signature
         '''
 
-        _signature = f"{name}{version}{vendor}"
+        _signature = f"{name}:{vendor}:{version}:{platform}".lower()
 
-        return sha1(_signature.encode('utf-8')).hexdigest()
+        return sha256(_signature.encode('utf-8')).hexdigest()
 
     def save(self, **kwargs):
         '''
         Save the document
         '''
 
-        _signature = f"{self.name}{self.version}{self.vendor}"
-
-        self.application_signature = sha1(_signature.encode('utf-8')).hexdigest()
+        if self.application_signature is None:
+            self.application_signature = self.compute_signature(self.name, self.version, self.vendor, self.platform)
+        if self.cpes is None:
+            self.cpes = self._compute_cpes()
 
         # pylint: disable=arguments-differ
         return super().save(**kwargs)
@@ -159,10 +277,10 @@ class ApplicationInventory(base.BaseDocument):
         if 'vendor' in kwargs:
             self.vendor = kwargs['vendor']
 
-        _signature = f"{self.name}{self.version}{self.vendor}"
-
-        self.application_signature = sha1(_signature.encode('utf-8')).hexdigest()
+        if self.application_signature is None:
+            self.application_signature = self.compute_signature(self.name, self.version, self.vendor, self.platform)
+        if self.cpes is None:
+            self.cpes = self._compute_cpes()
 
         # pylint: disable=arguments-differ
         return super().update(**kwargs)
-

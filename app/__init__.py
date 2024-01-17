@@ -45,7 +45,7 @@ from app.api_v2.model import (
         RoleMappingPolicy, Package, DataSourceTemplate, Schedule, FimRule, AgentTag,
         BenchmarkRule, BenchmarkRuleset, BenchmarkException, BenchmarkResultHistory,
         BenchmarkResult, BenchmarkFrameworkRule, EventRelatedObject, SearchProxyJob,
-        ApplicationInventory, APINodeMetric
+        ApplicationInventory, APINodeMetric, AgentApplicationInventory
 )
 
 from .defaults import (
@@ -160,7 +160,7 @@ def upgrade_indices(app):
         IntegrationActionQueue, SSOProvider, RoleMappingPolicy, Package, DataSourceTemplate,
         Schedule, FimRule, AgentTag, BenchmarkRule, BenchmarkRuleset, EventRelatedObject,
         BenchmarkException, BenchmarkResultHistory, BenchmarkResult, BenchmarkFrameworkRule,
-        SearchProxyJob, ApplicationInventory, APINodeMetric
+        SearchProxyJob, ApplicationInventory, APINodeMetric, AgentApplicationInventory
     ]
     
     def do_upgrade(model):
@@ -178,6 +178,16 @@ def upgrade_indices(app):
         app.logger.info(f"Updating index template for {ALIAS}")
         index_template = model._index.as_template(ALIAS, PATTERN)
         index_template.save()
+
+        es = connections.get_connection()
+
+        # Update the current index settings
+        # TODO: Test this for all models, make sure it works correctly
+        if model in (Integration, IntegrationConfiguration):
+            body = {
+                k: v for k, v in model.Index.settings.items() if k != 'index'
+            }
+            es.indices.put_settings(body=body, index=PATTERN)
 
         if not model._index.exists():
             app.logger.info(f"Creating index {PATTERN}")
