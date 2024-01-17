@@ -20,6 +20,7 @@ from app.tasks.assess_rules import flag_rules_for_periodic_assessment
 from app.tasks.case.auto_close import auto_close_cases
 from app.tasks.benchmark.load_rules import load_benchmark_rules_from_remote
 from app.tasks.node_metrics import store_system_metrics
+from app.tasks.check_app_vulns import check_app_vulns
 from app.integrations.base.loader import register_integrations
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
