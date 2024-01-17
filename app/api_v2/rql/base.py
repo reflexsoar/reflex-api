@@ -622,6 +622,9 @@ class RQLSearch:
 
             super().__call__(obj)
 
+            if self.target_value is None:
+                return False
+
             threat_list = self.get_list(self.value)
 
             if threat_list:
