@@ -282,7 +282,11 @@ class ApplicationDetails(Resource):
 
         args = application_parser.parse_args()
 
-        search = ApplicationInventory.search()
+        if args['organization'] and current_user.is_default_org():
+            search = ApplicationInventory.search(skip_org_check=True)
+            search = search.filter('terms', organization=args['organization'])
+        else:
+            search = ApplicationInventory.search()
 
         # Apply any args passed in
         if args['name']:
@@ -294,12 +298,22 @@ class ApplicationDetails(Resource):
         if args['vendor']:
             search = search.filter('terms', vendor=args['vendor'])
 
-        if args['organization'] and current_user.is_default_org():
-            search = search.filter('terms', organization=args['organization'])
-
         results = [r for r in search.scan()]
 
+        # Create a list of application signatures to pull from the AgentApplicationInventory
+        _application_signatures = [x.application_signature for x in results]
+
+        if args['organization'] and current_user.is_default_org():
+            search = AgentApplicationInventory.search(skip_org_check=True)
+            search = search.filter('terms', organization=args['organization'])
+        else:
+            search = AgentApplicationInventory.search()
+
+        search = search.filter('terms', application_signature=_application_signatures)
+
+        endpoints = [r for r in search.scan()]
+
         return {
-            'endpoints': results,
-            'total': len(results)
+            'endpoints': endpoints,
+            'total': len(endpoints)
         }
