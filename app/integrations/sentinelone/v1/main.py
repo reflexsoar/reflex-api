@@ -20,7 +20,7 @@ class SentinelOne(IntegrationBase):
 
         print(f"Isolating host {hostname} {mac_address} {ip_address}")
 
-    def action_get_threat_details(self, configuration_uuid, threat_id="1835084204235949886",
+    def action_get_threat_details(self, configuration_uuid, ids=None,
                                   events=None, threat_id_field=None,
                                   *args, **kwargs):
         """
@@ -28,7 +28,7 @@ class SentinelOne(IntegrationBase):
         """
 
         action_name = "get_threat_details"
-        endpoint = f"/web/api/v2.1/threats/{threat_id}/explore/events"
+        endpoint = f"/web/api/v2.1/threats/{ids}/explore/events"
 
         configuration = self.load_configuration(configuration_uuid)
 
