@@ -60,6 +60,7 @@ class AgentApplicationInventory(base.BaseDocument):
     identifying_number = Keyword()  # The identifying number of the software package
     install_date = Keyword()  # The install date of the software package
     install_source = Keyword()  # The install source of the software package
+    install_location = Keyword()  # The install location of the software package
     local_package = Keyword()  # The local package of the software package
     package_cache = Keyword()  # The package cache of the software package
     package_code = Keyword()  # The package code of the software package
@@ -67,6 +68,7 @@ class AgentApplicationInventory(base.BaseDocument):
     url_info_about = Keyword()  # The URL info about of the software package
     language = Keyword()  # The language of the software package
     platform = Keyword()  # The platform the software package is installed on (windows, linux, macos, etc)
+    architecture = Keyword()
 
     class Index:
         name = 'reflex-agent-application-inventory'
@@ -109,6 +111,8 @@ class ApplicationInventory(base.BaseDocument):
     platform = Keyword()  # The platform the software package is installed on (windows, linux, macos, etc)
     is_vulnerable = Boolean()  # Whether or not the software package is vulnerable
     cpes = Keyword()  # Contains a list of CPEs for this software package
+    identifying_number = Keyword()  # The identifying number of the software package
+    platform = Keyword()  # The platform the software package is installed on (windows, linux, macos, etc)
     
     class Index:
         name = 'reflex-application-inventory'
@@ -125,27 +129,6 @@ class ApplicationInventory(base.BaseDocument):
         '''
 
         return self.vendor.split(' ')[0].lower()
-
-    def _compute_cpes(self):
-        '''
-        Returns the CPE for the application
-        '''
-
-        PLATFORM_VENDOR_MAP = {
-            'windows': 'microsoft',
-            'linux': 'linux',
-            'macos': 'apple'
-        }
-
-        _platform = self.platform.lower()
-        if _platform not in PLATFORM_VENDOR_MAP:
-            return []
-        _os_vendor = PLATFORM_VENDOR_MAP[_platform]
-
-        self.cpes = [
-            f"cpe:2.3:a:{self.vendor_shortname}:{self.name.lower()}:{self.version}",
-            f"cpe:2.3:o:{_os_vendor}:{_platform}:-"
-        ]
 
     @classmethod
     def _bulk(cls, items: list):
@@ -259,8 +242,6 @@ class ApplicationInventory(base.BaseDocument):
 
         if self.application_signature is None:
             self.application_signature = self.compute_signature(self.name, self.version, self.vendor, self.platform)
-        if self.cpes is None:
-            self.cpes = self._compute_cpes()
 
         # pylint: disable=arguments-differ
         return super().save(**kwargs)
@@ -279,8 +260,6 @@ class ApplicationInventory(base.BaseDocument):
 
         if self.application_signature is None:
             self.application_signature = self.compute_signature(self.name, self.version, self.vendor, self.platform)
-        if self.cpes is None:
-            self.cpes = self._compute_cpes()
 
         # pylint: disable=arguments-differ
         return super().update(**kwargs)

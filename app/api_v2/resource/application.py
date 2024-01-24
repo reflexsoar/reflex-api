@@ -17,6 +17,7 @@ mod_application = api.model('Application', {
     'identifying_number': fields.String(description='The identifying number of the application'),
     'install_date': fields.String(description='The install date of the application', example='2024-01-17T07:00:00.000Z'),
     'install_source': fields.String(description='The install source of the application', example='C:\\Users\\user\\Downloads\\ChromeSetup.exe'),
+    'install_location': fields.String(description='The install location of the application', example='C:\\Program Files\\Google\\Chrome\\Application\\'),
     'local_package': fields.String(description='The local package of the application', example='C:\\Windows\\Installer\\1a2b3c.msi'),
     'package_cache': fields.String(description='The package cache of the application', example='C:\\Windows\\Installer\\1a2b3c.msi'),
     'package_code': fields.String(description='The package code of the application', example='{1A2B3C4D-5E6F-7G8H-9I0J-1A2B3C4D5E6F}'),
@@ -24,6 +25,7 @@ mod_application = api.model('Application', {
     'language': fields.String(description='The language of the application', example='en-US'),
     'application_signature': fields.String(required=False, description='The application signature, a sha265 hash of the name, vendor, version, platform', example='1a2b3c4d5e6f7g8h9i0j1a2b3c4d5e6f7g8h9i0j1a2b3c4d5e6f7g8h9i0j1a2b3c4d5e6f7g8h9i0j'),
     'platform': fields.String(required=True, description='The platform the application is installed on (windows, linux, macos, etc)', example='windows'),
+    'architecture': fields.String(description='The architecture of the application', example='x86_64'),
     '_op_type': fields.String(required=True, description='The operation type for the document, add, update, delete', example='add'),
 })
 
@@ -202,11 +204,9 @@ class ApplicationList(Resource):
                 vendor=x['vendor'],
                 application_signature=x['application_signature'],
                 platform=x['platform'],
+                architecture=x['architecture'] if 'architecture' in x else None,
                 is_vulnerable=False
             ) for x in _new_applications]
-
-            # Compute the CPEs for the new applications
-            [app._compute_cpes() for app in _applications]
 
             # Bulk add the new applications
             ApplicationInventory._bulk(_applications)
@@ -222,6 +222,7 @@ class ApplicationList(Resource):
                 'identifying_number',
                 'install_date',
                 'install_source',
+                'install_location',
                 'local_package',
                 'package_cache',
                 'package_code',
