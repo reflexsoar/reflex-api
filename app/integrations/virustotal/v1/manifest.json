@@ -1,7 +1,7 @@
 {
     "name": "VirusTotal",
     "product_identifier": "49baf7fe-b994-459e-9c9f-77eb4ab9b01f",
-    "brief_description": "Analyse suspicious files, domains, IPs and URLs to detect malware and other breaches, automatically share them with the security community.",
+    "brief_description": "Analyse suspicious files, domains, IPs and URLs to detect malware and other breaches.",
     "description": "Analyse suspicious files, domains, IPs and URLs to detect malware and other breaches, automatically share them with the security community.",
     "author": "Brian Carroll <brian@hasecuritysolutions.com>",
     "tags": [
