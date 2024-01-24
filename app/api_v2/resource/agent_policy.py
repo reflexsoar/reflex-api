@@ -119,6 +119,7 @@ mod_agent_policy = api.model('AgentPolicy', {
     'fim_config': fields.Nested(mod_fim_config),
     'inventory_config': fields.Nested(mod_inventory_config),
     'winlog_config': fields.Nested(mod_winlog_config),
+    'sysmon_manager_config': fields.Nested(mod_sysmon_manager_config),
     'tags': fields.List(fields.String, default=[]),
     'priority': fields.Integer(default=1),
     'agent_tags': fields.List(fields.String, default=[]),
