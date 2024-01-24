@@ -38,7 +38,8 @@
                         "type": "text",
                         "rows": 10,
                         "required": true,
-                        "description": "The Sysmon XML Configuration"
+                        "description": "The Sysmon XML Configuration",
+                        "is_code": true
                     },
                     "target_version": {
                         "label": "Target Versions",
