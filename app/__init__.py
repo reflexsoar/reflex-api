@@ -180,6 +180,12 @@ def upgrade_indices(app):
         index_template = model._index.as_template(ALIAS, PATTERN)
         index_template.save()
 
+        if not model._index.exists():
+            app.logger.info(f"Creating index {PATTERN}")
+            migrate(app, ALIAS, move_data=False, version=index_version)
+        else:
+            migrate(app, ALIAS, version=index_version)
+
         es = connections.get_connection()
 
         # Update the current index settings
@@ -189,12 +195,6 @@ def upgrade_indices(app):
                 k: v for k, v in model.Index.settings.items() if k != 'index'
             }
             es.indices.put_settings(body=body, index=PATTERN)
-
-        if not model._index.exists():
-            app.logger.info(f"Creating index {PATTERN}")
-            migrate(app, ALIAS, move_data=False, version=index_version)
-        else:
-            migrate(app, ALIAS, version=index_version)
 
     with ThreadPoolExecutor(max_workers=4) as executor:
         executor.map(do_upgrade, models)
