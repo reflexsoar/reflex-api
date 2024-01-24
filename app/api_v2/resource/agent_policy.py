@@ -94,6 +94,13 @@ mod_winlog_config = api.model('WinlogConfig', {
     'default_output': fields.List(fields.String, default=[])
 })
 
+mod_sysmon_manager_config = api.model('SysmonManagerConfig', {
+    'wait_interval': fields.Integer(default=60),
+    'logging_level': fields.String(default='ERROR'),
+    'graceful_exit': fields.Boolean(default=True),
+    'configurations': fields.List(fields.String, default=[])
+})
+
 mod_agent_policy = api.model('AgentPolicy', {
     'name': fields.String,
     'organization': fields.String,

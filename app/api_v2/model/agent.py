@@ -159,6 +159,17 @@ class WinlogConfig(InnerDoc):
     default_output = Keyword()  # The default output for the agent
 
 
+class SysmonManagerConfig(InnerDoc):
+    '''
+    Contains information about how the Sysmon Manager agent role is configured
+    for agents consuming the agent policy associated with this config
+    '''
+    wait_interval = Integer()  # How long should the agent wait between runs
+    logging_level = Keyword()  # What logging level should the agent use for its logs?
+    graceful_exit = Boolean()  # Should the agent attempt a graceful exit when asked to shut down
+    configurations = Keyword()  # The configurations to apply to the agent
+
+
 class AgentPolicy(base.BaseDocument):
     '''
     A Reflex agent policy that controls all the configuration of an agent
