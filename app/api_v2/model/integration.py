@@ -268,6 +268,8 @@ class IntegrationConfiguration(base.BaseDocument):
         name = 'reflex-integration-configurations'
         settings = {
             'refresh_interval': '5s',
+            # Set the max number of fields to 10000
+            'index.mapping.total_fields.limit': 10000
         }
         version = "0.1.6"
 
