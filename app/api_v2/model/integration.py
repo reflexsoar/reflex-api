@@ -64,7 +64,7 @@ class Integration(Document):
     contributor = Keyword()  # The contributor of the integration
     license_name = Keyword()  # The license name of the integration
     enabled = Boolean()  # Whether the integration is enabled or not
-    manifest = Object()  # Contains a JSON string that defines what actions are available for the integration and what fields are required for each action
+    manifest = Object(enabled=False)  # Contains a JSON string that defines what actions are available for the integration and what fields are required for each action
     version = Keyword()  # The version of the integration
     logo = Keyword()  # Base64 encoded logo for the integration
     tags = Keyword()
@@ -76,6 +76,7 @@ class Integration(Document):
             'refresh_interval': '5s',
             'index.mapping.total_fields.limit': 10000
         }
+        version = "0.1.5"
 
     @classmethod
     def search(cls, using=None, index=None, skip_org_check=False):
