@@ -24,7 +24,7 @@ from . import (
     Float
 )
 
-PLUGGABLE_SUPPORTED_ROLES = ['fim', 'winlog', 'benchmark', 'search_proxy']
+PLUGGABLE_SUPPORTED_ROLES = ['fim', 'winlog', 'benchmark', 'search_proxy', 'sysmon_manager']
 
 
 class RunnerRoleConfig(InnerDoc):
