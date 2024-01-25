@@ -233,7 +233,8 @@ mod_agent_host_information = api.model('AgentHostInformation', {
     'services': fields.List(fields.Nested(mod_agent_services)),
     'installed_software': fields.List(fields.Nested(mod_agent_software_package)),
     'local_users': fields.List(fields.Nested(mod_local_user_brief)),
-    'containers': fields.List(fields.Nested(mod_container_info))
+    'containers': fields.List(fields.Nested(mod_container_info)),
+    'sysmon_version': fields.String,
 })
 
 mod_agent_geo_information = api.model('AgentGeoInformation', {
@@ -291,7 +292,7 @@ mod_agent_details = api.model('AgentList', {
     'version': fields.String,
     'is_pluggable': fields.Boolean(default=False),
     'host_information': fields.Nested(mod_agent_host_information),
-    'tags': fields.List(fields.Nested(mod_agent_tag_short))
+    'tags': fields.List(fields.Nested(mod_agent_tag_short)),
 })
 
 mod_agent_inputs = api.model('AgentInputs', {

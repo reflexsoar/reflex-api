@@ -467,6 +467,7 @@ class AgentHostInformation(InnerDoc):
     services = Nested(AgentServices)
     installed_software = Nested(AgentSoftwarePackage)
     local_users = Nested(AgentLocalUsers)
+    sysmon_version = Keyword()
 
 
 class AgentTag(InnerDoc):
@@ -522,6 +523,7 @@ class Agent(base.BaseDocument):
     updated_required = Boolean()  # Does this agent need to be updated?
     host_information = Nested(AgentHostInformation)
     tags = Nested(AgentTag)  # Tags to categorize this agent
+
 
     class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
