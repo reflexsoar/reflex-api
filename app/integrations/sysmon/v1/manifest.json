@@ -43,7 +43,7 @@
                     },
                     "target_version": {
                         "label": "Target Versions",
-                        "type": "int",
+                        "type": "str",
                         "required": true,
                         "description": "This configuration will only be applied to Sysmon agents with this version or higher"
                     },
@@ -86,7 +86,7 @@
                     },
                     "target_version": {
                         "label": "Target Versions",
-                        "type": "int",
+                        "type": "str",
                         "secret": true,
                         "required": true,
                         "description": "This configuration will only be applied to Sysmon agents with this version or higher"
@@ -124,7 +124,7 @@
                 "configuration": {
                     "target_version": {
                         "label": "Target Versions",
-                        "type": "int",
+                        "type": "str",
                         "secret": true,
                         "required": true,
                         "description": "This configuration will only be applied to Sysmon agents with this version or higher"
