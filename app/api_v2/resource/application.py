@@ -149,6 +149,38 @@ class ApplicationListView(Resource):
             'applications': applications
         }
     
+mod_agent_application_list = api.model('AgentApplicationList', {
+    'total': fields.Integer(required=True, description='The total number of applications'),
+    'applications': fields.List(fields.Nested(mod_application))
+})
+
+@api.route("/agent/<uuid>")
+class AgentApplicationList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_agent_application_list)
+    @api.response(200, 'Success')
+    @api.response(400, 'Bad Request')
+    @token_required
+    @user_has('view_agents')
+    def get(self, current_user, uuid):
+
+    
+        if current_user.is_default_org():
+            search = AgentApplicationInventory.search(skip_org_check=True)
+        else:
+            search = AgentApplicationInventory.search()
+
+        search = search.filter('term', agent__uuid=uuid)
+
+        applications = [r for r in search.scan()]
+
+        return {
+            'total': len(applications),
+            'applications': applications
+        }
+
+    
 mod_create_applications = api.model('CreateApplications', {
     'applications': fields.List(fields.Nested(mod_application))
 })
