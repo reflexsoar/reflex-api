@@ -249,18 +249,25 @@ class IntegrationConfigActivation(Resource):
 
         # Return the configuration
         return configuration
+    
+int_config_parser = api.parser()
+int_config_parser.add_argument('organization', type=str, required=False, location='args')
+int_config_parser.add_argument('enabled', type=xinputs.boolean, required=False, location='args')
 
 @api.route("/<string:uuid>/configurations/<string:config_uuid>")
 class IntegrationConfigDetailResource(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_integration_config_details)
+    @api.expect(int_config_parser)
     @token_required
     #@user_has('view_integration_configuration')
     def get(self, current_user, uuid, config_uuid):
         """
         Fetches the details of a single Integration Configuration
         """
+
+        args = int_config_parser.parse_args()
 
         # Ensure that the integration exists
         integration = Integration.get(uuid=uuid)
@@ -271,6 +278,11 @@ class IntegrationConfigDetailResource(Resource):
         configuration = IntegrationConfiguration.search()
         configuration = configuration.filter('term', uuid=config_uuid)
         configuration = configuration.filter('term', integration_uuid=uuid)
+
+        # If args.enabled is set, then filter on the enabled field
+        if args.enabled is not None:
+            configuration = configuration.filter('term', enabled=args.enabled)
+
         configuration = configuration.execute()
 
         if not configuration:
