@@ -262,7 +262,22 @@ class IntegrationConfigDetailResource(Resource):
         Fetches the details of a single Integration Configuration
         """
 
-        pass
+        # Ensure that the integration exists
+        integration = Integration.get(uuid=uuid)
+        if not integration:
+            api.abort(404, "Integration not found")
+
+        # Ensure the configuration exists
+        configuration = IntegrationConfiguration.search()
+        configuration = configuration.filter('term', uuid=config_uuid)
+        configuration = configuration.filter('term', integration_uuid=uuid)
+        configuration = configuration.execute()
+
+        if not configuration:
+            api.abort(404, "Configuration not found")
+
+        return configuration[0]
+
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_integration_config_details)
