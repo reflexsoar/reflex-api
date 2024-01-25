@@ -262,8 +262,9 @@ class IntegrationConfiguration(base.BaseDocument):
     actions = Object(enabled=False)
     global_settings = Object(enabled=False)
     enabled = Boolean()  # Whether the integration is enabled or not
-    system_managed = Boolean() # Whether the configuration is managed by the system or not
-    revision = Integer() # The revision number of the configuration
+    system_managed = Boolean()  # Whether the configuration is managed by the system or not
+    is_global_config = Boolean()  # Whether the configuration is a global configuration or not
+    revision = Integer()  # The revision number of the configuration
 
     class Index:
         name = 'reflex-integration-configurations'
