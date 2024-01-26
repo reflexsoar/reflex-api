@@ -496,11 +496,6 @@ class AgentGeo(InnerDoc):
     state = Keyword()  # The state of the agent
     state_code = Keyword()  # The state name of the agent
 
-agent_name_analyzer = analyzer('user_email_analyzer',
-    tokenizer='keyword',
-    filter=['lowercase']
-)
-
 class Agent(base.BaseDocument):
     '''
     A Reflex agent performs plugin actions, polls external sources
