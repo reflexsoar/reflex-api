@@ -15,6 +15,10 @@
                 {
                     "title": "Architecture",
                     "description": "- Reflex now supports running the API with multiple instances behind a load balancer."
+                },
+                {
+                    "title": "General Enhancements",
+                    "description": "- The Management console will no longer kick a user out of the console if they are missing a permission, a friendly error will be supplied instead."
                 }
             ]
         },
