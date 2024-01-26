@@ -479,12 +479,16 @@ class Case(base.BaseDocument):
 
         if template:
 
-            for tag in template.tags:
-                if self.tags:
-                    if tag not in self.tags:
-                        self.tags.append(tag)
-                else:
-                    self.tags = [tag]
+            # FIX 2024-01-23 - Templates without tags would
+            # not apply correctly and prevent the code from
+            # progressing any further
+            if template.tags is not None:
+                for tag in template.tags:
+                    if self.tags:
+                        if tag not in self.tags:
+                            self.tags.append(tag)
+                    else:
+                        self.tags = [tag]
 
             for task in template.tasks:
                 self.add_task(title=task.title, description=task.description,
