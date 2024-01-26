@@ -363,7 +363,7 @@ def user_has(permission: str):
             if current_user and not isinstance(current_user, list) and current_user.has_right(permission):
                 return f(*args, **kwargs)
             else:
-                abort(401, f"You do not have permission to perform this action.  Required permission '{permission}'")
+                abort(403, f"You do not have permission to perform this action.  Required permission '{permission}'")
 
         wrapper.__doc__ = f.__doc__
         wrapper.__name__ = f.__name__
