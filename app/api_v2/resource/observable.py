@@ -224,15 +224,18 @@ class ObservableHits(Resource):
         # If the observable is a host, check to see if it is a Reflex Agent
         # and if it is, pull the agent data
         #if args.data_type == 'host':
-            #agent_search = Agent.search()
 #
-            #if args['organization'] and user_in_default_org:
-                #agent_search = agent_search.filter('term', organization=args['organization'])
+            #if current_user.is_default_org():
+#
+                #agent_search = Agent.search(skip_org_check=True)
             #else:
-                #agent_search = agent_search.filter('term', organization=current_user.organization)
+                #agent_search = Agent.search()
 #
-            #agent_search = agent_search.filter('term', name=value)
-#
+            #agent_search = agent_search.filter('terms', name__text=[
+                #value.upper(),
+                #value.lower(),
+                #value])
+##
             #agent = agent_search.execute()
             #if agent:
                 #print(agent)
