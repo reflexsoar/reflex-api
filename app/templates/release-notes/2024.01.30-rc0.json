@@ -1,0 +1,31 @@
+{
+    "version": "2024.01.30-rc0",
+    "sections": [
+        {
+            "title": "Enhancements",
+            "items": [
+                {
+                    "title": "Agents",
+                    "description": "- Agents can now rejoin the console using the same name after being removed from the console."
+                },
+                {
+                    "title": "Detections",
+                    "description": "- Detection rules will now have the Cyber Kill Chain phases saved on the rule for additional context."
+                },
+                {
+                    "title": "Architecture",
+                    "description": "- Reflex now supports running the API with multiple instances behind a load balancer."
+                }
+            ]
+        },
+        {
+            "title": "Fixes",
+            "items": [
+                {
+                    "title": "Event Rules",
+                    "description": "- Fixed an issue where event rules with intel match would not trigger if the source document was missing the desired field."
+                }
+            ]
+        }
+    ]
+}
