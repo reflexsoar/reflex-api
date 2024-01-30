@@ -10,8 +10,6 @@ import ssl
 import markdown
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from jinja2 import Environment
-from jinja2.exceptions import UndefinedError as JinjaUndefinedError
 from pdpyras import EventsAPISession
 from requests.exceptions import ConnectionError
 from concurrent.futures import ThreadPoolExecutor
