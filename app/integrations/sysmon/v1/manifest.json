@@ -87,9 +87,16 @@
                     "target_version": {
                         "label": "Target Versions",
                         "type": "str",
-                        "secret": true,
+                        "secret": false,
                         "required": true,
                         "description": "This configuration will only be applied to Sysmon agents with this version or higher"
+                    },
+                    "install_checksum": {
+                        "label": "Installer Checksum",
+                        "type": "str",
+                        "secret": false,
+                        "required": true,
+                        "description": "The SHA1 checksum of the installer file to ensure the download was not corrupted or tampared with."
                     },
                     "target_architecture": {
                         "label": "Target Architecture",
@@ -125,7 +132,7 @@
                     "target_version": {
                         "label": "Target Versions",
                         "type": "str",
-                        "secret": true,
+                        "secret": false,
                         "required": true,
                         "description": "This configuration will only be applied to Sysmon agents with this version or higher"
                     },
