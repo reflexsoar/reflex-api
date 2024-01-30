@@ -1,0 +1,318 @@
+{
+    "name": "Reflex Architecture",
+    "product_identifier": "78509ead-8e29-48fd-9dbb-1dd2869cdaf2",
+    "brief_description": "A ReflexSOAR plugin managing Opensearch and Elasticsearch clusters.",
+    "description": "A ReflexSOAR plugin managing Opensearch and Elasticsearch clusters and their associated indices, including allocation, deletion, and creation.",
+    "author": "Brian Carroll <brian@hasecuritysolutions.com>",
+    "tags": [
+        "logging",
+        "siem"
+    ],
+    "category": [
+        "Data Management"
+    ],
+    "enabled": false,
+    "contributor": [
+        "Justin Henderson <justin@hasecuritysolutions.com>"
+    ],
+    "license": "H&A Security Solutions - Premium Support",
+    "version": "1.0.0",
+    "manifest": {
+        "actions": [
+            {
+                "name": "manage_index_allocation",
+                "friendly_name": "Manage Index Allocation",
+                "description": "Manage the index allocation for the cluster.",
+                "type": "action",
+                "tags": [
+                    "logging",
+                    "siem"
+                ],
+                "run_from": "agent",
+                "parameters": {
+                },
+                "configuration": {"include_patterns": {
+                    "label": "Include Patterns",
+                    "type": "str-multiple",
+                    "required": false,
+                    "description": "The index patterns, using regular expressions, to include in the allocation."
+                },
+                "exclude_patterns": {
+                    "label": "Exclude Patterns",
+                    "type": "str-multiple",
+                    "required": false,
+                    "description": "The index patterns, using regular expressions, to exclude from the allocation."
+                },
+                "target_tier": {
+                    "label": "Target Tier",
+                    "type": "str-select",
+                    "options": [
+                        {
+                            "label": "Hot",
+                            "value": "hot"
+                        },
+                        {
+                            "label": "Warm",
+                            "value": "warm"
+                        },
+                        {
+                            "label": "Cold",
+                            "value": "cold"
+                        },
+                        {
+                            "label": "Frozen",
+                            "value": "frozen"
+                        }
+                    ],
+                    "required": true,
+                    "description": "The target tier for the indices."
+                },
+                "max_age": {
+                    "label": "Max Age",
+                    "type": "int",
+                    "required": true,
+                    "default": 30,
+                    "description": "The maximum age, in days.  Indices older than this will be allocated to the target tier."
+                }}
+            },
+            {
+                "name": "collect_index_statistics",
+                "friendly_name": "Collect Index Statistics",
+                "description": "Collect statistics for the indices in the cluster.",
+                "type": "action",
+                "tags": [
+                    "monitoring",
+                    "siem",
+                    "logging"
+                ],
+                "run_from": "agent",
+                "parameters": {
+                    
+                },
+                "configuration": {
+                    "include_patterns": {
+                        "label": "Include Patterns",
+                        "type": "str-multiple",
+                        "required": false,
+                        "description": "The index patterns, using regular expressions, to include in the statistics collection."
+                    },
+                    "exclude_patterns": {
+                        "label": "Exclude Patterns",
+                        "type": "str-multiple",
+                        "required": false,
+                        "description": "The index patterns, using regular expressions, to exclude from the statistics collection."
+                    },
+                    "collected_attributes": {
+                        "label": "Attributes to Collect",
+                        "type": "str-multiple",
+                        "required": true,
+                        "description": "The attributes to collect for the indices.",
+                        "default": [
+                            "name",
+                            "primary_count",
+                            "replica_count",
+                            "total_shard_count",
+                            "doc_count",
+                            "total_size",
+                            "primary_size",
+                            "compression_type",
+                            "segment_count",
+                            "health_status",
+                            "box_type",
+                            "is_allocated",
+                            "unallocated_reason",
+                            "is_hidden",
+                            "is_read_only",
+                            "is_frozen",
+                            "is_system_index",
+                            "field_count",
+                            "field_limit",
+                            "deleted_docs_count",
+                            "template",
+                            "is_data_stream",
+                            "is_alias",
+                            "index_group",
+                            "status",
+                            "newest_doc_timestamp",
+                            "oldest_doc_timestamp"
+                        ]
+                    },
+                    "outputs": {
+                        "label": "Outputs",
+                        "type": "str-multiple",
+                        "label_field": "label",
+                        "required": false,
+                        "default": [],
+                        "default_options_from": "integration_outputs",
+                        "description": "The outputs to send the data to.  If not specified, the data will be sent to the management consoles index stats dataset."
+                    }
+                }
+            },
+            {
+                "name": "manage_index_retention",
+                "friendly_name": "Manage Index Retention",
+                "description": "Manage the retention of the indices in the cluster.  By default this action will delete indices by the **latest documents** age.",
+                "type": "action",
+                "tags": [
+                    "logging",
+                    "siem"
+                ],
+                "run_from": "agent",
+                "parameters": {},
+                "configuration": {
+                    "include_patterns": {
+                        "label": "Include Patterns",
+                        "type": "str-multiple",
+                        "required": false,
+                        "description": "The index patterns, using regular expressions, to include in the statistics collection."
+                    },
+                    "exclude_patterns": {
+                        "label": "Exclude Patterns",
+                        "type": "str-multiple",
+                        "required": false,
+                        "description": "The index patterns, using regular expressions, to exclude from the statistics collection."
+                    },
+                    "audit_mode": {
+                        "label": "Audit Mode",
+                        "type": "bool",
+                        "required": false,
+                        "description": "Whether to run in audit mode or not.  When in audit mode, no changes will be made to the indices, but a report will be generated."
+                    },
+                    "max_age": {
+                        "label": "Max Age",
+                        "type": "int",
+                        "required": true,
+                        "default": 30,
+                        "description": "The maximum age, in days.  Indices where the latest document is older than this will be deleted.  Optionally, toggle the By Index Age switch to delete indices based on their age."
+                    },
+                    "by_index_age": {
+                        "label": "By Index Age",
+                        "type": "bool",
+                        "required": false,
+                        "default": false,
+                        "description": "Toggle to delete indices based on their age instead of the latest documents age."
+                    }
+                }
+            },
+            {
+                "name": "manage_index_rollover",
+                "friendly_name": "Manage Index Rollover",
+                "description": "Manage the rollover of the indices in the cluster.",
+                "type": "action",
+                "tags": [
+                    "logging",
+                    "siem"
+                ],
+                "run_from": "agent",
+                "parameters": {},
+                "configuration": {
+                    "include_patterns": {
+                        "label": "Include Patterns",
+                        "type": "str-multiple",
+                        "required": false,
+                        "description": "The index patterns, using regular expressions, to include in the statistics collection."
+                    },
+                    "exclude_patterns": {
+                        "label": "Exclude Patterns",
+                        "type": "str-multiple",
+                        "required": false,
+                        "description": "The index patterns, using regular expressions, to exclude from the statistics collection."
+                    },
+                    "max_age": {
+                        "label": "Max Age",
+                        "type": "int",
+                        "required": true,
+                        "default": 30,
+                        "description": "The maximum age, in days.  Indices older than this will be rolled over."
+                    },
+                    "max_docs": {
+                        "label": "Max Documents",
+                        "type": "int",
+                        "required": true,
+                        "default": 0,
+                        "description": "The maximum number of documents.  Indices with more than this number of documents will be rolled over."
+                    },
+                    "max_size": {
+                        "label": "Max Size",
+                        "type": "int",
+                        "required": true,
+                        "default": 50,
+                        "description": "The maximum size, in gigabytes.  Indices larger than this will be rolled over."
+                    }
+                }
+            },
+            {
+                "name": "manage_force_merge",
+                "friendly_name": "Manage Force Merge",
+                "description": "Manage the force merge of the indices in the cluster.",
+                "type": "action",
+                "tags": [
+                    "logging",
+                    "siem"
+                ],
+                "run_from": "agent",
+                "parameters": {},
+                "configuration": {
+                    "include_patterns": {
+                        "label": "Include Patterns",
+                        "type": "str-multiple",
+                        "required": false,
+                        "description": "The index patterns, using regular expressions, to include in the force merge."
+                    },
+                    "exclude_patterns": {
+                        "label": "Exclude Patterns",
+                        "type": "str-multiple",
+                        "required": false,
+                        "description": "The index patterns, using regular expressions, to exclude from the force merge."
+                    },
+                    "max_age": {
+                        "label": "Max Age",
+                        "type": "int",
+                        "required": true,
+                        "default": 30,
+                        "description": "The maximum age, in days.  Indices older than this will be force merged."
+                    },
+                    "max_segments": {
+                        "label": "Max Segments",
+                        "type": "int",
+                        "required": true,
+                        "default": 1,
+                        "description": "The maximum number of segments.  Indices with more than this number of segments will be force merged."
+                    },
+                    "max_deleted_docs": {
+                        "label": "Max Deleted Documents",
+                        "type": "int",
+                        "required": true,
+                        "default": 0,
+                        "description": "The maximum number of deleted documents.  Indices with more than this number of deleted documents will be force merged."
+                    },
+                    "read_only": {
+                        "label": "Only Target Read Only Indices",
+                        "type": "bool",
+                        "required": true,
+                        "default": true,
+                        "description": "Only target indices that are set to read only."
+                    
+                    }
+                }
+            }
+        ],
+        "configuration": {
+            "priority": {
+                "label": "Priority",
+                "type": "int",
+                "default": 0,
+                "required": false,
+                "description": "The priority of this configuration.  Lower numbers are higher priority."
+            },
+            "target_input": {
+                "label": "Target Input",
+                "type": "str-select",
+                "default_options_from": "inputs",
+                "required": false,
+                "description": "The input to target with this configuration."
+            }
+        }
+    },
+    "logo": "https://docs.reflexsoar.com/en/latest/img/color-logo-no-bg.svg#gh-light-mode-only"
+}

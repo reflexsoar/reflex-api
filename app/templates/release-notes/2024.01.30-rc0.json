@@ -6,7 +6,7 @@
             "items": [
                 {
                     "title": "Agents",
-                    "description": "- Agents can now rejoin the console using the same name after being removed from the console."
+                    "description": "- Agents can now rejoin the console using the same name after being removed from the console.\n- If an Agent has Microsoft Sysmon installed it will report in the version of Sysmon to the management console.\n- Agents can now manage Microsoft Sysmon configs and installed versions of the tool using the Microsoft Sysmon integration and associating them with the Sysmon Manager role under Agent Policies. NOTE: This requires a special agent that is in beta.\n"
                 },
                 {
                     "title": "Detections",
@@ -28,6 +28,10 @@
                 {
                     "title": "Event Rules",
                     "description": "- Fixed an issue where event rules with intel match would not trigger if the source document was missing the desired field."
+                },
+                {
+                    "title": "Event Queue",
+                    "description": "- When selecting events from different organizations back to back the UI would incorrectly indicate that events from multiple organizations were selected at the same time.\n"
                 }
             ]
         }
