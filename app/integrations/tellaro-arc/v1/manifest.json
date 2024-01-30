@@ -2,7 +2,7 @@
     "name": "Reflex Architecture",
     "product_identifier": "78509ead-8e29-48fd-9dbb-1dd2869cdaf2",
     "brief_description": "A ReflexSOAR plugin managing Opensearch and Elasticsearch clusters.",
-    "description": "A ReflexSOAR plugin managing Opensearch and Elasticsearch clusters and their associated indices, including allocation, deletion, and creation.",
+    "description": "## Description\nThe Reflex Architecture plugin allows for Reflex Agents to orchestrate actions against Elasticsearch and OpenSearch clusters related to index management.  \n## Configuration\nTo get started with the Reflex Architecture integration:\n\n1. You must have at least one (1) Reflex Agent with Premium Support to enable the ILM role\n2. Click **Configurations** > **New Configuration**\n3. Enable the actions you want to configure and apply\n4. Navigate to **Agent Policies**\n5. Enable the ILM role for the Agent Policy applied to an Agent that has visibility to the target Elasticsearch/OpenSearch cluster\n6. Apply the ILM configurations to the Agent Policy's ILM settings.\n## Supported Actions\nThe Reflex Architecture (ILM) integration supports several actions.\n### Retention\n\nThe Retention action will curate indices based on several configuration parameters.  At set intervals, the Retention policies applied will purge indices.\n\n### Allocation\n\nResponsible for moving data between storage tiers (hot, warm, cold, etc.).\n\n### Rollover\n\nManages when an index should rollover based on time and size parameters.\n\n### Force Merge\n\nManages the merging of indices based on time, size and segment count parameters.\n\n### Index Stats\n\nPeriodically collects statistical information about indices within the target Elasticsearch/OpenSearch cluster for visualization and troubleshooting.  These statistics can be routed to a different location by designating a target output.  If no target output is selected, the data is stored in the Reflex Management console for searching in **Search** or under the **Infrastructure** section of the application.",
     "author": "Brian Carroll <brian@hasecuritysolutions.com>",
     "tags": [
         "logging",
@@ -310,7 +310,7 @@
                 "type": "str-select",
                 "default_options_from": "inputs",
                 "required": false,
-                "description": "The input to target with this configuration."
+                "description": "The input to target with this configuration.  The input in this instance acts solo as connection information for the agent to interact with the target cluster."
             }
         }
     },
