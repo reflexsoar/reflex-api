@@ -120,7 +120,7 @@
                 "friendly_name": "Disable Sysmon",
                 "name": "disable",
                 "type": "action",
-                "description": "Disables Sysmon on the target system by stopping the service.  It will not be re-enabled until the service is started again.  If this policy is still active when Sysmon is started again, it will be disabled again.",
+                "description": "**FEATURE NOT SUPPORTED YET**\n\nDisables Sysmon on the target system by stopping the service.  It will not be re-enabled until the service is started again.  If this policy is still active when Sysmon is started again, it will be disabled again.",
                 "tags": ["agent", "sysmon"],
                 "run_from": "agent",
                 "agent_role": "sysmon_manager",
