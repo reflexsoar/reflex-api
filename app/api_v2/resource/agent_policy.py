@@ -86,12 +86,27 @@ mod_inventory_config = api.model('InventoryConfig', {
     'metrics_outputs': fields.List(fields.String, default=[]),
 })
 
+mod_winlog_reader_config = api.model('WinlogReaderConfig', {
+    'max_cache_db_size': fields.Integer(default=100),
+    'log_event_metrics': fields.Boolean(default=False),
+    'max_queue_size': fields.Integer(default=5000),
+    'queue_size_check_interval': fields.Integer(default=5),
+    'output_health_check_interval': fields.Integer(default=5),
+})
+
+mod_winlog_shipper_config = api.model('WinlogShipperConfig', {
+    'max_batch_size': fields.Integer(default=500),
+    'max_shipper_threads': fields.Integer(default=5),
+})
+
 mod_winlog_config = api.model('WinlogConfig', {
     'wait_interval': fields.Integer(default=60),
     'logging_level': fields.String(default='ERROR'),
     'graceful_exit': fields.Boolean(default=True),
     'log_source_config': fields.List(fields.String, default=[]),
-    'default_output': fields.List(fields.String, default=[])
+    'default_output': fields.List(fields.String, default=[]),
+    'reader': fields.Nested(mod_winlog_reader_config),
+    'shipper': fields.Nested(mod_winlog_shipper_config)
 })
 
 mod_sysmon_manager_config = api.model('SysmonManagerConfig', {

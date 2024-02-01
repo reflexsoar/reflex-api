@@ -147,6 +147,23 @@ class InventoryConfig(InnerDoc):
     metrics_outputs = Keyword()  # Where should the inventory information be sent?
 
 
+class WinlogReaderConfig(InnerDoc):
+    '''
+    Contains information about the Winlog's Reader thread's configuration
+    '''
+    max_cache_db_size = Integer()  # How much space can the Winlog cache use before it is cleared
+    log_event_metrics = Boolean()  # Should the Winlog log event metrics
+    max_queue_size = Integer()  # How many events can the Winlog queue hold before reading is paused
+    queue_size_check_interval = Integer()  # How often should the Winlog check the queue size
+    output_health_check_interval = Integer()  # How often should the Winlog check the output health
+
+class WinlogShipperConfig(InnerDoc):
+    '''
+    Contains information about the Winlog's Shipper thread's configuration
+    '''
+    max_batch_size = Integer()  # How many events can the Winlog shipper send in a single batch
+    max_shipper_threads = Integer()  # How many shipper threads can the Winlog use
+
 class WinlogConfig(InnerDoc):
     '''
     Contains information about how the Winlog agent role is configured
@@ -157,6 +174,8 @@ class WinlogConfig(InnerDoc):
     graceful_exit = Boolean()  # Should the agent attempt a graceful exit when asked to shut down
     log_source_config = Keyword()  # The log sources to collect
     default_output = Keyword()  # The default output for the agent
+    reader = Object(WinlogReaderConfig)  # The reader configuration for the agent
+    shipper = Object(WinlogShipperConfig)  # The shipper configuration for the agent
 
 
 class SysmonManagerConfig(InnerDoc):
