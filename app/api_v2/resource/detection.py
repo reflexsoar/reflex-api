@@ -921,7 +921,7 @@ class DetectionUUIDsByFilter(Resource):
             if args.organization and len(args.organization) > 0 and args.organization != ['']:
                 detections = detections.filter(
                     'terms', organization=args.organization)
-            if args.organizaiton__not and len(args.organization__not) > 0 and args.organization__not != ['']:
+            if args.organization__not and len(args.organization__not) > 0 and args.organization__not != ['']:
                 detections = detections.exclude(
                     'terms', organization=args.organization__not)
                 
