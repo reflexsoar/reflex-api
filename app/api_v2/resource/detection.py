@@ -1283,6 +1283,10 @@ class AddDetectionException(Resource):
             if 'field' not in api.payload or api.payload['field'] in [None, '']:
                 api.abort(400, 'Field is required')
 
+            # If a str value is passed it needs to be a list
+            if 'values' in api.payload and isinstance(api.payload['values'], list) is False:
+                api.payload['values'] = [api.payload['values']]
+
             # Create the exception inner document and add the auditing meta data
             exception = DetectionException(
                 **api.payload,
@@ -1671,6 +1675,10 @@ class DetectionDetails(Resource):
                 for exception in api.payload['exceptions']:
                     if 'field' not in exception or exception['field'] in [None, '']:
                         api.abort(400, 'Exception field is required')
+
+                    # If a str value is passed it needs to be a list
+                    if 'values' in exception and isinstance(exception['values'], list) is False:
+                        exception['values'] = [exception['values']]
 
             # If the MITRE techniques have changed, calculate the phases
             if 'techniques' in api.payload and api.payload['techniques'] != detection.techniques:
