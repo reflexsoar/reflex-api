@@ -140,27 +140,40 @@ class ThreatListList(Resource):
 
         lists = ThreatList.search(skip_org_check=True)
 
-        organization = current_user.organization
-
         # If the organization args are set and the user is not in the default org
         if current_user.is_default_org() and args.organization:
-            organization = args.organization
+            lists = lists.filter(
+                'bool',
+                should=[
+                    Q('term', organization=args.organization),
+                    Q('term', global_list=True)
+                ]
+            )
+
+        if current_user.is_default_org() and not args.organization:
+            lists = lists.filter(
+                'bool',
+                should=[
+                    Q('term', organization=current_user.organization),
+                    Q('term', global_list=True)
+                ]
+            )
+
+        if not current_user.is_default_org():
+            # Search for the target organization or any global_list
+            lists = lists.filter(
+                'bool',
+                should=[
+                    Q('term', organization=current_user.organization),
+                    Q('term', global_list=True)
+                ]
+            )
 
         if args.name__like:
             lists = lists.filter('wildcard', name=args.name__like+"*")
 
         if args.data_type:
             lists = lists.filter('term', data_type_name=args.data_type)
-            
-        if not current_user.is_default_org() and not args.organization:
-            # Search for the target organization or any global_list
-            lists = lists.filter(
-                'bool',
-                should=[
-                    Q('term', organization=organization),
-                    Q('term', global_list=True)
-                ]
-            )
 
         lists, total_results, pages = page_results(lists, args.page, args.page_size)
 
