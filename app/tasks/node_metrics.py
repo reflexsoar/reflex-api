@@ -24,6 +24,7 @@ def store_system_metrics(app, ep):
     # for the nodes process 
     disk_usage = psutil.disk_usage('/')
     cpu_usage = psutil.cpu_percent()
+    usage_per_core = psutil.cpu_percent(percpu=True)
     memory_usage = psutil.virtual_memory()
 
     # Get the ip address of the node using 
@@ -52,7 +53,8 @@ def store_system_metrics(app, ep):
         node_role=node_role,
         disk=disk_usage.total,
         disk_free = disk_usage.free,
-        cpu=cpu_usage,
+        cpu_usage=cpu_usage,
+        cpu_usage_per_core=usage_per_core,
         memory=memory_usage.used,
         event_processing={
             'events_processed': events_processed,

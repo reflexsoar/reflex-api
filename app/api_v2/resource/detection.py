@@ -23,7 +23,8 @@ from ..model import (
     MITRETechnique,
     DetectionRepository,
     DetectionState,
-    UpdateByQuery
+    UpdateByQuery,
+    AttrList
 )
 import chevron
 from .shared import mod_pagination, ISO8601, mod_user_list
@@ -202,7 +203,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'techniques': fields.List(fields.Nested(mod_technique_brief)),
     'references': fields.List(fields.String),
     'false_positives': fields.List(fields.String),
-    'kill_chain_phase': fields.String,
+    'kill_chain_phase': fields.List(fields.String),
     'rule_type': fields.Integer,
     'version': fields.Integer,
     'active': fields.Boolean,
@@ -278,7 +279,7 @@ mod_create_detection = api.model('CreateDetection', {
     'techniques': fields.List(fields.Nested(mod_technique_brief)),
     'references': fields.List(fields.String),
     'false_positives': fields.List(fields.String),
-    'kill_chain_phase': fields.String,
+    'kill_chain_phase': fields.List(fields.String),
     'rule_type': fields.Integer(required=True),
     'active': fields.Boolean,
     'source': fields.Nested(mod_source_config, required=True),
@@ -327,7 +328,7 @@ mod_update_detection = api.model('UpdateDetection', {
     'techniques': fields.List(fields.String),
     'references': fields.List(fields.String),
     'false_positives': fields.List(fields.String),
-    'kill_chain_phase': fields.String,
+    'kill_chain_phase': fields.List(fields.String),
     'rule_type': fields.Integer,
     'active': fields.Boolean,
     'source': fields.String,
@@ -390,7 +391,7 @@ mod_detection_export = api.model('DetectionExport', {
     'techniques': fields.List(fields.Nested(mod_technique_brief)),
     'references': fields.List(fields.String),
     'false_positives': fields.List(fields.String),
-    'kill_chain_phase': fields.String,
+    'kill_chain_phase': fields.List(fields.String),
     'rule_type': fields.Integer,
     'version': fields.Integer,
     'active': fields.Boolean,
@@ -920,7 +921,7 @@ class DetectionUUIDsByFilter(Resource):
             if args.organization and len(args.organization) > 0 and args.organization != ['']:
                 detections = detections.filter(
                     'terms', organization=args.organization)
-            if args.organizaiton__not and len(args.organization__not) > 0 and args.organization__not != ['']:
+            if args.organization__not and len(args.organization__not) > 0 and args.organization__not != ['']:
                 detections = detections.exclude(
                     'terms', organization=args.organization__not)
                 
@@ -1281,6 +1282,10 @@ class AddDetectionException(Resource):
 
             if 'field' not in api.payload or api.payload['field'] in [None, '']:
                 api.abort(400, 'Field is required')
+
+            # If a str value is passed it needs to be a list
+            if 'values' in api.payload and isinstance(api.payload['values'], list) is False:
+                api.payload['values'] = [api.payload['values']]
 
             # Create the exception inner document and add the auditing meta data
             exception = DetectionException(
@@ -1670,6 +1675,28 @@ class DetectionDetails(Resource):
                 for exception in api.payload['exceptions']:
                     if 'field' not in exception or exception['field'] in [None, '']:
                         api.abort(400, 'Exception field is required')
+
+                    # If a str value is passed it needs to be a list
+                    if 'values' in exception and isinstance(exception['values'], list) is False:
+                        exception['values'] = [exception['values']]
+
+            # If the MITRE techniques have changed, calculate the phases
+            if 'techniques' in api.payload and api.payload['techniques'] != detection.techniques:
+                phases = []
+                _external_ids = [technique['external_id'] for technique in api.payload['techniques']]
+                techs = MITRETechnique.get_by_external_id(_external_ids)
+
+                if techs:
+                    for tech in techs:
+                        if isinstance(tech.phase_names, (list, AttrList)):
+                            for phase in tech.phase_names:
+                                if phase not in phases:
+                                    phases.append(phase)
+                        else:
+                            if tech.phase_names not in phases:
+                                phases.append(tech.phase_names)
+
+                api.payload['kill_chain_phase'] = phases
 
             if isinstance(current_user, Agent):
                 detection.update(**api.payload, refresh=True)

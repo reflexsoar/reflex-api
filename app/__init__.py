@@ -20,6 +20,7 @@ from app.tasks.assess_rules import flag_rules_for_periodic_assessment
 from app.tasks.case.auto_close import auto_close_cases
 from app.tasks.benchmark.load_rules import load_benchmark_rules_from_remote
 from app.tasks.node_metrics import store_system_metrics
+from app.tasks.check_app_vulns import check_app_vulns
 from app.integrations.base.loader import register_integrations
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -45,7 +46,7 @@ from app.api_v2.model import (
         RoleMappingPolicy, Package, DataSourceTemplate, Schedule, FimRule, AgentTag,
         BenchmarkRule, BenchmarkRuleset, BenchmarkException, BenchmarkResultHistory,
         BenchmarkResult, BenchmarkFrameworkRule, EventRelatedObject, SearchProxyJob,
-        ApplicationInventory, APINodeMetric
+        ApplicationInventory, APINodeMetric, AgentApplicationInventory
 )
 
 from .defaults import (
@@ -160,7 +161,7 @@ def upgrade_indices(app):
         IntegrationActionQueue, SSOProvider, RoleMappingPolicy, Package, DataSourceTemplate,
         Schedule, FimRule, AgentTag, BenchmarkRule, BenchmarkRuleset, EventRelatedObject,
         BenchmarkException, BenchmarkResultHistory, BenchmarkResult, BenchmarkFrameworkRule,
-        SearchProxyJob, ApplicationInventory, APINodeMetric
+        SearchProxyJob, ApplicationInventory, APINodeMetric, AgentApplicationInventory
     ]
     
     def do_upgrade(model):
@@ -184,6 +185,16 @@ def upgrade_indices(app):
             migrate(app, ALIAS, move_data=False, version=index_version)
         else:
             migrate(app, ALIAS, version=index_version)
+
+        es = connections.get_connection()
+
+        # Update the current index settings
+        # TODO: Test this for all models, make sure it works correctly
+        if model in (Integration, IntegrationConfiguration):
+            body = {
+                k: v for k, v in model.Index.settings.items() if k != 'index'
+            }
+            es.indices.put_settings(body=body, index=PATTERN)
 
     with ThreadPoolExecutor(max_workers=4) as executor:
         executor.map(do_upgrade, models)
@@ -355,8 +366,8 @@ def create_app(environment='development'):
         # Reload integrations every N minutes
         #scheduler.add_job(func=register_integrations, trigger="interval", seconds=app.config['INTEGRATION_LOADER_INTERVAL']*60)
 
-    # Report node metrics every 60 seconds
-    scheduler.add_job(func=store_system_metrics, trigger="interval", seconds=60, args=(app, ep))
+    # Report node metrics every 30 seconds
+    scheduler.add_job(func=store_system_metrics, trigger="interval", seconds=30, args=(app, ep))
 
     if not app.config['SCHEDULER_DISABLED']:
         if not app.config['THREAT_POLLER_DISABLED']:
@@ -447,8 +458,8 @@ def create_app(environment='development'):
         scheduler.add_job(func=mattack.download_framework, trigger="date", run_date=datetime.datetime.now())
         scheduler.add_job(func=mattack.download_framework, trigger="interval", seconds=app.config['MITRE_CONFIG']['POLL_INTERVAL'])
 
-        scheduler.start()
-        atexit.register(lambda: scheduler.shutdown())
+    scheduler.start()
+    atexit.register(lambda: scheduler.shutdown())
 
     if not app.config['NOTIFIER']['DISABLED']:
         notifier.init_app(app)

@@ -290,7 +290,8 @@ class Event(base.BaseDocument):
         related_object = EventRelatedObject(
             event={
                 'uuid': self.uuid,
-                'organization': self.organization
+                'organization': self.organization,
+                'signature': self.signature
             },
             entry={
                 'type': 'comment'
@@ -1073,7 +1074,8 @@ class EventRelatedObject(base.BaseDocument):
 
     event = Object(properties={
         'uuid': Keyword(),
-        'organization': Keyword()
+        'organization': Keyword(),
+        'signature': Keyword(),
     })
 
     entry = Object(properties={
@@ -1096,7 +1098,7 @@ class EventRelatedObject(base.BaseDocument):
         'comment': Keyword(),
         'organization': Keyword(),
         'created_by': Keyword(),
-        'created_at': Date(),
+        'created_at': Date()
     })
 
     log = Object(properties={

@@ -64,7 +64,7 @@ class Integration(Document):
     contributor = Keyword()  # The contributor of the integration
     license_name = Keyword()  # The license name of the integration
     enabled = Boolean()  # Whether the integration is enabled or not
-    manifest = Object()  # Contains a JSON string that defines what actions are available for the integration and what fields are required for each action
+    manifest = Object(enabled=False)  # Contains a JSON string that defines what actions are available for the integration and what fields are required for each action
     version = Keyword()  # The version of the integration
     logo = Keyword()  # Base64 encoded logo for the integration
     tags = Keyword()
@@ -76,6 +76,7 @@ class Integration(Document):
             'refresh_interval': '5s',
             'index.mapping.total_fields.limit': 10000
         }
+        version = "0.1.5"
 
     @classmethod
     def search(cls, using=None, index=None, skip_org_check=False):
@@ -261,13 +262,16 @@ class IntegrationConfiguration(base.BaseDocument):
     actions = Object(enabled=False)
     global_settings = Object(enabled=False)
     enabled = Boolean()  # Whether the integration is enabled or not
-    system_managed = Boolean() # Whether the configuration is managed by the system or not
-    revision = Integer() # The revision number of the configuration
+    system_managed = Boolean()  # Whether the configuration is managed by the system or not
+    is_global_config = Boolean()  # Whether the configuration is a global configuration or not
+    revision = Integer()  # The revision number of the configuration
 
     class Index:
         name = 'reflex-integration-configurations'
         settings = {
             'refresh_interval': '5s',
+            # Set the max number of fields to 10000
+            'index.mapping.total_fields.limit': 10000
         }
         version = "0.1.6"
 

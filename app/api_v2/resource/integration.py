@@ -6,6 +6,7 @@ from .shared import mod_user_list, ISO8601, AsAttrDict
 from ..utils import token_required, user_has
 
 from ..model.integration import IntegrationConfiguration, Integration
+from ..model import Q
 from ...integrations.base import integration_registry
 
 api = Namespace('Integration', description="Integration operations", path="/integration")
@@ -39,6 +40,7 @@ mod_integration_config_details = api.model('IntegrationConfigDetails', {
     'integration_uuid': fields.String,
     'actions': AsAttrDict,
     'global_settings': AsAttrDict,
+    'is_global_config': fields.Boolean(default=False),
     'created_at': ISO8601,
     'created_by': fields.Nested(mod_user_list),
     'updated_at': ISO8601,
@@ -50,7 +52,8 @@ mod_create_integration_config = api.model('CreateIntegrationConfig', {
     'description': fields.String,
     'enabled': fields.Boolean(default=False),
     'actions': AsAttrDict,
-    'global_settings': AsAttrDict
+    'global_settings': AsAttrDict,
+    'is_global_config': fields.Boolean(default=False)
 })
 
 mod_integration_config_list = api.model('IntegrationConfigList', {
@@ -100,8 +103,15 @@ class IntegrationConfigList(Resource):
         """
 
         # Retrieves a list of available integrations
-        configurations = IntegrationConfiguration.search()
+        configurations = IntegrationConfiguration.search(skip_org_check=True)
         configurations = configurations.filter('term', integration_uuid=uuid)
+        configurations = configurations.filter('bool',
+            should=[
+                Q('term', organization=current_user.organization),
+                Q('term', is_global_config=True)
+            ],
+        )
+
         configurations = configurations.scan()
 
         response = {
@@ -249,12 +259,17 @@ class IntegrationConfigActivation(Resource):
 
         # Return the configuration
         return configuration
+    
+int_config_parser = api.parser()
+int_config_parser.add_argument('organization', type=str, required=False, location='args')
+int_config_parser.add_argument('enabled', type=xinputs.boolean, required=False, location='args')
 
 @api.route("/<string:uuid>/configurations/<string:config_uuid>")
 class IntegrationConfigDetailResource(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_integration_config_details)
+    @api.expect(int_config_parser)
     @token_required
     #@user_has('view_integration_configuration')
     def get(self, current_user, uuid, config_uuid):
@@ -262,7 +277,37 @@ class IntegrationConfigDetailResource(Resource):
         Fetches the details of a single Integration Configuration
         """
 
-        pass
+        args = int_config_parser.parse_args()
+
+        # Ensure that the integration exists
+        integration = Integration.get(uuid=uuid)
+        if not integration:
+            api.abort(404, "Integration not found")
+
+        # Ensure the configuration exists
+        configuration = IntegrationConfiguration.search(skip_org_check=current_user.is_default_org)
+        configuration = configuration.filter('term', uuid=config_uuid)
+        configuration = configuration.filter('term', integration_uuid=uuid)
+
+        # Filter by the current_users organization or is_global_config
+        configuration = configuration.filter('bool',
+            should=[
+                Q('term', organization=current_user.organization),
+                Q('term', is_global_config=True)
+            ],
+        )
+
+        # If args.enabled is set, then filter on the enabled field
+        if args.enabled is not None:
+            configuration = configuration.filter('term', enabled=args.enabled)
+
+        configuration = configuration.execute()
+
+        if not configuration:
+            api.abort(404, "Configuration not found")
+
+        return configuration[0]
+
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_integration_config_details)
@@ -522,9 +567,14 @@ class ConfiguredActionsResource(Resource):
         for integration in integrations:
 
             # Ensure that the integration configuration exists
-            configurations = IntegrationConfiguration.search()
+            configurations = IntegrationConfiguration.search(skip_org_check=True)
             configurations = configurations.filter('term', integration_uuid=integration.product_identifier)
-            configurations = configurations.filter('term', organization=current_user.organization)
+            configurations = configurations.filter('bool',
+                should=[
+                    Q('term', organization=current_user.organization),
+                    Q('term', is_global_config=True)
+                ],
+            )
 
             # Only return enabled configurations
             configurations = configurations.filter('term', enabled=True)

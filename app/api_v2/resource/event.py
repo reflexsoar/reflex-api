@@ -35,10 +35,12 @@ mod_event_comment_detailed = api.model('EventCommentDetailed', {
     'comment': fields.String,
     'created_at': ISO8601,
     'created_by': fields.String,
+    'from_related_event': fields.Boolean(required=False, default=False)
 })
 
 mod_event_comments = api.model('EventComments', {
-    'comments': fields.List(fields.Nested(mod_event_comment_detailed))
+    'comments': fields.List(fields.Nested(mod_event_comment_detailed)),
+    'pagination': fields.Nested(mod_pagination)
 })
 
 mod_bulk_event_uuids = api.model('BulkEventUUIDs', {
@@ -1536,26 +1538,63 @@ class GetRelatedEventObjects(Resource):
             'objects': results
         }
 
-
+comment_parser = api.parser()
+comment_parser.add_argument('include_related_events',
+                            type=xinputs.boolean,
+                            help='If set to true, comments from other events with the same signature will be returned as well.',
+                            location='args',
+                            default=True)
+comment_parser.add_argument('page', type=int, help='The page number to return', location='args', default=1)
+comment_parser.add_argument('page_size', type=int, help='The number of results to return per page', location='args', default=25)
+comment_parser.add_argument('sort', type=str, help='The field to sort the results by', location='args', default='created_at')
+comment_parser.add_argument('sort_direction', type=str, help='The order to sort the results by', location='args', default='desc')
 
 @api.route("/<uuid>/comment")
 class EventComment(Resource):
 
     @api.doc(security="Bearer")
     @api.marshal_with(mod_event_comments)
+    @api.expect(comment_parser)
     @token_required
     @user_has('view_events')
     def get(self, uuid, current_user):
+
+        args = comment_parser.parse_args()
 
         event = Event.get_by_uuid(uuid)
 
         # Fetch comments reflex-event-related-objects index instead using the events
         # UUID as the parent parameter
         search = EventRelatedObject.search()
-        search = search.filter('term', event__uuid=uuid)
+
+        if args.include_related_events:
+            # Filter by the event.uuid or the event.signature
+            search = search.filter('bool', should=[Q('term', event__uuid=uuid), Q('term', event__signature=event.signature)])
+        else:
+            search = search.filter('term', event__uuid=uuid)
+
+        search = search.filter('term', event__organization=event.organization)
+        #search = search.filter('term', event__uuid=uuid)
         search = search.filter('term', entry__type='comment')
         search = search.sort({'created_at': {'order': 'desc'}})
-        results = [e.comment.to_dict() for e in search.scan()]
+
+        total_comments = search.count()
+        pages = int(total_comments / args.page_size) + (total_comments % args.page_size > 0)
+        start = (args.page - 1) * args.page_size
+        end = args.page * args.page_size
+
+        search = search[start:end]
+
+        results = []
+        comments = search.execute()
+        if comments:
+            for e in comments:
+                if e.comment:
+                    comment_dict = e.comment.to_dict()
+                    if e.event.uuid != event.uuid:
+                        comment_dict['from_related_event'] = True
+                    results.append(comment_dict)
+        #results = [e.comment.to_dict() for e in search.scan()]
 
         # DEPRECATION WARNING: Legacy comments will be removed in a future release
         # and only comments stored in the reflex-event-related-objects index will
@@ -1570,7 +1609,12 @@ class EventComment(Resource):
             api.abort(404, 'Event not found.')
 
         return {
-            'comments': results
+            'comments': results,
+            'pagination': {
+                'total_results': total_comments,
+                'pages': pages,
+                'page': args.page,
+            }
         }
     
 
