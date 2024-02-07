@@ -11,7 +11,7 @@
         "Justin Henderson <justin@hasecuritysolutions.com>"
     ],
     "license": "H&A Security Solutions - Premium Support",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "manifest": {
         "actions": [
             {
@@ -93,6 +93,47 @@
                         "type": "str",
                         "required": false,
                         "description": "The path to the client key to use when sending data to the remote system"
+                    },
+                    "ca_cert": {
+                        "label": "CA Certificate",
+                        "type": "str",
+                        "required": false,
+                        "description": "The path to the CA certificate to use when sending data to the remote system",
+                        "conditions": [
+                            {
+                                "field": "verify_ssl",
+                                "operator": "eq",
+                                "value": true
+                            }
+                        ]
+                    },
+                    "ca_cert_credential": {
+                        "label": "CA Certificate Credential",
+                        "type": "str-select",
+                        "default_options_from": "credentials",
+                        "required": false,
+                        "description": "The name of the credential to use when sending data to the remote system",
+                        "conditions": [
+                            {
+                                "field": "verify_ssl",
+                                "operator": "eq",
+                                "value": true
+                            }
+                        ]
+                    },
+                    "client_cert_credential": {
+                        "label": "Client Certificate Credential",
+                        "type": "str-select",
+                        "default_options_from": "credentials",
+                        "required": false,
+                        "description": "The name of the credential to use when sending data to the remote system"
+                    },
+                    "client_key_credential": {
+                        "label": "Client Key Credential",
+                        "type": "str-select",
+                        "default_options_from": "credentials",
+                        "required": false,
+                        "description": "The name of the credential to use when sending data to the remote system"
                     },
                     "auth_method": {
                         "label": "Authentication Method",
