@@ -9,8 +9,9 @@ from concurrent.futures import ThreadPoolExecutor
 import math
 import datetime
 from pytz import timezone
+from uuid import uuid4
 
-from app.api_v2.model.utils import _current_user_id_or_none
+from app.api_v2.model.utils import _current_user_id_or_none, IndexedDict
 from . import (
     base,
     Keyword,
@@ -1740,3 +1741,150 @@ class DetectionRepositoryBundle(base.BaseDocument):
         settings = {
             "refresh_interval": "1s"
         }
+
+
+class DetectionChangeLog(base.BaseDocument):
+    '''
+    A log of changes to detections
+    '''
+
+    detection_uuid = Keyword()  # The UUID of the detection that was changed
+    organization = Keyword()  # The organization that the detection belongs to
+    change_description = Text()  # A description of the change that was made
+    field = Keyword()  # The field that wsa changed
+    field_type = Keyword()  # The type of the field that was changed (str, int, float, date, bool)
+    new_value = Keyword()  # The new value of the field
+    old_value = Keyword()  # The old value of the field
+
+    class Index:
+        name = "reflex-detection-change-logs"
+        settings = {
+            "refresh_interval": "1s"
+        }
+
+    @classmethod
+    def bulk(cls, items: list):
+        '''
+        Bulk adds application inventory data
+        '''
+
+        _items = []
+        for item in items:
+            if isinstance(item, dict):
+                _items.append(cls(**item).to_dict(True))
+            else:
+                _items.append(item.to_dict(True))
+
+        bulk(cls._get_connection(), (i for i in _items))
+    
+    @classmethod
+    def find_differences(cls, new, old):
+        ''' Finds the differences between two objects and returns a list of changes '''
+
+        _change_logs = []
+        change_uuid = str(uuid4())
+        # For each field in the payload, check if it is different from the current value
+        # if it is, add a change log
+        for key, value in new.items():
+
+            if key in ['tactics', 'techniques']:
+                _old_list = [t['external_id'] for t in getattr(old, key)]
+                _new_list = [t['external_id'] for t in value]
+                if _old_list != _new_list:
+                    _change_logs.append({
+                        'detection_uuid': old.uuid,
+                        'change_uuid': change_uuid,
+                        'field': key,
+                        'old_value': cls._cast_value_as_string(_old_list),
+                        'new_value': cls._cast_value_as_string(_new_list)
+                    })
+                continue
+
+            if isinstance(value, dict):
+                if key in ['threshold_config', 'new_terms_config', 'metric_change_config', 'indicator_match_config', 'field_mismatch_config', 'query']:
+                    # Treat these as a special case and convert them
+                    # to flat dictionaries so we can compare them
+                    if hasattr(old, key) and getattr(old, key) is not None:
+                        _old = IndexedDict(getattr(old, key).to_dict())
+                        _new = IndexedDict(value)
+                        for sub_key in _new:
+                            if _old.get(sub_key) != _new.get(sub_key):
+
+                                _change_logs.append({
+                                    'detection_uuid': old.uuid,
+                                    'change_uuid': change_uuid,
+                                    'field': f'{key}.{sub_key}',
+                                    'old_value': cls._cast_value_as_string(_old.get(sub_key)),
+                                    'new_value': cls._cast_value_as_string(_new.get(sub_key))
+                                })
+                    continue
+                else:
+                    continue
+            if key in ['exceptions']:
+                continue
+            
+            if key in old.to_dict():
+                if value != getattr(old, key):
+                    _change_logs.append({
+                        'detection_uuid': old.uuid,
+                        'change_uuid': change_uuid,
+                        'field': key,
+                        'old_value': cls._cast_value_as_string(getattr(old, key)),
+                        'new_value': cls._cast_value_as_string(value)
+                    })
+
+        return _change_logs
+    
+    @classmethod
+    def _cast_value_as_string(cls, value):
+
+        if value is None:
+            return ['None']
+
+        if isinstance(value, str):
+            return [value]
+        
+        if isinstance(value, (list,AttrList)):
+            return [str(v) if not isinstance(v, str) else v for v in value]
+        
+        return [str(value)]
+
+    @classmethod
+    def log_change(cls, change_uuid, detection_uuid, organization, field, old_value, new_value, change_note: str = None):
+        '''
+        Logs a change to a detection
+        '''
+
+        change_payload = {}
+
+        if isinstance(old_value, str):
+            change_payload['old_value_str'] = old_value
+            change_payload['new_value_str'] = new_value
+            change_payload['field_type'] = 'str'
+        elif isinstance(old_value, int):
+            change_payload['old_value_int'] = old_value
+            change_payload['new_value_int'] = new_value
+            change_payload['field_type'] = 'int'
+        elif isinstance(old_value, float):
+            change_payload['old_value_float'] = old_value
+            change_payload['new_value_float'] = new_value
+            change_payload['field_type'] = 'float'
+        elif isinstance(old_value, datetime.datetime):
+            change_payload['old_value_date'] = old_value
+            change_payload['new_value_date'] = new_value
+            change_payload['field_type'] = 'date'
+        elif isinstance(old_value, bool):
+            change_payload['old_value_bool'] = old_value
+            change_payload['new_value_bool'] = new_value
+            change_payload['field_type'] = 'bool'
+        else:
+            return False
+        
+        change_payload['detection_uuid'] = detection_uuid
+        change_payload['organization'] = organization
+        change_payload['field'] = field
+        change_payload['change_description'] = change_note
+
+        change = cls(**change_payload)
+        change.save()
+        return change

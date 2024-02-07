@@ -6,7 +6,7 @@ from uuid import uuid4
 from app.api_v2.model.detection import DetectionException, DetectionRepository, VALID_DETECTION_STATUS
 from app.api_v2.model.system import Settings
 from app.api_v2.model.user import User
-from app.api_v2.model.utils import _current_user_id_or_none
+from app.api_v2.model.utils import _current_user_id_or_none, IndexedDict
 from ..utils import check_org, token_required, user_has, default_org
 from flask import send_file
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
@@ -23,6 +23,7 @@ from ..model import (
     MITRETechnique,
     DetectionRepository,
     DetectionState,
+    DetectionChangeLog,
     UpdateByQuery,
     AttrList
 )
@@ -259,6 +260,20 @@ mod_detection_details = api.model('DetectionDetails', {
 mod_detection_details_extended = api.clone('DetectionDetailsExtended', mod_detection_details, {
     'hits_over_time': fields.String,
     'field_metrics': fields.List(fields.Nested(mod_field_metric), default=[])
+})
+
+mod_detection_change = api.model('DetectionChange', {
+    'uuid': fields.String,
+    'field': fields.String,
+    'change_uuid': fields.String,
+    'old_value': fields.List(fields.String),
+    'new_value': fields.List(fields.String),
+    'updated_at': ISO8601,
+    'updated_by': fields.Nested(mod_user_list)
+})
+
+mod_detection_change_log = api.model('DetectionChangeLog', {
+    'changes': fields.List(fields.Nested(mod_detection_change))
 })
 
 mod_create_detection = api.model('CreateDetection', {
@@ -1493,6 +1508,32 @@ def add_warning(payload, warning):
 
     return payload
 
+
+@api.route("/changelog/<uuid>")
+class DetectionChangeLogs(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_detection_change_log)
+    @token_required
+    @user_has('view_detections')
+    def get(self, uuid, current_user):
+        '''
+        Returns the change log for a detection
+        '''
+
+        changes = DetectionChangeLog.search().filter('term', detection_uuid=uuid).scan()
+        changes = [c for c in changes]
+        # Sort by the updated_at field so the most recent changes are first
+        changes = sorted(changes, key=lambda x: x.updated_at, reverse=True)
+        
+        if len(changes) > 0:
+            return {
+                'changes': changes
+            }
+        else:
+            api.abort(404, f'No changes found for UUID {uuid}.')
+
+
 detection_details_parser = api.parser()
 detection_details_parser.add_argument(
     'event', type=str, location='args', required=False)
@@ -1698,6 +1739,9 @@ class DetectionDetails(Resource):
 
                 api.payload['kill_chain_phase'] = phases
 
+            change_uuid = str(uuid4())
+            _change_logs = []
+
             if isinstance(current_user, Agent):
                 detection.update(**api.payload, refresh=True)
             else:
@@ -1715,14 +1759,23 @@ class DetectionDetails(Resource):
                         hard_save = detection.source_monitor_config['source_lists'] != api.payload['source_monitor_config']['source_lists']
                 
                 if hard_save:
-                    print("HARD")
                     # Detection configs have changed
                     dsm = SourceMonitorConfig(
                         **api.payload['source_monitor_config'])
                     detection.source_monitor_config = dsm
                     detection.save(refresh='wait_for')
+
+                _changes = DetectionChangeLog.find_differences(api.payload, detection)
                 
                 detection.update(**api.payload, refresh=True, version=increase_version(detection, api.payload))
+
+                try:
+                    if len(_changes) > 0:
+                        for _change in _changes:
+                            c = DetectionChangeLog(**_change).save()
+
+                except Exception as e:
+                    print(e)
 
             return detection
         else:
