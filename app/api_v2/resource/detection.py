@@ -1525,13 +1525,13 @@ class DetectionChangeLogs(Resource):
         changes = [c for c in changes]
         # Sort by the updated_at field so the most recent changes are first
         changes = sorted(changes, key=lambda x: x.updated_at, reverse=True)
-        
+
         if len(changes) > 0:
             return {
                 'changes': changes
             }
         else:
-            api.abort(404, f'No changes found for UUID {uuid}.')
+            return { 'changes': [], 'message': f'No changes found for UUID {uuid}.'}
 
 
 detection_details_parser = api.parser()
