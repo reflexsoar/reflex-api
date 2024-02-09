@@ -913,7 +913,8 @@ class CaseAddObservables(Resource):
                               organization=organization,
                               raw_log='',
                               source='reflex-system',
-                              reference=_id
+                              reference=_id,
+                              raw_log='{"message":"Special event for holding user added observables"}'
                               )
                 event.save()
 
