@@ -181,6 +181,20 @@
                             }
                         ]
                     },
+                    "raw_output": {
+                        "label": "Raw Output",
+                        "type": "str",
+                        "required": false,
+                        "default": "false",
+                        "description": "The output is considered \"raw\" and will only send unparsed data contained in the event.original field."
+                    },
+                    "tags": {
+                        "label": "Tags",
+                        "type": "str-multiple",
+                        "required": false,
+                        "default": [],
+                        "description": "Tags to apply to the log data"
+                    },
                     "advanced_config": {
                         "label": "Advanced Configuration",
                         "type": "text",
