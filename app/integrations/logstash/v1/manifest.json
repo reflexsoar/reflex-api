@@ -183,7 +183,7 @@
                     },
                     "raw_output": {
                         "label": "Raw Output",
-                        "type": "str",
+                        "type": "bool",
                         "required": false,
                         "default": "false",
                         "description": "The output is considered \"raw\" and will only send unparsed data contained in the event.original field."
