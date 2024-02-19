@@ -140,8 +140,8 @@ class ThreatListList(Resource):
 
         lists = ThreatList.search(skip_org_check=True)
 
-        # If the organization args are set and the user is not in the default org
-        if current_user.is_default_org() and args.organization:
+        # If the organization args are set and the user is in the default org
+        if current_user.is_default_org() == True and args.organization:
             lists = lists.filter(
                 'bool',
                 should=[
@@ -150,16 +150,7 @@ class ThreatListList(Resource):
                 ]
             )
 
-        if current_user.is_default_org() and not args.organization:
-            lists = lists.filter(
-                'bool',
-                should=[
-                    Q('term', organization=current_user.organization),
-                    Q('term', global_list=True)
-                ]
-            )
-
-        if not current_user.is_default_org():
+        if current_user.is_default_org() == False:
             # Search for the target organization or any global_list
             lists = lists.filter(
                 'bool',
