@@ -1788,8 +1788,14 @@ class DetectionChangeLog(base.BaseDocument):
         for key, value in new.items():
 
             if key in ['tactics', 'techniques']:
-                _old_list = [t['external_id'] for t in getattr(old, key)]
-                _new_list = [t['external_id'] for t in value]
+                
+                _old_list = []
+                if getattr(old, key) != None:
+                    _old_list = [t['external_id'] for t in getattr(old, key)]
+
+                _new_list = []
+                if value != None:
+                    _new_list = [t['external_id'] for t in value]
                 if _old_list != _new_list:
                     _change_logs.append({
                         'detection_uuid': old.uuid,
