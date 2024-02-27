@@ -17,11 +17,11 @@ Timeout: {{ data.attributes.last_analysis_stats.timeout }}
 FILE_REPORT_HASH_COMMENT_TEMPLATE = """
 The file hash `{{ data.id }}` was found in VirusTotal.
 
-**{{ data.attributes.last_analysis_stats.malicious }}** AV engines have identiiied this file as malicious.
+**{{ data.attributes.last_analysis_stats.malicious }}** AV engines have identified this file as malicious.
 """
 
 DOMAIN_REPORT_COMMENT_TEMPLATE = """
 The file hash `{{ data.id }}` was found in VirusTotal.
 
-**{{ data.attributes.last_analysis_stats.malicious }}** AV engines have identiiied this file as malicious.
+**{{ data.attributes.last_analysis_stats.malicious }}** AV engines have identified this file as malicious.
 """
