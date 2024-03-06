@@ -156,6 +156,7 @@ class WinlogReaderConfig(InnerDoc):
     max_queue_size = Integer()  # How many events can the Winlog queue hold before reading is paused
     queue_size_check_interval = Integer()  # How often should the Winlog check the queue size
     output_health_check_interval = Integer()  # How often should the Winlog check the output health
+    preserve_event_original = Keyword()  # Should the agent preserve the original event
 
 class WinlogShipperConfig(InnerDoc):
     '''

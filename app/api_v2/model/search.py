@@ -23,9 +23,9 @@ class SearchProxyJob(base.BaseDocument):
     class Index:
         name = "reflex-search-proxy-jobs"
         settings = {
-            "number_of_shards": 1,
-            "number_of_replicas": 0,
+            "number_of_shards": 2,
+            "number_of_replicas": 1,
             "refresh_interval": "1s",
             "max_result_window": 500000
         }
-        version = "1.0.5"
+        version = "1.0.6"

@@ -1,0 +1,48 @@
+{
+    "version": "2024.03.06-rc0",
+    "sections": [
+        {
+            "title": "Features",
+            "items": [
+                {
+                    "title": "Detections",
+                    "description": "- A new change tracking feature exists for Detections which will now show which attribute was changed, it's new value, it's only value, when and the user that changed it.\n- Detection filtering options can be further filtered by clicking the filter icon and searching for the desired item."
+                }
+            ]
+        },
+        {
+            "title": "Enhancements",
+            "items": [
+                {
+                    "title": "Integrations",
+                    "description": "- Corrected the Raw Output setting for the Logstash integration to be a `bool` instead of a `str`.\n- Added support for only sending Raw Log data via a Logstash output.\n- Added support for adding custom tags to logs traversing a Logstash output.\n- Preserve Original Event is now controllable at the Agent Policy level and on a per Integration basis.\n"
+                }
+            ]
+        },
+        {
+            "title": "Fixes",
+            "items": [
+                {
+                    "title": "Backend",
+                    "description": "- The index for Search Proxy jobs was incorrectly initializing with 0 replicas and only one shard.\n- Corrected an issue where under certain conditions the `/api/v2.0/detection/changelog/<uuid>` endpoint would return 404 instead of an empty response object."
+                },
+                {
+                    "title": "Observables",
+                    "description": "- When adding custom observables to a case the underlying Event did not have a `raw_log` and would not render in the UI.\n- Fixed a rendering issue when an Event contained an empty or `null` `raw_log` property."
+                },
+                {
+                    "title": "Global Admin",
+                    "description": "- Corrected an issue where Global Admins could not see the Intel Lists for sub-tenants within the platform instnace.\n"
+                },
+                {
+                    "title": "Detections",
+                    "description": "- Corrected an issue where under certain conditions where adding a single exlusion using the `is` operator would completely break the detection rule resulting in cascading errors across the entire detection set.\n"
+                },
+                {
+                    "title": "UI/UX",
+                    "description": "- Fixed an issue where attempting to add `tag_fields`, `tags` or `signature_fields` to an Input where these fields we're originally empty would prevent the addition of these attributes.\n- Fixed an issue where attempting to add tags to a Field Mapping Template that did not oringally have tags would result in failure.\n- Corrected an issue where certain User Role permissions were missing from the Permissions Editing wizard.\n- Corrected an issue where cloning a Detection rule would result in the original rule being edited with changes made to the clone.\n- Corrected several pages that were using a legacy multi-select component.\n- Corrected an issue where the `Informational` severity level was not rendering a proper color."
+                }
+            ]
+        }
+    ]
+}

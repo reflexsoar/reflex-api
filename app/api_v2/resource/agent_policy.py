@@ -92,6 +92,7 @@ mod_winlog_reader_config = api.model('WinlogReaderConfig', {
     'max_queue_size': fields.Integer(default=5000),
     'queue_size_check_interval': fields.Integer(default=5),
     'output_health_check_interval': fields.Integer(default=5),
+    'preserve_event_original': fields.String(default='per_channel')
 })
 
 mod_winlog_shipper_config = api.model('WinlogShipperConfig', {
