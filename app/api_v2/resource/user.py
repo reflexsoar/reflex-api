@@ -507,7 +507,7 @@ class UserList(Resource):
         return response
 
     @api.doc(security="Bearer")
-    @api.expect(mod_user_create)
+    @api.expect(mod_user_create, validate=True)
     @api.marshal_with(mod_user_create_success)
     @api.response('409', 'User already exists.')
     @api.response('200', "Successfully created the user.")
@@ -553,6 +553,9 @@ class UserList(Resource):
                 #user.role = roles_to_modify
             
             user.save()
+
+            # Load the users roles
+            user.load_roles()
 
             return {'message': 'Successfully created the user.', 'user': user}
 
