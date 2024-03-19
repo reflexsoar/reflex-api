@@ -1,5 +1,7 @@
 import datetime
 
+from ipaddress import ip_address, ip_network
+
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
 
 from .shared import mod_user_list, ISO8601
@@ -177,6 +179,22 @@ class AssetList(Resource):
         args = asset_list_parser.parse_args()
 
         search = Asset.search()
+
+        if 'host__ip' in args:
+            is_ip = False
+            # Check if the value of host__ip is an IP address or a subnet
+            try:
+                _ip = ip_address(args['host__ip'])
+                is_ip = True
+            except ValueError:
+                try:
+                    _ip = ip_network(args['host__ip'])
+                    is_ip = True
+                except ValueError:
+                    pass
+            
+            if is_ip is False:
+                del args['host__ip']
 
         for arg in args:
             if args[arg]:
