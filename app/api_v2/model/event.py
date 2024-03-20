@@ -159,6 +159,7 @@ class EventMetrics(InnerDoc):
 class EventEntitySourceDestInfo(InnerDoc):
 
     ip = Ip()
+    port = Integer()
 
 class EventEntityGroupInfo(InnerDoc):
 
@@ -204,6 +205,7 @@ class EventEntityClientServerInfo(InnerDoc):
 class EventEntityHostInfo(InnerDoc):
 
     name = Keyword()
+    fqdn = Keyword()
 
 class EventEntityProcessBase(InnerDoc):
 
@@ -213,6 +215,12 @@ class EventEntityProcessBase(InnerDoc):
     command_line = Keyword()
     entity_id = Keyword()
     executable = Keyword()
+    hash = Object(properties={'md5':Keyword(),
+                              'sha1':Keyword(),
+                              'sha256':Keyword(),
+                              'sha512':Keyword(),
+                              'imphash':Keyword(),
+                              'ssdeep':Keyword()})
     args = Keyword()
     user = Object(EventEntityUserInfo)
 
@@ -227,8 +235,6 @@ class EventEntityUrl(InnerDoc):
     fragment = Keyword()
     full = Keyword()
     original = Keyword()
-    pass
-
 
 
 class EventEntityEmail(InnerDoc):

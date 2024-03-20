@@ -46,6 +46,7 @@ from app.api_v2.model import (
 from app.api_v2.model.user import Organization
 from app.api_v2.model.utils import IndexedDict
 from .errors import KafkaConnectionFailure
+from .entity import FIELDS as ENTITY_FIELDS
 
 # Elastic or Opensearch
 if os.getenv('REFLEX_ES_DISTRO') == 'opensearch':
@@ -1132,14 +1133,6 @@ class EventWorker(Process):
             raw_log (str): The raw log to extract the entity fields from
             entity_data (dict): The entity data to merge the extracted fields into
         """
-
-        ENTITY_FIELDS = [
-            'host.name',
-            'user.name',
-            'user.domain',
-            'user.target.name',
-            'user.target.domain'
-        ]
 
         _raw_log = None
         # If raw_log is a string attempt to load it as a dictionary
