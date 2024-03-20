@@ -1122,6 +1122,7 @@ class EventWorker(Process):
                 entity_data[k] = self._merge_entity_data(entity_data[k], value[k])
             else:
                 entity_data[k] = value[k]
+
         return entity_data
     
     def extract_entity_fields(self, raw_log, entity_data) -> dict:
