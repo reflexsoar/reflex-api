@@ -77,15 +77,16 @@ class EventViewList(Resource):
         Returns a list of event views
         '''
 
-        import json
-
         views = []
-        private_search = EventView.search()
-        private_search = private_search.filter('term', shared=False)
-        private_search = private_search.filter('term', organization=current_user.organization)
-        private_search = private_search.filter('nested', path='created_by', query=Q('term', created_by__uuid__keyword=current_user.uuid))
+        try:
+            private_search = EventView.search()
+            private_search = private_search.filter('term', shared=False)
+            private_search = private_search.filter('term', organization=current_user.organization)
+            private_search = private_search.filter('nested', path='created_by', query=Q('term', created_by__uuid__keyword=current_user.uuid))
 
-        private_views = private_search.scan()
+            private_views = private_search.scan()
+        except Exception as e:
+            private_views = None
 
         if private_views:
             views.extend(private_views)
