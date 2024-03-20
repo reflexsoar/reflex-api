@@ -19,6 +19,7 @@ import datetime
 import logging
 import threading
 from itertools import chain
+from functools import reduce
 from multiprocessing import Queue, Manager
 from kafka import KafkaProducer, KafkaConsumer, KafkaAdminClient
 from kafka.admin import ConfigResource
@@ -43,6 +44,7 @@ from app.api_v2.model import (
     IntegrationActionQueue
 )
 from app.api_v2.model.user import Organization
+from app.api_v2.model.utils import IndexedDict
 from .errors import KafkaConnectionFailure
 
 # Elastic or Opensearch
@@ -1101,6 +1103,73 @@ class EventWorker(Process):
         Prepares an event and sends it to the pusher queue
         '''
         raise NotImplementedError
+    
+    def _merge_entity_data(self, entity_data, value) -> dict:
+        """
+        Merges nested dictionaries and returns the result
+
+        Args:
+            entity_data (dict): The entity data to merge the value into
+            value (dict): The value to merge into entity_data
+        """
+
+        if not isinstance(entity_data, dict) and not isinstance(value, dict):
+            return value
+        
+        for k in value:
+            if k in entity_data:
+                entity_data[k] = self._merge_entity_data(entity_data[k], value[k])
+            else:
+                entity_data[k] = value[k]
+        return entity_data
+    
+    def extract_entity_fields(self, raw_log, entity_data) -> dict:
+        """
+        Extracts the fields defined in ENTITY_FIELDS from the raw log and
+        places them into entity_data as a nested dictionary
+
+        Args:
+            raw_log (str): The raw log to extract the entity fields from
+            entity_data (dict): The entity data to merge the extracted fields into
+        """
+
+        ENTITY_FIELDS = [
+            'host.name',
+            'user.name',
+            'user.domain',
+            'user.target.name',
+            'user.target.domain'
+        ]
+
+        _raw_log = None
+        # If raw_log is a string attempt to load it as a dictionary
+        if isinstance(raw_log, str):
+            try:
+                _raw_log = json.loads(raw_log)
+            except Exception as e:
+                self.logger.error(f"Failed to parse raw_log as JSON: {e}")
+
+        if _raw_log and isinstance(_raw_log, dict):
+            
+            # Convert raw log to an indexed dictionary
+            _raw_log = IndexedDict(_raw_log)
+
+            for field in ENTITY_FIELDS:
+                if field in _raw_log:
+                    _parent_key = field.split('.')[0]
+
+                    # Set the parent key if it doesn't exist
+                    if _parent_key not in entity_data:
+                        entity_data[_parent_key] = {}
+
+                    # Extract the field from the raw log and place it into
+                    # entity_data as a nested dictionary
+                    field_value = reduce(lambda accum, val: {val: accum}, reversed(field.split('.')), _raw_log[field])
+
+                    entity_data = self._merge_entity_data(entity_data, field_value)
+
+        return entity_data
+
 
     def process_event(self, raw_event):
         '''
@@ -1112,6 +1181,16 @@ class EventWorker(Process):
         organization = raw_event['organization']
 
         if not '_meta' in raw_event:
+
+            entity_data = {}
+
+            # Extract entity related fields from the raw log
+            if 'raw_log' in raw_event:
+                entity_data = self.extract_entity_fields(raw_event['raw_log'], entity_data)
+
+            # Append the entity fields to the event under the entity key
+            if entity_data and len(entity_data) > 0:
+                raw_event['entity'] = entity_data
 
             if 'signature' not in raw_event or raw_event['signature'] == '':
                 hasher = hashlib.md5()

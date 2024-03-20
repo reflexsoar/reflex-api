@@ -27,7 +27,8 @@ from . import (
     Nested,
     InnerDoc,
     UpdateByQuery,
-    bulk
+    bulk,
+    Ip
 )
 
 from app.api_v2.model.comment import Comment
@@ -155,6 +156,118 @@ class EventMetrics(InnerDoc):
     total_touches = Integer()
 
 
+class EventEntitySourceDestInfo(InnerDoc):
+
+    ip = Ip()
+
+class EventEntityGroupInfo(InnerDoc):
+
+    domain = Keyword()
+    name = Keyword()
+    id = Keyword()
+
+class EventEntityTargetUserInfo(InnerDoc):
+
+    name = Keyword()
+    full_name = Keyword()
+    roles = Keyword()
+    domain = Keyword()
+    email = Keyword()
+    id = Keyword()
+    group = Object(EventEntityGroupInfo)
+
+class EventEntityUserInfo(InnerDoc):
+
+    name = Keyword()
+    full_name = Keyword()
+    roles = Keyword()
+    domain = Keyword()
+    email = Keyword()
+    id = Keyword()
+    group = Object(EventEntityGroupInfo)
+    target = Object(EventEntityTargetUserInfo)
+
+class EventEntityClientServerInfo(InnerDoc):
+
+    ip = Ip()
+    address = Keyword()
+    bytes = Integer()
+    domain = Keyword()
+    mac = Keyword()
+    port = Integer()
+    packets = Integer()
+    registered_domain = Keyword()
+    subdomain = Keyword()
+    top_level_domain = Keyword()
+    user = Object(EventEntityUserInfo)
+
+class EventEntityHostInfo(InnerDoc):
+
+    name = Keyword()
+
+class EventEntityProcessBase(InnerDoc):
+
+    pid = Integer()
+    name = Keyword()
+    path = Keyword()
+    command_line = Keyword()
+    entity_id = Keyword()
+    executable = Keyword()
+    args = Keyword()
+    user = Object(EventEntityUserInfo)
+
+class EventEntityProcess(EventEntityProcessBase):
+
+    parent = Object(EventEntityProcessBase)
+
+class EventEntityUrl(InnerDoc):
+
+    domain = Keyword()
+    extension = Keyword()
+    fragment = Keyword()
+    full = Keyword()
+    original = Keyword()
+    pass
+
+
+
+class EventEntityEmail(InnerDoc):
+
+    content_type = Keyword()
+    delivery_timestamp = Date()
+    direction = Keyword()
+    message_id = Keyword()
+    origination_timestamp = Date()
+    subject = Keyword()
+    x_mailer = Keyword()
+    bcc = Object(fields={'address':Keyword()})
+
+class EventEntityInfo(InnerDoc):
+
+    source = Object(EventEntitySourceDestInfo)
+    destination = Object(EventEntitySourceDestInfo)
+    user = Object(EventEntityUserInfo)
+    client = Object(EventEntityClientServerInfo)
+    server = Object(EventEntityClientServerInfo)
+    host = Object(EventEntityHostInfo)
+    process = Object(EventEntityProcess)
+    email = Object(properties={
+        'bcc':Object(properties={'address':Keyword()}),
+        'content_type':Keyword(),
+        'delivery_timestamp':Date(),
+        'direction':Keyword(),
+        'message_id':Keyword(),
+        'origination_timestamp':Date(),
+        'subject':Keyword(),
+        'x_mailer':Keyword(),
+        'to':Object(properties={'address':Keyword()}),
+        'from':Object(properties={'address':Keyword()}),
+        'cc':Object(properties={'address':Keyword()}),
+        'reply_to':Object(properties={'address':Keyword()}),
+        'sender':Object(properties={'address':Keyword()})
+        }
+    )
+
 class Event(base.BaseDocument):
     '''
     An event in reflex is anything sourced by an agent input that
@@ -203,6 +316,7 @@ class Event(base.BaseDocument):
     acknowledged_by = Object() # The analyst that acknowledged the event
     integration_attributes = Object() # Attributes used by integrations
     integration_output = Object() # The output of the integration
+    entity = Object(EventEntityInfo)
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''

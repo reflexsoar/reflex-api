@@ -6,6 +6,36 @@ from concurrent.futures import ThreadPoolExecutor
 from app.api_v2.model.threat import ThreatList
 from app.api_v2.model.detection import Detection
 from app.api_v2.model.credential import Credential
+from app.api_v2.model.event import Event
+
+
+def event_entity_mapping_upgrade(app):
+    """ A one time special upgrade to the event index mapping to add
+    a new entity field.  This upgrade is to avoid migrating large data
+    sets as reindexing of field types is not necessary in this mapping change
+    """
+
+    # Get the current index mapping
+    mapping = Event._index.get_mapping()
+
+    # If the mapping does not have the entity field, add it
+    for k in mapping:
+        
+        if 'entity' not in mapping[k]['mappings']['properties']:
+            print('Adding entity field to event index mapping')
+
+            # Get the mapping for the entity field from the event model
+            entity_mapping = Event._doc_type.mapping.properties['entity'].to_dict()
+
+            # Add the entity field to the mapping
+            mapping[k]['mappings']['properties']['entity'] = entity_mapping
+
+            # Connection
+            conn = Event._index.connection
+
+            # Update the mapping
+            conn.indices.put_mapping(index=Event._index._name, body=mapping[k]['mappings'])
+
 
 def set_required_fields_on_detections(app):
     """ Find all detections that do not have the required fields set
@@ -88,7 +118,8 @@ def migrate_credentials_hmac(app):
 
 upgrades = [
     #migrate_intel_list_data_feeds_to_static_names,
-    #migrate_all_threshold_configs_to_list_keys
-    #set_required_fields_on_detections
-    #migrate_credentials_hmac
+    #migrate_all_threshold_configs_to_list_keys,
+    #set_required_fields_on_detections,
+    #migrate_credentials_hmac,
+    event_entity_mapping_upgrade
 ]
