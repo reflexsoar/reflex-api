@@ -401,8 +401,8 @@ def check_password_reset_token(token):
         abort(401, 'Token retired.')
     except jwt.ExpiredSignatureError:
         abort(401, 'Access token expired.')
-    except (jwt.DecodeError, jwt.InvalidTokenError):
-        abort(401, 'Invalid access token.')
+    except (jwt.DecodeError, jwt.InvalidTokenError) as e:
+        abort(401, f'Invalid access token. {e}')
     except Exception as e:
         abort(401, str(e))
 
@@ -477,12 +477,12 @@ def _check_token():
             except jwt.ExpiredSignatureError:
                 abort(401, 'Access token expired.')
             except (jwt.DecodeError, jwt.InvalidTokenError) as e:
-                abort(401, 'Invalid access token.')
+                abort(401, f'Invalid access token. {e}')
             except Exception as e:
                 abort(401, 'Unknown token error.')
 
-        except IndexError:
-            abort(401, 'Invalid access token.')
+        except IndexError as e:
+            abort(401, f'Invalid access token. {e}')
             raise jwt.InvalidTokenError
     else:
         abort(403, 'Access token required.')
