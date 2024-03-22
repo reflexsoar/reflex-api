@@ -1146,6 +1146,9 @@ class CreateBulkEvents(Resource):
                 current_user_class_str = type(current_user).__name__.lower()
                 event['agent_type'] = "unknown" if current_user_class_str not in ['agent','user'] else current_user_class_str
 
+                if 'reference' not in event:
+                    event['reference'] = uuid4()
+
                 if not check_cache(event['reference'], client=client):
                     if hasattr(ep, 'dedicated_workers') and ep.dedicated_workers:
                         ep.to_kafka_topic(event)
