@@ -23,6 +23,7 @@ mod_detector_config = api.model('DetectorRoleConfig', {
     'catchup_period': fields.Integer(default=60),
     'wait_interval': fields.Integer(default=30),
     'max_threshold_events': fields.Integer(default=1000),
+    'field_settings_cache_expire': fields.Integer(default=1800),
     'logging_level': fields.String(default='ERROR'),
     'alert_writeback': fields.Boolean(default=False),
     'alert_writeback_index': fields.String(default='reflex-alerts'),
