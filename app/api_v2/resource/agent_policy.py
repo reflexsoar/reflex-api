@@ -23,7 +23,10 @@ mod_detector_config = api.model('DetectorRoleConfig', {
     'catchup_period': fields.Integer(default=60),
     'wait_interval': fields.Integer(default=30),
     'max_threshold_events': fields.Integer(default=1000),
-    'logging_level': fields.String(default='ERROR')
+    'logging_level': fields.String(default='ERROR'),
+    'alert_writeback': fields.Boolean(default=False),
+    'alert_writeback_index': fields.String(default='reflex-alerts'),
+    'drop_events': fields.Boolean(default=False)
 })
 
 mod_poller_config = api.model('PollerRoleConfig', {
