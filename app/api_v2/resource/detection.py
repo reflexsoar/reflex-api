@@ -1856,6 +1856,9 @@ class BulkUpdateDetectionStats(Resource):
 
         updates = []
 
+        if 'detections' not in api.payload or len(api.payload['detections']) == 0:
+            return { 'message': 'No detections provided in the payload.' }, 400
+
         uuids = [detection['uuid'] for detection in api.payload['detections']]
         detections = Detection.get_by_uuid(uuid=uuids, all_results=True)
 
