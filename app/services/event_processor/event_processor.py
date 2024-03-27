@@ -437,7 +437,9 @@ class EventWorker(Process):
             'use_ssl': self.app_config['ELASTICSEARCH_SCHEME'],
             'ssl_show_warn': self.app_config['ELASTICSEARCH_SHOW_SSL_WARN'],
             'timeout': self.app_config['ELASTICSEARCH_TIMEOUT'],
-            'maxsize': self.app_config['ELASTICSEARCH_MAX_CONNECTIONS']
+            'maxsize': self.app_config['ELASTICSEARCH_MAX_CONNECTIONS'],            
+            'retry_on_timeout': True,
+            'max_retries': self.app_config['ELASTICSEARCH_MAX_RETRIES']
         }
 
         username = self.app_config['ELASTICSEARCH_USERNAME'] if 'ELASTICSEARCH_USERNAME' in self.app_config else os.getenv(
