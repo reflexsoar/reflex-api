@@ -178,9 +178,9 @@ mod_detection_schedule = api.model('DetectionSchedule', {
 
 
 mod_detection_field_settings = api.model('DetectionFieldSettings', {
-    'fields': fields.List(fields.Nested(mod_observable_field)),
-    'signature_fields': fields.List(fields.String),
-    'tag_fields': fields.List(fields.String),
+    'fields': fields.List(fields.Nested(mod_observable_field), default=[]),
+    'signature_fields': fields.List(fields.String, default=[]),
+    'tag_fields': fields.List(fields.String, default=[]),
 })
 
 mod_detection_details = api.model('DetectionDetails', {
@@ -213,7 +213,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'case_template': fields.String,
     'risk_score': fields.Integer,
     'severity': fields.Integer,
-    'signature_fields': fields.List(fields.String),
+    'signature_fields': fields.List(fields.String, default=[]),
     'field_templates': fields.List(fields.String),
     'observable_fields': fields.List(fields.Nested(mod_observable_field)),
     'time_taken': fields.Integer,
@@ -301,7 +301,7 @@ mod_create_detection = api.model('CreateDetection', {
     'case_template': fields.String,
     'risk_score': fields.Integer(default=10000, min=0, max=50000),
     'severity': fields.Integer(required=True, default=1, min=1, max=4),
-    'signature_fields': fields.List(fields.String),
+    'signature_fields': fields.List(fields.String, default=[]),
     'field_templates': fields.List(fields.String),
     'observable_fields': fields.List(fields.Nested(mod_observable_field)),
     'interval': fields.Integer(default=5, required=True, min=1),
@@ -414,7 +414,7 @@ mod_detection_export = api.model('DetectionExport', {
     'source': fields.Nested(mod_source_config),
     'risk_score': fields.Integer,
     'severity': fields.Integer,
-    'signature_fields': fields.List(fields.String),
+    'signature_fields': fields.List(fields.String, default=[]),
     'observable_fields': fields.List(fields.Nested(mod_observable_field)),
     'time_taken': fields.Integer,
     'query_time_taken': fields.Integer,
