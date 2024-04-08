@@ -75,7 +75,8 @@ mod_repo_subscription_sync_settings = api.model('DetectionRepositorySubscription
     'guide': fields.Boolean(default=True),
     'setup_guide': fields.Boolean(default=True),
     'testing_guide': fields.Boolean(default=True),
-    'false_positives': fields.Boolean(default=True)
+    'false_positives': fields.Boolean(default=True),
+    'repo_tags': fields.Boolean(default=True)
 })
 
 mod_repo_subscribe = api.model('DetectionRepositorySubscribe', {

@@ -1174,6 +1174,7 @@ class DetectionRepositorySubscriptionSyncSettings(base.InnerDoc):
     setup_guide = Boolean()
     testing_guide = Boolean()
     false_positives = Boolean()
+    repo_tags = Boolean()
 
 
 class DetectionRepositorySubscription(base.BaseDocument):
@@ -1238,6 +1239,7 @@ class DetectionRepositorySubscription(base.BaseDocument):
         self.sync_settings.setup_guide = True
         self.sync_settings.testing_guide = True
         self.sync_settings.false_positives = True
+        self.sync_settings.repo_tags = True
 
     def should_sync(self):
         '''
@@ -1454,7 +1456,40 @@ class DetectionRepository(base.BaseDocument):
         
             existing_detection = Detection.get_by_detection_id(
                                 detection.detection_id, organization=organization)
+
+            # If the repository is configured to sync tags, merge the tags from the detection and the repository
+            # into a single list
+            if 'repo_tags' in subscription.sync_settings and subscription.sync_settings['repo_tags'] == True:
+                _tags = []
+                try:
+                    if hasattr(detection, 'tags'):
+                        if isinstance(detection.tags, (list, AttrList)):
+                            _tags.extend(detection.tags)
+                        else:
+                            _tags.append(detection.tags)
+
+                    if hasattr(self, 'tags'):
+                        if isinstance(self.tags, (list, AttrList)):
+                            _tags.extend(self.tags)
+                        else:
+                            _tags.append(self.tags)
+
+                    # Deduplicate the tags
+                    _tags = list(set(_tags))
+                    detection.tags = _tags
+
+                except Exception as e:
+                    RepositorySyncLog(
+                        **log_message_base,
+                        detection_uuid=detection.uuid,
+                        status='failure',
+                        message=f"Failed to compute tags for detection {detection.name} ({detection.uuid}) from repository {self.name}",
+                        level='info'
+                    ).save()
+                    _tags = detection.tags
+
             if not existing_detection:
+
                 new_detection = Detection(
                     name=detection.name,
                     description=detection.description,
@@ -1540,6 +1575,11 @@ class DetectionRepository(base.BaseDocument):
                     # Set all the attributes based on the sync settings
                     sync_settings = subscription.sync_settings.to_dict()
                     for sync_setting in sync_settings:
+                        
+                        # Skip this setting, it is handled elsewhere
+                        if sync_setting == 'repo_tags':
+                            continue
+
                         if subscription.sync_settings[sync_setting] == True:
                             if sync_setting == 'field_templates':
                                 # If the subscription has a default field template and the existing detection does not, set the default
@@ -1557,6 +1597,15 @@ class DetectionRepository(base.BaseDocument):
                     RepositorySyncLog(
                         **log_message_base,
                         message=f"Updated detection {existing_detection.name} ({existing_detection.uuid}) from repository {self.name}",
+                        level="info",
+                        status="success"
+                    ).save()
+                elif existing_detection.tags != detection.tags:
+                    existing_detection.tags = detection.tags
+                    existing_detection.save()
+                    RepositorySyncLog(
+                        **log_message_base,
+                        message=f"Updated tags for detection {existing_detection.name} ({existing_detection.uuid}) from repository {self.name}",
                         level="info",
                         status="success"
                     ).save()
