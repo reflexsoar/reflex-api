@@ -1457,9 +1457,10 @@ class DetectionRepository(base.BaseDocument):
             existing_detection = Detection.get_by_detection_id(
                                 detection.detection_id, organization=organization)
 
-            # If the repository is configured to sync tags, merge the tags from the detection and the repository
+            # If the repository is configured to sync tags or it has no attribute
+            # indicating not to sync tags, merge the tags from the detection and the repository
             # into a single list
-            if 'repo_tags' in subscription.sync_settings and subscription.sync_settings['repo_tags'] == True:
+            if ('repo_tags' in subscription.sync_settings and subscription.sync_settings['repo_tags'] == True) or 'repo_tags' not in subscription.sync_settings:
                 _tags = []
                 try:
                     if hasattr(detection, 'tags'):
