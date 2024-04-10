@@ -1564,7 +1564,15 @@ class DetectionDetails(Resource):
                     event.raw_log = json.loads(event.raw_log)
                     
                     try:
-                        detection.guide = chevron.render(detection.guide, event.to_dict())
+                        event_dict = event.to_dict()
+                        detection.guide = chevron.render(detection.guide, event_dict)
+                        detection.description = chevron.render(detection.description, event_dict)
+
+                        # Join the event dict and the detection dict to allow for
+                        # chevron to render the triage guide and replace any variables
+                        event_dict["detection"] = detection.to_dict()
+                        detection.email_template = chevron.render(detection.triage_guide, event_dict)
+                        
                     except Exception as e:
                         print(e)
                         pass
