@@ -1565,14 +1565,18 @@ class DetectionDetails(Resource):
                     
                     try:
                         event_dict = event.to_dict()
-                        detection.guide = chevron.render(detection.guide, event_dict)
+                        
+                        if hasattr(detection, 'guide') and detection.guide:
+                            detection.guide = chevron.render(detection.guide, event_dict)
+
                         detection.description = chevron.render(detection.description, event_dict)
 
                         # Join the event dict and the detection dict to allow for
                         # chevron to render the triage guide and replace any variables
-                        event_dict["detection"] = detection.to_dict()
-                        detection.email_template = chevron.render(detection.triage_guide, event_dict)
-                        
+                        if hasattr(detection, 'email_template') and detection.email_template:
+                            event_dict["detection"] = detection.to_dict()
+                            detection.email_template = chevron.render(detection.email_template, event_dict)
+
                     except Exception as e:
                         print(e)
                         pass
