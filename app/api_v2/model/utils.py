@@ -192,6 +192,16 @@ def _current_user_id_or_none(organization_only=False):
         print(e)
         return None
     
+
+def get_user_real_ip():
+    '''
+    Returns the real IP address of the user
+    '''
+    if request.headers.getlist('X-Forwarded-For'):
+        return request.headers.getlist('X-Forwarded-For')[0]
+    else:
+        return request.remote_addr
+    
 def send_system_generated_email(email, subject, body=None, plaintext_body=None):
     ''' Sends an email as the system configured SMTP server'''
 

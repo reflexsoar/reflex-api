@@ -68,6 +68,16 @@ def escape_special_characters_rql(value):
     return value
 
 
+def get_user_real_ip():
+    '''
+    Returns the real IP address of the user
+    '''
+    if request.headers.getlist('X-Forwarded-For'):
+        return request.headers.getlist('X-Forwarded-For')[0]
+    else:
+        return request.remote_addr
+
+
 def log_event(event_type, *args, **kwargs):
     '''
     Handles logging to the Reflex log database as well
