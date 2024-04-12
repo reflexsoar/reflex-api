@@ -11,6 +11,10 @@
                 {
                     "title": "Detections",
                     "description": "- Detection Repository subscriptions now support copying the repositories tags to all detection rules synchronized from said repository.  This is enabled by default and is controlled on a per subscription basis.\n- When viewing the details of a Detection from the Event Drawer, the Email Template and Description will now have any mustache variables replaced correctly."
+                },
+                {
+                    "title": "Audit Logs",
+                    "description": "- Improved the logging of Authentication events to better support troubleshooting and auditing."
                 }
             ]
         },
@@ -20,6 +24,10 @@
                 {
                     "title": "User Management",
                     "description": "- Corrected an issue where new users are not assigned their Roles correctly.\n- Corrected an issue where a new user may have some information cloned from another user if the last action on User Management was to edit a user without roles without saving the user."
+                },
+                {
+                    "title": "Authentication",
+                    "description": "- Corrected an issue where under certain conditions, a users MFA attempt would fail due to the initial otp_secret being invalidated or empty."
                 }
             ]
         }
