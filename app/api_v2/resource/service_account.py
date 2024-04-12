@@ -88,9 +88,9 @@ class ServiceAccountList(Resource):
         service_account = ServiceAccount(**api.payload)
         try:
             service_account.save()
+            access_token = service_account.create_access_token()
         except ValidationError as e:
-            api.abort(400, e)
-        access_token = service_account.create_access_token()
+            api.abort(400, f"Validation error: {e}")
         service_account.__dict__['access_token'] = access_token
         return service_account, 201
             
