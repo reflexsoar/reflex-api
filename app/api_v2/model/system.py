@@ -26,7 +26,9 @@ class EventLog(base.BaseDocument):
     '''
 
     event_type = Keyword()
+    event_sub_category = Keyword()
     source_user = Keyword()
+    source_user_uuid = Keyword()
     source_ip = Ip()
     status = Keyword()
     event_reference = Keyword()
@@ -39,6 +41,8 @@ class EventLog(base.BaseDocument):
         settings = {
             'refresh_interval': '5s',
         }
+
+        version = '0.1.5'
 
 
 class Tag(base.BaseDocument):
