@@ -499,14 +499,14 @@ class User(base.BaseDocument):
         '''
 
         self.update(mfa_enabled=True, refresh=True)
-        self._log_event("Authentication", "MFA", "success",
+        self._log_event("Authentication", "MFA", "Success",
                         f"MFA enabled for {self.username}")
 
     def disable_mfa(self):
         ''' Removes the otp secret when the user disables MFA
         '''
         self.update(mfa_enabled=False, otp_secret=None, refresh=True)
-        self._log_event("Authentication", "MFA", "success",
+        self._log_event("Authentication", "MFA", "Success",
                         f"MFA disabled for {self.username}")
 
         # self.save()
@@ -515,14 +515,14 @@ class User(base.BaseDocument):
         ''' Once the user submits a TOTP that is correct enable MFA'''
 
         if not hasattr(self, 'otp_secret') or self.otp_secret is None:
-            self._log_event("Authentication", "MFA", "failure",
+            self._log_event("Authentication", "MFA", "Failed",
                             f"Attempt to verify MFA token failed for {self.username} because the user does not have an OTP secret.")
 
             return False
 
         if onetimepass.valid_totp(token, self.otp_secret):
             self.update(mfa_enabled=True, refresh=True)
-            self._log_event("Authentication", "MFA", "success",
+            self._log_event("Authentication", "MFA", "Success",
                             f"MFA enabled for {self.username}")
             return True
         return False
@@ -530,7 +530,7 @@ class User(base.BaseDocument):
     def verify_totp(self, token):
         ''' Checks to see if the submitted TOTP token is valid'''
         if not hasattr(self, 'otp_secret') or self.otp_secret is None:
-            self._log_event("Authentication", "MFA", "failure",
+            self._log_event("Authentication", "MFA", "Failed",
                             f"Attempt to verify MFA token failed for {self.username} because the user does not have an OTP secret.")
 
             return False
