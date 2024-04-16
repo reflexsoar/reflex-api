@@ -99,7 +99,11 @@ class IntegrationBase(object):
         keys and the second column as their value
         """
 
+        
+
         def format_value(v):
+            if v is None:
+                return "None"
             if isinstance(v, str) and '\n' in v:
                 return v.replace('\n', '<br>')
             if isinstance(v, (int, float)):
@@ -108,6 +112,7 @@ class IntegrationBase(object):
 
         # Always flatten the dictionary first
         data = self.flatten_dict(data)
+        
 
         table = "Field | Value\n| --- | --- |\n"
         for key, value in data.items():
