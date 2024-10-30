@@ -5,8 +5,6 @@ import random
 import string
 from functools import lru_cache
 
-from flask import request
-
 import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -141,16 +139,6 @@ def save_tags(tags):
         if not _tag:
             tag = Tag(name=tag)
             tag.save()
-
-
-def get_user_real_ip():
-    '''
-    Returns the real IP address of the user
-    '''
-    if request.headers.getlist('X-Forwarded-For'):
-        return request.headers.getlist('X-Forwarded-For')[0]
-    else:
-        return request.remote_addr
 
 
 def chunks(l, n):

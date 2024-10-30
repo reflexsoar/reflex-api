@@ -14,7 +14,7 @@ import os
 from functools import cached_property
 from flask import current_app, request, render_template
 from flask_bcrypt import Bcrypt
-from .utils import send_system_generated_email, get_user_real_ip
+from .utils import send_system_generated_email
 
 from . import (
     Text,
@@ -32,18 +32,16 @@ from . import (
 
 FLASK_BCRYPT = Bcrypt()
 
-
 class OrganizationScope(InnerDoc):
     ''' Defines the scope of an organization '''
 
     organization = Keyword()
     role = Keyword()
 
-
 class UserNotificationSettings(InnerDoc):
     ''' Defines the notification settings for a user '''
 
-    email_mention = Boolean()  # Notify the user when they are mentioned in a comment
+    email_mention = Boolean() # Notify the user when they are mentioned in a comment
     email_case_comment = Boolean()
     email_case_status = Boolean()
     email_case_assign = Boolean()
@@ -55,45 +53,42 @@ class UserNotificationSettings(InnerDoc):
     product_updates = Boolean()
     only_watched_cases = Boolean()
 
-
 user_email_analyzer = analyzer('user_email_analyzer',
-                               tokenizer='keyword',
-                               filter=['lowercase']
-                               )
-
+    tokenizer='keyword',
+    filter=['lowercase']
+)
 
 class User(base.BaseDocument):
     '''
     A User of the Reflex system
     '''
 
-    email = Text(fields={'keyword': Keyword()}, analyzer=user_email_analyzer)
-    username = Text(fields={'keyword': Keyword()},
-                    analyzer=user_email_analyzer)
-    first_name = Text(fields={'keyword': Keyword()})
-    last_name = Text(fields={'keyword': Keyword()})
+    email = Text(fields={'keyword':Keyword()}, analyzer=user_email_analyzer)
+    username = Text(fields={'keyword':Keyword()}, analyzer=user_email_analyzer)
+    first_name = Text(fields={'keyword':Keyword()})
+    last_name = Text(fields={'keyword':Keyword()})
     last_logon = Date()
     password_hash = Text()
     failed_logons = Integer()
     deleted = Boolean()
     locked = Boolean()
-    # groups = Nested(Group)
-    api_key = Text(fields={'keyword': Keyword()})
-    auth_method = Keyword()  # local, ldap, saml
-    auth_realm = Keyword()  # Which authentication realm to log in to
+    #groups = Nested(Group)
+    api_key = Text(fields={'keyword':Keyword()})
+    auth_method = Keyword() # local, ldap, saml
+    auth_realm = Keyword() # Which authentication realm to log in to
     otp_secret = Keyword()
     mfa_enabled = Boolean()
     local_auth = Boolean()
     sso_auth = Boolean()
     from_sso_auto_provision = Boolean()
-    watched_cases = Keyword()  # What cases is the user currently watching
+    watched_cases = Keyword() # What cases is the user currently watching
     notification_settings = Object(UserNotificationSettings)
     hide_product_updates = Boolean()
     access_scope = Nested(OrganizationScope)
-    profile_picture = Keyword()  # A base64 encoded image
-    profile_picture_type = Keyword()  # The type of image (png, jpg, etc)
+    profile_picture = Keyword() # A base64 encoded image
+    profile_picture_type = Keyword() # The type of image (png, jpg, etc)
 
-    class Index:  # pylint: disable=too-few-public-methods
+    class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-users'
         settings = {
@@ -101,35 +96,13 @@ class User(base.BaseDocument):
         }
         version = "0.1.5"
 
-    def _log_event(self, event_type, event_sub_category, status, message, *args, **kwargs):
-        ''' Logs an event for the user '''
-
-        
-        source_user = self.username
-        if 'source_user' in kwargs:
-            source_user = kwargs['source_user']
-        
-        source_user_uuid = self.uuid
-        if 'source_user_uuid' in kwargs:
-            source_user_uuid = kwargs['source_user_uuid']
-
-
-        log = EventLog(event_type=event_type,
-                       event_sub_category=event_sub_category,
-                       source_user=source_user,
-                       source_user_uuid=source_user_uuid,
-                       source_ip=get_user_real_ip(),
-                       status=status,
-                       message=message)
-        log.save()
-
     def get_access_scope_orgs(self):
         '''Returns the UUIDs of the organizations the user has access to'''
         uuids = [scope.organization for scope in self.access_scope]
         if self.organization not in uuids:
             uuids.append(self.organization)
         return uuids
-
+    
     def has_org_access(self, organization):
         ''' Checks if the user has access to the specified organization '''
 
@@ -141,22 +114,22 @@ class User(base.BaseDocument):
                 return True
 
         return False
-
+    
     def scope_permissions(self, organization=None):
         ''' Returns this users permissions for the specified organization
         based on the role assigned in their permission scope mapping
         '''
-
+        
         if self.organization == organization or organization is None:
             self.load_role()
             return self.role.permissions
-
+        
         for scope in self.access_scope:
             if scope.organization == organization:
                 role = utils.get_role_by_uuid(scope.role)
                 return role.permissions
         return {}
-
+    
     def has_org_permission(self, permission, organization=None):
         ''' Checks if the user has the specified permission for the specified organization as
         defined in their scope mapping. By default the user has access to their own organization
@@ -169,16 +142,16 @@ class User(base.BaseDocument):
         if organization is not None:
             if self.organization == organization:
                 return hasattr(self.role.permissions, permission) and getattr(self.role.permissions, permission) is True
-
+            
             for scope in self.access_scope:
                 if scope.organization == organization:
                     role = Role.get_by_uuid(scope.role)
                     return hasattr(role.permissions, permission) and getattr(role.permissions, permission) is True
         else:
             return hasattr(self.role.permissions, permission) and getattr(self.role.permissions, permission) is True
-
+        
         return False
-
+        
     def watch_case(self, case_uuid):
         ''' Adds a case to the list of cases the user is watching '''
 
@@ -199,22 +172,23 @@ class User(base.BaseDocument):
             self.watched_cases.remove(case_uuid)
             self.save()
 
+
     @classmethod
     def scoped_search(cls):
         ''' Returns a search object that is scoped to the current user '''
-
+        
         search = cls.search()
 
         current_user = request.current_user
         if current_user and current_user.request_org_filter:
-            search = search.filter(
-                'terms', organization=current_user.request_org_filter)
+            search = search.filter('terms', organization=current_user.request_org_filter)
 
         import json
         print(f"Search: {json.dumps(search.to_dict(), default=str)}")
 
         results = search.execute()
         return results
+
 
     def set_password(self, password):
         '''
@@ -265,8 +239,7 @@ class User(base.BaseDocument):
         organization = Organization.get_by_uuid(self.organization)
         settings = Settings.load(organization=self.organization)
 
-        jwt_exp = settings.logon_expire_at if hasattr(
-            settings, 'logon_expire_at') and settings.logon_expire_at else 6
+        jwt_exp = settings.logon_expire_at if hasattr(settings,'logon_expire_at') and settings.logon_expire_at else 6
 
         _access_token = jwt.encode({
             'uuid': self.uuid,
@@ -275,11 +248,11 @@ class User(base.BaseDocument):
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60*jwt_exp),
             'iat': datetime.datetime.utcnow(),
             'type': 'user',
-            # 'permissions': [k for k in self.permissions if self.permissions[k] is True],
+            #'permissions': [k for k in self.permissions if self.permissions[k] is True],
         }, current_app.config['SECRET_KEY'])
 
         return _access_token
-
+    
     @property
     def roles(self):
         ''' Returns a list of all the roles the user is a member of '''
@@ -325,7 +298,7 @@ class User(base.BaseDocument):
             'type': 'refresh'
         }, current_app.config['SECRET_KEY'])
 
-        # user_agent_hash = hashlib.md5(user_agent_string).hexdigest()
+        #user_agent_hash = hashlib.md5(user_agent_string).hexdigest()
 
         # refresh_token = RefreshToken.query.filter_by(
         #    user_agent_hash=user_agent_hash).first()
@@ -356,7 +329,7 @@ class User(base.BaseDocument):
         '''
 
         raise NotImplementedError
-
+    
     @cached_property
     def permissions(self):
         '''
@@ -377,7 +350,7 @@ class User(base.BaseDocument):
                     if r.permissions[p] is True:
                         permissions[p] = r.permissions[p]
         return permissions
-
+    
     @property
     def tlps(self):
         '''
@@ -404,13 +377,13 @@ class User(base.BaseDocument):
 
         search = Role.search()
         search = search.filter('term', members=self.uuid)
-        search = search.filter('nested', path='permissions', query={
-                               'term': {f'permissions.{permission}': True}})
+        search = search.filter('nested', path='permissions', query={'term': {f'permissions.{permission}': True}})
         count = search.count()
 
         if count > 0:
             return True
         return False
+
 
         # If the user has permissions from their token check
         # those first, if not fall back to checking against
@@ -435,7 +408,7 @@ class User(base.BaseDocument):
     def get_by_username(self, username, as_text=True):
 
         field = 'username' if as_text else 'username__keyword'
-
+        
         if isinstance(username, str):
             response = self.search().query(
                 'match', **{field: username}).execute()
@@ -454,7 +427,7 @@ class User(base.BaseDocument):
 
         response = self.search().query(
             'match', **{field: email})
-        response = response.source(excludes=[])
+        response= response.source(excludes=[])
 
         response = response.execute()
         if response:
@@ -472,8 +445,7 @@ class User(base.BaseDocument):
             self.save()
 
     def load_roles(self):
-        self.role = [r for r in Role.search().filter(
-            'term', members=self.uuid).scan()]
+        self.role = [r for r in Role.search().filter('term', members=self.uuid).scan()]
 
     def load_role(self):
         self.role = Role.get_by_member(self.uuid)
@@ -490,63 +462,40 @@ class User(base.BaseDocument):
         ''' Sets an OTP secret for the user when they enabled MFA
         '''
 
-        if not hasattr(self, 'otp_secrent') or self.otp_secret is None:
-            self.update(otp_secret=base64.b32encode(
-                os.urandom(15)).decode('utf-8'), refresh=True)
+        if self.otp_secret is None:
+            self.update(otp_secret = base64.b32encode(os.urandom(15)).decode('utf-8'))
 
     def enable_mfa(self):
         ''' Removes the otp secret when the user disables MFA
         '''
-
-        self.update(mfa_enabled=True, refresh=True)
-        self._log_event("Authentication", "MFA", "Success",
-                        f"MFA enabled for {self.username}")
+        
+        self.update(mfa_enabled = True)
 
     def disable_mfa(self):
         ''' Removes the otp secret when the user disables MFA
         '''
-        self.update(mfa_enabled=False, otp_secret=None, refresh=True)
-        self._log_event("Authentication", "MFA", "Success",
-                        f"MFA disabled for {self.username}")
+        self.update(mfa_enabled = False, otp_secret = None)
 
-        # self.save()
+        #self.save()
 
     def verify_mfa_setup_complete(self, token):
         ''' Once the user submits a TOTP that is correct enable MFA'''
-
-        if not hasattr(self, 'otp_secret') or self.otp_secret is None:
-            self._log_event("Authentication", "MFA", "Failed",
-                            f"Attempt to verify MFA token failed for {self.username} because the user does not have an OTP secret.")
-
-            return False
-
+        
         if onetimepass.valid_totp(token, self.otp_secret):
-            self.update(mfa_enabled=True, refresh=True)
-            self._log_event("Authentication", "MFA", "Success",
-                            f"MFA enabled for {self.username}")
+            self.update(mfa_enabled=True)
             return True
         return False
 
     def verify_totp(self, token):
         ''' Checks to see if the submitted TOTP token is valid'''
-        if not hasattr(self, 'otp_secret') or self.otp_secret is None:
-            self._log_event("Authentication", "MFA", "Failed",
-                            f"Attempt to verify MFA token failed for {self.username} because the user does not have an OTP secret.")
-
-            return False
-        
-        try:
-            result = onetimepass.valid_totp(token, self.otp_secret)
-        except Exception:
-            return False
-        return result
-
+        return onetimepass.valid_totp(token, self.otp_secret)
+    
     def is_default_org(self):
         ''' Checks to see if the user belongs to the default org'''
         if hasattr(self, 'default_org'):
             return self.default_org
         return False
-
+    
     def send_sspr_email(user):
         '''
         Sends an email to the user with a link to reset their password
@@ -559,14 +508,11 @@ class User(base.BaseDocument):
         reset_url = f"{current_app.config['SSO_BASE_URL']}/#/reset_password/{token}"
 
         # Fill in the template with the users information
-        user.email = user.email.lower()
-        email_body = render_template(
-            'emails/sspr.html', user=user, support_email=support_email, reset_url=reset_url)
-        email_body_plaintext = render_template(
-            'emails/sspr-plaintext.html', user=user, support_email=support_email, reset_url=reset_url)
+        user.email = user.email.lower();
+        email_body = render_template('emails/sspr.html', user=user, support_email=support_email, reset_url=reset_url)
+        email_body_plaintext = render_template('emails/sspr-plaintext.html', user=user, support_email=support_email, reset_url=reset_url)
 
-        send_system_generated_email(
-            user.email, 'Reflex Password Reset', email_body, email_body_plaintext)
+        send_system_generated_email(user.email, 'Reflex Password Reset', email_body, email_body_plaintext)
 
 
 class OrganizationSLASettings(InnerDoc):
@@ -574,12 +520,10 @@ class OrganizationSLASettings(InnerDoc):
     Defines all the organizational SLA settings
     '''
     sla_enabled = Boolean()
-    holidays = Keyword()  # A list of dates that are holidays stored as YYYY-MM-DD
-    work_hours = Keyword()  # A list of work hours stored as HH:MM-HH:MM
-    # If true the work hours will override the default work hours
-    work_hours_override_default = Boolean()
-    # If true the holidays will override the default holidays
-    holidays_override_default = Boolean()
+    holidays = Keyword() # A list of dates that are holidays stored as YYYY-MM-DD
+    work_hours = Keyword() # A list of work hours stored as HH:MM-HH:MM
+    work_hours_override_default = Boolean() # If true the work hours will override the default work hours
+    holidays_override_default = Boolean() # If true the holidays will override the default holidays
 
 
 class Organization(base.BaseDocument):
@@ -594,7 +538,7 @@ class Organization(base.BaseDocument):
         }
 
     name = Keyword()
-    description = Text(fields={'keyword': Keyword()})
+    description = Text(fields={'keyword':Keyword()})
     url = Keyword()
     logon_domains = Keyword()
     default_org = Boolean()
@@ -651,7 +595,7 @@ class Permission(InnerDoc):
     # EVENTS
     add_event = Boolean()  # Allows a user to add an event
     view_events = Boolean()  # Allows a user to view/list events
-    view_case_events = Boolean()  # Allows a user to see the events on a case
+    view_case_events = Boolean() # Allows a user to see the events on a case
     update_event = Boolean()  # Allows a user to update an events mutable properties
     delete_event = Boolean()  # Allows a user to delete an event
 
@@ -798,7 +742,7 @@ class Permission(InnerDoc):
     create_detection_exclusion = Boolean()
     update_detection_exclusion = Boolean()
     view_detection_exclusions = Boolean()
-    delete_detection_exclusion = Boolean()
+    delete_detection_exclusion = Boolean()    
 
     # Notification Channel Permissions
     create_notification_channel = Boolean()
@@ -864,7 +808,7 @@ class Permission(InnerDoc):
     update_schedule = Boolean()
     delete_schedule = Boolean()
     view_schedules = Boolean()
-
+    
 
 class ServiceAccount(base.BaseDocument):
     '''
@@ -877,46 +821,20 @@ class ServiceAccount(base.BaseDocument):
             'refresh_interval': '1s'
         }
 
-    name = Keyword()  # The name of the service account, must be unique
-    # A description of the service account
-    description = Text(fields={'keyword': Keyword()})
-    # The permissions that this service account has
-    permissions = Object(Permission)
-    tlps = Keyword()  # The TLPs that this service account can access
-    # Whether or not this service account is active, if not it cannot be used
-    active = Boolean()
-    last_used = Date()  # The last time this service account was used
-    # The organizations that this service account can access
-    organization_scope = Keyword()
-    tags = Keyword()  # The tags that this service account can access
-    expires_at = Date()  # The date that this service account expires
+    name = Keyword() # The name of the service account, must be unique
+    description = Text(fields={'keyword':Keyword()}) # A description of the service account
+    permissions = Object(Permission) # The permissions that this service account has
+    tlps = Keyword() # The TLPs that this service account can access
+    active = Boolean() # Whether or not this service account is active, if not it cannot be used
+    last_used = Date() # The last time this service account was used
+    organization_scope = Keyword() # The organizations that this service account can access
+    tags = Keyword() # The tags that this service account can access
+    expires_at = Date() # The date that this service account expires
 
     @property
     def username(self):
         return self.name
     
-    def _log_event(self, event_type, event_sub_category, status, message, *args, **kwargs):
-        ''' Logs an event for the user '''
-
-        
-        source_user = self.username
-        if 'source_user' in kwargs:
-            source_user = kwargs['source_user']
-        
-        source_user_uuid = self.uuid
-        if 'source_user_uuid' in kwargs:
-            source_user_uuid = kwargs['source_user_uuid']
-
-
-        log = EventLog(event_type=event_type,
-                       event_sub_category=event_sub_category,
-                       source_user=source_user,
-                       source_user_uuid=source_user_uuid,
-                       source_ip=get_user_real_ip(),
-                       status=status,
-                       message=message)
-        log.save()
-
     def has_right(self, permission):
         '''
         Returns true if the service account has the specified permission
@@ -927,7 +845,7 @@ class ServiceAccount(base.BaseDocument):
                 return True
 
         return getattr(self.permissions, permission)
-
+    
     def has_org_access(self, organization):
         ''' Checks if the user has access to the specified organization '''
 
@@ -963,8 +881,7 @@ class ServiceAccount(base.BaseDocument):
         organization = Organization.get_by_uuid(self.organization)
         settings = Settings.load(organization=self.organization)
 
-        jwt_exp = settings.api_key_expire if hasattr(
-            settings, 'api_key_expire') and settings.api_key_expire else 365
+        jwt_exp = settings.api_key_expire if hasattr(settings,'api_key_expire') and settings.api_key_expire else 365
 
         _access_token = jwt.encode({
             'uuid': str(self.uuid),
@@ -973,11 +890,10 @@ class ServiceAccount(base.BaseDocument):
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=jwt_exp),
             'iat': datetime.datetime.utcnow(),
             'type': 'service_account',
-            # 'permissions': self.permissions
+            #'permissions': self.permissions
         }, current_app.config['SECRET_KEY'])
 
-        self.expires_at = (datetime.datetime.utcnow() +
-                           datetime.timedelta(days=jwt_exp))
+        self.expires_at = (datetime.datetime.utcnow() + datetime.timedelta(days=jwt_exp))
         self.save()
 
         return _access_token
@@ -990,17 +906,23 @@ class ServiceAccount(base.BaseDocument):
         success = True
         if exists:
             success = False
-            self._log_event("User Management", "Service Account",
-                            "Failed", f"Service account {self.name} already exists", source_user=utils._current_user_id_or_none()['username'],
-                            source_user_uuid=utils._current_user_id_or_none()['uuid'])
-            raise ValidationError(
-                'A service account with that name already exists')
-
+            log = EventLog(
+                source_user = utils._current_user_id_or_none()['username'],
+                source_ip = request.remote_addr,
+                status = 'failure',
+                message = f'Attempt to create a service account with the name {self.name} failed because a service account with that name already exists'
+            )
+            log.save()
+            raise ValidationError('A service account with that name already exists')
+            
         super(ServiceAccount, self).save(*args, **kwargs)
 
-        self._log_event("User Management", "Service Account",
-                        "Success", f"Service account {self.name} created", source_user=utils._current_user_id_or_none()['username'],
-                        source_user_uuid=utils._current_user_id_or_none()['uuid'])
+        log = EventLog(
+            source_user = utils._current_user_id_or_none(),
+            source_ip = request.remote_addr,
+            status = 'success',
+            message = f'Service account {self.name} created'
+        )
 
 
 class Role(base.BaseDocument):
@@ -1011,14 +933,13 @@ class Role(base.BaseDocument):
     '''
 
     name = Keyword()  # The name of the role (should be unique)
-    # A brief description of the role
-    description = Text(fields={'keyword': Keyword()})
+    description = Text(fields={'keyword':Keyword()})  # A brief description of the role
     members = Keyword()  # Contains a list of user IDs
     permissions = Nested(Permission)
-    tlps = Keyword()  # The TLPs that this role can access
-    system_generated = Boolean()  # If this is a default Role in the system
+    tlps = Keyword() # The TLPs that this role can access
+    system_generated = Boolean() # If this is a default Role in the system
 
-    class Index:  # pylint: disable=too-few-public-methods
+    class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-user-roles'
         settings = {
@@ -1066,14 +987,14 @@ class Role(base.BaseDocument):
         response = self.search()
         response = response.filter('term', name=name)
         if organization:
-            response = response.filter('term', organization=organization)
-
+            response=response.filter('term', organization=organization)
+            
         response = response.execute()
         if response:
             user = response[0]
             return user
         return response
-
+    
     @classmethod
     def get_by_organization(self, organization):
         response = self.search().query(
@@ -1088,6 +1009,6 @@ class ExpiredToken(base.BaseDocument):
 
     token = Keyword()
 
-    class Index:  # pylint: disable=too-few-public-methods
+    class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-expired-tokens'

@@ -26,59 +26,6 @@ from ... import ep, memcached_client
 api = Namespace('Events', description='Event related operations', path='/event')
 
 
-""" Event Entity Fields """
-mod_event_entity_source_dest = api.model('EventEntitySourceDest', {
-    'ip': fields.String
-})
-
-mod_event_entity_group = api.model('EventEntityGroup', {
-    'name': fields.String,
-    'domain': fields.String,
-    'id': fields.String
-})
-
-mod_event_entity_user_base = api.model('EventEntityUserBase', {
-    'name': fields.String,
-    'full_name': fields.String,
-    'domain': fields.String,
-    'roles': fields.List(fields.String),
-    'id': fields.String,
-    'email': fields.String,
-    'id': fields.String,
-    'group': fields.Nested(mod_event_entity_group)
-})
-
-mod_event_entity_user = api.inherit('EventEntityUser', mod_event_entity_user_base, {
-    'target': fields.Nested(mod_event_entity_user_base)
-})
-
-mod_event_entity_client_server = api.model('EventEntityClientServer', {
-    'ip': fields.String,
-    'address': fields.String,
-    'bytes': fields.Integer,
-    'domain': fields.String,
-    'mac': fields.String,
-    'port': fields.Integer,
-    'packets': fields.Integer,
-    'registered_domain': fields.String,
-    'subdomain': fields.String,
-    'top_level_domain': fields.String,
-    'user': fields.Nested(mod_event_entity_user)
-})
-
-mod_event_entity_host = api.model('EventEntityHost', {
-    'name': fields.String,
-})
-
-mod_event_entity = api.model('EventEntity', {
-    'source': fields.Nested(mod_event_entity_source_dest),
-    'destination': fields.Nested(mod_event_entity_source_dest),
-    'user': fields.Nested(mod_event_entity_user),
-    'client': fields.Nested(mod_event_entity_client_server),
-    'server': fields.Nested(mod_event_entity_client_server),
-    'host': fields.Nested(mod_event_entity_host)
-})
-
 mod_event_comment = api.model('EventComment', {
     'comment': fields.String(required=True, description='The comment to add to the event')
 })
@@ -135,8 +82,7 @@ mod_event_create = api.model('EventCreate', {
     'raw_log': fields.String,
     'detection_id': fields.String,
     'risk_score': fields.Integer(default=0),
-    'category': fields.String(default='alert'),
-    'entity': fields.Nested(mod_event_entity)
+    'category': fields.String(default='alert')
 })
 
 mod_event_list = api.model('EventList', {
@@ -166,8 +112,7 @@ mod_event_list = api.model('EventList', {
     'response_phase': fields.String,
     'acknowledged': fields.Boolean,
     'acknowledged_by': fields.Nested(mod_user_list),
-    'category': fields.String(default='alert'),
-    'entity': fields.Nested(mod_event_entity)
+    'category': fields.String(default='alert')
 })
 
 mod_event_paged_list = api.model('PagedEventList', {
@@ -1145,9 +1090,6 @@ class CreateBulkEvents(Resource):
                 event['agent_uuid'] = current_user.uuid
                 current_user_class_str = type(current_user).__name__.lower()
                 event['agent_type'] = "unknown" if current_user_class_str not in ['agent','user'] else current_user_class_str
-
-                if 'reference' not in event:
-                    event['reference'] = uuid4()
 
                 if not check_cache(event['reference'], client=client):
                     if hasattr(ep, 'dedicated_workers') and ep.dedicated_workers:

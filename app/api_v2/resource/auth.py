@@ -4,7 +4,7 @@ from flask_restx import Resource, Namespace, fields
 
 from app.api_v2.resource.utils import generate_random_password
 from ..model import User, ExpiredToken, Settings, SSOProvider, RoleMappingPolicy, Role
-from ..utils import get_user_real_ip, log_event, token_required, check_password_reset_token, ip_approved
+from ..utils import log_event, token_required, check_password_reset_token, ip_approved
 
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from onelogin.saml2.response import OneLogin_Saml2_Response
@@ -46,11 +46,11 @@ class MultiFactor(Resource):
                 # Generate a refresh tokenn
                 _refresh_token = user.create_refresh_token(
                     request.user_agent.string.encode('utf-8'))
-                log_event(event_type="Authentication", event_sub_category="MFA", source_user=user.username,
-                          source_ip=get_user_real_ip(), message="Successful MFA Check.", status="Success")
+                log_event(event_type="Authentication", source_user=user.username,
+                          source_ip=request.remote_addr, message="Successful MFA Check.", status="Success")
                 return {'access_token': _access_token, 'refresh_token': _refresh_token, 'user': user.uuid}, 200
-            log_event(event_type="Authentication", event_sub_category="MFA", source_user=user.username,
-                      source_ip=get_user_real_ip(), message="Failed MFA Challenge", status="Failed")
+            log_event(event_type="Authentication", source_user=user.username,
+                      source_ip=request.remote_addr, message="Failed MFA Challenge", status="Failure")
 
         api.abort(401, 'Invalid TOTP token')
 
@@ -144,9 +144,8 @@ class Login(Resource):
             api.abort(401, 'Incorrect username or password')
 
         if not user.roles:
-            log_event(organization=user.organization, event_type="Authentication",
-                      event_sub_category="Primary Authentication", source_user=user.username,
-                      source_ip=get_user_real_ip(), message="User is not assigned any roles.", status="Failed")
+            log_event(organization=user.organization, event_type="Authentication", source_user=user.username,
+                      source_ip=request.remote_addr, message="User is not assigned any roles.", status="Failed")
             api.abort(401, 'User has not been assigned a role.')
 
         if user.check_password(api.payload['password']):
@@ -162,10 +161,8 @@ class Login(Resource):
             user.update(failed_logons=0,
                         last_logon=datetime.datetime.utcnow(), refresh=True)
 
-            log_event(organization=user.organization, event_type="Authentication",
-                      event_sub_category="Primary Authentication", source_user=user.username,
-                      source_user_uuid=user.uuid,
-                      source_ip=get_user_real_ip(), message="Successful Authentication.", status="Success")
+            log_event(organization=user.organization, event_type="Authentication", source_user=user.username,
+                      source_ip=request.remote_addr, message="Successful Authentication.", status="Success")
 
             if user.mfa_enabled:
                 return {'mfa_challenge_token': user.create_mfa_challenge_token()}
@@ -177,14 +174,12 @@ class Login(Resource):
 
         if user.failed_logons >= Settings.load().logon_password_attempts:
             user.update(locked=True, refresh=True)
-            log_event(organization=user.organization, event_type="Authentication",
-                      event_sub_category="Primary Authentication", source_user=user.username,
-                      source_ip=get_user_real_ip(), message="Account Locked.", status="Failed")
+            log_event(organization=user.organization, event_type="Authentication", source_user=user.username,
+                      source_ip=request.remote_addr, message="Account Locked.", status="Failed")
         else:
             user.update(failed_logons=user.failed_logons+1, refresh=True)
-            log_event(organization=user.organization, event_type="Authentication", 
-                      event_sub_category="Primary Authentication", source_user=user.username,
-                      source_ip=get_user_real_ip(), message="Bad username or password.", status="Failed")
+            log_event(organization=user.organization, event_type="Authentication", source_user=user.username,
+                      source_ip=request.remote_addr, message="Bad username or password.", status="Failed")
 
         api.abort(401, 'Incorrect username or password')
 
@@ -285,20 +280,20 @@ class SSOACS(Resource):
                             attribute_errors.append(wanted_attribute)
 
                     if attribute_errors:
-                        log_event(organization=provider.organization, event_type="Authentication", event_sub_category="SSO", source_user=auth.get_nameid(),
-                            source_ip=get_user_real_ip(), message=f"User does not exist. Auto provisioning failed, missing attributes: {attribute_errors}", status="Failed")
+                        log_event(organization=provider.organization, event_type="SSO Authentication", source_user=auth.get_nameid(),
+                            source_ip=request.remote_addr, message=f"User does not exist. Auto provisioning failed, missing attributes: {attribute_errors}", status="Failed")
                         return redirect(f"{current_app.config['SSO_BASE_URL']}/#/login", 401)
                     
                     # Check to see if the username is already in use
                     if User.get_by_username(wanted_attributes['username']):
-                        log_event(organization=provider.organization, event_type="Authentication", event_sub_category="SSO", source_user=wanted_attributes['username'],
-                            source_ip=get_user_real_ip(), message=f"User does not exist. Auto provisioning failed, username already in use.", status="Failed")
+                        log_event(organization=provider.organization, event_type="SSO Authentication", source_user=wanted_attributes['username'],
+                            source_ip=request.remote_addr, message=f"User does not exist. Auto provisioning failed, username already in use.", status="Failed")
                         return redirect(f"{current_app.config['SSO_BASE_URL']}/#/login", 401)
                     
                     # Check to see if the email is already in use
                     if User.get_by_email(wanted_attributes['email']):
-                        log_event(organization=provider.organization, event_type="Authentication", event_sub_category="SSO", source_user=wanted_attributes['username'],
-                            source_ip=get_user_real_ip(), message=f"User does not exist. Auto provisioning failed, email already in use.", status="Failed")
+                        log_event(organization=provider.organization, event_type="SSO Authentication", source_user=wanted_attributes['username'],
+                            source_ip=request.remote_addr, message=f"User does not exist. Auto provisioning failed, email already in use.", status="Failed")
                         return redirect(f"{current_app.config['SSO_BASE_URL']}/#/login", 401)
                     
                     # Create the user
@@ -321,8 +316,8 @@ class SSOACS(Resource):
                         role.add_user_to_role(user.uuid)
                     
                 else:
-                    log_event(organization=provider.organization, event_type="Authentication", event_sub_category="SSO", source_user=user.username,
-                      source_ip=get_user_real_ip(), message="User does not exist.", status="Failed")
+                    log_event(organization=provider.organization, event_type="SSO Authentication", source_user=user.username,
+                      source_ip=request.remote_addr, message="User does not exist.", status="Failed")
                     return redirect(f"{current_app.config['SSO_BASE_URL']}/#/login", 401)
 
             # Fetch the users role mapping policies
@@ -363,14 +358,14 @@ class SSOACS(Resource):
 
             # If the user now has no roles
             if not user.roles:
-                log_event(organization=user.organization, event_type="Authentication", event_sub_category="SSO", source_user=user.username,
-                      source_ip=get_user_real_ip(), message="User is not assigned any roles.", status="Failed")
+                log_event(organization=user.organization, event_type="SSO Authentication", source_user=user.username,
+                      source_ip=request.remote_addr, message="User is not assigned any roles.", status="Failed")
                 return redirect(f"{current_app.config['SSO_BASE_URL']}/#/login")
             
             # If the user is locked
             if user.locked:
-                log_event(organization=user.organization, event_type="Authentication", event_sub_category="SSO", source_user=user.username,
-                      source_ip=get_user_real_ip(), message="User account is locked.", status="Failed")
+                log_event(organization=user.organization, event_type="SSO Authentication", source_user=user.username,
+                      source_ip=request.remote_addr, message="User account is locked.", status="Failed")
                 return redirect(f"{current_app.config['SSO_BASE_URL']}/#/login")
 
             access_token = user.create_access_token()

@@ -178,9 +178,9 @@ mod_detection_schedule = api.model('DetectionSchedule', {
 
 
 mod_detection_field_settings = api.model('DetectionFieldSettings', {
-    'fields': fields.List(fields.Nested(mod_observable_field), default=[]),
-    'signature_fields': fields.List(fields.String, default=[]),
-    'tag_fields': fields.List(fields.String, default=[]),
+    'fields': fields.List(fields.Nested(mod_observable_field)),
+    'signature_fields': fields.List(fields.String),
+    'tag_fields': fields.List(fields.String),
 })
 
 mod_detection_details = api.model('DetectionDetails', {
@@ -213,7 +213,7 @@ mod_detection_details = api.model('DetectionDetails', {
     'case_template': fields.String,
     'risk_score': fields.Integer,
     'severity': fields.Integer,
-    'signature_fields': fields.List(fields.String, default=[]),
+    'signature_fields': fields.List(fields.String),
     'field_templates': fields.List(fields.String),
     'observable_fields': fields.List(fields.Nested(mod_observable_field)),
     'time_taken': fields.Integer,
@@ -301,7 +301,7 @@ mod_create_detection = api.model('CreateDetection', {
     'case_template': fields.String,
     'risk_score': fields.Integer(default=10000, min=0, max=50000),
     'severity': fields.Integer(required=True, default=1, min=1, max=4),
-    'signature_fields': fields.List(fields.String, default=[]),
+    'signature_fields': fields.List(fields.String),
     'field_templates': fields.List(fields.String),
     'observable_fields': fields.List(fields.Nested(mod_observable_field)),
     'interval': fields.Integer(default=5, required=True, min=1),
@@ -414,7 +414,7 @@ mod_detection_export = api.model('DetectionExport', {
     'source': fields.Nested(mod_source_config),
     'risk_score': fields.Integer,
     'severity': fields.Integer,
-    'signature_fields': fields.List(fields.String, default=[]),
+    'signature_fields': fields.List(fields.String),
     'observable_fields': fields.List(fields.Nested(mod_observable_field)),
     'time_taken': fields.Integer,
     'query_time_taken': fields.Integer,
@@ -1564,19 +1564,7 @@ class DetectionDetails(Resource):
                     event.raw_log = json.loads(event.raw_log)
                     
                     try:
-                        event_dict = event.to_dict()
-                        
-                        if hasattr(detection, 'guide') and detection.guide:
-                            detection.guide = chevron.render(detection.guide, event_dict)
-
-                        detection.description = chevron.render(detection.description, event_dict)
-
-                        # Join the event dict and the detection dict to allow for
-                        # chevron to render the triage guide and replace any variables
-                        if hasattr(detection, 'email_template') and detection.email_template:
-                            event_dict["detection"] = detection.to_dict()
-                            detection.email_template = chevron.render(detection.email_template, event_dict)
-
+                        detection.guide = chevron.render(detection.guide, event.to_dict())
                     except Exception as e:
                         print(e)
                         pass
@@ -1867,9 +1855,6 @@ class BulkUpdateDetectionStats(Resource):
         ]
 
         updates = []
-
-        if 'detections' not in api.payload or len(api.payload['detections']) == 0:
-            return { 'message': 'No detections provided in the payload.' }, 400
 
         uuids = [detection['uuid'] for detection in api.payload['detections']]
         detections = Detection.get_by_uuid(uuid=uuids, all_results=True)

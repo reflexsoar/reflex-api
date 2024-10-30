@@ -68,16 +68,6 @@ def escape_special_characters_rql(value):
     return value
 
 
-def get_user_real_ip():
-    '''
-    Returns the real IP address of the user
-    '''
-    if request.headers.getlist('X-Forwarded-For'):
-        return request.headers.getlist('X-Forwarded-For')[0]
-    else:
-        return request.remote_addr
-
-
 def log_event(event_type, *args, **kwargs):
     '''
     Handles logging to the Reflex log database as well
@@ -411,8 +401,8 @@ def check_password_reset_token(token):
         abort(401, 'Token retired.')
     except jwt.ExpiredSignatureError:
         abort(401, 'Access token expired.')
-    except (jwt.DecodeError, jwt.InvalidTokenError) as e:
-        abort(401, f'Invalid access token. {e}')
+    except (jwt.DecodeError, jwt.InvalidTokenError):
+        abort(401, 'Invalid access token.')
     except Exception as e:
         abort(401, str(e))
 
@@ -487,12 +477,12 @@ def _check_token():
             except jwt.ExpiredSignatureError:
                 abort(401, 'Access token expired.')
             except (jwt.DecodeError, jwt.InvalidTokenError) as e:
-                abort(401, f'Invalid access token. {e}')
+                abort(401, 'Invalid access token.')
             except Exception as e:
                 abort(401, 'Unknown token error.')
 
-        except IndexError as e:
-            abort(401, f'Invalid access token. {e}')
+        except IndexError:
+            abort(401, 'Invalid access token.')
             raise jwt.InvalidTokenError
     else:
         abort(403, 'Access token required.')

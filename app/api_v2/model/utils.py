@@ -98,9 +98,7 @@ def build_elastic_connection():
         'use_ssl': current_app.config['ELASTICSEARCH_SCHEME'],
         'ssl_show_warn': current_app.config['ELASTICSEARCH_SHOW_SSL_WARN'],
         'timeout': current_app.config['ELASTICSEARCH_TIMEOUT'],
-        'maxsize': current_app.config['ELASTICSEARCH_MAX_CONNECTIONS'],
-        'retry_on_timeout': True,
-        'max_retries': current_app.config['ELASTICSEARCH_MAX_RETRIES']
+        'maxsize': current_app.config['ELASTICSEARCH_MAX_CONNECTIONS']
     }
 
     username = current_app.config['ELASTICSEARCH_USERNAME']
@@ -191,16 +189,6 @@ def _current_user_id_or_none(organization_only=False):
     except Exception as e:
         print(e)
         return None
-    
-
-def get_user_real_ip():
-    '''
-    Returns the real IP address of the user
-    '''
-    if request.headers.getlist('X-Forwarded-For'):
-        return request.headers.getlist('X-Forwarded-For')[0]
-    else:
-        return request.remote_addr
     
 def send_system_generated_email(email, subject, body=None, plaintext_body=None):
     ''' Sends an email as the system configured SMTP server'''

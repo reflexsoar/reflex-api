@@ -24,7 +24,7 @@ from . import (
     Float
 )
 
-PLUGGABLE_SUPPORTED_ROLES = ['fim', 'winlog', 'benchmark', 'search_proxy', 'sysmon_manager', 'detector']
+PLUGGABLE_SUPPORTED_ROLES = ['fim', 'winlog', 'benchmark', 'search_proxy', 'sysmon_manager']
 
 
 class RunnerRoleConfig(InnerDoc):
@@ -56,11 +56,7 @@ class DetectorRoleConfig(InnerDoc):
     wait_interval = Integer()  # How often should the detector wait between detection runs
     # How many events should a detector send when a threshold rule is matched?
     max_threshold_events = Integer()
-    field_settings_cache_expire = Integer()  # How long should the field settings cache be kept?
     logging_level = Keyword()  # What logging level should the role use for its logs?
-    alert_writeback = Boolean()  # Should the detector write back alerts to the event stream?
-    alert_writeback_index = Keyword()  # The index to write back alerts to
-    drop_events = Boolean()  # Should the detector drop events after processing them?
 
 
 class PollerRoleConfig(InnerDoc):

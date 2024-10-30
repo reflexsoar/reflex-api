@@ -111,15 +111,6 @@ Related Observables:\n
 
                     comment = f"""**PagerDuty Incident Created**\n\n**Incident ID:** {incident['id']}\n**Incident URL:** [{incident['html_url']}]({incident['html_url']})"""
                     pagerduty.add_event_comment(events, comment, incident_from)
-            elif response.status_code == 400:
-
-                _errors = response.json()['error']['errors']
-
-                if len(_errors) > 0:
-                    _errors_html = '<br>'.join(_errors)
-
-                comment = f"""**PagerDuty Incident Creation Failed**\n\n**Error:** {_errors_html}"""
-                pagerduty.add_event_comment(events, comment, incident_from)
 
     class CreateIncident(Resource):
 
