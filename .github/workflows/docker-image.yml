@@ -6,12 +6,14 @@ on:
     branches:
       - 'main'
       - 'dev'
+      - 'maintenance-release'
     tags:
       - '*'
   pull_request:
     branches:
       - 'main'
       - 'dev'
+      - 'maintenance-release'
 
 # permissions are needed if pushing to ghcr.io
 permissions: 
