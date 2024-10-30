@@ -753,7 +753,7 @@ class Detection(base.BaseDocument):
                 
             for day_of_week in self.schedule:
                 day_config = self.schedule[day_of_week]
-                if 'active' in day_config and day_config['active']:
+                if 'active' in day_config and day_config['active'] and 'custom' in day_config and day_config['custom']:
                     if day_of_week == now.strftime("%A").lower():
 
                         # For each define from to in hours check if the 
