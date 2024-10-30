@@ -1,3 +1,5 @@
+import csv
+import io
 import base64
 import copy
 import math
@@ -6,18 +8,93 @@ import hashlib
 import json
 import datetime
 import threading
+import zipfile
 from queue import Queue
+from uuid import uuid4
 
 from app.api_v2.model.system import ObservableHistory, Settings
-from flask import current_app
+from app.api_v2.model.user import Organization
+from app.api_v2.model.case import Case
+from flask import current_app, make_response, send_file
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
-from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus
+from ..model import Event, Observable, EventRule, CloseReason, Q, Task, UpdateByQuery, EventStatus, EventRelatedObject
 from ..model.exceptions import EventRuleFailure
 from ..utils import token_required, user_has, log_event
-from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged
+from .shared import ISO8601, JSONField, ObservableCount, IOCCount, mod_pagination, mod_observable_list, mod_observable_list_paged, mod_user_list, ValueCount, AsAttrDict
 from ... import ep, memcached_client
 
 api = Namespace('Events', description='Event related operations', path='/event')
+
+
+""" Event Entity Fields """
+mod_event_entity_source_dest = api.model('EventEntitySourceDest', {
+    'ip': fields.String
+})
+
+mod_event_entity_group = api.model('EventEntityGroup', {
+    'name': fields.String,
+    'domain': fields.String,
+    'id': fields.String
+})
+
+mod_event_entity_user_base = api.model('EventEntityUserBase', {
+    'name': fields.String,
+    'full_name': fields.String,
+    'domain': fields.String,
+    'roles': fields.List(fields.String),
+    'id': fields.String,
+    'email': fields.String,
+    'id': fields.String,
+    'group': fields.Nested(mod_event_entity_group)
+})
+
+mod_event_entity_user = api.inherit('EventEntityUser', mod_event_entity_user_base, {
+    'target': fields.Nested(mod_event_entity_user_base)
+})
+
+mod_event_entity_client_server = api.model('EventEntityClientServer', {
+    'ip': fields.String,
+    'address': fields.String,
+    'bytes': fields.Integer,
+    'domain': fields.String,
+    'mac': fields.String,
+    'port': fields.Integer,
+    'packets': fields.Integer,
+    'registered_domain': fields.String,
+    'subdomain': fields.String,
+    'top_level_domain': fields.String,
+    'user': fields.Nested(mod_event_entity_user)
+})
+
+mod_event_entity_host = api.model('EventEntityHost', {
+    'name': fields.String,
+})
+
+mod_event_entity = api.model('EventEntity', {
+    'source': fields.Nested(mod_event_entity_source_dest),
+    'destination': fields.Nested(mod_event_entity_source_dest),
+    'user': fields.Nested(mod_event_entity_user),
+    'client': fields.Nested(mod_event_entity_client_server),
+    'server': fields.Nested(mod_event_entity_client_server),
+    'host': fields.Nested(mod_event_entity_host)
+})
+
+mod_event_comment = api.model('EventComment', {
+    'comment': fields.String(required=True, description='The comment to add to the event')
+})
+
+mod_event_comment_detailed = api.model('EventCommentDetailed', {
+    'uuid': fields.String,
+    'comment': fields.String,
+    'created_at': ISO8601,
+    'created_by': fields.String,
+    'from_related_event': fields.Boolean(required=False, default=False)
+})
+
+mod_event_comments = api.model('EventComments', {
+    'comments': fields.List(fields.Nested(mod_event_comment_detailed)),
+    'pagination': fields.Nested(mod_pagination)
+})
 
 mod_bulk_event_uuids = api.model('BulkEventUUIDs', {
     'events': fields.List(fields.String),
@@ -56,7 +133,10 @@ mod_event_create = api.model('EventCreate', {
     'signature': fields.String,
     'observables': fields.List(fields.Nested(mod_observable_create)),
     'raw_log': fields.String,
-    'detection_id': fields.String
+    'detection_id': fields.String,
+    'risk_score': fields.Integer(default=0),
+    'category': fields.String(default='alert'),
+    'entity': fields.Nested(mod_event_entity)
 })
 
 mod_event_list = api.model('EventList', {
@@ -65,6 +145,7 @@ mod_event_list = api.model('EventList', {
     'title': fields.String(required=True),
     'reference': fields.String(required=True),
     'description': fields.String(required=True),
+    'templated_description': fields.String,
     'tlp': fields.Integer,
     'severity': fields.Integer,
     'status': fields.Nested(mod_event_status),
@@ -75,11 +156,18 @@ mod_event_list = api.model('EventList', {
     'observables': fields.List(fields.Nested(mod_observable_list)),
     'case': fields.String,
     'signature': fields.String,
-    'related_events_count': fields.Integer,
+    'related_events_count': fields.Integer(attribute='related_events'),
     'raw_log': fields.Nested(mod_raw_log, attribute='_raw_log'),
     'event_rules': fields.List(fields.String),
     'original_date': ISO8601(attribute='original_date'),
-    'detection_id': fields.String
+    'detection_id': fields.String,
+    'risk_score': fields.Integer(default=0),
+    'total_comments': ValueCount(attribute='comments'),
+    'response_phase': fields.String,
+    'acknowledged': fields.Boolean,
+    'acknowledged_by': fields.Nested(mod_user_list),
+    'category': fields.String(default='alert'),
+    'entity': fields.Nested(mod_event_entity)
 })
 
 mod_event_paged_list = api.model('PagedEventList', {
@@ -106,7 +194,38 @@ mod_event_bulk_dismiss_by_filter = api.model('EventBulkDismissByFilter', {
     'filter': fields.String,
     'dismiss_reason_uuid': fields.String,
     'dismiss_comment': fields.String,
+    'tuning_advice': fields.String,
     'uuids': fields.List(fields.String)
+})
+
+mod_event_metrics = api.model('EventMetrics', {
+    'agent_uuid': fields.String,
+    'agent_pickup_time = Date()': ISO8601,
+    'agent_bulk_start = Date()': ISO8601,
+    'event_processing_dequeue = Date()': ISO8601,
+    'event_processing_start = Date()': ISO8601,
+    'event_processing_end = Date()': ISO8601,
+    'event_bulked = Date()': ISO8601,
+    'event_rule_start = Date()': ISO8601,
+    'event_rule_end = Date()': ISO8601,
+    'event_enrichment_start = Date()': ISO8601,
+    'event_enrichment_end = Date()': ISO8601,
+    'total_duration = Float()': fields.Float,
+    'total_duration_with_agent = Float()': fields.Float,
+    'auto_data_type_start = Date()': ISO8601,
+    'auto_data_type_end = Date()': ISO8601,
+    'threat_list_check_start = Date()': ISO8601,
+    'threat_list_check_end = Date()': ISO8601,
+    'threat_list_check_duration = Float()': fields.Float,
+    'auto_data_type_duration = Float()': fields.Float,
+    'event_processing_duration = Float()': fields.Float,
+    'agent_duration = Float()': fields.Float,
+    'enrichment_duration = Float()': fields.Float,
+    'event_rule_duration = Float()': fields.Float,
+    'auto_data_type_extraction = Boolean()': fields.Boolean,
+    'first_touch = Date()': ISO8601,
+    'total_abandons = Integer()': fields.Integer,
+    'total_touches = Integer()': fields.Integer,
 })
 
 mod_event_details = api.model('EventDetails', {
@@ -116,6 +235,7 @@ mod_event_details = api.model('EventDetails', {
     'description': fields.String(required=True),
     'tlp': fields.Integer,
     'severity': fields.Integer,
+    'risk_score': fields.Integer,
     'status': fields.Nested(mod_event_status),
     'source': fields.String,
     'tags': fields.List(fields.String),
@@ -129,10 +249,20 @@ mod_event_details = api.model('EventDetails', {
     'signature': fields.String,
     'dismiss_reason': fields.String,
     'dismiss_comment': fields.String,
+    'tuning_advice': fields.String,
     'event_rules': fields.List(fields.String),
     'original_date': ISO8601(attribute='original_date'),
-    'detection_id': fields.String
+    'detection_id': fields.String,
+    'dismissed_by': fields.Nested(mod_user_list),
+    'dismissed_at': ISO8601(attribute='dismissed_at'),
+    'total_comments': ValueCount(attribute='comments'),
+    'response_phase': fields.String,
+    'acknowledged': fields.Boolean,
+    'acknowledged_by': fields.Nested(mod_user_list),
+    'integration_output': fields.List(AsAttrDict),
+    'category': fields.String(default='alert')
 })
+
 
 mod_observable_update = api.model('ObservableUpdate', {
     'tags': fields.List(fields.String),
@@ -141,6 +271,42 @@ mod_observable_update = api.model('ObservableUpdate', {
     'spotted': fields.Boolean,
     'safe': fields.Boolean,
     'data_type': fields.String
+})
+
+mod_worker_stats = api.model('WorkerStats', {
+    'pid': fields.Integer,
+    'organization': fields.String,
+    'name': fields.String,
+    'alive': fields.Boolean,
+    'events_in_processing': fields.Integer,
+    'status': fields.String,
+    'processed_events': fields.Integer,
+    'last_event': fields.String,
+    'last_meta_refresh': fields.String,
+    'time_to_refresh': fields.Integer,
+})
+
+mod_queue_stats = api.model('QueueStats', {
+    'size': fields.Integer,
+    'workers': fields.List(fields.Nested(mod_worker_stats)),
+    'respawns': fields.Integer,
+    'worker_count': fields.Integer,
+    'dead_workers': fields.Integer
+})
+
+mod_event_filter_time_range = api.model('EventFilterTimeRange', {
+    'start': fields.String,
+    'end': fields.String
+})
+
+mod_event_export_params = api.model('EventExportParams', {
+    'report_name': fields.String,
+    'fields': fields.List(fields.String),
+    'statuses': fields.List(fields.String),
+    'severities': fields.List(fields.Integer),
+    'date_range': fields.Nested(mod_event_filter_time_range),
+    'as_json': fields.Boolean,
+    'compressed': fields.Boolean
 })
 
 event_list_parser = api.parser()
@@ -172,11 +338,12 @@ event_list_parser.add_argument(
 event_list_parser.add_argument(
     'page_size', type=int, location='args', default=10, required=False)
 event_list_parser.add_argument(
-    'sort_by', type=str, location='args', default='created_at', required=False)
+    'sort_by', type=str, location='args', default='original_date', required=False)
 event_list_parser.add_argument(
     'sort_direction', type=str, location='args', default="desc", required=False)
 event_list_parser.add_argument('start', location='args', type=str, required=False)
 event_list_parser.add_argument('end', location='args',  type=str, required=False)
+event_list_parser.add_argument('not__tags', location='args', action='split', required=False)
 event_list_parser.add_argument('organization', location='args', action='split', required=False)
 
 
@@ -232,7 +399,7 @@ class EventListAggregated(Resource):
                 'value': args.event_rule
             })
 
-        for arg in ['severity','title','tags','organization']:
+        for arg in ['severity','title','organization']:
             if arg in args and args[arg] not in ['', None, []]:
                 search_filters.append({
                     'type': 'terms',
@@ -278,81 +445,115 @@ class EventListAggregated(Resource):
             # Apply all filters
             for _filter in search_filters:
                 search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+            
+            if args.tags and len(args.tags) > 0:
+                # Create a boolean where all tags must match
+                search = search.query('bool', must=[Q({"term": {"tags": tag}}) for tag in args.tags])
 
             if args.observables:
                 search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))           
-                
-            raw_event_count = search.count()
 
-            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
-            search.aggs['signature'].metric('max_date', 'max', field='original_date')
+            if args.grouped != False:
+                raw_event_count = search.count()
 
-            events = search.execute()
+                search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
+                search.aggs['signature'].metric('max_date', 'max', field='original_date')
 
-            event_uuids = []
-            sigs = []
+                events = search.execute()
 
-            # Sort the signatures based on what the user has in the sorting options
-            reverse_sort = False
-            if args.sort_direction == 'desc':
-                reverse_sort = True
+                event_uuids = []
+                sigs = []
 
-            sigs = [s['key'] for s in events.aggs.signature.buckets] 
+                # Sort the signatures based on what the user has in the sorting options
+                reverse_sort = False
+                if args.sort_direction == 'desc':
+                    reverse_sort = True
 
-            # START: Second aggregation based on signatures to find first UUID for card display purposes
-            # performance necessary
-            search = Event.search()
-            search = search[:0]
+                sigs = [s['key'] for s in events.aggs.signature.buckets] 
 
-            # Apply all filters
-            for _filter in search_filters:
-                search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
+                # START: Second aggregation based on signatures to find first UUID for card display purposes
+                # performance necessary
+                search = Event.search()
+                search = search[:0]
 
-            if args.observables:
-                search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))
+                # Apply all filters
+                for _filter in search_filters:
+                    search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
-            paged_sigs = sigs[start:end]
-           
-            search = search.filter('terms', signature=paged_sigs)
+                if args.observables:
+                    search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))
 
-            number_of_sigs = len(paged_sigs)
-            if number_of_sigs == 0:
-                number_of_sigs = 10000
-
-            search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=100000)
-            search.aggs['signature'].metric('max_date', 'max', field='original_date')
-            search.aggs['signature'].bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=number_of_sigs)
-            search.aggs['signature']['uuid'].metric('max_date', 'max', field='original_date')
-
-            events = search.execute()
-
-            #sigs2 = sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'])
-            sigs2 = events.aggs.signature.buckets
-            for signature in sigs2:
-                event_uuids.append(signature.uuid.buckets[0]['key'])
-
-            # END: Second aggregation based on signatures to find first UUID for card display purposes
-            # performance necessary
-
-            search = Event.search()
-
-            if args.sort_direction:
-                if args.sort_direction == "desc":
-                    args.sort_by = f"-{args.sort_by}"
-                else:
-                    args.sort_by = f"{args.sort_by}"
-
-            search = search.sort(args.sort_by)
-            search = search.filter('terms', uuid=event_uuids)
-            search = search[0:len(event_uuids)]
-
-            total_events = search.count()
-            pages = math.ceil(float(len(sigs) / args.page_size))
+                paged_sigs = sigs[start:end]
             
-            events = search.execute()
+                search = search.filter('terms', signature=paged_sigs)
 
-            # Apply search filters to the event for performing related event calcuations
-            [e.set_filters(filters=search_filters) for e in events]
+                number_of_sigs = len(paged_sigs)
+                if number_of_sigs == 0:
+                    number_of_sigs = 10000
+
+                search.aggs.bucket('signature', 'terms', field='signature', order={'max_date': args.sort_direction}, size=number_of_sigs)
+                search.aggs['signature'].metric('max_date', 'max', field='original_date')
+                search.aggs['signature'].bucket('uuid', 'terms', field='uuid', order={'max_date': 'desc'}, size=number_of_sigs)
+                search.aggs['signature']['uuid'].bucket('card', 'top_hits', size=1)
+                search.aggs['signature']['uuid'].metric('max_date', 'max', field='original_date')
+
+                results = search.execute()
+
+                related_events_lookup = {}
+                for signature in results.aggs.signature.buckets:
+                    related_events_lookup[signature['key']] = signature['doc_count']
+
+                #sigs2 = sorted(events.aggs.signature.buckets, key=lambda sig: sig['max_date']['value'])
+                #sigs2 = events.aggs.signature.buckets
+                #for signature in sigs2:
+                #    event_uuids.append(signature.uuid.buckets[0]['key'])
+
+                # END: Second aggregation based on signatures to find first UUID for card display purposes
+                # performance necessary
+
+                #search = Event.search()
+
+                #if args.sort_direction:
+                #    if args.sort_direction == "desc":
+                #        args.sort_by = f"-{args.sort_by}"
+                #    else:
+                #        args.sort_by = f"{args.sort_by}"
+
+                #search = search.sort(args.sort_by)
+                #search = search.filter('terms', uuid=event_uuids)
+                #search = search[0:len(event_uuids)]
+
+                total_events = results.hits.total.value
+                #raw_event_count = total_events
+                pages = math.ceil(float(len(sigs) / args.page_size))
+                
+                #events = search.execute()
+                events = []
+                # Take the card data from the second aggregation and use it to build the event list
+                for signature in results.aggs.signature.buckets:
+                    _event = signature.uuid.buckets[0].card.hits.hits[0]._source
+                    _event.related_events = signature.doc_count
+                    _event = Event(**_event.to_dict())
+                    events.append(_event)
+
+                # Apply search filters to the event for performing related event calcuations
+                #[e.set_filters(filters=search_filters) for e in events]
+            else:
+
+                if args.sort_direction:
+                    if args.sort_direction == "desc":
+                        args.sort_by = f"-{args.sort_by}"
+                    else:
+                        args.sort_by = f"{args.sort_by}"
+                
+                search = search.sort(args.sort_by)
+
+                search = search[start:end]
+
+                total_events = search.count()
+                pages = math.ceil(total_events / args.page_size)
+
+                events = search.execute()
        
         # If filtering by a signature
         else:
@@ -383,6 +584,7 @@ class EventListAggregated(Resource):
         
         for event in events:
             observables[event.uuid] = event.observables
+            #event.set_filters(filters=search_filters)
                    
         response = {
             'events': events,
@@ -477,10 +679,12 @@ class EventListAggregated(Resource):
             return {'message': 'Event already exists'}, 409
 
 
-def fetch_observables_from_history(observables):
+def fetch_observables_from_history(observables, organization=None):
 
     search = ObservableHistory.search()
     search = search.filter('terms', value=[o['value'] for o in observables])
+    if organization:
+        search = search.filter('term', organization=organization)
     search = search[0:0]
     search.aggs.bucket('values', 'terms', field='value', order={'max_date': 'desc'})
     search.aggs['values'].bucket('max_date', 'max', field='created_at')
@@ -503,14 +707,89 @@ def fetch_observables_from_history(observables):
                 observable['source_field'] = source_observable['source_field']
         
         # Merge the latest historical tags with the tags on this current observable
-        if 'tags' in observable:
+        if 'tags' in observable and 'tags' in source_observable:
             observable['tags'] = list(set([t for t in source_observable['tags']] + [t for t in observable['tags']]))
         else:
             if 'tags' in source_observable:
                 observable['tags'] = source_observable['tags']
         
-
     return _observables
+
+
+@api.route('/export')
+class EventExport(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_event_export_params)
+    @token_required
+    @user_has('view_events')
+    def post(self, current_user):
+        """
+        Exports the events based on the provided filters
+        """
+
+        events = Event.search()
+        events = events[:0]
+
+        events = events.filter('terms', status__name__keyword=api.payload['statuses'])
+        events = events.filter('terms', severity=api.payload['severities'])
+        events = events.filter('range', original_date={'gte': api.payload['date_range']['start'], 'lte': api.payload['date_range']['end']})
+
+        # Only export the required fields
+        events = events.source(api.payload['fields'])
+
+        # Make sure the user only gets their own events
+        events = events.filter('term', organization=current_user.organization)
+
+        events = events.scan()
+
+        report_name = "events"
+        if 'report_name' in api.payload and api.payload['report_name'] != "":
+            report_name = api.payload['report_name']
+
+            # Strip out any non-alphanumeric characters and replace spaces with underscores
+            report_name = ''.join(e for e in report_name if e.isalnum() or e == ' ')
+
+        response = None
+        report_data = None
+        file_extension = None
+        if api.payload['as_json']:
+            file_extension = 'json'
+            # Returns as new line delimited JSON
+            report_data = '\n'.join([json.dumps(event.to_dict(), default=str) for event in events])
+            response = make_response(report_data, 200, {'Content-Type': 'application/json', 'Content-Disposition': f'attachment; filename={report_name}.json'})        
+        else:
+            file_extension = 'csv'
+            # Returns as CSV
+            try:
+                output = io.StringIO()
+                writer = csv.DictWriter(output, fieldnames=api.payload['fields'])
+                writer.writeheader()
+                [writer.writerow(event.as_indexed_dict()) for event in events]
+
+                report_data = output.getvalue()
+
+                response = make_response(report_data, 200, {'Content-Type': 'text/csv', 'Content-Disposition': f'attachment; filename={report_name}.csv'})
+            except Exception as e:
+                return {'message': f'Failed to export events. {e}'}, 500
+            
+        compressed = api.payload.pop('compressed', False)
+        if compressed is True:
+            # Create a zip file with the file in it
+            zip_buffer = io.BytesIO()
+
+            with zipfile.ZipFile(zip_buffer, 'w') as zf:
+
+                data = zipfile.ZipInfo(f'{report_name}.{file_extension}')
+                data.date_time = datetime.datetime.now().timetuple()
+                data.compress_type = zipfile.ZIP_DEFLATED
+                zf.writestr(data, report_data)
+
+            zip_buffer.seek(0)
+            
+            return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, attachment_filename=f'{report_name}.zip')
+            
+        return response
 
 
 @api.route('/<uuid>/observables/<value>')
@@ -592,26 +871,29 @@ class EventObservablesByCase(Resource):
     @user_has('view_case_events')
     def get(self, uuid, current_user):
 
-        search = Event.search()
-        search = search.filter('term', case=uuid)
-        search = search[:0]
-        search.aggs.bucket('observables', 'nested', path="event_observables")
-        search.aggs['observables'].metric('unique_values', 'cardinality', field="event_observables.value.keyword")
-        search.aggs['observables'].bucket('values', 'top_hits', _source={"includes": [ "event_observables.value",
-                          "event_observables.data_type",
-                          "event_observables.tlp",
-                          "event_observables.ioc",
-                          "event_observables.spotted",
-                          "event_observables.safe",
-                          "event_observables.tags"]}, size=10000)
-        events = search.execute()
-        exists = set()
-        observables = [o.to_dict() for o in events.aggs.observables.values if [(o.value, o.data_type) not in exists and hasattr(o, 'value'), exists.add((o.value, o.data_type))][0]]
-        observables = fetch_observables_from_history(observables)
-        #observables = []
-        #
-        #for event in events:
-        #    observables += [o for o in event.observables if [(o.value, o.data_type) not in exists, exists.add((o.value, o.data_type))][0]]
+        case = Case.get_by_uuid(uuid)
+
+        observables = []
+
+        if case:
+
+            search = Event.search()
+            search = search.filter('term', case=uuid)
+            search = search[:0]
+            search.aggs.bucket('observables', 'nested', path="event_observables")
+            search.aggs['observables'].metric('unique_values', 'cardinality', field="event_observables.value.keyword")
+            search.aggs['observables'].bucket('values', 'top_hits', _source={"includes": [ "event_observables.value",
+                            "event_observables.data_type",
+                            "event_observables.tlp",
+                            "event_observables.ioc",
+                            "event_observables.spotted",
+                            "event_observables.safe",
+                            "event_observables.tags"]}, size=10000)
+            events = search.execute()
+            exists = set()
+            observables = [o.to_dict() for o in events.aggs.observables.values if [(o.value, o.data_type) not in exists and hasattr(o, 'value'), exists.add((o.value, o.data_type))][0]]
+            observables = fetch_observables_from_history(observables, organization=case.organization)
+
         return {
             'observables': list(observables),
             'total_observables': events.aggs.observables.unique_values.value,
@@ -692,13 +974,14 @@ def check_cache(reference, client):
 
     if memcached_enabled:
 
-        # Check memcached first        
+        # Check memcached first
         if not found:
             try:
                 result = client.get(memcached_key)
                 if result:
                     found = True
             except Exception as e:
+                current_app.logger.error(f"Error checking memcached for {memcached_key}: {e}")
                 found = False
 
     # If the item was not found in memcached check Elasticsearch
@@ -854,14 +1137,34 @@ class CreateBulkEvents(Resource):
             #client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
             client = memcached_client.client
 
+            _events_to_queue = []
+
+            # TODO: MAKE THIS FASTER SOMEHOW
             for event in api.payload['events']:
                 event['organization'] = current_user.organization
+                event['agent_uuid'] = current_user.uuid
+                current_user_class_str = type(current_user).__name__.lower()
+                event['agent_type'] = "unknown" if current_user_class_str not in ['agent','user'] else current_user_class_str
+
+                if 'reference' not in event:
+                    event['reference'] = uuid4()
+
                 if not check_cache(event['reference'], client=client):
-                    ep.enqueue(event)
+                    if hasattr(ep, 'dedicated_workers') and ep.dedicated_workers:
+                        ep.to_kafka_topic(event)
+                    else:
+                        _events_to_queue.append(event)
+                        #ep.enqueue(event)
+
+            if len(_events_to_queue) > 0:
+                list(map(ep.enqueue, _events_to_queue))
             
             # Signal the end of the task
             # The Event Processor will use this event to close the running task
-            ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+            if ep.dedicated_workers:
+                ep.to_kafka_topic({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+            else:
+                ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
 
             end_bulk_process_dt = datetime.datetime.utcnow().timestamp()
             total_process_time = end_bulk_process_dt - start_bulk_process_dt
@@ -886,6 +1189,9 @@ class EventBulkDismiss(Resource):
 
         event_list = []
 
+        if not 'uuids' in api.payload or len(api.payload['uuids']) == 0:
+            api.abort(400, 'No events selected to dismiss.')
+
         settings = Settings.load(organization=current_user.organization)
         if settings.require_event_dismiss_comment and 'dismiss_comment' not in api.payload:
             api.abort(400, 'A dismiss comment is required.')
@@ -909,7 +1215,7 @@ class EventBulkDismiss(Resource):
             'data_type': 'data_type',
             'severity': 'severity',
             'event_rule': 'event_rules',
-            'source': 'source'
+            'source': 'source__keyword'
         }
 
         ubq = UpdateByQuery(index='reflex-events')
@@ -983,19 +1289,31 @@ class EventBulkDismiss(Resource):
                 })
 
         status = EventStatus.get_by_name(name='Dismissed', organization=reason.organization)
+        reason = CloseReason.get_by_uuid(api.payload['dismiss_reason_uuid'])
 
         ubq = ubq.script(
-            source="ctx._source.dismiss_comment = params.dismiss_comment; ctx._source.dismiss_reason = params.dismiss_reason; ctx._source.status.name = params.status_name; ctx._source.status.uuid = params.uuid",
+            source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;if(params.tuning_advice != null) { if (ctx._source.tuning_advice == null) { ctx._source.tuning_advice = '';}ctx._source.tuning_advice = params.tuning_advice;}if(ctx._source.dismissed_by == null) { ctx._source.dismissed_by = [:];}\nctx._source.dismissed_by.username = params.dismissed_by_username;ctx._source.dismissed_by.organization = params.dismissed_by_organization;ctx._source.dismissed_by.uuid = params.dismissed_by_uuid;",
+            #source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;DateTimeFormatter dtf = DateTimeFormatter.ofPattern(\"yyyy-MM-dd'T'HH:mm:ss.SSSSSS\").withZone(ZoneId.of('UTC'));ZonedDateTime zdt = ZonedDateTime.parse(params.dismissed_at, dtf);ZonedDateTime zdt2 = ZonedDateTime.parse(ctx._source.created_at, dtf);Instant Currentdate = Instant.ofEpochMilli(zdt.getMillis());Instant Startdate = Instant.ofEpochMilli(zdt2.getMillis());ctx._source.time_to_dismiss = ChronoUnit.SECONDS.between(Startdate, Currentdate);",
             params={
                 'dismiss_comment': api.payload['dismiss_comment'],
-                'dismiss_reason': api.payload['dismiss_reason_uuid'],
+                'dismiss_reason': reason.title if reason else api.payload['dismiss_reason_uuid'],
                 'status_name': status.name,
-                'uuid': status.uuid
+                'uuid': status.uuid,
+                'dismissed_at': datetime.datetime.utcnow(),
+                'dismissed_by_username': current_user.username,
+                'dismissed_by_organization': current_user.organization,
+                'dismissed_by_uuid': current_user.uuid,
+                'dismissed_by_rule': False,
+                'tuning_advice': api.payload['tuning_advice'] if 'tuning_advice' in api.payload else None
             }
         )
-        ubq = ubq.params(slices='auto', refresh=True)
+        
+        ubq = ubq.params(slices='auto', wait_for_completion=False)
 
         events = list(search.scan())
+
+        if len(events) == 0:
+            api.abort(400, 'No events found')
         
         # Check to see if the user is trying to bulk dismiss across organizations/tenants
         orgs = []
@@ -1053,44 +1371,24 @@ class EventBulkDismiss(Resource):
                 api.abort(400, 'Bulk actions across organizations is unsupported')
 
             rubq = rubq.script(
-                source="ctx._source.dismiss_comment = params.dismiss_comment; ctx._source.dismiss_reason = params.dismiss_reason; ctx._source.status.name = params.status_name; ctx._source.status.uuid = params.uuid",
+                source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;if(params.tuning_advice != null) { if (ctx._source.tuning_advice == null) { ctx._source.tuning_advice = '';}ctx._source.tuning_advice = params.tuning_advice;}if(ctx._source.dismissed_by == null) { ctx._source.dismissed_by = [:];}\nctx._source.dismissed_by.username = params.dismissed_by_username;ctx._source.dismissed_by.organization = params.dismissed_by_organization;ctx._source.dismissed_by.uuid = params.dismissed_by_uuid;",
+                #source="ctx._source.dismiss_comment = params.dismiss_comment;ctx._source.dismiss_reason = params.dismiss_reason;ctx._source.status.name = params.status_name;ctx._source.status.uuid = params.uuid;ctx._source.dismissed_at = params.dismissed_at;DateTimeFormatter dtf = DateTimeFormatter.ofPattern(\"yyyy-MM-dd'T'HH:mm:ss.SSSSSS\").withZone(ZoneId.of('UTC'));ZonedDateTime zdt = ZonedDateTime.parse(params.dismissed_at, dtf);ZonedDateTime zdt2 = ZonedDateTime.parse(ctx._source.created_at, dtf);Instant Currentdate = Instant.ofEpochMilli(zdt.getMillis());Instant Startdate = Instant.ofEpochMilli(zdt2.getMillis());ctx._source.time_to_dismiss = ChronoUnit.SECONDS.between(Startdate, Currentdate);",
                 params={
                     'dismiss_comment': api.payload['dismiss_comment'],
-                    'dismiss_reason': api.payload['dismiss_reason_uuid'],
+                    'dismiss_reason': reason.title if reason else api.payload['dismiss_reason_uuid'],
                     'status_name': status.name,
-                    'uuid': status.uuid
+                    'uuid': status.uuid,
+                    'dismissed_at': datetime.datetime.utcnow(),
+                    'dismissed_by_username': current_user.username,
+                    'dismissed_by_organization': current_user.organization,
+                    'dismissed_by_uuid': current_user.uuid,
+                    'dismissed_by_rule': False,
+                    'tuning_advice': api.payload['tuning_advice'] if 'tuning_advice' in api.payload else None
                 }
             )
-            rubq = rubq.params(slices='auto', refresh=True)
+            rubq = rubq.params(slices='auto', wait_for_completion=False)
 
             x = rubq.execute()
-
-        """[event_list.append(e) for e in events if len(events) > 0 and e not in event_list]
-        [event_list.append(e) for e in related_events if len(related_events) > 0 and e not in event_list]
-
-        if len(event_list) > 0:
-            task = Task()
-            task_id = task.create(task_type='bulk_dismiss_events')
-            event_count = 0
-            for event in event_list:
-                event_dict = event.to_dict()
-
-                event_dict['_meta'] = {
-                                'action': 'dismiss',
-                                'dismiss_reason': api.payload['dismiss_reason_uuid'],
-                                'dismiss_comment': api.payload['dismiss_comment'],
-                                '_id': event.meta.id,
-                                'updated_by': {
-                                    'organization': current_user.organization,
-                                    'username': current_user.username,
-                                    'uuid': current_user.uuid
-                                }
-                            }
-                ep.enqueue(event_dict)
-                event_count += 1
-            
-            task.set_message(f'{event_count} Events marked for bulk dismissal')
-            ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})"""
 
         # Give ES time to do it's thing
         time.sleep(1)
@@ -1151,7 +1449,11 @@ class EventBulkUpdate(Resource):
                                 }
                             }
 
-                ep.enqueue(event_dict)
+                
+                if ep.dedicated_workers:
+                    ep.to_kafka_topic(event_dict)
+                else:
+                    ep.enqueue(event_dict)
                 event_count += 1
                 if related_events:
                     for related in related_events:
@@ -1168,16 +1470,371 @@ class EventBulkUpdate(Resource):
                                     'uuid': current_user.uuid
                                 }
                             }
-                            ep.enqueue(related_dict)
+                            if ep.dedicated_workers:
+                                ep.to_kafka_topic(related_dict)
+                            else:
+                                ep.enqueue(related_dict)
                             event_count += 1
 
             # Signal the end of the task
             # The Event Processor will use this event to close the running task
             task.set_message(f'{event_count} Events marked for bulk dismissal')
-            ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+
+            if ep.dedicated_workers:
+                ep.to_kafka_queue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
+            else:
+                ep.enqueue({'organization': current_user.organization, '_meta':{'action': 'task_end', 'task_id': str(task.uuid)}})
 
         return {'task_id': str(task_id)}
 
+
+related_objects_parser = api.parser()
+
+related_objects_parser.add_argument('page', type=int, help='The page number to return', location='args', default=1)
+related_objects_parser.add_argument('page_size', type=int, help='The number of results to return per page', location='args', default=25)
+related_objects_parser.add_argument('sort', type=str, help='The field to sort the results by', location='args', default='created_at')
+related_objects_parser.add_argument('order', type=str, help='The order to sort the results by', location='args', default='desc')
+related_objects_parser.add_argument('entry_type', type=str, help='The type of entry to return', location='args', default='all')
+
+
+mod_event_related_integration_object = api.model('EventRelatedIntegrationObject', {
+    'uuid': fields.String(required=True, description='The UUID of the related object'),
+    'name': fields.String(required=True, description='The name of the integration'),
+    'configuration': fields.Raw(required=True, description='The configuration of the integration'),
+    'action': fields.String(required=True, description='The action that was performed by the integration'),
+    'output': fields.Raw(required=True, description='The output of the integration'),
+    'output_format': fields.String(required=True, description='The output format of the integration'),
+    'created_at': ISO8601
+})
+
+mod_event_related_object_event = api.model('EventRelatedObjectEvent', {
+    'uuid': fields.String(required=True, description='The UUID of the related object'),
+    'organization': fields.String(required=True, description='The organization of the related object')
+})
+
+mod_event_related_object_entry = api.model('EventRelatedObjectEntry', {
+    'type': fields.String(required=True, description='The type of entry')
+})
+
+mod_event_related_object_log_user = api.model('EventRelatedObjectUser', {
+    'name': fields.String(required=True, description='The name of the user')
+})
+
+mod_ip_geo = api.model('IPGeo', {
+    'country': fields.String(required=True, description='The country of the IP address'),
+    'city': fields.String(required=True, description='The city of the IP address'),
+    'latitude': fields.Float(required=True, description='The latitude of the IP address'),
+    'longitude': fields.Float(required=True, description='The longitude of the IP address')
+})
+
+mod_event_related_object_log_source = api.model('EventRelatedObjectSource', {
+    'ip': fields.String(required=True, description='The IP address of the source'),
+    'port': fields.Integer(required=True, description='The port of the source'),
+    'geo': fields.Nested(mod_ip_geo, description='The geo information of the source')
+})
+
+mod_event_related_object_log_destination = api.clone('EventRelatedObjectDestination', mod_event_related_object_log_source)
+
+mod_event_related_object_log_host = api.model('EventRelatedObjectHost', {
+    'name': fields.String(required=True, description='The hostname of the host')
+})
+
+mod_event_related_object_log = api.model('EventRelatedObjectLog', {
+    'message': fields.String(required=True, description='The message from the log entry'),
+    'format': fields.String(required=True, description='The format of the log entry', default='json'),
+    'user': fields.Nested(mod_event_related_object_log_user),
+    'source': fields.Nested(mod_event_related_object_log_source),
+    'destination': fields.Nested(mod_event_related_object_log_destination),
+    'host': fields.Nested(mod_event_related_object_log_host)
+})
+
+mod_event_related_object = api.model('EventRelatedObject', {
+    'uuid': fields.String(required=True, description='The UUID of the related object'),
+    'entry': fields.Nested(mod_event_related_object_entry, description='The type of entry'),
+    'event': fields.Nested(mod_event_related_object_event, description='The event that the related object is associated with'),
+    'from_integration': fields.Boolean(required=True, description='Whether or not the related object was created by an integration'),
+    'integration': fields.Nested(mod_event_related_integration_object, description='The integration that created the related object'),
+    'log': fields.Nested(mod_event_related_object_log, description='The log entry that was created by the integration')
+})
+
+mod_event_related_objects = api.model('EventRelatedObjects', {
+    'objects': fields.List(fields.Nested(mod_event_related_object), description='The related objects')
+})
+
+@api.route("/<uuid>/related_objects")
+class GetRelatedEventObjects(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_event_related_objects)
+    @api.expect(related_objects_parser)
+    @token_required
+    @user_has('view_events')
+    def get(self, uuid, current_user):
+
+        args = related_objects_parser.parse_args()
+
+        search = EventRelatedObject.search()
+
+        VALID_TYPES = ['comment', 'log', 'change', 'integration',
+                       'vulnerability', 'reference']
+
+        if args.entry_type != 'all':
+            if args.entry_type not in VALID_TYPES:
+                api.abort(400, f'Invalid entry type. Must be one of {VALID_TYPES}')
+
+            search = search.filter('term', entry_type=args.entry_type)
+
+        # Filter by event UUID
+        search = search.filter('term', event__uuid=uuid)
+
+        # Sort the results
+        search = search.sort({args.sort: {'order': args.order}})
+        
+        results = [e.to_dict() for e in search.scan()]
+
+        return {
+            'objects': results
+        }
+
+comment_parser = api.parser()
+comment_parser.add_argument('include_related_events',
+                            type=xinputs.boolean,
+                            help='If set to true, comments from other events with the same signature will be returned as well.',
+                            location='args',
+                            default=True)
+comment_parser.add_argument('page', type=int, help='The page number to return', location='args', default=1)
+comment_parser.add_argument('page_size', type=int, help='The number of results to return per page', location='args', default=25)
+comment_parser.add_argument('sort', type=str, help='The field to sort the results by', location='args', default='created_at')
+comment_parser.add_argument('sort_direction', type=str, help='The order to sort the results by', location='args', default='desc')
+
+@api.route("/<uuid>/comment")
+class EventComment(Resource):
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_event_comments)
+    @api.expect(comment_parser)
+    @token_required
+    @user_has('view_events')
+    def get(self, uuid, current_user):
+
+        args = comment_parser.parse_args()
+
+        event = Event.get_by_uuid(uuid)
+
+        # Fetch comments reflex-event-related-objects index instead using the events
+        # UUID as the parent parameter
+        search = EventRelatedObject.search()
+
+        if args.include_related_events:
+            # Filter by the event.uuid or the event.signature
+            search = search.filter('bool', should=[Q('term', event__uuid=uuid), Q('term', event__signature=event.signature)])
+        else:
+            search = search.filter('term', event__uuid=uuid)
+
+        search = search.filter('term', event__organization=event.organization)
+        #search = search.filter('term', event__uuid=uuid)
+        search = search.filter('term', entry__type='comment')
+        search = search.sort({'created_at': {'order': 'desc'}})
+
+        total_comments = search.count()
+        pages = int(total_comments / args.page_size) + (total_comments % args.page_size > 0)
+        start = (args.page - 1) * args.page_size
+        end = args.page * args.page_size
+
+        search = search[start:end]
+
+        results = []
+        comments = search.execute()
+        if comments:
+            for e in comments:
+                if e.comment:
+                    comment_dict = e.comment.to_dict()
+                    if e.event.uuid != event.uuid:
+                        comment_dict['from_related_event'] = True
+                    results.append(comment_dict)
+        #results = [e.comment.to_dict() for e in search.scan()]
+
+        # DEPRECATION WARNING: Legacy comments will be removed in a future release
+        # and only comments stored in the reflex-event-related-objects index will
+        # be used.
+        _legacy_comments = [c.to_dict() for c in event.comments if not any([c['uuid'] == r['uuid'] for r in results])]
+        results.extend(_legacy_comments)
+
+        # Order the comments by created_at with newest first
+        results = sorted(results, key=lambda k: k['created_at'], reverse=True)
+
+        if not event:
+            api.abort(404, 'Event not found.')
+
+        return {
+            'comments': results,
+            'pagination': {
+                'total_results': total_comments,
+                'pages': pages,
+                'page': args.page,
+            }
+        }
+    
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_event_comment_detailed)
+    @api.expect(mod_event_comment)
+    @token_required
+    @user_has('update_event')
+    def post(self, uuid, current_user):
+
+        event = Event.get_by_uuid(uuid)
+
+        if not event:
+            api.abort(404, 'Event not found')
+
+        comment = {
+            'uuid': uuid4(),
+            'comment': api.payload['comment'],
+            'organization': event.organization,
+            'created_by': current_user.username,
+            'created_at': datetime.datetime.utcnow(),
+        }
+
+        event.add_comment(comment=comment)
+        event.save()
+        return comment
+
+
+@api.route("/<uuid>/comment/<comment_uuid>")
+class EventCommentDelete(Resource):
+
+    @api.doc(security="Bearer")
+    @token_required
+    @user_has('update_event')
+    def delete(self, uuid, comment_uuid, current_user):
+
+        event = Event.get_by_uuid(uuid)
+
+        if not event:
+            api.abort(404, 'Event not found')
+
+        event.remove_comment(comment_uuid)
+        event.save()
+
+
+@api.route("/<uuid>/indexed")
+class EventIndexed(Resource):
+
+    @api.doc(security="Bearer")
+    #@api.marshal_with(mod_event_details_as_indexed_dict)
+    @token_required
+    @user_has('view_events')
+    def get(self, uuid, current_user):
+
+        event = Event.get_by_uuid(uuid)
+        if event:
+            event.event_observables = fetch_observables_from_history(event.event_observables, organization=event.organization)
+            event_as_dict = event.as_indexed_dict()
+            event_stripped = {}
+            for k, v in event_as_dict.items():
+                if not k.startswith('metrics.') and not k.startswith('comments.'):
+                    event_stripped[k] = v
+            return json.loads(json.dumps(event_stripped, default=str))
+        else:
+            api.abort(404, 'Event not found.')
+
+
+""" TODO: Allow an analyst to remap observables if a field mapping changed
+@api.route("/<uuid>/remap_observables")
+class EventRemapObservables(Resource):
+    '''
+    Will take the current field template/field mapping and remap all fields in the event and extract
+    any new observables from the event.
+    '''
+
+    @api.doc(security="Bearer")
+    @api.marshal_with(mod_event_details)
+    @token_required
+    @user_has('update_event')
+    def post(self, uuid, current_user):
+
+        event = Event.get_by_uuid(uuid)
+        if event:
+            event.remap_observables()
+            return event
+        else:
+            api.abort(404, 'Event not found.')
+"""
+
+ack_parser = api.parser()
+ack_parser.add_argument('signature', type=str, help='The signature to acknowledge', location='args', default=None)
+
+@api.route("/<uuid>/acknowledge")
+class EventAcknowledge(Resource):
+    '''
+    Acknowledge an event.  Used when an analyst wants to mark that they have seen
+    the event and are currently working on it but don't want to close it or have
+    another analyst start working on it.
+    '''
+    
+    @api.doc(security="Bearer")
+    @token_required
+    @api.expect(ack_parser)
+    @api.marshal_with(mod_event_details)
+    @user_has('update_event')
+    def put(self, uuid, current_user):
+        '''
+        Acknowledge an event.  Used when an analyst wants to mark that they have seen
+        the event and are currently working on it but don't want to close it or have
+        another analyst start working on it.
+        '''
+
+        args = ack_parser.parse_args()
+
+        event = Event.get_by_uuid(uuid)
+
+        if event:
+            if args.signature:
+                Event.bulk_acknowledge_by_signature(event=event, signature=args.signature, user=current_user)
+            else:
+                event.set_acknowledged()
+                return event
+        else:
+            api.abort(404, 'Event not found.')
+
+        return event
+    
+
+@api.route("/<uuid>/unacknowledge")
+class EventUnacknowledge(Resource):
+    '''
+    Unacknowledge an event.  Used when an analyst wants to mark that they have seen
+    the event and are currently working on it but don't want to close it or have
+    another analyst start working on it.
+    '''
+    
+    @api.doc(security="Bearer")
+    @token_required
+    @api.expect(ack_parser)
+    @api.marshal_with(mod_event_details)
+    @user_has('update_event')
+    def put(self, uuid, current_user):
+        '''
+        Unacknowledge an event.  Used when an analyst wants to mark that they have seen
+        the event and are currently working on it but don't want to close it or have
+        another analyst start working on it.
+        '''
+
+        args = ack_parser.parse_args()
+
+        event = Event.get_by_uuid(uuid)
+        if event:
+            if args.signature:
+                Event.bulk_unacknowledge_by_signature(event=event, signature=args.signature, user=current_user)
+            else:
+                event.set_unacknowledged()
+                return event
+        else:
+            api.abort(404, 'Event not found.')
+
+        return event
+    
 
 @api.route("/<uuid>")
 class EventDetails(Resource):
@@ -1190,7 +1847,12 @@ class EventDetails(Resource):
 
         event = Event.get_by_uuid(uuid)
         if event:
-            event.event_observables = fetch_observables_from_history(event.event_observables)
+            event.event_observables = fetch_observables_from_history(event.event_observables, organization=event.organization)
+
+            # Sort the intergration_output by the created_at field so newer items are at the top
+            if 'integration_output' in event:
+                event.integration_output.sort(key = lambda x: x['created_at'], reverse=True)
+                
             return event
         else:
             api.abort(404, 'Event not found.')
@@ -1213,8 +1875,11 @@ class EventDetails(Resource):
             comment = None
             if 'dismiss_comment' in api.payload and api.payload['dismiss_comment'] != '':
                 comment = api.payload['dismiss_comment']
+
+            if 'tuning_advice' in api.payload and api.payload['tuning_advice'] not in ['',None]:
+                advice = api.payload['tuning_advice']
             
-            event.set_dismissed(reason, comment=comment)
+            event.set_dismissed(reason, comment=comment, advice=advice)
             return {'message':'Successfully dismissed event'}, 200
         else:
             return {}
@@ -1296,12 +1961,12 @@ class EventStats(Resource):
         if not args.start:
             args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
         if not args.end:
-            args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
+            args.end = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
         
         search_filters = []
 
         # Prevent sub-tenants from seeing the organization metric
-        if 'organization' in args.metrics and not hasattr(current_user,'default_org'):
+        if 'organization' in args.metrics and not current_user.is_default_org():
             args.metrics.remove('organization')
 
         if args.title__like and args.title__like != '':
@@ -1332,7 +1997,7 @@ class EventStats(Resource):
                 'value': args.event_rule
             })
 
-        for arg in ['severity','title','tags','organization']:
+        for arg in ['severity','title','organization']:
             if arg in args and args[arg] not in ['', None, []]:
                 search_filters.append({
                     'type': 'terms',
@@ -1363,6 +2028,10 @@ class EventStats(Resource):
         for _filter in search_filters:
             search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
 
+        if args.tags and len(args.tags) > 0:
+            # Create a boolean where all tags must match
+            search = search.query('bool', must=[Q({"term": {"tags": tag}}) for tag in args.tags])
+
         if args.observables:
             search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value.keyword": args.observables}}))  
 
@@ -1380,35 +2049,35 @@ class EventStats(Resource):
             search.aggs['range'].bucket('tags', 'terms', field='tags', size=max_tags)
 
         if 'dismiss_reason' in args.metrics:
-            max_reasons = args.top if args.top != 10 else 100
-            search.aggs['range'].bucket('dismiss_reason', 'terms', field='dismiss_reason.keyword', size=max_reasons)
+            max_reasons = args.top if args.top != 10 else 25
+            search.aggs['range'].bucket('dismiss_reason', 'terms', field='dismiss_reason.keyword', size=max_reasons, min_doc_count=0)
 
         if 'status' in args.metrics:
-            max_status = args.top if args.top != 10 else 100
-            search.aggs['range'].bucket('status', 'terms', field='status.name.keyword', size=max_status)
+            max_status = args.top if args.top != 10 else 10
+            search.aggs['range'].bucket('status', 'terms', field='status.name.keyword', size=max_status, min_doc_count=0)
 
         if 'severity' in args.metrics:
-            max_severity = args.top if args.top != 10 else 100
-            search.aggs['range'].bucket('severity', 'terms', field='severity', size=max_severity)
+            max_severity = args.top if args.top != 10 else 10
+            search.aggs['range'].bucket('severity', 'terms', field='severity', size=max_severity, min_doc_count=0)
 
         if 'signature' in args.metrics:
-            max_signature = args.top if args.top != 50 else 100
+            max_signature = args.top if args.top != 10 else 25
             search.aggs['range'].bucket('signature', 'terms', field='signature', size=max_signature)
 
         if 'source' in args.metrics:
-            max_source = args.top if args.top != 10 else 100
+            max_source = args.top if args.top != 10 else 25
             search.aggs['range'].bucket('source', 'terms', field='source.keyword', size=max_source)
 
         if 'event_rule' in args.metrics:
-            max_event_rule = args.top if args.top != 10 else 100
-            search.aggs['range'].bucket('event_rule', 'terms', field='event_rules', size=1000)
+            max_event_rule = args.top if args.top != 10 else 25
+            search.aggs['range'].bucket('event_rule', 'terms', field='event_rules', size=max_event_rule)
 
         if 'organization' in args.metrics:
             max_organizations = args.top if args.top != 10 else 100
-            search.aggs['range'].bucket('organization', 'terms', field='organization', size=max_organizations)
+            search.aggs['range'].bucket('organization', 'terms', field='organization', size=max_organizations, min_doc_count=0)
 
         if 'observable' in args.metrics:
-            max_observables = args.top if args.top != 10 else 100
+            max_observables = args.top if args.top != 10 else 25
             search.aggs['range'].bucket('observables', 'nested', path="event_observables")
             search.aggs['range']['observables'].bucket('data_type', 'terms', field='event_observables.data_type.keyword', size=max_observables)
             search.aggs['range']['observables'].bucket('value', 'terms', field='event_observables.value.keyword', size=max_observables)
@@ -1416,7 +2085,7 @@ class EventStats(Resource):
         if 'time_per_status' in args.metrics:
             search.aggs['range'].buckets('time_per_status', 'terms', field='status.name.keyword', size=max_status)
 
-        search = search[0:0]
+        search = search.extra(size=0)
 
         events = search.execute()
 
@@ -1431,6 +2100,37 @@ class EventStats(Resource):
 
             observable_search = observable_search.execute()"""
 
+        events_by_day_by_org_series = []
+
+        if 'events_over_time' in args.metrics and hasattr(current_user, 'default_org') and current_user.default_org:
+            events_over_time_by_org = Event.search()
+
+            events_over_time_by_org = events_over_time_by_org[0:0]
+
+            events_over_time_by_org.aggs.bucket('range', 'filter', range={'original_date': {
+                'gte': (datetime.datetime.utcnow()-datetime.timedelta(days=14)).strftime('%Y-%m-%dT%H:%M:%S'),
+                'lte': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
+            }})
+
+            events_over_time_by_org.aggs['range'].bucket('organizations', 'terms', field='organization')
+            events_over_time_by_org.aggs['range']['organizations'].bucket('events_per_day', 'date_histogram', field='original_date', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
+
+            events_over_time_by_org = events_over_time_by_org.execute()
+
+            organizations = Organization.search()
+            organizations = organizations.scan()
+            organization_list = {o.uuid: o.name for o in organizations}
+
+            data = {v['key']: [] for v in events_over_time_by_org.aggs.range.organizations.buckets}
+            for k, v in data.items():
+                for bucket in events_over_time_by_org.aggs.range.organizations:
+                    for b in bucket.events_per_day.buckets:
+                        data[bucket['key']].append({
+                            'x': b['key_as_string'],
+                            'y': b['doc_count']})
+
+            events_by_day_by_org_series = [{'name': organization_list[k], 'data': v} for k, v in data.items()]            
+
         if 'events_over_time' in args.metrics:
             events_over_time = Event.search()
        
@@ -1444,6 +2144,8 @@ class EventStats(Resource):
             events_over_time.aggs['range'].bucket('events_per_day', 'date_histogram', field='original_date', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
 
             events_over_time = events_over_time.execute()
+
+            
 
         if 'time_per_status_over_time' in args.metrics:
             time_per_status_over_time = Event.search()
@@ -1509,6 +2211,9 @@ class EventStats(Resource):
             data['avg_time_to_dismiss']  = {v['key_as_string']: {x['key']: x['avg_time_to_dismiss']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
             data['avg_time_to_close']  = {v['key_as_string']: {x['key']: x['avg_time_to_close']['value'] for x in v.status.buckets} for v in time_per_status_over_time.aggs.range.per_day.buckets}
 
+        if 'events_over_time' in args.metrics and hasattr(current_user, 'default_org') and current_user.default_org:
+            data['events_by_day_by_org_series'] = events_by_day_by_org_series
+
         return data
 
 @api.route("/bulk_delete")
@@ -1543,41 +2248,6 @@ class BulkDeleteEvent(Resource):
 
         return {'message': 'Successfully deleted Events.'}, 200
 
-"""
-@api.route("/<uuid>/update_case")
-class EventUpdateCase(Resource):
-
-    @api.doc(security="Bearer")
-    @api.marshal_with(mod_event_update_case)
-    @api.response('200', 'Success')
-    @token_required
-    @user_has('update_event')
-    def put(self, uuid, current_user):
-
-        if 'action' in api.payload:
-            action = api.payload.pop('action')
-
-            if action in ['remove','transfer']:
-
-                event = Event.get_by_uuid()
-
-                if action == 'remove':
-                    
-                    event.remove_from_case()
-
-                if action == 'transfer':
-                    if 'target_case_uuid' in api.payload:
-                        event.set_case()
-                    else:
-                        api(400, 'Missing target case details.')
-            
-                print('a')
-            else:
-                api.abort(400, 'Missing or invalid action.')
-        else:
-            api.abort(400, 'Missing or invalid action.')
-"""
-
 
 event_bulk_select_parser = api.parser()
 event_bulk_select_parser.add_argument('status', location='args', default=[
@@ -1605,6 +2275,8 @@ event_bulk_select_parser.add_argument(
 event_bulk_select_parser.add_argument('organization', location='args', action='split', required=False)
 event_bulk_select_parser.add_argument('start', location='args', type=str, required=False)
 event_bulk_select_parser.add_argument('end', location='args', type=str, required=False)
+event_bulk_select_parser.add_argument('event_rule', location='args', default=[
+], type=str, action='split', required=False)
 
 @api.route("/bulk_select_all")
 class BulkSelectAll(Resource):
@@ -1677,6 +2349,13 @@ class BulkSelectAll(Resource):
                     'gte': args.start,
                     'lte': args.end
                 }
+            })
+
+        if args.event_rule and args.event_rule != ['']:
+            search_filters.append({
+                'type': 'terms',
+                'field': 'event_rules',
+                'value': args.event_rule
             })
         
         search = Event.search()
@@ -1784,14 +2463,14 @@ class EventNewRelatedEvents(Resource):
 class EventQueueStats(Resource):
 
     @api.doc(security="Bearer")
+    @api.marshal_with(mod_queue_stats)
     def get(self):
-        worker_info = []
-        for worker in ep.workers:
-            worker_info.append(
-                {
-                    'loaded_rules': len(worker.rules),
-                    'events': len(worker.events),
-                    '_id': worker._sentinel
-                }
-            )
-        return {"size": ep.qsize(), "workers": worker_info}
+        worker_info = ep.get_worker_info()
+        response = {
+            "size": ep.qsize(),
+            "workers": worker_info,
+            "respawns": ep.worker_respawns,
+            "worker_count": ep.tracked_workers,
+            "dead_workers": len([w for w in worker_info if w.get('alive', False) == False])
+        }
+        return response

@@ -11,10 +11,11 @@ from flask_restx import Resource, Namespace, fields, marshal
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 from ..rql.parser import QueryParser
-from ..model import EventRule, Event, Task, CloseReason
+from ..model import EventRule, Event, Task, CloseReason, Organization
 from ..model.exceptions import EventRuleFailure
 from ..utils import random_ending, token_required, user_has, check_org, log_event, default_org
-from .shared import ISO8601, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict
+from .shared import ISO8601, AsAttrDict, FormatTags, mod_pagination, mod_observable_list, mod_observable_brief, AsDict, mod_user_list
+from .integration import mod_run_action
 from .event import mod_event_status
 from ... import ep
 
@@ -31,15 +32,25 @@ mod_event_rule_test = api.model('TestEventRuleQuery', {
     'end_date': fields.String,
 })
 
+mod_notification_channel = api.model('NotificationChannel', {
+    'name': fields.String,
+    'uuid': fields.String
+})
+
 mod_event_rule_create = api.model('CreateEventRule', {
     'name': fields.String,
     'organization': fields.String,
     'description': fields.String,
     'event_signature': fields.String,
     'merge_into_case': fields.Boolean,
+    'create_new_case': fields.Boolean,
     'target_case_uuid': fields.String,
+    'set_organization': fields.Boolean,
+    'target_organization': fields.String,
     'add_tags': fields.Boolean,
     'tags_to_add': fields.List(fields.String),
+    'remove_tags': fields.Boolean,
+    'tags_to_remove': fields.List(fields.String),
     'update_severity': fields.Boolean,
     'target_severity': fields.Integer,
     'mute_event': fields.Boolean,
@@ -53,7 +64,12 @@ mod_event_rule_create = api.model('CreateEventRule', {
     'active': fields.Boolean,
     'global_rule': fields.Boolean,
     'run_retroactively': fields.Boolean(optional=True),
-    'skip_previous_match': fields.Boolean(optional=True)
+    'skip_previous_match': fields.Boolean(optional=True),
+    'priority': fields.Integer,
+    'notification_channels': fields.List(fields.String),
+    'protected': fields.Boolean,
+    'integration_actions': fields.List(fields.Nested(mod_run_action)),
+    'schedules': fields.String
 })
 
 mod_event_rule_list = api.model('EventRuleList', {
@@ -66,9 +82,14 @@ mod_event_rule_list = api.model('EventRuleList', {
     'dismiss_reason': fields.String,
     'rule_signature': fields.String,
     'merge_into_case': fields.Boolean,
+    'create_new_case': fields.Boolean,
     'target_case_uuid': fields.String,
+    'set_organization': fields.Boolean,
+    'target_organization': fields.String,
     'add_tags': fields.Boolean,
     'tags_to_add': FormatTags(attribute='tags_to_add'),
+    'remove_tags': fields.Boolean,
+    'tags_to_remove': FormatTags(attribute='tags_to_remove'),
     'update_severity': fields.Boolean,
     'target_severity': fields.Integer,
     'mute_event': fields.Boolean,
@@ -84,9 +105,19 @@ mod_event_rule_list = api.model('EventRuleList', {
     'expire_at': ISO8601(attribute='expire_at'),
     'created_at': ISO8601(attribute='created_at'),
     'updated_at': ISO8601(attribute='updated_at'),
+    'updated_by': fields.Nested(mod_user_list),
+    'created_by': fields.Nested(mod_user_list),
     'last_matched_date': ISO8601(attribute='last_matched_date'),
     'global_rule': fields.Boolean,
-    'disable_reason': fields.String
+    'disable_reason': fields.String,
+    'priority': fields.Integer,
+    'notification_channels': fields.List(fields.String),
+    'run_retroactively': fields.Boolean,
+    'tags': fields.List(fields.String),
+    'high_volume_rule': fields.Boolean,
+    'protected': fields.Boolean,
+    'integration_actions': fields.List(AsAttrDict),
+    'schedules': fields.List(fields.String, default=[])
 })
 
 mod_event_rule_list_paged = api.model('PagedEventRuleList', {
@@ -101,10 +132,14 @@ mod_event_rql = api.model('EventDetailsRQLFormatted', {
     'description': fields.String(required=True),
     'tlp': fields.Integer,
     'severity': fields.Integer,
+    'risk_score': fields.Integer,
     'source': fields.String,
     'status': fields.Nested(mod_event_status),
     'tags': fields.List(fields.String),
     'observables': fields.List(fields.Nested(mod_observable_list)),
+    'organization': fields.String,
+    'detection_id': fields.String,
+    'risk_score': fields.Integer,
     'case': fields.String,
     'created_at': ISO8601(attribute='created_at'),
     'modified_at': ISO8601(attribute='updated_at'),
@@ -164,9 +199,10 @@ class EventRuleList(Resource):
     @api.marshal_with(mod_event_rule_list)
     @api.response('200', 'Successfully created event rule.')
     @token_required
+    @default_org
     @user_has('create_event_rule')
     @check_org
-    def post(self, current_user):
+    def post(self, user_in_default_org, current_user):
         ''' Creates a new event_rule '''
 
         if 'organization' in api.payload:
@@ -202,7 +238,7 @@ class EventRuleList(Resource):
                 api.abort(400, 'expire_days should be an integer.')
 
         # Compute when the rule should expire
-        if 'expire' in api.payload and api.payload['expire']:
+        if 'expire' in api.payload and api.payload['expire'] is True:
             if 'expire_days' in api.payload:
                 expire_days = api.payload['expire_days']
 
@@ -210,6 +246,20 @@ class EventRuleList(Resource):
                 api.payload['expire_at'] = expire_at
             else:
                 api.abort(400, 'Missing expire_days field.')
+
+        if 'priority' in api.payload and api.payload['priority'] is not None and (api.payload['priority'] > 65535 or api.payload['priority'] < 1):
+            api.abort(400, 'Priority must be between 0 and 65535.')
+
+        # Allows a user to set the organization of events that match this rule
+        # This action is restricted to the default organization
+        if api.payload.get('set_organization'):
+            if user_in_default_org:
+                if api.payload.get('target_organization'):
+                    target_organization = Organization.get_by_uuid(api.payload.get('target_organization'))
+                    if not target_organization:
+                        api.abort(404, 'Target organization not found')
+            else:
+                api.abort(400, 'Must be a member of the parent organization')
 
         if not event_rule:
 
@@ -229,7 +279,14 @@ class EventRuleList(Resource):
             event_rule.deleted = False
             event_rule.save(refresh=True)
             time.sleep(1)
-            ep.restart_workers()
+
+            if event_rule.global_rule and not ep.dedicated_workers:
+                ep.restart_workers()
+            else:
+                if ep.dedicated_workers:
+                    ep.restart_workers(organization=event_rule.organization)
+                else:
+                    ep.restart_workers(organization='all')
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
                 
@@ -325,6 +382,9 @@ class EventRuleDetails(Resource):
 
         if event_rule:
 
+            if event_rule.protected and event_rule.created_by.uuid != current_user.uuid and not current_user.is_default_org():
+                api.abort(400, 'Cannot update protected event rule.')
+
             if 'expire_days' in api.payload and not isinstance(api.payload['expire_days'], int):
                 api.abort(400, 'expire_days should be an integer.')
 
@@ -333,7 +393,7 @@ class EventRuleDetails(Resource):
                 api.payload['global_rule'] = False
 
             # Computer when the rule should expire
-            if 'expire' in api.payload and api.payload['expire']:
+            if 'expire' in api.payload and api.payload['expire'] is True:
                 if 'expire_days' in api.payload:
                     expire_days = api.payload['expire_days']
 
@@ -351,7 +411,15 @@ class EventRuleDetails(Resource):
             if len(api.payload) > 0:
                 event_rule.update(**{**api.payload, 'disable_reason': None}, refresh=True)
                 time.sleep(1)
-                ep.restart_workers()
+                
+                if event_rule.global_rule:
+                    ep.restart_workers()
+                else:
+                    if ep.dedicated_workers:
+                        ep.restart_workers(organization=event_rule.organization)
+                    else:
+                        ep.restart_workers(organization='all')
+
 
             if 'run_retroactively' in api.payload and api.payload['run_retroactively']:
 
@@ -410,6 +478,9 @@ class EventRuleDetails(Resource):
                 skip_previous = False
                 if 'skip_previous_match' in api.payload and api.payload['skip_previous_match']:
                     skip_previous = True
+
+                if 'priority' in api.payload and api.payload['priority'] is not None and (api.payload['priority'] > 65535 or api.payload['priority'] < 1):
+                    api.abort(400, 'Priority must be between 0 and 65535.')
 
                 with current_app.app_context():
                     t = threading.Thread(target=delayed_retro_push, daemon=True, args=(task, skip_previous, api.payload, events))
@@ -610,14 +681,27 @@ class TestEventRQL(Resource):
                     organization = api.payload['organization']
             
             qp = QueryParser(organization=organization)
-            parsed_query = qp.parser.parse(api.payload['query'])
-            result = [r for r in qp.run_search(event_data, parsed_query)]
+            try:
+                parsed_query = qp.parser.parse(api.payload['query'])
+            except SyntaxError as e:
+                api.abort(400, f"Invalid RQL Query.  Please consult the RQL documentation for more information.")
+                
+            try:
+                result = [r for r in qp.run_search(event_data, parsed_query)]
+            except Exception as e:
+                api.abort(400, f"Invalid RQL Query. {e}")
             hits = len(result)
+
+            response = {"message": f"Query matched {hits} Events", "success": True, "hits": result}
+            if len(event_data) > 0:
+                if hits/len(event_data) > 0.3:
+                    response['message'] = f"Query matched {hits} Events.  This is more than 30% of the events queried.  Please consider refining your query."
+                    response['danger'] = True
 
             if hits > 0:
                 if 'return_results' in api.payload and api.payload['return_results']:
-                    return {"message": f"Query matched {hits} Events", "success": True, "hits": [result]}, 200
-                return {"message": f"Query matched {hits} Events", "success": True}, 200
+                    response['hits'] = [result]
+                return response, 200
             else:
                 return {"message": "Query did not match target Event", "success": False}, 200
         except ValueError as e:

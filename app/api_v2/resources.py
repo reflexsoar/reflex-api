@@ -1,16 +1,16 @@
+import re
 import base64
-import math
 import datetime
-import random
-import string
 import os
 import json
 import hashlib
 
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
+            
+
 from app.api_v2.model.user import Organization
-import pyqrcode
-import time
-from io import BytesIO
+from app.api_v2.resource.utils import generate_private_key, derive_public_key
 from zipfile import ZipFile
 #import pyminizip
 from flask import request, current_app, abort, make_response, send_from_directory, send_file, Blueprint, render_template
@@ -21,6 +21,7 @@ from .schemas import *
 from .model import (
     Event,
     EventRule,
+    EventRelatedObject,
     Observable,
     Observable,
     User,
@@ -29,6 +30,7 @@ from .model import (
     Credential,
     Input,
     Agent,
+    AgentLogMessage,
     ThreatList,
     ExpiredToken,
     DataType,
@@ -78,34 +80,47 @@ from .resource import (
     ns_role_v2,
     ns_task_v2,
     ns_detection_v2,
-    ns_mitre_v2
+    ns_mitre_v2,
+    ns_event_view_v2,
+    ns_notification_v2,
+    ns_agent_v2,
+    ns_agent_group_v2,
+    ns_field_mapping_v2,
+    ns_agent_policy_v2,
+    ns_case_v2,
+    ns_user_v2,
+    ns_input_v2,
+    ns_service_account_v2,
+    ns_observable_v2,
+    ns_asset_v2,
+    ns_reporting_v2,
+    ns_detection_repository_v2,
+    ns_integration_v2,
+    ns_sso_v2,
+    ns_package_v2,
+    ns_data_source_v2,
+    ns_schedule_v2,
+    ns_release_notes_v2,
+    ns_fim_v2,
+    ns_benchmark_v2,
+    ns_agent_tags_v2,
+    ns_search_v2,
+    ns_application_v2
 )
 
-from .. import ep
+show_swagger_docs = (os.getenv('REFLEX_SHOW_SWAGGER_DOCS', 'False').lower() == 'true')
 
 # Instantiate a new API object
 api_v2 = Blueprint("api2", __name__, url_prefix="/api/v2.0")
-api2 = Api(api_v2)
+api2 = Api(api_v2) if show_swagger_docs else Api(api_v2, doc=False)
 
 # All the API namespaces
-ns_user_v2 = api2.namespace(
-    'User', description='User operations', path='/user')
-#ns_role_v2 = api2.namespace(
- #   'Role', description='Role operations', path='/role')
 ns_settings_v2 = api2.namespace(
     'Settings', description='Settings operations', path='/settings')
 ns_credential_v2 = api2.namespace(
     'Credential', description='Credential operations', path='/credential')
-ns_input_v2 = api2.namespace(
-    'Input', description='Input operations', path='/input')
-ns_agent_v2 = api2.namespace(
-    'Agent', description='Agent operations', path='/agent')
-ns_agent_group_v2 = api2.namespace(
-    'AgentGroup', description='Agent Group operations', path='/agent_group')
 ns_data_type_v2 = api2.namespace(
     'DataType', description='DataType operations', path='/data_type')
-ns_case_v2 = api2.namespace(
-    'Case', description='Case operations', path='/case')
 ns_case_status_v2 = api2.namespace(
     'CaseStatus', description='Case Status operations', path='/case_status')
 ns_case_comment_v2 = api2.namespace(
@@ -121,7 +136,7 @@ ns_close_reason_v2 = api2.namespace(
 ns_tag_v2 = api2.namespace('Tag', description='Tag operations', path='/tag')
 ns_dashboard_v2 = api2.namespace('Dashboard', description='API endpoints that drive dashboard display', path='/dashboard')
 ns_plugins_v2 = api2.namespace('Plugin', description='Plugin operations', path='/plugin')
-ns_observable_v2 = api2.namespace('Observable', description="Observable operations", path='/observable')
+#ns_observable_v2 = api2.namespace('Observable', description="Observable operations", path='/observable')
 ns_hunting_v2 = api2.namespace('Hunting', description="Threat hunting operaitons", path="/hunting")
 api2.add_namespace(ns_playbook_v2)
 api2.add_namespace(ns_audit_log_v2)
@@ -134,6 +149,35 @@ api2.add_namespace(ns_role_v2)
 api2.add_namespace(ns_task_v2)
 api2.add_namespace(ns_detection_v2)
 api2.add_namespace(ns_mitre_v2)
+api2.add_namespace(ns_event_view_v2)
+api2.add_namespace(ns_notification_v2)
+api2.add_namespace(ns_agent_v2)
+api2.add_namespace(ns_agent_group_v2)
+api2.add_namespace(ns_field_mapping_v2)
+api2.add_namespace(ns_agent_policy_v2)
+api2.add_namespace(ns_case_v2)
+api2.add_namespace(ns_user_v2)
+api2.add_namespace(ns_input_v2)
+api2.add_namespace(ns_service_account_v2)
+api2.add_namespace(ns_observable_v2)
+api2.add_namespace(ns_asset_v2)
+api2.add_namespace(ns_reporting_v2)
+api2.add_namespace(ns_detection_repository_v2)
+api2.add_namespace(ns_integration_v2)
+api2.add_namespace(ns_sso_v2)
+api2.add_namespace(ns_package_v2)
+api2.add_namespace(ns_data_source_v2)
+api2.add_namespace(ns_schedule_v2)
+api2.add_namespace(ns_release_notes_v2)
+api2.add_namespace(ns_fim_v2)
+api2.add_namespace(ns_benchmark_v2)
+api2.add_namespace(ns_agent_tags_v2)
+api2.add_namespace(ns_search_v2)
+api2.add_namespace(ns_application_v2)
+
+# Register the integration base 
+from app.integrations.base import IntegrationApi as ns_integration_base_v2
+api2.add_namespace(ns_integration_base_v2)
 
 # Register all the schemas from flask-restx
 for model in schema_models:
@@ -150,8 +194,6 @@ upload_parser = api2.parser()
 upload_parser.add_argument('files', location='files',
                            type=FileStorage, required=True, action="append")
 
-
-
 def save_tags(tags):
     '''
     Adds tags to a reference index that the UI uses for 
@@ -165,6 +207,7 @@ def save_tags(tags):
             tag.save()
 
 
+<<<<<<< HEAD
 @ns_user_v2.route("/me")
 class UserInfo(Resource):
 
@@ -542,6 +585,8 @@ class UserDetails(Resource):
             ns_user_v2.abort(404, 'User not found.')
 
 
+=======
+>>>>>>> 76f5512f763c8b24a0bb9a743b4a6892e5c686d4
 
 data_type_parser = api2.parser()
 data_type_parser.add_argument('organization', location='args', required=False)
@@ -612,78 +657,6 @@ class DataTypeDetails(Resource):
 
 
 
-@ns_observable_v2.route("/history/<value>")
-class ObservableHistoricalData(Resource):
-    '''Provides historical information about an observable so that
-    analysts can look at the observable over time and perform correlative
-    research into how the observable appears in their environment
-    '''
-
-    def get(self, value):
-
-        response = {
-            'case_count': 0,
-            'event_count': 0,
-            'event_list': [],
-            'case_list': [],
-            'is_ioc': False,
-            'tags': [],
-            'timeline': []
-        }
-        observable = Observable.get_by_value(value=value, all_docs=True)
-
-        # Determine how many cases and events this observable appears in
-        for obs in list(observable):
-            if obs.case:
-                response['case_count'] += 1
-                response['case_list'].append(obs.case)
-
-            if obs.events:
-                response['event_count'] += 1
-                response['event_list'] += obs.events
-
-            if obs.ioc:
-                response['is_ioc'] = True
-
-            if obs.tags is not None:
-                response['tags'] += obs.tags
-                response['tags'] = list(set(response['tags']))
-
-        for event_uuid in response['event_list']:
-            event = Event.get_by_uuid(event_uuid)
-            timeline_item = {
-                'type': 'event',
-                'title': event.title,
-                'uuid': event_uuid,
-                'description': event.description,
-                'tags': list(event.tags) if event.tags else [],
-                #'observables': event.observables,
-                'created_at': str(event.created_at)
-            }
-            response['timeline'].append(timeline_item)
-
-        for case_uuid in response['case_list']:
-            case = Case.get_by_uuid(case_uuid)
-            timeline_item = {
-                'type': 'case',
-                'title': case.title,
-                'uuid': case_uuid,
-                'description': case.description,
-                'tags': list(case.tags) if case.tags else [],
-                #'observables': case.observables,
-                'created_at': str(case.created_at)
-            }
-            response['timeline'].append(timeline_item)
-
-
-        # Sort the timeline
-        response['timeline'] = sorted(
-                            response['timeline'],
-                            key = lambda i: i['created_at'],
-                            reverse=True)
-
-        return response
-        
 
 case_status_parser = api2.parser()
 case_status_parser.add_argument(
@@ -799,12 +772,18 @@ class CloseReasonList(Resource):
         args = close_reason_parser.parse_args()
 
         close_reasons = CloseReason.search()
+        close_reasons = close_reasons.exclude('term', enabled=False)
 
-        if args.organization:
+        if args.organization and current_user.is_default_org:
             close_reasons = close_reasons.filter('term', organization=args.organization)
+        else:
+            close_reasons = close_reasons.filter('term', organization=current_user.organization)
         
         if args.title:
             close_reasons = close_reasons.filter('match', title=args.title)
+
+        # Sort by title
+        close_reasons = close_reasons.sort({"title": {"order": "asc"}})
         
         close_reasons = close_reasons.execute()
         if close_reasons:
@@ -845,6 +824,7 @@ class CloseReasonDetails(Resource):
         else:
             ns_close_reason_v2.abort(404, 'Close Reason not found.')
 
+
     @api2.doc(security="Bearer")
     @api2.expect(mod_close_reason_create)
     @api2.marshal_with(mod_close_reason_list)
@@ -864,942 +844,16 @@ class CloseReasonDetails(Resource):
         else:
             ns_close_reason_v2.abort(404, 'Close Reason not found.')
 
+
     @api2.doc(security="Bearer")
     @token_required
     @user_has('delete_close_reason')
     def delete(self, uuid, current_user):
-        ''' Deletes an CloseReason '''
+        ''' Soft deletes a CloseReason '''
         close_reason = CloseReason.get_by_uuid(uuid=uuid)
         if close_reason:
-            close_reason.delete()
+            close_reason.update(enabled = False)
             return {'message': 'Sucessfully deleted Close Reason.'}
-
-
-case_parser = pager_parser.copy()
-case_parser.add_argument('title', location='args', required=False, type=str)
-case_parser.add_argument('organization', location='args', required=False, type=str)
-case_parser.add_argument('status', location='args', required=False, type=str)
-case_parser.add_argument('close_reason', location='args', required=False, action="split", type=str)
-case_parser.add_argument('severity', location='args', required=False, action="split", type=str)
-case_parser.add_argument('owner', location='args', required=False, action="split", type=str)
-case_parser.add_argument('tag', location='args', required=False, action="split", type=str)
-case_parser.add_argument('search', location='args', required=False, action="split", type=str)
-case_parser.add_argument('my_tasks', location='args', required=False, type=xinputs.boolean)
-case_parser.add_argument('my_cases', location='args', required=False, type=xinputs.boolean)
-case_parser.add_argument('escalated', location='args', required=False, type=xinputs.boolean)
-case_parser.add_argument('page', type=int, location='args', default=1, required=False)
-case_parser.add_argument('sort_by', type=str, location='args', default='created_at', required=False)
-case_parser.add_argument(
-    'sort_direction', type=str, location='args', default='desc', required=False
-)
-case_parser.add_argument('page_size', type=int, location='args', default=25, required=False)
-case_parser.add_argument('start', location='args', type=str, required=False)
-case_parser.add_argument('end', location='args', type=str, required=False)
-
-@ns_case_v2.route("")
-class CaseList(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_case_paged_list)
-    @api2.expect(case_parser)
-    @token_required
-    @user_has('view_cases')
-    @check_org
-    def get(self, current_user):
-        ''' Returns a list of case '''
-
-        args = case_parser.parse_args()
-
-        # Set default start/end date filters if they are not set above
-        # We do this here because default= on add_argument() is only calculated when the API is initialized
-        #if not args.start:
-        #    args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
-        #if not args.end:
-        #    args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
-
-        cases = Case.search()        
-
-        cases = cases.sort('-created_at')
-
-        # Apply filters
-        if 'title' in args and args['title']:
-            cases = cases.filter('wildcard', title=args['title']+"*")
-
-        if 'status' in args and args['status']:
-            cases = cases.filter('match', status__name=args['status'])
-
-        if 'severity' in args and args['severity']:
-            cases = cases.filter('terms', severity=args['severity'])
-
-        if 'tag' in args and args['tag']:
-            cases = cases.filter('terms', tags=args['tag'])
-
-        if 'organization' in args and args.organization:
-            cases = cases.filter('term', organization=args.organization)
-
-        if 'close_reason' in args and args.close_reason:
-            cases = cases.filter('terms', close_reason__title__keyword=args.close_reason)
-
-        if args.owner and args.owner not in ['', None, []] and not args.my_cases:
-            cases = cases.filter('terms', **{'owner.username__keyword': args.owner})
-
-        if args.escalated == True:
-            cases = cases.filter('term', escalated=args.escalated)
-
-        if args.my_cases:
-            cases = cases.filter('term', **{'owner.username__keyword': current_user.username})
-
-        if args.start and args.end:
-            cases = cases.filter('range', created_at={
-                    'gte': args.start,
-                    'lte': args.end
-                }
-            )
-
-        # Paginate the cases
-        page = args.page - 1
-        total_cases = cases.count()
-        pages = math.ceil(float(total_cases / args.page_size))
-
-        start = page*args.page_size
-        end = args.page*args.page_size
-
-        sort_by = args.sort_by
-        # Only allow these fields to be sorted on
-        if sort_by not in ['title','tlp','severity','status']:
-            sort_by = "created_at"
-
-        if sort_by == 'status':
-            sort_by = "status.name.keyword"
-
-        if args.sort_direction == 'desc':
-            sort_by = f"-{sort_by}"
-
-        cases = cases.sort(sort_by)
-
-        cases = cases[start:end]
-
-        response = {
-            'cases': [c for c in cases],
-            'pagination': {
-                'total_results': total_cases,
-                'pages': pages,
-                'page': page+1,
-                'page_size': args.page_size
-            }
-        }
-
-        return response
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_case_create)
-    @api2.response('409', 'Case already exists.')
-    @api2.response('200', "Successfully created the case.")
-    @token_required
-    @user_has('create_case')
-    #@check_org
-    def post(self, current_user):
-        ''' Creates a new case '''
-
-        _tags = []
-        event_observables = []
-        case_observables = []
-        owner_uuid = None
-        case_template = None
-
-        organization = None
-        if 'organization' in api2.payload:
-            organization = api2.payload['organization']
-        
-        settings = Settings.load(organization=organization)
-
-        if 'owner_uuid' in api2.payload:
-            owner_uuid = api2.payload.pop('owner_uuid')
-        else:
-            # Automatically assign the case to the creator if they didn't pick an owner
-            if settings.assign_case_on_create:
-                owner_uuid = current_user.uuid
-
-        # Set a minimum tlp
-        if api2.payload['tlp'] < 1:
-            api2.payload['tlp'] = 1
-
-        # Set a maximum tlp
-        if api2.payload['tlp'] > 4:
-            api2.payload['tlp'] = 4
-
-        # Set a minimum severity
-        if api2.payload['severity'] < 1:
-            api2.payload['severity'] = 1
-
-        # Set a maximum severity
-        if api2.payload['severity'] > 4:
-            api2.payload['severity'] = 4
-
-        if 'events' in api2.payload:
-            events = api2.payload.pop('events')
-
-        case = Case(**api2.payload)
-
-        # Set the default status to New
-        case.status = CaseStatus.get_by_name(name="New")
-        case.set_owner(owner_uuid)
-
-        events_to_update = []
-        if isinstance(events, list) and len(events) > 0:
-            uuids = []
-            
-            for event in events:
-                e = Event.get_by_uuid(event)
-                event_dict = e.to_dict()
-                event_dict['_meta'] = {
-                    'action': 'add_to_case',
-                    'case': case.uuid,
-                    '_id': e.meta.id
-                }
-                events_to_update.append(event_dict)
-                #e.set_open()
-                #e.set_case(uuid=case.uuid)
-                uuids.append(e.uuid)
-
-                if 'include_related_events' in api2.payload and api2.payload['include_related_events']:
-                    
-                    related_events = Event.get_by_signature_and_status(signature=e.signature, status='New', all_events=True)
-                    for related_event in related_events:
-                        related_dict = related_event.to_dict()
-                        related_dict['_meta'] = {
-                            'action': 'add_to_case',
-                            'case': case.uuid,
-                            '_id': related_event.meta.id
-                        }
-                        events_to_update.append(related_dict)
-                        #related_event.set_open()
-                        #related_event.set_case(uuid=case.uuid)
-
-                        # PERFORMANCE ISSUE FIX ME
-                        #case_observables += related_event.observables #Observable.get_by_event_uuid(related_event.uuid)
-                        uuids.append(related_event.uuid)            
-
-                observables = e.observables
-
-                # Automatically generates an event rule for the event associated with this case
-                if 'generate_event_rule' in api2.payload and api2.payload['generate_event_rule']:
-                    rule_text = f'''# System generated base query
-# Pin this rule to this event by it's title
-title = "{e.title}"
-
-# Default matching on all present observables
-# Consider fine tuning this with expands function
-and observables.value|all In ["{'","'.join([escape_special_characters_rql(o.value) for o in observables])}"]'''
-
-                    event_rule = EventRule(
-                        name=f"Automatic Rule for Case {case.title}",
-                        description=f"Automatic Rule for Case {case.title}",
-                        event_signature=f"{e.title}",
-                        expire=False,
-                        expire_days=0,
-                        merge_into_case=True,
-                        taget_case_uuid=case.uuid,
-                        query=rule_text,
-                        dismiss=False)
-                    event_rule.active = True
-                    event_rule.save()
-            
-            case.events = list(set(uuids))
-        
-        if len(events_to_update) > 0:
-            [ep.enqueue(event) for event in events_to_update]
-
-        # If the user selected a case template, take the template items
-        # and copy them over to the case
-        if 'case_template_uuid' in api2.payload:
-            case.apply_template(api2.payload['case_template_uuid'])
-
-        case.save()
-
-        # Save the tags so they can be referenced in the future
-        save_tags(api2.payload['tags'])
-
-        case.add_history(message='Case created')
-
-        time.sleep(0.5)
-
-        return {'message': 'Successfully created the case.', 'uuid': str(case.uuid)}
-
-
-@ns_case_v2.route("/<uuid>")
-class CaseDetails(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_case_details)
-    @api2.response('200', 'Success')
-    @api2.response('404', 'Case not found')
-    @token_required
-    @user_has('view_cases')
-    def get(self, uuid, current_user):
-        ''' Returns information about a case '''
-        case = Case.get_by_uuid(uuid=uuid)
-
-        if case:
-            tasks = CaseTask.get_by_case(uuid=uuid)
-            if tasks:
-                case.total_tasks = len(tasks)
-                case.open_tasks = len([t for t in tasks if t.status == 0])
-            else:
-                case.total_tasks = 0
-            return case
-        else:
-            ns_case_v2.abort(404, 'Case not found.')
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_case_create)
-    @api2.marshal_with(mod_case_details)
-    @token_required
-    @user_has('update_case')
-    def put(self, uuid, current_user):
-        ''' Updates information for a case '''
-        case = Case.get_by_uuid(uuid=uuid)
-        if case:
-
-            for f in ['severity', 'tlp', 'status_uuid', 'owner', 'description', 'owner_uuid', 'escalated']:
-                value = ""
-                message = None
-
-                # TODO: handle notifications here, asynchronous of course to not block this processing
-                if f in api2.payload:
-                    if f == 'status_uuid':
-                        status = CaseStatus.get_by_uuid(
-                            uuid=api2.payload['status_uuid'])
-
-                        # Remove the closure reason if the new status re-opens the case
-                        if not status.closed:
-                            api2.payload['close_reason_uuid'] = None
-
-                        value = status.name
-                        f = 'status'
-
-                        case.status = status
-                        case.save()
-
-                        if status.closed:
-                            case.close(api2.payload['close_reason_uuid'])
-                        else:
-                            case.reopen()
-
-                    elif f == 'severity':
-
-                        if api2.payload[f] > 4:
-                            api2.payload[f] = 4
-
-                        if api2.payload[f] < 1:
-                            api2.payload[f] = 1
-
-                        value = {1: 'Low', 2: 'Medium', 3: 'High',
-                                 4: 'Critical'}[api2.payload[f]]
-
-                    elif f == 'description':
-                        message = '**Description** updated'
-
-                    elif f == 'owner':
-                        owner = api2.payload.pop(f)
-                        if owner:
-                            owner = User.get_by_uuid(uuid=owner['uuid'])
-
-                            if owner:
-                                message = 'Case assigned to **{}**'.format(
-                                    owner.username)
-                                api2.payload['owner'] = {
-                                    'username': owner.username, 'uuid': owner.uuid}
-                            else:
-                                message = 'Case unassigned'
-                                api2.payload['owner'] = {}
-                        else:
-                            message = 'Case unassigned'
-                            api2.payload['owner'] = None
-
-                    elif f == 'escalated':
-                        if api2.payload[f]:
-                            message = 'Case escalated'
-                        else:
-                            message = 'Case de-escalated'
-
-                    if message:
-                        case.add_history(message=message)
-                    else:
-                        case.add_history(
-                            message="**{}** changed to **{}**".format(f.title(), value))
-
-            if 'tags' in api2.payload:
-                save_tags(api2.payload['tags'])
-
-            if 'case_template_uuid' in api2.payload:
-                remove_successful = case.remove_template()
-                if remove_successful:
-                    case.apply_template(api2.payload['case_template_uuid'])
-
-            case.update(**api2.payload)
-
-            return case
-        else:
-            ns_case_v2.abort(404, 'Case not found.')
-
-    @api2.doc(security="Bearer")
-    @token_required
-    @user_has('delete_case')
-    def delete(self, uuid, current_user):
-        ''' Deletes a case '''
-        case = Case.get_by_uuid(uuid=uuid)
-        if case:
-            
-            # Set any associated events back to New status
-            if case.events:
-                for event_uuid in case.events:
-                    event = Event.get_by_uuid(event_uuid)
-                    if event:
-                        event.case = None
-                        event.set_new()
-
-            # DEPRECATED: This method is no longer used to store observales
-            # suc they don't need deleted - BC 2022-05-03
-            #observables = Observable.get_by_case_uuid(uuid=uuid)
-            #if observables and len(observables) > 0:
-            #    [o.delete() for o in observables]
-
-            tasks = CaseTask.get_by_case(uuid=uuid, all_results=True)
-            if tasks and len(tasks) > 0:
-                [t.delete() for t in tasks]
-
-            comments = CaseComment.get_by_case(uuid=uuid)
-            if comments and len(comments) > 0:
-                [c.delete() for c in comments]
-
-            history = CaseHistory.get_by_case(uuid=uuid)
-            if history and len(history) > 0:
-                [h.delete() for h in history]
-
-            case.delete()
-            return {'message': 'Sucessfully deleted case.'}
-
-
-@ns_case_v2.route("/<uuid>/add_events")
-class AddEventsToCase(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_add_events_to_case)
-    @api2.marshal_with(mod_add_events_response)
-    @api2.response(207, 'Success')
-    @api2.response(404, 'Case not found.')
-    @token_required
-    @user_has('update_case')
-    def put(self, uuid, current_user):
-        '''Merges an event or events in to a case
-        
-        Parameters:
-            uuid (str): The UUID of the case
-        
-        Return:
-            dict: JSON response containing event details
-        '''
-
-        case = Case.get_by_uuid(uuid=uuid)
-        events = Event.get_by_uuid(uuid=api2.payload['events'])
-        
-        if events:
-            events_to_update = []
-            uuids = []
-            for event in events:
-                event_dict = event.to_dict()
-                event_dict['_meta'] = {
-                    'action': 'add_to_case',
-                    'case': case.uuid,
-                    '_id': event.meta.id
-                }
-                events_to_update.append(event_dict)
-                uuids.append(event.uuid)
-
-                if 'include_related_events' in api2.payload and api2.payload['include_related_events'] == True:
-                    related_events = Event.get_by_signature_and_status(signature=event.signature,
-                                                                       status='New',
-                                                                       all_events=True)
-                    if related_events:
-                        for related_event in related_events:
-                            if related_event.uuid != event.uuid:
-                                related_dict = related_event.to_dict()
-                                related_dict['_meta'] = {
-                                    'action': 'add_to_case',
-                                    'case': case.uuid,
-                                    '_id': related_event.meta.id
-                                }
-                                events_to_update.append(related_dict)
-                                uuids.append(related_event.uuid)
-            
-            if case.events:
-                [case.events.append(uuid) for uuid in uuids]
-            else:
-                case.events = uuids
-
-            if len(events_to_update) > 0:
-                [ep.enqueue(event) for event in events_to_update]
-
-            case.add_history(message=f'{len(events_to_update)} events added')
-            case.save()
-            return "YARP"
-        return "NARP"
-
-
-@ns_case_v2.route("/<uuid>/observables")
-class CaseObservables(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_observable_list_paged, as_list=True)
-    @api2.response('200', 'Successs')
-    @api2.response('404', 'Case not found')
-    @token_required
-    @user_has('view_cases')
-    def get(self, uuid, current_user):
-        ''' Returns the observables for a case'''
-        observables = Observable.get_by_case_uuid(uuid)
-
-        if not observables:
-            observables = []
-
-        return {'observables': observables, 'pagination': {}}
-
-
-@ns_case_v2.route("/<uuid>/observables/<value>")
-class CaseObservable(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.response('200', 'Success')
-    @api2.response('404', 'Observable not found')
-    @api2.marshal_with(mod_observable_list)
-    @token_required
-    @user_has('view_cases')
-    def get(self, uuid, value, current_user):
-        ''' Returns the information about a single observable '''
-        case = Case.get_by_uuid(uuid=uuid)
-
-        if case:
-
-            search = Event.search()
-            search = search[0:1]
-            search = search.filter('term', case=uuid)
-            search = search.query('nested', path='event_observables', query=Q({"terms": {"event_observables.value": value}}))
-
-            return {}
-        else:
-            ns_case_v2.abort(404, 'Observable not found.')
-
-    @api2.doc(security="Bearer")
-    @api2.response('200', 'Success')
-    @api2.response('400', 'Observable not found')
-    @api2.expect(mod_observable_update)
-    @api2.marshal_with(mod_observable_list)
-    @token_required
-    @user_has('update_case')
-    def put(self, uuid, value, current_user):
-        ''' Updates a cases observable '''
-
-        observable = None
-
-        value = base64.b64decode(value).decode()
-
-        search = Event.search()
-        search = search[0:1]
-        search = search.filter('term', case=uuid)
-        search = search.query('nested', path='event_observables', query=Q({"term": {"event_observables.value.keyword": value}}))
-        event = search.execute()[0]
-        if event:
-            search = ObservableHistory.search()
-            search = search.filter('term', value=value)
-            search = search.filter('term', organization=event.organization)
-            search = search.sort({'created_at': {'order': 'desc'}})
-            search = search[0:1]
-            history = search.execute()
-
-            if history:
-                if len(history) >= 1:
-                    observable = history[0]
-                else:
-                    observable = history
-            else:
-                observable = [o for o in event.event_observables if o['value'] == value][0]
-
-        if observable:
-
-            # Can not flag an observable as safe if it is also flagged as an ioc
-            if 'safe' in api2.payload:
-                observable.safe = api2.payload['safe']
-
-            if 'ioc' in api2.payload:
-                observable.ioc = api2.payload['ioc']
-
-            if 'spotted' in api2.payload:
-                observable.spotted = api2.payload['spotted']
-
-            if getattr(observable,'ioc') and getattr(observable,'safe'):
-                ns_case_v2.abort(400, 'An observable can not be an ioc if it is flagged safe.')
-
-            observable_dict = observable.to_dict()
-            if 'created_at' in observable_dict:
-                del observable_dict['created_at']
-            if 'created_by' in observable_dict:
-                del observable_dict['created_by']
-            observable_dict['organization'] = event.organization
-
-            observable_history = ObservableHistory(**observable_dict)
-            observable_history.save()
-
-            return observable
-        else:
-            return ns_case_v2.abort(404, 'Observable not found.')
-
-
-@ns_case_v2.route("/<uuid>/add_observables/_bulk")
-class CaseAddObservables(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.response('200', 'Success')
-    @api2.expect(mod_bulk_add_observables)
-    @api2.marshal_with(mod_case_observables)
-    @token_required
-    @user_has('update_case')
-    @check_org
-    def post(self, uuid, current_user):
-        ''' Adds multiple observables to a case '''
-        case = Case.get_by_uuid(uuid=uuid)
-
-        if case:
-
-            organization = case.organization
-            if 'organization' in api2.payload:
-                organization = api2.payload['organization']  
-            
-            if 'observables' in api2.payload:
-                _observables = api2.payload['observables']
-                observables = []
-
-                # Make sure tags are in the observables
-                for observable in _observables:
-                    if 'tag' not in observable:
-                        observable['tag'] = []
-
-                    # If any of the values are not False, which is the default, add a history item
-                    # for this observable
-                    if True in (observable['ioc'], observable['spotted'], observable['safe']):
-                        observable_history = ObservableHistory(**observable, organization=organization)
-                        observable_history.save()
-
-                    observables.append(observable)
-
-                status = EventStatus.get_by_name(name='Open', organization=organization)
-
-                h = hashlib.md5()
-                h.update(str(datetime.datetime.utcnow().timestamp()).encode())
-                _id = base64.b64encode(h.digest()).decode()
-
-                event = Event(title='[REFLEX] User Added Observables',
-                                description=f'{current_user.username} has added additional observables to a case.',
-                                signature=case.uuid,
-                                event_observables=observables,
-                                case=case.uuid,
-                                tags=['manual-observables'],
-                                severity=1,
-                                status=status.to_dict(),
-                                organization=organization,
-                                raw_log='',
-                                source='reflex-system',
-                                reference=_id
-                            )
-                event.save()
-
-                if case.events:
-                    case.events.append(event.uuid)
-                else:
-                    case.events = [event.uuid]
-                case.save()
-                #case.add_observables(observables, case.uuid, organization=organization)
-                case.add_history(f"Added {len(observables)} observables")
-                
-                return {'observables': [o for o in observables]}
-            else:
-                return {'observables': []}
-        else:
-            ns_case_v2.abort(404, 'Case not found.')
-
-@ns_case_v2.route('/<uuid>/relate_cases')
-class RelateCases(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_related_case, envelope='related_cases')
-    @api2.response(207, 'Success')
-    @api2.response(404, 'Case not found.')
-    @token_required
-    @user_has('view_cases')
-    def get(self, current_user, uuid):
-        ''' Returns a list of related cases '''
-        case = Case.get_by_uuid(uuid=uuid)
-        if case:
-            if case.related_cases:
-                return Case.get_by_uuid(uuid=case.related_cases)
-        return []
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_link_cases)
-    @api2.marshal_with(mod_related_case, envelope='related_cases')
-    @api2.response(207, 'Success')
-    @api2.response(404, 'Case not found.')
-    @token_required
-    @user_has('update_case')
-    def put(self, current_user, uuid):
-
-        case = Case.get_by_uuid(uuid=uuid)
-        related_cases = Case.get_related_cases(uuid=uuid)
-        cases = []
-        if case:
-            if 'cases' in api2.payload:
-                _cases = api2.payload.pop('cases')
-                for c in _cases:
-                    _case = Case.get_by_uuid(uuid=c)
-                    if _case:
-
-                        if case.related_cases and _case not in case.related_cases:
-                            case.related_cases.append(_case.uuid)
-                            if _case.related_cases:
-                                _case.related_cases.append(case.uuid)
-                            else:
-                                _case.related_cases = [case.uuid]
-                        else:
-                            case.related_cases = [_case.uuid]
-                            _case.related_cases = [case.uuid]
-                        _case.save()
-                        cases.append(_case)
-                case.save()
-
-            return [c for c in cases+related_cases]
-        else:
-            return []
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_related_case, envelope='related_cases')
-    @api2.response(207, 'Success')
-    @api2.response(404, 'Case not found.')
-    @token_required
-    @user_has('update_case')
-    def delete(self, current_user, uuid):
-        ''' Unlinks a case or a group of cases '''
-
-        case = Case.get_by_uuid(uuid=uuid)
-        related_cases = Case.get_related_cases(uuid=uuid)
-        if case:
-            if 'cases' in api2.payload:
-                _cases = api2.payload.pop('cases')
-                if case.related_cases:
-                    case.related_cases = [
-                        c for c in case.related_cases if c not in _cases]
-                    case.save()
-
-                for c in _cases:
-                    _case = Case.get_by_uuid(uuid=c)
-                    if _case.related_cases:
-                        _case.related_cases = [
-                            c for c in case.related_cases if c not in [uuid]]
-                        _case.save()
-
-        cases = [c for c in related_cases if c.uuid not in _cases]
-        if len(cases) > 0:
-            return [c for c in cases]
-        else:
-            return []
-
-
-case_stats_parser = api2.parser()
-case_stats_parser.add_argument('title', location='args', default=[
-], type=str, action='split', required=False)
-case_stats_parser.add_argument('status', location='args', default=[
-], type=str, action='split', required=False)
-case_stats_parser.add_argument('tags', location='args', default=[
-], type=str, action='split', required=False)
-case_stats_parser.add_argument('owner', location='args', default=[
-], type=str, action='split', required=False)
-case_stats_parser.add_argument('close_reason', location='args', default=[
-], type=str, action='split', required=False)
-case_stats_parser.add_argument('top', location='args', default=10, type=int, required=False)
-case_stats_parser.add_argument('my_cases', location='args', required=False, type=xinputs.boolean)
-case_stats_parser.add_argument('escalated', location='args', required=False, type=xinputs.boolean)
-case_stats_parser.add_argument('interval', location='args', default='day', required=False, type=str)
-case_stats_parser.add_argument('start', location='args', type=str, required=False)
-case_stats_parser.add_argument('end', location='args', type=str, required=False)
-case_stats_parser.add_argument('metrics', location='args', action='split', default=['title','tag','status','severity','close_reason','owner','organization','escalated'])
-case_stats_parser.add_argument('organization', location='args', action='split', required=False)
-
-@ns_case_v2.route('/stats')
-class CaseStats(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.expect(case_stats_parser)
-    @token_required
-    @user_has('view_cases')
-    def get(self, current_user):
-        '''
-        Returns metrics about cases that can be used for easier filtering
-        of cases on the Case List page
-        '''
-
-        args = case_stats_parser.parse_args()
-
-        # Set default start/end date filters if they are not set above
-        # We do this here because default= on add_argument() is only calculated when the API is initialized
-        #if not args.start:
-        #    args.start = (datetime.datetime.utcnow()-datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%S')
-        #if not args.end:
-        #    args.end = (datetime.datetime.utcnow()+datetime.timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')
-
-        search_filters = []
-
-        if args.status and args.status != ['']:
-            search_filters.append({
-                'type': 'terms',
-                'field': 'status.name__keyword',
-                'value': args.status
-            })
-
-        if args.close_reason and args.close_reason != ['']:
-            search_filters.append({
-                'type': 'terms',
-                'field': 'close_reason.title__keyword',
-                'value': args.close_reason
-            })
-
-        if args.owner and args.owner not in ['', None, []] and not args.my_cases:
-            search_filters.append({
-                'type': 'terms',
-                'field': 'owner.username__keyword',
-                'value': args.owner
-            })
-
-        if args.my_cases:
-            search_filters.append({
-                'type': 'term',
-                'field': 'owner.username__keyword',
-                'value': current_user.username
-            })
-
-        if args.escalated == True:
-            search_filters.append({
-                'type': 'term',
-                'field': 'escalated',
-                'value': args.escalated
-            })
-
-        for arg in ['severity','title','tags','organization']:
-            if arg in args and args[arg] not in ['', None, []]:
-                search_filters.append({
-                    'type': 'terms',
-                    'field': arg,
-                    'value': args[arg]
-                })
-                
-        if args.start and args.end:
-                    search_filters.append({
-                        'type': 'range',
-                        'field': 'created_at',
-                        'value': {
-                            'gte': args.start,
-                            'lte': args.end
-                        }
-                    })
-
-        search = Case.search()
-
-        # Apply all filters
-        for _filter in search_filters:
-            search = search.filter(_filter['type'], **{_filter['field']: _filter['value']})
-
-        search.aggs.bucket('range', 'filter', range={'created_at': {
-            'gte': args.start,
-            'lte': args.end
-        }})
-
-        if 'title' in args.metrics:
-            max_title = args.top if args.top != 10 else 100
-            search.aggs['range'].bucket('title', 'terms', field='title', size=max_title)
-
-        if 'tag' in args.metrics:
-            max_tags = args.top if args.top != 10 else 50
-            search.aggs['range'].bucket('tags', 'terms', field='tags', size=max_tags)
-
-        if 'close_reason' in args.metrics:
-            max_reasons = args.top if args.top != 10 else 10
-            search.aggs['range'].bucket('close_reason', 'terms', field='close_reason.title.keyword', size=max_reasons)
-
-        if 'status' in args.metrics:
-            max_status = args.top if args.top != 10 else 5
-            search.aggs['range'].bucket('status', 'terms', field='status.name.keyword', size=max_status)
-
-        if 'owner' in args.metrics:
-            max_status = args.top if args.top != 10 else 5
-            search.aggs['range'].bucket('owner', 'terms', field='owner.username.keyword', size=max_status)
-
-        if 'severity' in args.metrics:
-            max_severity = args.top if args.top != 10 else 10
-            search.aggs['range'].bucket('severity', 'terms', field='severity', size=max_severity)
-
-        if 'organization' in args.metrics:
-            max_organizations = args.top if args.top != 10 else 10
-            search.aggs['range'].bucket('organization', 'terms', field='organization', size=max_organizations)
-
-        if 'escalated' in args.metrics:
-            search.aggs['range'].bucket('escalated', 'terms', field='escalated', size=2)
-
-        search = search[0:0]
-
-        cases = search.execute()
-
-        if 'cases_over_time' in args.metrics:
-            cases_over_time = Case.search()
-       
-            cases_over_time = cases_over_time[0:0]
-
-            cases_over_time.aggs.bucket('range', 'filter', range={'created_at': {
-                        'gte': args.start,
-                        'lte': args.end
-                    }})
-
-            cases_over_time.aggs['range'].bucket('cases_per_day', 'date_histogram', field='created_at', format='yyyy-MM-dd', calendar_interval=args.interval, min_doc_count=0)
-
-            cases_over_time = cases_over_time.execute()
-
-        metrics = {}
-
-        if 'title' in args.metrics:
-            metrics['title'] = {v['key']: v['doc_count'] for v in cases.aggs.range.title.buckets}
-
-        if 'tag' in args.metrics:
-            metrics['tags'] = {v['key']: v['doc_count'] for v in cases.aggs.range.tags.buckets}
-
-        if 'close_reason' in args.metrics:
-            metrics['close reason'] = {v['key']: v['doc_count'] for v in cases.aggs.range.close_reason.buckets}
-
-        if 'status' in args.metrics:
-            metrics['status'] = {v['key']: v['doc_count'] for v in cases.aggs.range.status.buckets}
-
-        if 'owner' in args.metrics:
-            metrics['owner'] = {v['key']: v['doc_count'] for v in cases.aggs.range.owner.buckets}
-
-        if 'severity' in args.metrics:
-            metrics['severity'] = {v['key']: v['doc_count'] for v in cases.aggs.range.severity.buckets}
-
-        if 'organization' in args.metrics:
-            metrics['organization'] = {v['key']: v['doc_count'] for v in cases.aggs.range.organization.buckets}
-          
-        if 'cases_over_time' in args.metrics:
-            metrics['cases_over_time'] = {v['key_as_string']: v['doc_count'] for v in cases_over_time.aggs.range.cases_per_day.buckets}
-
-        if 'escalated' in args.metrics:
-            metrics['escalated'] = {v['key']: v['doc_count'] for v in cases.aggs.range.escalated.buckets}
-
-        return metrics
 
 case_history_parser = api2.parser()
 case_history_parser.add_argument(
@@ -1885,6 +939,13 @@ class CaseCommentList(Resource):
                 api2.payload['cross_organization'] = True
                 api2.payload['other_organization'] = current_user.organization
 
+            # Determine if the comment has any user mentions in it and 
+            # notify any users that are mentioned if they have notifications enabled
+            matches = re.findall(r'\B@(\w+)', api2.payload['message'])
+            matches = list(set([m.lower() for m in matches]))
+            mentioned_users = User.get_by_username(matches, as_text=True)
+            # TODO - NOTIFICATIONS: Add notification for mentioned users if they have notifications enabled
+
             case_comment = CaseComment(**api2.payload)
             case_comment.save()
             case.add_history(message="Comment added to case")
@@ -1960,7 +1021,7 @@ class CaseTemplateList(Resource):
         case_templates = CaseTemplate.search()
 
         if args['title']:
-            case_templates = case_templates.filter('term', title=args.title)
+            case_templates = case_templates.filter('wildcard', title=f"*{args.title}*")
 
         if args['organization']:
             case_templates = case_templates.filter('term', organization=args.organization)
@@ -2186,6 +1247,12 @@ class CaseTaskDetails(Resource):
                     # Reopen the task if the previous status was closed
                     if task.status == 2 and api2.payload['status'] == 1:
                         task.reopen_task()
+                        
+                if 'owner_uuid' in api2.payload:
+                    task.set_owner(api2.payload['owner_uuid'])
+
+            task.save()
+            
             return task
         else:
             ns_case_task_v2.abort(404, 'Case Task not found.')
@@ -2233,502 +1300,6 @@ class TagList(Resource):
             ns_tag_v2.abort(409, 'Tag already exists.')
 
 
-input_list_parser = api2.parser()
-input_list_parser.add_argument('name', location='args', required=False)
-input_list_parser.add_argument('organization', location='args', required=False)
-input_list_parser.add_argument(
-    'page', type=int, location='args', default=1, required=False)
-input_list_parser.add_argument(
-    'page_size', type=int, location='args', default=10, required=False)
-input_list_parser.add_argument(
-    'sort_by', type=str, location='args', default='created_at', required=False
-)
-input_list_parser.add_argument(
-    'sort_direction', type=str, location='args', default='desc', required=False
-)
-
-@ns_input_v2.route("")
-class InputList(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_input_list_paged, as_list=True)
-    @api2.expect(input_list_parser)
-    @token_required
-    @default_org
-    @user_has('view_inputs')
-    def get(self, user_in_default_org, current_user):
-        ''' Returns a list of inputs '''
-
-        args = input_list_parser.parse_args()
-
-        inputs = Input.search()
-
-        if user_in_default_org:
-            if args.organization:
-                inputs = inputs.filter('term', organization=args.organization)
-
-        if args.name:
-            inputs = inputs.filter('wildcard', name=args.name+'*')
-
-        inputs, total_results, pages = page_results(inputs, args.page, args.page_size)
-
-        sort_by = args.sort_by
-        if args.sort_direction == 'desc':
-            sort_by = f"-{sort_by}"
-
-        inputs = inputs.sort(sort_by)
-
-        inputs = inputs.execute()
-
-        response = {
-            'inputs': list(inputs),
-            'pagination': {
-                'total_results': total_results,
-                'pages': pages,
-                'page': args['page'],
-                'page_size': args['page_size']
-            }
-        }
-
-        return response
-        
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_input_create)
-    @api2.response('409', 'Input already exists.')
-    @api2.response('200', 'Successfully create the input.')
-    @token_required
-    @default_org
-    @user_has('add_input')
-    def post(self, user_in_default_org, current_user):
-        ''' Creates a new input '''
-        _tags = []
-
-        if user_in_default_org:
-            if 'organization' in api2.payload:
-                inp = Input.get_by_name(name=api2.payload['name'], organization=api2.payload['organization'])
-            else:
-                inp = Input.get_by_name(name=api2.payload['name'], organization=current_user.organization)
-        else:
-            inp = Input.get_by_name(name=api2.payload['name'], organization=current_user.organization)
-
-        if not inp:
-
-            if 'credential' in api2.payload:
-                cred_uuid = api2.payload.pop('credential')
-                api2.payload['credential'] = cred_uuid
-
-            # Strip the organization field if the user is not a member of the default
-            # organization
-            # TODO: replace with @check_org wrapper
-            if 'organization' in api2.payload and hasattr(current_user,'default_org') and not current_user.default_org:
-                api2.payload.pop('organization')
-
-            if 'config' in api2.payload:
-                try:
-                    api2.payload['config'] = json.loads(base64.b64decode(
-                        api2.payload['config']).decode('ascii').strip())
-                except Exception:
-                    ns_input_v2.abort(
-                        400, 'Invalid JSON configuration, check your syntax')
-
-            if 'field_mapping' in api2.payload:
-                try:
-                    api2.payload['field_mapping'] = json.loads(base64.b64decode(
-                        api2.payload['field_mapping']).decode('ascii').strip())
-                except Exception:
-                    ns_input_v2.abort(
-                        400, 'Invalid JSON in field_mapping, check your syntax')
-            else:
-                ns_input_v2.abort(
-                    400, 'Field mappings are required.'
-                )
-
-            inp = Input(**api2.payload)
-            inp.save()
-
-            if len(_tags) > 0:
-                inp.tags += _tags
-                inp.save()
-        else:
-            ns_input_v2.abort(409, 'Input already exists.')
-        return {'message': 'Successfully created the input.'}
-
-
-@ns_input_v2.route("/<uuid>")
-class InputDetails(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_input_list)
-    @token_required
-    @user_has('view_inputs')
-    def get(self, uuid, current_user):
-        ''' Returns information about an input '''
-        inp = Input.get_by_uuid(uuid=uuid)
-        if inp:
-            return inp
-        else:
-            ns_input_v2.abort(404, 'Input not found.')
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_input_create)
-    @api2.marshal_with(mod_input_list)
-    @token_required
-    @user_has('update_input')
-    def put(self, uuid, current_user):
-        ''' Updates information for an input '''
-        inp = Input.get_by_uuid(uuid=uuid)
-        if inp:
-            if 'name' in api2.payload and Input.get_by_name(name=api2.payload['name']):
-                ns_input_v2.abort(409, 'Input name already exists.')
-            else:
-                inp.update(**api2.payload)
-                return inp
-        else:
-            ns_input_v2.abort(404, 'Input not found.')
-
-    @api2.doc(security="Bearer")
-    @token_required
-    @user_has('delete_input')
-    def delete(self, uuid, current_user):
-        ''' Deletes an input '''
-        inp = Input.get_by_uuid(uuid=uuid)
-        if inp:
-            inp.delete()
-            return {'message': 'Sucessfully deleted input.'}
-
-
-@ns_agent_v2.route("/pair_token")
-class AgentPairToken(Resource):
-
-    @api2.doc(security="Bearer")
-    @token_required
-    @user_has('pair_agent')
-    def get(self, current_user):
-        ''' 
-        Generates a short lived pairing token used by the agent to get a long running JWT
-        '''
-
-        settings = Settings.load()
-        return generate_token(None, settings.agent_pairing_token_valid_minutes, current_user.organization, 'pairing')
-
-
-agent_list_parser = api2.parser()
-agent_list_parser.add_argument('organization', location='args', required=False)
-agent_list_parser.add_argument(
-    'page', type=int, location='args', default=1, required=False)
-agent_list_parser.add_argument(
-    'page_size', type=int, location='args', default=10, required=False)
-agent_list_parser.add_argument(
-    'sort_by', type=str, location='args', default='created_at', required=False
-)
-agent_list_parser.add_argument(
-    'sort_direction', type=str, location='args', default='desc', required=False
-)
-
-@ns_agent_v2.route("")
-class AgentList(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_agent_list_paged, as_list=True)
-    @api2.expect(agent_list_parser)
-    @token_required
-    @default_org
-    @user_has('view_agents')
-    def get(self, user_in_default_org, current_user):
-        ''' Returns a list of Agents '''
-
-        args = agent_list_parser.parse_args()
-
-        agents = Agent.search()
-
-        if user_in_default_org:
-            if args.organization:
-                agents = agents.filter('term', organization=args.organization)
-
-        sort_by = args.sort_by
-        if args.sort_direction == 'desc':
-            sort_by = f"-{sort_by}"
-
-        agents = agents.sort(sort_by)
-
-        agents, total_results, pages = page_results(agents, args.page, args.page_size)
-
-        response = {
-            'agents': list(agents),
-            'pagination': {
-                'total_results': total_results,
-                'pages': pages,
-                'page': args['page'],
-                'page_size': args['page_size']
-            }
-        }
-
-        return response
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_agent_create)
-    @api2.response('409', 'Agent already exists.')
-    @api2.response('200', "Successfully created the agent.")
-    @token_required
-    @user_has('add_agent')
-    def post(self, current_user):
-        ''' Creates a new Agent '''
-
-        agent = Agent.get_by_name(name=api2.payload['name'])
-        if not agent:
-
-            groups = None
-            if 'groups' in api2.payload:
-                groups = api2.payload.pop('groups')
-                groups = AgentGroup.get_by_name(name=groups, organization=current_user['organization'])
-                if groups:
-                    if isinstance(groups, AgentGroup):
-                        api2.payload['groups'] = [groups.uuid]
-                    else:
-                        api2.payload['groups'] = [g.uuid for g in groups]
-
-            agent = Agent(**api2.payload)
-            agent.save(refresh=True)
-
-            # Add the agent to the groups
-            if groups:
-                if isinstance(groups, list):
-                    [group.add_agent(agent.uuid) for group in groups]
-                else:
-                    groups.add_agent(agent.uuid)
-            
-            # Add the agent to the agent role
-            role = Role.get_by_name(name='Agent', organization=agent.organization)
-            role.add_user_to_role(agent.uuid)
-
-            token = generate_token(str(agent.uuid), 525600*5, token_type='agent', organization=current_user['organization'])
-
-            redistribute_detections(agent.organization)
-
-            return {'message': 'Successfully created the agent.', 'uuid': str(agent.uuid), 'token': token}
-        else:
-            ns_agent_v2.abort(409, "Agent already exists.")
-
-
-@ns_agent_v2.route("/heartbeat/<uuid>")
-class AgentHeartbeat(Resource):
-
-    @api2.doc(security="Bearer")
-    @token_required
-    def get(self, uuid, current_user):
-        agent = Agent.get_by_uuid(uuid=uuid)
-        if agent:
-            agent.last_heartbeat = datetime.datetime.utcnow()
-            agent.save()
-            return {'message': 'Your heart still beats!'}
-        else:
-            '''
-            If the agent can't be found, revoke the agent token
-            '''
-
-            auth_header = request.headers.get('Authorization')
-            access_token = auth_header.split(' ')[1]
-            expired = ExpiredToken(token=access_token)
-            expired.save()
-
-            ns_agent_v2.abort(400, 'Your heart stopped.')
-
-
-@ns_agent_v2.route("/<uuid>")
-class AgentDetails(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_agent_create)
-    @api2.marshal_with(mod_agent_list)
-    @token_required
-    @user_has('update_agent')
-    def put(self, uuid, current_user):
-        ''' Updates an Agent '''
-        agent = Agent.get_by_uuid(uuid=uuid)
-        if agent:
-            agent.update(**api2.payload)
-            return agent
-        else:
-            ns_agent_v2.abort(404, 'Agent not found.')
-
-    @api2.doc(security="Bearer")
-    @token_required
-    @user_has('delete_agent')
-    def delete(self, uuid, current_user):
-        ''' Removes a Agent '''
-        agent = Agent.get_by_uuid(uuid=uuid)
-        if agent:
-            role = Role.get_by_name(name='Agent', organization=agent.organization)
-            role.remove_user_from_role(uuid)
-            agent.delete()
-            return {'message': 'Agent successfully delete.'}
-        else:
-            ns_agent_v2.abort(404, 'Agent not found.')
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_agent_list)
-    @token_required
-    @user_has('view_agents')
-    def get(self, uuid, current_user):
-        ''' Gets the details of a Agent '''
-        agent = Agent.get_by_uuid(uuid=uuid)
-        if agent:
-            return agent
-        else:
-            ns_agent_v2.abort(404, 'Agent not found.')
-
-
-@ns_agent_group_v2.route("/<uuid>")
-class AgentGroupDetails(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_agent_group_list)
-    @token_required
-    @user_has('view_agent_groups')
-    def get(self, uuid, current_user):
-
-        group = AgentGroup.get_by_uuid(uuid)
-        if group:
-            return group
-        else:
-            ns_agent_group_v2.abort(404, 'Agent Group not found.')
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_agent_group_create)
-    @api2.marshal_with(mod_agent_group_list)
-    @token_required
-    @default_org
-    @user_has('update_agent_group')
-    def put(self, uuid, user_in_default_org, current_user):
-
-        group = AgentGroup.get_by_uuid(uuid)
-
-        exists = None
-        if 'name' in api2.payload:
-            if user_in_default_org:
-                if 'organization' in api2.payload:
-                    exists = AgentGroup.get_by_name(api2.payload['name'], organization=api2.payload['organization'])
-                else:
-                    exists = AgentGroup.get_by_name(api2.payload['name'])
-            else:
-                exists = AgentGroup.get_by_name(api2.payload['name'])
-       
-            if exists and exists.uuid != uuid:
-                ns_agent_group_v2.abort(409, "Group with this name already exists")
-
-        if group:
-            group.update(**api2.payload, refresh=True)
-        
-        return group
-
-    @api2.doc(security="Bearer")
-    @token_required
-    @user_has('delete_agent_group')
-    def delete(self, uuid, current_user):
-
-        group = AgentGroup.get_by_uuid(uuid)
-
-        # Do not allow for deleting groups with agents assigned
-        if group:
-            if group.agents and len(group.agents) > 0:
-                ns_agent_group_v2.abort(400, 'Can not delete a group with agents assigned')
-
-            group.delete()
-            return {'message': f'Successfully deleted Agent Group {group.name}'}, 200
-        else:
-            ns_agent_group_v2.abort(404, 'Agent Group not found')
-
-
-agent_group_list_parser = api2.parser()
-agent_group_list_parser.add_argument('organization', location='args', required=False)
-agent_group_list_parser.add_argument(
-    'page', type=int, location='args', default=1, required=False)
-agent_group_list_parser.add_argument(
-    'page_size', type=int, location='args', default=10, required=False)
-agent_group_list_parser.add_argument(
-    'sort_by', type=str, location='args', default='created_at', required=False
-)
-agent_group_list_parser.add_argument(
-    'sort_direction', type=str, location='args', default='desc', required=False
-)
-
-
-@ns_agent_group_v2.route("")
-class AgentGroupList(Resource):
-
-    @api2.doc(security="Bearer")
-    @api2.marshal_with(mod_paged_agent_group_list)
-    @api2.expect(mod_agent_group_list_paged)
-    @token_required
-    @default_org
-    @user_has('view_agent_groups')
-    def get(self, user_in_default_org, current_user):
-
-        args = agent_group_list_parser.parse_args()
-
-        groups = AgentGroup.search()
-
-        if user_in_default_org:
-            if args.organization:
-                groups = groups.filter('term', organization=args.organization)
-
-        sort_by = args.sort_by
-        if sort_by not in ['name']:
-            sort_by = "created_at"
-
-        if args.sort_direction == 'desc':
-            sort_by = f"-{sort_by}"
-
-        groups = groups.sort(sort_by)
-
-        groups, total_results, pages = page_results(groups, args.page, args.page_size)
-
-        groups = groups.execute()
-
-        response = {
-            'groups': list(groups),
-            'pagination': {
-                'total_results': total_results,
-                'pages': pages,
-                'page': args['page'],
-                'page_size': args['page_size']
-            }
-        }
-
-        return response
-
-    @api2.doc(security="Bearer")
-    @api2.expect(mod_agent_group_create)
-    @api2.marshal_with(mod_agent_group_list)
-    @api2.response('200', 'Successfully created agent group.')
-    @api2.response('409', 'Agent group already exists.')
-    @token_required
-    @default_org
-    @user_has('add_agent_group')
-    def post(self, user_in_default_org, current_user):
-        '''
-        Creates a new agent group that can be used to assign 
-        certain stack features to specific agents
-        '''
-       
-        if user_in_default_org:
-            if 'organization' in api2.payload:
-                group = AgentGroup.get_by_name(name=api2.payload['name'], organization=api2.payload['organization'])
-            else:
-                group = AgentGroup.get_by_name(name=api2.payload['name'])
-        else:
-            group = AgentGroup.get_by_name(name=api2.payload['name'])
-
-        if not group:
-
-            group = AgentGroup(**api2.payload)
-            group.save()
-        else:
-            ns_agent_group_v2.abort(409, 'Group with that name already exists.')
-        return group
-
-
 @ns_credential_v2.route('/encrypt')
 class EncryptPassword(Resource):
 
@@ -2738,12 +1309,38 @@ class EncryptPassword(Resource):
     @api2.response('400', 'Successfully created credential.')
     @api2.response('409', 'Credential already exists.')
     @token_required
+    @check_org
     @user_has('add_credential')
     def post(self, current_user):
         ''' Encrypts the password '''
-        credential = Credential.get_by_name(api2.payload['name'])
+
+        if 'organization' in api2.payload:
+            credential = Credential.get_by_name(api2.payload['name'], organization=api2.payload['organization'])
+        else:
+            credential = Credential.get_by_name(api2.payload['name'])
+
         if not credential:
-            pw = api2.payload.pop('secret')
+
+            # Get the secret from the payload so it can be encrypted
+            pw = api2.payload.pop('secret', None)
+
+            generate = api2.payload.pop('generate_secret', False)
+            key_type = api2.payload.pop('key_type', 'ec')
+
+            # If the user has requested the secret be generated and it is a private_key credential_type
+            # call the generate_private_key method to generate a new private key
+            if api2.payload['credential_type'] == 'private_key' and generate is True:
+                private_key = generate_private_key(key_type=key_type)
+                if private_key is not None:
+                    pw = private_key
+            else:
+                if pw is None:
+                    ns_credential_v2.abort(400, 'Secret value is required.')
+
+            # If this is a private key put the key_type property back into the payload
+            if api2.payload['credential_type'] == 'private_key':
+                api2.payload['key_type'] = key_type
+
             credential = Credential(**api2.payload)
             credential.save()
             credential.encrypt(pw.encode(
@@ -2756,6 +1353,7 @@ class EncryptPassword(Resource):
 
 cred_parser = pager_parser.copy()
 cred_parser.add_argument('name', location='args', required=False, type=str)
+cred_parser.add_argument('name__like', location='args', required=False, type=str)
 cred_parser.add_argument('organization', location='args', required=False, type=str)
 cred_parser.add_argument('page', type=int, location='args', default=1, required=False)
 cred_parser.add_argument('sort_by', type=str, location='args', default='-created_at', required=False)
@@ -2765,6 +1363,9 @@ cred_parser.add_argument(
 )
 cred_parser.add_argument(
     'sort_direction', type=str, location='args', default='desc', required=False
+)
+cred_parser.add_argument(
+    'type', type=str, location='args', default=None, required=False
 )
 
 @ns_credential_v2.route("")
@@ -2784,8 +1385,14 @@ class CredentialList(Resource):
         if 'name' in args and args.name not in [None, '']:
             credentials = credentials.filter('match', name=args.name)
 
+        if 'name__like' in args and args.name__like not in [None, '']:
+            credentials = credentials.filter('wildcard', name=f"*{args.name__like}*")
+
         if 'organization' in args and args.organization not in [None, '']:
             credentials = credentials.filter('term', organization=args.organization)
+
+        if 'type' in args and args.type not in [None, ""]:
+            credentials = credentials.filter('term', credential_type=args.type)
 
         credentials = credentials.sort(args.sort_by)
 
@@ -2811,6 +1418,41 @@ class CredentialList(Resource):
 
         return response
 
+@ns_credential_v2.route('/public_key/<uuid>')
+class PublicKey(Resource):
+    
+    @api2.doc(security="Bearer")
+    @api2.marshal_with(mod_credential_public_key)
+    @api2.response('404', 'Credential not found.')
+    @api2.response('400', 'Credential is not a private key.')
+    @api2.response('400', 'Unable to derive public key from private key.')
+    @token_required
+    @user_has('view_credentials')
+    def get(self, uuid, current_user):
+        ''' Returns the public key for a private key credential '''
+        credential = Credential.get_by_uuid(uuid=uuid)
+        if credential:
+            if credential.credential_type == 'private_key':
+                
+                # Decrypt the private key
+                private_key = credential.decrypt(current_app.config['MASTER_PASSWORD'])
+
+                # Derive the public key from the private key
+                if not hasattr(credential, 'key_type'):
+                    credential.key_type = 'ec'
+
+                public_key = derive_public_key(private_key, credential.key_type)
+
+                if public_key is None:
+                    ns_credential_v2.abort(400, 'Unable to derive public key from private key.')
+
+                return {'public_key': public_key}
+
+            else:
+                ns_credential_v2.abort(400, 'Credential is not a private key.')
+        else:
+            ns_credential_v2.abort(404, 'Credential not found.')
+
 
 @ns_credential_v2.route('/decrypt/<uuid>')
 class DecryptPassword(Resource):
@@ -2821,7 +1463,11 @@ class DecryptPassword(Resource):
     @token_required
     @user_has('decrypt_credential')
     def get(self, uuid, current_user):
-        ''' Decrypts the credential for use '''
+        ''' Decrypts the credential for use
+        DEPRECATION WARNING: This endpoint will be unsupported in an upcoming
+        release as agents use a different method for retrieving credential data
+        see `/api/v2.0/credential/retrieve/<uuid>` for the new method
+        '''
         credential = Credential.get_by_uuid(uuid=uuid)
         if credential:
             value = credential.decrypt(current_app.config['MASTER_PASSWORD'])
@@ -2831,6 +1477,49 @@ class DecryptPassword(Resource):
                 ns_credential_v2.abort(401, 'Invalid master password.')
         else:
             ns_credential_v2.abort(404, 'Credential not found.')
+
+
+mod_credential_retrieve = api2.model('CredentialRetrieve', {
+    'key': fields.String(required=True, description='The public key of the agent')
+})
+
+mod_credential_retrive_reply = api2.model('CredentialRetrieveReply', {
+    'secret': fields.String(required=True, description='The encrypted secret'),
+    'key': fields.String(required=True, description='The public key of the server'),
+    'type': fields.String(required=True, description='The type of credential')
+})
+
+@ns_credential_v2.route('/retrieve/<uuid>')
+class RetrieveCredential(Resource):
+
+    @api2.doc(security="Bearer")
+    @api2.expect(mod_credential_retrieve)
+    @api2.marshal_with(mod_credential_retrive_reply)
+    @api2.response('404', 'Credential not found.')
+    @token_required
+    @user_has('decrypt_credential')
+    def post(self, uuid, current_user):
+        ''' Sends the credential encrypted using the users
+        public key, which can then be decrypted post transmission
+        on the client side using the private key.
+        '''
+        credential = Credential.get_by_uuid(uuid=uuid)
+        if credential:
+            value = credential.decrypt(current_app.config['MASTER_PASSWORD'])
+
+            agent_public_key = base64.b64decode(api2.payload['key'])
+            agent_public_key = RSA.importKey(agent_public_key)
+
+            cipher = PKCS1_OAEP.new(agent_public_key)
+            
+            encrypted_secret = cipher.encrypt(value.encode())
+
+            data = {
+                'secret': base64.b64encode(encrypted_secret).decode('utf-8'),
+                'type': credential.credential_type
+            }
+
+            return data
 
 
 @ns_credential_v2.route('/<uuid>')
@@ -2873,9 +1562,24 @@ class CredentialDetails(Resource):
                     if cred.uuid != uuid:
                         ns_credential_v2.abort(
                             409, 'Credential name already exists.')
+                        
+            generate = api2.payload.pop('generate_secret', False)
+            key_type = api2.payload.pop('key_type', 'ec')
+                        
+            # Generate a new private key if the user has flagged generate on update
+            if api2.payload['credential_type'] == 'private_key' and generate:
+                private_key = generate_private_key(key_type=key_type)
+                if private_key is not None:
+                    api2.payload['secret'] = private_key
 
-            if 'secret' in api2.payload:
-                credential.encrypt(api2.payload.pop('secret').encode(
+            # If this is a private key put the key_type property back into the payload
+            if api2.payload['credential_type'] == 'private_key':
+                api2.payload['key_type'] = key_type
+
+            secret = api2.payload.pop('secret', None)
+
+            if secret:
+                credential.encrypt(secret.encode(
                 ), current_app.config['MASTER_PASSWORD'])
 
             if len(api2.payload) > 0:
@@ -3060,12 +1764,13 @@ class GlobalSettings(Resource):
         ''' Retrieves the global settings for the system '''
 
         args = settings_parser.parse_args()
-
-        if user_in_default_org:
-            if args.organization:
+        if args.organization:
+            if current_user.is_default_org():
                 settings = Settings.load(organization=args.organization)
-            else:
+            elif current_user.organization == args.organization:
                 settings = Settings.load(organization=current_user.organization)
+            else:
+                abort(404, 'Organization not found.')
         else:
             settings = Settings.load(organization=current_user.organization)
             
@@ -3217,7 +1922,6 @@ class DashboardMetrics(Resource):
         if events_sorted.count() > 0:
             last_event = [e for e in events_sorted[0:1]][0]
 
-
         return {
             'total_cases': cases.count(),
             'open_cases': open_cases.count(),
@@ -3226,15 +1930,3 @@ class DashboardMetrics(Resource):
             'new_events': new_events.count(),
             'time_since_last_event': last_event.created_at.isoformat()+"Z" if last_event else "Never"
         }
-
-@ns_hunting_v2.route("/query")
-class HuntingQuery(Resource):
-
-    @token_required
-    def post(self, current_user):
-
-        search = Search(index='winlogbeat-*')
-        search = search.query('query_string', query=api2.payload['query'])
-        results = search.execute()
-        return results.to_dict()
-

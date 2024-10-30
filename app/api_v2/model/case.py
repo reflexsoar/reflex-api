@@ -11,8 +11,11 @@ from . import (
     InnerDoc,
     system,
     user,
-    event
+    event,
+    UpdateByQuery,
+    Float
 )
+from .utils import _current_user_id_or_none
 
 class CaseHistory(base.BaseDocument):
     '''
@@ -27,13 +30,16 @@ class CaseHistory(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-case-history'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     @classmethod
     def get_by_case(self, uuid, sort_by="-created_at"):
         '''
         Fetches a document by the uuid field
         '''
-        response = self.search().query('match', case=uuid)
+        response = self.search().query('term', case__keyword=uuid)
         response = response.sort(sort_by)
         response = response.execute()
         if response:
@@ -88,12 +94,17 @@ class CaseStatus(base.BaseDocument):
         name = 'reflex-case-statuses'
 
     @classmethod
-    def get_by_name(self, name):
+    def get_by_name(self, name, organization=None):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = self.search().query('term', name=name).execute()
+        search = self.search().query('term', name=name)
+        if organization:
+            search = search.query('term', organization=organization)
+
+        response = search.execute()
+
         if response:
             usr = response[0]
             return usr
@@ -142,6 +153,7 @@ class CaseTask(base.BaseDocument):
     start_date = Date()
     finish_date = Date()
     notes = Keyword()
+    require_previous_step_complete = Boolean()  # Should the previous step be complete before this one can be started
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -194,7 +206,7 @@ class CaseTask(base.BaseDocument):
         self.finish_date = datetime.datetime.utcnow()
         case = Case.get_by_uuid(uuid=self.case)
         case.add_history(f'Task **{self.title}** closed')
-        self.save()
+        #self.save()
 
     def start_task(self, owner_uuid=None):
         '''
@@ -206,7 +218,7 @@ class CaseTask(base.BaseDocument):
             self.set_owner(owner_uuid)
         case = Case.get_by_uuid(uuid=self.case)
         case.add_history(f'Task **{self.title}** started')
-        self.save()
+        #self.save()
 
     def reopen_task(self):
         '''
@@ -216,7 +228,7 @@ class CaseTask(base.BaseDocument):
         self.finish_date = None
         case = Case.get_by_uuid(uuid=self.case)
         case.add_history(f'Task **{self.title}** reopened')
-        self.save()
+        #self.save()
 
     def set_owner(self, owner_uuid):
         '''
@@ -262,22 +274,40 @@ class CloseReason(base.BaseDocument):
 
     title = Keyword()
     description = Text(fields={'keyword':Keyword()})
+    enabled = Boolean()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-close-reasons'
 
     @classmethod
-    def get_by_name(self, title):
+    def get_by_name(self, title, organization=None):
         '''
         Fetches a document by the name field
         Uses a term search on a keyword field for EXACT matching
         '''
-        response = self.search().query('term', title=title).execute()
+        response = self.search()
+        response = response.filter('term', title=title)
+        
+        if organization:
+            response = response.filter('term', organization=organization)
+
+        response = response.execute()
         if response:
             usr = response[0]
             return usr
         return response
+
+
+class CaseMetrics(InnerDoc):
+    '''
+    Meta information about an event
+    '''
+    time_to_close = Float()
+    sla_breach_time = Date()
+    sla_breach_count = Integer()
+    sla_breach_clear = Date()
+    time_in_sla_breach = Float()
 
 
 class Case(base.BaseDocument):
@@ -286,7 +316,7 @@ class Case(base.BaseDocument):
     series of events that were observed in the system
     '''
 
-    title = Keyword()
+    title = Keyword(fields={'text':Text()})
     description = Text(fields={'keyword':Keyword()})
     severity = Integer()
     owner = Object()
@@ -297,6 +327,7 @@ class Case(base.BaseDocument):
     related_cases = Keyword()  # A list of UUIDs related to this case
     closed = Boolean()
     closed_at = Date()
+    closed_by = Nested()
     close_reason = Object()
     case_template = Object()
     case_template_uuid = Keyword()
@@ -307,6 +338,9 @@ class Case(base.BaseDocument):
     escalated = Boolean()
     _open_tasks = 0
     _total_tasks = 0
+    watchers = Keyword() # A list of UUIDs of users watching this case
+    metrics = Object(CaseMetrics)
+    block_auto_close = Boolean()
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
@@ -314,6 +348,28 @@ class Case(base.BaseDocument):
         settings = {
             'refresh_interval': '1s'
         }
+
+    def add_watcher(self, watcher_uuid):
+        '''
+        Adds a watcher to the case
+        '''
+        if watcher_uuid:
+            if self.watchers:
+                if watcher_uuid not in self.watchers:
+                    self.watchers.append(watcher_uuid)
+            else:
+                self.watchers = [watcher_uuid]
+            self.save()
+
+    def remove_watcher(self, watcher_uuid):
+        '''
+        Removes a watcher from the case
+        '''
+        if watcher_uuid:
+            if self.watchers:
+                if watcher_uuid in self.watchers:
+                    self.watchers.remove(watcher_uuid)
+            self.save()
 
     @property
     def observables(self):
@@ -334,6 +390,16 @@ class Case(base.BaseDocument):
     @open_tasks.setter
     def open_tasks(self, value):
         self._open_tasks = value
+
+    @property
+    def event_count(self):
+        '''
+        Returns the total number of events assigned to this case 
+        by looking at the Events index and finding all events with this
+        cases UUID in their case field
+        '''
+        response = event.Event.search().query('term', case=self.uuid).count()
+        return response
 
     def add_observables(self, observable, case_uuid=None, organization=None):
         '''
@@ -413,12 +479,16 @@ class Case(base.BaseDocument):
 
         if template:
 
-            for tag in template.tags:
-                if self.tags:
-                    if tag not in self.tags:
-                        self.tags.append(tag)
-                else:
-                    self.tags = [tag]
+            # FIX 2024-01-23 - Templates without tags would
+            # not apply correctly and prevent the code from
+            # progressing any further
+            if template.tags is not None:
+                for tag in template.tags:
+                    if self.tags:
+                        if tag not in self.tags:
+                            self.tags.append(tag)
+                    else:
+                        self.tags = [tag]
 
             for task in template.tasks:
                 self.add_task(title=task.title, description=task.description,
@@ -465,36 +535,98 @@ class Case(base.BaseDocument):
         self.case_template = template
         self.save()
 
-    def close(self, uuid):
+    def close(self, uuid, reason=None):
         '''
         Closes a case and sets the time that it was closed
         '''
+        
         self.close_reason = CloseReason.get_by_uuid(uuid=uuid)
         self.closed_at = datetime.datetime.utcnow()
         self.closed = True
+        self.closed_by = _current_user_id_or_none()
 
         # Close all the related events
-        if self.events:
-            for _ in self.events:
-                evt = event.Event.get_by_uuid(_)
-                evt.set_closed()
+        # DEPRECATED 2023-02-17 - self.events not longer is populated
+        #if self.events:
+        #    for _ in self.events:
+        #        evt = event.Event.get_by_uuid(_)
+        #        evt.set_closed()
+
+        status = event.EventStatus.get_by_name('Closed', organization=self.organization)
+
+        if event.Event.count_by_case(self.uuid) > 0:
+            event_bulk_close = UpdateByQuery(index='reflex-events')
+            event_bulk_close = event_bulk_close.query('term', case=self.uuid)
+            event_bulk_close = event_bulk_close.script(
+                source="""ctx._source.status = params.status;
+ctx._source.closed_at = params.closed_at;
+ctx._source.closed_by = params.closed_by;
+DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS").withZone(ZoneId.of('UTC'));
+ZonedDateTime zdt = ZonedDateTime.parse(params.closed_at, dtf);
+ZonedDateTime zdt2 = ZonedDateTime.parse(ctx._source.created_at, dtf);
+Instant Currentdate = Instant.ofEpochMilli(zdt.toInstant().toEpochMilli());
+Instant Startdate = Instant.ofEpochMilli(zdt2.toInstant().toEpochMilli());
+ctx._source.time_to_close = ChronoUnit.SECONDS.between(Startdate, Currentdate);""",
+                params={
+                    'status': status,
+                    'closed_at': datetime.datetime.utcnow().isoformat(),
+                    'closed_by': self.closed_by
+                }
+            )
+            event_bulk_close.params(slices='auto', wait_for_completion=False)
+            event_bulk_close.execute()
 
         self.save()
 
-    def reopen(self):
+
+    def reopen(self, skip_save=False):
         '''
         Reopens a case
         '''
         self.closed = False
         self.closed_at = None
+        self.closed_by = None
+        case_status = CaseStatus.get_by_name(name="In Progress")
+        if case_status:
+            self.status = case_status
 
         # Reopen all the related events
-        if self.events:
-            for _ in self.events:
-                evt = event.Event.get_by_uuid(_)
-                evt.set_open()
+        # DEPRECATED 2023-02-17 - self.events not longer is populated
+        #if self.events:
+        #    for _ in self.events:
+        #        evt = event.Event.get_by_uuid(_)
+        #        evt.set_open()
 
-        self.save()
+        status = event.EventStatus.get_by_name('Open', organization=self.organization)
+
+        if event.Event.count_by_case(self.uuid) > 0:
+            event_bulk_close = UpdateByQuery(index='reflex-events')
+            event_bulk_close = event_bulk_close.query('term', case=self.uuid)
+            event_bulk_close = event_bulk_close.script(
+                source="""
+                    ctx._source.status = params.status;
+                    ctx._source.closed_at = params.closed_at;
+                    ctx._source.time_to_close = params.time_to_close;
+                    ctx._source.closed_by = params.closed_by;
+                """,
+                params={
+                    'status': status,
+                    'closed_at': None,
+                    'time_to_close': None,
+                    'closed_by': self.closed_by
+                }
+            )
+            event_bulk_close.params(slices='auto', wait_for_completion=False)
+            event_bulk_close.execute()
+
+        if not skip_save:
+            self.save()
+
+    def is_closed(self):
+        '''
+        Returns True if the case is closed, False if it is not
+        '''
+        return self.closed
 
     @classmethod
     def get_related_cases(self, uuid):
@@ -640,6 +772,7 @@ class CaseTemplateTask(InnerDoc):
     status = Integer()  # 0 = Open, 1 = Started, 2 = Complete
     start_date = Date()
     finish_date = Date()
+    require_previous_step_complete = Boolean()  # Should the previous step be complete before this one can be started
 
 
 class CaseTemplate(base.BaseDocument):

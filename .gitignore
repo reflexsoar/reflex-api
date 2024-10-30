@@ -1,4 +1,4 @@
-
+tools/load_test.py
 # Created by https://www.toptal.com/developers/gitignore/api/python,flask
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,flask
 
@@ -6,9 +6,12 @@
 
 # Some folders
 experiment
+test_payloads/*
 
 # Databases
 *.db
+*.db-shm
+*.db-wal
 app/api_v2/plugins/*
 app/*/backup/*
 tools/backup/
@@ -16,6 +19,7 @@ app/uploads/case_files/*
 app/uploads/file_observables/*
 tmp
 ca.crt
+*.sqlite
 
 ### Flask ###
 instance/*
@@ -128,7 +132,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+*.env
 .venv
 env/
 venv/
@@ -217,3 +221,4 @@ dmypy.json
 # pytype static type analyzer
 
 # End of https://www.toptal.com/developers/gitignore/api/python,flask
+tools/load_test.py

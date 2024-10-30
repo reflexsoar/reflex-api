@@ -1,3 +1,4 @@
+from functools import lru_cache
 import re
 import ipaddress
 from app.api_v2.model import ThreatList
@@ -18,7 +19,19 @@ def get_nested_field(message: dict, field: str):
         value: The extracted value, may be the response from this function calling itself again
     '''
 
-    if isinstance(field, str):
+    # Try to join the string again to check for flat keys
+    if field and message:
+        flat_key = '.'.join(field)
+        if flat_key in message:
+            return message[flat_key]
+
+    # If the field is a string, split it into a list
+    if isinstance(field, str) and message:
+
+        # If the field is a flat key, return the value
+        if field in message:
+            return message[field]
+        
         args = field.split('.')
     else:
         args = field
@@ -89,6 +102,7 @@ class RQLSearch:
             self.any_mode = True
             self.all_mode = False
             self.organization = None
+            self.name = ''
 
             # Setting the allowed_mutators each expression is allowed to run, default to all
             self.allowed_mutators = MUTATORS
@@ -195,9 +209,15 @@ class RQLSearch:
 
         def __call__(self, obj):
 
+            self.name = 'contains'
+
             super().__call__(obj)
 
             if self.target_value:
+
+                if not isinstance(self.target_value, (list, str)):
+                    raise ValueError(f"When using the \"{self.name}\" operator the target field must be a list or string. {self.target_value} is a \"{type(self.target_value).__name__}\".")
+
                 if isinstance(self.target_value, list):
                     if self.all_mode:
                         if isinstance(self.value, list):
@@ -209,9 +229,13 @@ class RQLSearch:
                             return self.has_key and any([self.value in v for v in self.target_value])
                         else:
                             return self.has_key and any([v in self.target_value for v in self.value])
-                else:
-                    
+                else:                    
                     if isinstance(self.value, list) and isinstance(self.target_value, (list, str)):
+                        if self.target_value is None:
+                            return False
+                        if self.value is None:
+                            return False
+                        
                         return any([v in self.target_value for v in self.value])
                         
                     return self.has_key and self.value in self.target_value
@@ -366,8 +390,11 @@ class RQLSearch:
 
             super().__call__(obj)
 
-            try: 
-                network = ipaddress.ip_network(self.value) 
+            try:
+                if isinstance(self.value, list):
+                    network = [ipaddress.ip_network(value) for value in self.value]
+                else:
+                    network = ipaddress.ip_network(self.value)
             except ValueError: 
                 network = None
 
@@ -390,6 +417,20 @@ class RQLSearch:
                 return False
             if not self.target_value:
                 return False
+
+            if isinstance(network, list):
+                if isinstance(self.target_value, list) and len(self.target_value) > 0:
+                    match = False
+                    for n in network:
+                        if any([ip for ip in self.target_value if ip in n]):
+                            match = True
+                    return self.has_key and match
+                else:
+                    match = False
+                    for n in network:
+                        if self.target_value in n:
+                            match = True
+                    return self.has_key and match
 
             if isinstance(self.target_value, list) and len(self.target_value) > 0:
                 return self.has_key and any([ip for ip in self.target_value if ip in network])
@@ -540,6 +581,7 @@ class RQLSearch:
                 return False
             return self.has_key and self.value == self.target_value
 
+
     class ThreatLookup(BaseExpression):
         '''
         Returns True if an item matches a defined threat list
@@ -551,17 +593,39 @@ class RQLSearch:
             self.allowed_mutators=['lowercase','uppercase']
             self.organization = organization
 
-        def __call__(self, obj):
-
-            super().__call__(obj)
-
+        @lru_cache(maxsize=100000)
+        def fetch_values(self, name):
             threat_list = ThreatList.search()
-            threat_list = threat_list.filter('term', name=self.value)
+            threat_list = threat_list.filter('term', name=name)
+            if self.organization:
+                threat_list = threat_list.filter('term', organization=self.organization)
+
+            threat_list = threat_list.execute()
+            if threat_list:
+                return [v.value for v in threat_list[0].values]
+            else:
+                return []
+            
+        @lru_cache(maxsize=100000)
+        def get_list(self, value):
+            threat_list = ThreatList.search()
+            threat_list = threat_list.filter('term', name=value)
 
             if self.organization:
                 threat_list = threat_list.filter('term', organization=self.organization)
 
             threat_list = threat_list.execute()
+            return threat_list
+
+
+        def __call__(self, obj):
+
+            super().__call__(obj)
+
+            if self.target_value is None:
+                return False
+
+            threat_list = self.get_list(self.value)
 
             if threat_list:
                 threat_list = threat_list[0]

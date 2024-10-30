@@ -1,0 +1,35 @@
+{
+    "version": "2024.01.05-rc0",
+    "sections": [
+        {
+            "title": "Feature",
+            "items": [
+                {
+                    "title": "Search Workspace (BETA)",
+                    "description": "A new Search Workspace has been added to the platform to allow for more granular searching of data within the platform.  In a future release, the Search Workspace will allow for proxying searches to external data sources using a SearchProxy role in the agent."
+                }
+            ]
+        },
+        {
+            "title": "Enhancements",
+            "items": [
+                {
+                    "title": "Detections",
+                    "description": "- Detection rules now support templated descriptions that will automatically populate the description with data from the event.  For example consider the description of: `This is a test alert for {{ winlog.computer_name }}`, the value in the braces will be replaced with the value of the field `winlog.computer_name`.\n- Detection rules can now be edited directly from the Event Drawer of the event fired from the rule.\n- Users with the `sync_local_subscribers` permission can now force synchronize all Detection Repository subscribers from a single action, instead of having to wait for the sync interval or log into the tenant and force sync.\n- Detection Repository Subscriptions can now be edited without having to delete the subscription and resubscribe.\n"
+                },
+                {
+                    "title": "Events",
+                    "description": "- The Event Drawer will now show the name, descriptions, actions and the query for each Event Rule that matched for the specified event.\n- If an Event is sourced from a Detection Rule, the rule can now be edited directly from the Event Drawer.\n- When exporting Events from the Event Queue, the Export Wizard now allows for zipping the contents of the export.\n"
+                },
+                {
+                    "title": "Field Management",
+                    "description": "- Field Templates can now control if a field is used in the signature hash of an event, has it's values extracted as a tag on an event or is extracted as an observable on an event.\n- Signature hash field ordering for Detections is now locked to alphabetical order to prevent mistakes when adding new fields to the hash.  This change will break any previous signature hashes that were created with a different field ordering.\n- Field Templates can now be assigned to Inputs, Detections will inherit the field templates from the input or merge with the input if there is a descrepancy. (Field Templates will be ignored when polling an input, will be changed in a future release).\n"
+                },
+                {
+                    "title": "Credentials",
+                    "description": "- Credentials now support assigning a type to the credential.  This allows for storing different types of secrets like private keys, JWT tokens, etc.\n- When adding a Private Key the option to generate a key automatically is available.  The public key can be retrieved by clicking Generate Public Key on any Private Key credential.  Private Key credentials default to `ECDSA` but `RSA` is supported.\n"
+                }
+            ]
+        }
+    ]
+}

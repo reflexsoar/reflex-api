@@ -1,6 +1,7 @@
-from multiprocessing import Pool
 from pymemcache.client.base import PooledClient
 
+class ConnectionError(Exception):
+    pass
 
 class MemcachedClient:
 
@@ -10,11 +11,28 @@ class MemcachedClient:
         '''
         self.client = None
 
-    def init_app(self, app):
+        self.timeout = kwargs.get('timeout', 10)
+        self.max_pool_size = kwargs.get('max_pool_size', 4)
+        self.host = kwargs.get('host', None)
+        self.port = kwargs.get('port', None)
+
+        if self.port and self.host:
+            self.client = PooledClient(
+                f"{self.host}:{self.port}",
+                max_pool_size=self.max_pool_size,
+                timeout=self.timeout)
+
+    def init_app(self, app, *args, **kwargs):
         '''
         Initializes the MemcachedClient with a Flask App
-        '''
-        
-        self.client = PooledClient(
-            f"{app.config['THREAT_POLLER_MEMCACHED_HOST']}:{app.config['THREAT_POLLER_MEMCACHED_PORT']}",
-            max_pool_size=app.config['MEMCACHED_POOL_SIZE'])
+        '''        
+        if app:
+            self.client = PooledClient(
+                f"{app.config['THREAT_POLLER_MEMCACHED_HOST']}:{app.config['THREAT_POLLER_MEMCACHED_PORT']}",
+                max_pool_size=app.config['MEMCACHED_POOL_SIZE'], timeout=app.config['MEMCACHED_TIMEOUT'])
+            try:
+                self.client.set('reflex-api-memcached-test', True, expire=1)
+            except Exception as e:
+                self.client = None
+                print(e)
+                raise ConnectionError(f"Could not connect to Memcached: {e}")

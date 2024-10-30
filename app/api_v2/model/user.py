@@ -4,12 +4,17 @@ Contains all the models related to users of the system
 '''
 
 import datetime
+
+from flask_restx import ValidationError
+from app.api_v2.model.system import EventLog, Settings
 import jwt
 import onetimepass
 import base64
 import os
-from flask import current_app
+from functools import cached_property
+from flask import current_app, request, render_template
 from flask_bcrypt import Bcrypt
+from .utils import send_system_generated_email, get_user_real_ip
 
 from . import (
     Text,
@@ -20,40 +25,196 @@ from . import (
     Nested,
     InnerDoc,
     base,
-    utils
+    utils,
+    Object,
+    analyzer
 )
 
 FLASK_BCRYPT = Bcrypt()
+
+
+class OrganizationScope(InnerDoc):
+    ''' Defines the scope of an organization '''
+
+    organization = Keyword()
+    role = Keyword()
+
+
+class UserNotificationSettings(InnerDoc):
+    ''' Defines the notification settings for a user '''
+
+    email_mention = Boolean()  # Notify the user when they are mentioned in a comment
+    email_case_comment = Boolean()
+    email_case_status = Boolean()
+    email_case_assign = Boolean()
+    email_new_case = Boolean()
+    email_case_task_status = Boolean()
+    email_case_task_assign = Boolean()
+    email_case_task_create = Boolean()
+    email_case_task_status = Boolean()
+    product_updates = Boolean()
+    only_watched_cases = Boolean()
+
+
+user_email_analyzer = analyzer('user_email_analyzer',
+                               tokenizer='keyword',
+                               filter=['lowercase']
+                               )
+
 
 class User(base.BaseDocument):
     '''
     A User of the Reflex system
     '''
 
-    email = Text(fields={'keyword':Keyword()})
-    username = Text(fields={'keyword':Keyword()})
-    first_name = Text(fields={'keyword':Keyword()})
-    last_name = Text(fields={'keyword':Keyword()})
+    email = Text(fields={'keyword': Keyword()}, analyzer=user_email_analyzer)
+    username = Text(fields={'keyword': Keyword()},
+                    analyzer=user_email_analyzer)
+    first_name = Text(fields={'keyword': Keyword()})
+    last_name = Text(fields={'keyword': Keyword()})
     last_logon = Date()
     password_hash = Text()
     failed_logons = Integer()
     deleted = Boolean()
     locked = Boolean()
-    #groups = Nested(Group)
-    api_key = Text(fields={'keyword':Keyword()})
-    auth_method = Keyword() # local, ldap, saml
-    auth_realm = Keyword() # Which authentication realm to log in to
+    # groups = Nested(Group)
+    api_key = Text(fields={'keyword': Keyword()})
+    auth_method = Keyword()  # local, ldap, saml
+    auth_realm = Keyword()  # Which authentication realm to log in to
     otp_secret = Keyword()
     mfa_enabled = Boolean()
-    notification_options = Nested() # When does the user want to be notified
-    notification_methods = Keyword() # How does the user want to be notified
+    local_auth = Boolean()
+    sso_auth = Boolean()
+    from_sso_auto_provision = Boolean()
+    watched_cases = Keyword()  # What cases is the user currently watching
+    notification_settings = Object(UserNotificationSettings)
+    hide_product_updates = Boolean()
+    access_scope = Nested(OrganizationScope)
+    profile_picture = Keyword()  # A base64 encoded image
+    profile_picture_type = Keyword()  # The type of image (png, jpg, etc)
 
-    class Index: # pylint: disable=too-few-public-methods
+    class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-users'
         settings = {
             'refresh_interval': '1s'
         }
+        version = "0.1.5"
+
+    def _log_event(self, event_type, event_sub_category, status, message, *args, **kwargs):
+        ''' Logs an event for the user '''
+
+        
+        source_user = self.username
+        if 'source_user' in kwargs:
+            source_user = kwargs['source_user']
+        
+        source_user_uuid = self.uuid
+        if 'source_user_uuid' in kwargs:
+            source_user_uuid = kwargs['source_user_uuid']
+
+
+        log = EventLog(event_type=event_type,
+                       event_sub_category=event_sub_category,
+                       source_user=source_user,
+                       source_user_uuid=source_user_uuid,
+                       source_ip=get_user_real_ip(),
+                       status=status,
+                       message=message)
+        log.save()
+
+    def get_access_scope_orgs(self):
+        '''Returns the UUIDs of the organizations the user has access to'''
+        uuids = [scope.organization for scope in self.access_scope]
+        if self.organization not in uuids:
+            uuids.append(self.organization)
+        return uuids
+
+    def has_org_access(self, organization):
+        ''' Checks if the user has access to the specified organization '''
+
+        if self.access_scope is None:
+            return False
+
+        for scope in self.access_scope:
+            if scope.organization == organization:
+                return True
+
+        return False
+
+    def scope_permissions(self, organization=None):
+        ''' Returns this users permissions for the specified organization
+        based on the role assigned in their permission scope mapping
+        '''
+
+        if self.organization == organization or organization is None:
+            self.load_role()
+            return self.role.permissions
+
+        for scope in self.access_scope:
+            if scope.organization == organization:
+                role = utils.get_role_by_uuid(scope.role)
+                return role.permissions
+        return {}
+
+    def has_org_permission(self, permission, organization=None):
+        ''' Checks if the user has the specified permission for the specified organization as
+        defined in their scope mapping. By default the user has access to their own organization
+        from an organizational scope but their permissions are defined by their direct role
+        membership
+        '''
+
+        self.load_role()
+
+        if organization is not None:
+            if self.organization == organization:
+                return hasattr(self.role.permissions, permission) and getattr(self.role.permissions, permission) is True
+
+            for scope in self.access_scope:
+                if scope.organization == organization:
+                    role = Role.get_by_uuid(scope.role)
+                    return hasattr(role.permissions, permission) and getattr(role.permissions, permission) is True
+        else:
+            return hasattr(self.role.permissions, permission) and getattr(self.role.permissions, permission) is True
+
+        return False
+
+    def watch_case(self, case_uuid):
+        ''' Adds a case to the list of cases the user is watching '''
+
+        if self.watched_cases is None:
+            self.watched_cases = []
+
+        if case_uuid not in self.watched_cases:
+            self.watched_cases.append(case_uuid)
+            self.save()
+
+    def unwatch_case(self, case_uuid):
+        ''' Removes a case from the list of cases the user is watching '''
+
+        if self.watched_cases is None:
+            self.watched_cases = []
+
+        if case_uuid in self.watched_cases:
+            self.watched_cases.remove(case_uuid)
+            self.save()
+
+    @classmethod
+    def scoped_search(cls):
+        ''' Returns a search object that is scoped to the current user '''
+
+        search = cls.search()
+
+        current_user = request.current_user
+        if current_user and current_user.request_org_filter:
+            search = search.filter(
+                'terms', organization=current_user.request_org_filter)
+
+        import json
+        print(f"Search: {json.dumps(search.to_dict(), default=str)}")
+
+        results = search.execute()
+        return results
 
     def set_password(self, password):
         '''
@@ -102,39 +263,33 @@ class User(base.BaseDocument):
         '''
 
         organization = Organization.get_by_uuid(self.organization)
+        settings = Settings.load(organization=self.organization)
+
+        jwt_exp = settings.logon_expire_at if hasattr(
+            settings, 'logon_expire_at') and settings.logon_expire_at else 6
 
         _access_token = jwt.encode({
             'uuid': self.uuid,
             'organization': self.organization,
             'default_org': organization.default_org if organization else False,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=360),
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60*jwt_exp),
             'iat': datetime.datetime.utcnow(),
-            'type': 'user'
+            'type': 'user',
+            # 'permissions': [k for k in self.permissions if self.permissions[k] is True],
         }, current_app.config['SECRET_KEY'])
 
         return _access_token
 
     @property
-    def permissions(self):
-        return [
-            k for k in self.role.permissions.__dict__
-            if k not in [
-                '_sa_instance_state',
-                'created_at',
-                'modified_at',
-                'created_by',
-                'modified_by',
-                'uuid',
-                'id'
-            ]
-            and self.role.permissions.__dict__[k] is True
-        ]
+    def roles(self):
+        ''' Returns a list of all the roles the user is a member of '''
+        return [r for r in Role.search().filter('term', members=self.uuid).scan()]
 
     def create_password_reset_token(self):
         _token = jwt.encode({
             'uuid': self.uuid,
             'organization': self.organization,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30),
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=current_app.config['PASSWORD_RESET_EXPIRE_MINUTES']),
             'iat': datetime.datetime.utcnow(),
             'type': 'password_reset'
         }, current_app.config['SECRET_KEY'])
@@ -170,7 +325,7 @@ class User(base.BaseDocument):
             'type': 'refresh'
         }, current_app.config['SECRET_KEY'])
 
-        #user_agent_hash = hashlib.md5(user_agent_string).hexdigest()
+        # user_agent_hash = hashlib.md5(user_agent_string).hexdigest()
 
         # refresh_token = RefreshToken.query.filter_by(
         #    user_agent_hash=user_agent_hash).first()
@@ -202,33 +357,105 @@ class User(base.BaseDocument):
 
         raise NotImplementedError
 
+    @cached_property
+    def permissions(self):
+        '''
+        Returns a list of all the users permissions
+        '''
+
+        role = Role.search().query('term', members=self.uuid).scan()
+
+        # If there is more than one role assigned to the user
+        # merge the permissions together such that any permission that is true
+        # overrides false
+        permissions = {}
+        for r in role:
+            for p in r.permissions:
+                if p not in permissions:
+                    permissions[p] = r.permissions[p]
+                else:
+                    if r.permissions[p] is True:
+                        permissions[p] = r.permissions[p]
+        return permissions
+
+    @property
+    def tlps(self):
+        '''
+        Returns a list of all the users TLPs
+        '''
+
+        role = Role.search().query('term', members=self.uuid).scan()
+
+        # If there is more than one role assigned to the user
+        # merge the permissions together such that any permission that is true
+        # overrides false
+        tlps = []
+        for r in role:
+            for t in r.tlps:
+                if t not in tlps:
+                    tlps.append(t)
+        return tlps
+
     def has_right(self, permission):
         '''
         Checks to see if the user has the proper
         permissions to perform an API action
         '''
 
-        role = Role.search().query('term', members=self.uuid).execute()
-        if role:
-            role = role[0]
+        search = Role.search()
+        search = search.filter('term', members=self.uuid)
+        search = search.filter('nested', path='permissions', query={
+                               'term': {f'permissions.{permission}': True}})
+        count = search.count()
 
-        if hasattr(role.permissions, permission) and getattr(role.permissions, permission):
+        if count > 0:
+            return True
+        return False
+
+        # If the user has permissions from their token check
+        # those first, if not fall back to checking against
+        # their role
+        if hasattr(self, 'token_permissions'):
+            if permission in self.token_permissions and self.token_permissions[permission]:
+                return True
+
+        permissions = self.permissions
+
+        if permission in permissions and permissions[permission]:
             return True
         return False
 
     @classmethod
-    def get_by_username(self, username):
+    def get_by_organization(self, organization):
         response = self.search().query(
-            'term', username__keyword=username).execute()
-        if response:
-            user = response[0]
-            return user
+            'term', organization=organization).execute()
         return response
 
     @classmethod
-    def get_by_email(self, email):
+    def get_by_username(self, username, as_text=True):
+
+        field = 'username' if as_text else 'username__keyword'
+
+        if isinstance(username, str):
+            response = self.search().query(
+                'match', **{field: username}).execute()
+            if response:
+                response = response[0]
+
+        if isinstance(username, list):
+            response = self.search().query(
+                'terms', **{field: username}).execute()
+        return response
+
+    @classmethod
+    def get_by_email(self, email, as_text=True):
+
+        field = 'email' if as_text else 'email__keyword'
+
         response = self.search().query(
-            'term', email__keyword=email)
+            'match', **{field: email})
+        response = response.source(excludes=[])
+
         response = response.execute()
         if response:
             user = response[0]
@@ -243,6 +470,10 @@ class User(base.BaseDocument):
             self.locked = False
             self.failed_logons = 0
             self.save()
+
+    def load_roles(self):
+        self.role = [r for r in Role.search().filter(
+            'term', members=self.uuid).scan()]
 
     def load_role(self):
         self.role = Role.get_by_member(self.uuid)
@@ -259,41 +490,96 @@ class User(base.BaseDocument):
         ''' Sets an OTP secret for the user when they enabled MFA
         '''
 
-        if self.otp_secret is None:
-            self.otp_secret = base64.b32encode(os.urandom(15)).decode('utf-8')
-
-        self.save()
+        if not hasattr(self, 'otp_secrent') or self.otp_secret is None:
+            self.update(otp_secret=base64.b32encode(
+                os.urandom(15)).decode('utf-8'), refresh=True)
 
     def enable_mfa(self):
         ''' Removes the otp secret when the user disables MFA
         '''
-        
-        self.mfa_enabled = True
-        self.save()
+
+        self.update(mfa_enabled=True, refresh=True)
+        self._log_event("Authentication", "MFA", "Success",
+                        f"MFA enabled for {self.username}")
 
     def disable_mfa(self):
         ''' Removes the otp secret when the user disables MFA
         '''
-        
-        if self.otp_secret is not None:
-            self.otp_secret = None
+        self.update(mfa_enabled=False, otp_secret=None, refresh=True)
+        self._log_event("Authentication", "MFA", "Success",
+                        f"MFA disabled for {self.username}")
 
-        self.mfa_enabled = False
-
-        self.save()
+        # self.save()
 
     def verify_mfa_setup_complete(self, token):
         ''' Once the user submits a TOTP that is correct enable MFA'''
-        
+
+        if not hasattr(self, 'otp_secret') or self.otp_secret is None:
+            self._log_event("Authentication", "MFA", "Failed",
+                            f"Attempt to verify MFA token failed for {self.username} because the user does not have an OTP secret.")
+
+            return False
+
         if onetimepass.valid_totp(token, self.otp_secret):
-            self.mfa_enabled = True
-            self.save()
+            self.update(mfa_enabled=True, refresh=True)
+            self._log_event("Authentication", "MFA", "Success",
+                            f"MFA enabled for {self.username}")
             return True
         return False
 
     def verify_totp(self, token):
         ''' Checks to see if the submitted TOTP token is valid'''
-        return onetimepass.valid_totp(token, self.otp_secret)
+        if not hasattr(self, 'otp_secret') or self.otp_secret is None:
+            self._log_event("Authentication", "MFA", "Failed",
+                            f"Attempt to verify MFA token failed for {self.username} because the user does not have an OTP secret.")
+
+            return False
+        
+        try:
+            result = onetimepass.valid_totp(token, self.otp_secret)
+        except Exception:
+            return False
+        return result
+
+    def is_default_org(self):
+        ''' Checks to see if the user belongs to the default org'''
+        if hasattr(self, 'default_org'):
+            return self.default_org
+        return False
+
+    def send_sspr_email(user):
+        '''
+        Sends an email to the user with a link to reset their password
+        '''
+
+        # Generate a new token for the user to reset their password
+        token = user.create_password_reset_token()
+
+        support_email = current_app.config['SUPPORT_EMAIL']
+        reset_url = f"{current_app.config['SSO_BASE_URL']}/#/reset_password/{token}"
+
+        # Fill in the template with the users information
+        user.email = user.email.lower()
+        email_body = render_template(
+            'emails/sspr.html', user=user, support_email=support_email, reset_url=reset_url)
+        email_body_plaintext = render_template(
+            'emails/sspr-plaintext.html', user=user, support_email=support_email, reset_url=reset_url)
+
+        send_system_generated_email(
+            user.email, 'Reflex Password Reset', email_body, email_body_plaintext)
+
+
+class OrganizationSLASettings(InnerDoc):
+    '''
+    Defines all the organizational SLA settings
+    '''
+    sla_enabled = Boolean()
+    holidays = Keyword()  # A list of dates that are holidays stored as YYYY-MM-DD
+    work_hours = Keyword()  # A list of work hours stored as HH:MM-HH:MM
+    # If true the work hours will override the default work hours
+    work_hours_override_default = Boolean()
+    # If true the holidays will override the default holidays
+    holidays_override_default = Boolean()
 
 
 class Organization(base.BaseDocument):
@@ -308,10 +594,11 @@ class Organization(base.BaseDocument):
         }
 
     name = Keyword()
-    description = Text(fields={'keyword':Keyword()})
+    description = Text(fields={'keyword': Keyword()})
     url = Keyword()
     logon_domains = Keyword()
     default_org = Boolean()
+    install_uuid = Keyword()
 
     @classmethod
     def get_by_name(self, name):
@@ -364,7 +651,7 @@ class Permission(InnerDoc):
     # EVENTS
     add_event = Boolean()  # Allows a user to add an event
     view_events = Boolean()  # Allows a user to view/list events
-    view_case_events = Boolean() # Allows a user to see the events on a case
+    view_case_events = Boolean()  # Allows a user to see the events on a case
     update_event = Boolean()  # Allows a user to update an events mutable properties
     delete_event = Boolean()  # Allows a user to delete an event
 
@@ -501,15 +788,219 @@ class Permission(InnerDoc):
     update_detection = Boolean()
     view_detections = Boolean()
     delete_detection = Boolean()
-    create_detection_repo = Boolean()
-    update_detection_repo = Boolean()
-    view_detection_repos = Boolean()
-    delete_detection_repo = Boolean()
+    create_detection_repository = Boolean()
+    view_detection_repositories = Boolean()
+    update_detection_repository = Boolean()
+    delete_detection_repository = Boolean()
+    share_detection_repository = Boolean()
+    subscribe_detection_repository = Boolean()
     create_repo_sharing_token = Boolean()
     create_detection_exclusion = Boolean()
     update_detection_exclusion = Boolean()
     view_detection_exclusions = Boolean()
     delete_detection_exclusion = Boolean()
+
+    # Notification Channel Permissions
+    create_notification_channel = Boolean()
+    view_notification_channels = Boolean()
+    update_notification_channel = Boolean()
+    delete_notification_channel = Boolean()
+    view_notifications = Boolean()
+
+    # Agent Policy Permissions
+    create_agent_policy = Boolean()
+    view_agent_policies = Boolean()
+    update_agent_policy = Boolean()
+    delete_agent_policy = Boolean()
+    create_agent_log_message = Boolean()
+    view_agent_logs = Boolean()
+
+    # Service Account Permissions
+    create_service_account = Boolean()
+    view_service_accounts = Boolean()
+    update_service_account = Boolean()
+    delete_service_account = Boolean()
+
+    # Asset Permissions
+    create_asset = Boolean()
+    view_assets = Boolean()
+    update_asset = Boolean()
+    delete_asset = Boolean()
+
+    # Integration Permissions
+    create_integration = Boolean()
+    update_integration = Boolean()
+    delete_integration = Boolean()
+    create_integration_configuration = Boolean()
+    update_integration_configuration = Boolean()
+    delete_integration_configuration = Boolean()
+
+    # SSO Permissions
+    create_sso_provider = Boolean()
+    update_sso_provider = Boolean()
+    delete_sso_provider = Boolean()
+    view_sso_providers = Boolean()
+
+    # SSO Mapping Policies
+    create_sso_mapping_policy = Boolean()
+    update_sso_mapping_policy = Boolean()
+    delete_sso_mapping_policy = Boolean()
+    view_sso_mapping_policies = Boolean()
+
+    # Package Permissions
+    create_package = Boolean()
+    update_package = Boolean()
+    delete_package = Boolean()
+    view_packages = Boolean()
+
+    # Data Source Template Permissions
+    create_data_source_template = Boolean()
+    update_data_source_template = Boolean()
+    delete_data_source_template = Boolean()
+    view_data_source_templates = Boolean()
+
+    # Schedule Permissions
+    create_schedule = Boolean()
+    update_schedule = Boolean()
+    delete_schedule = Boolean()
+    view_schedules = Boolean()
+
+
+class ServiceAccount(base.BaseDocument):
+    '''
+    Defines an API key that is used by a service to interact with the API
+    '''
+
+    class Index():
+        name = 'reflex-service-accounts'
+        settings = {
+            'refresh_interval': '1s'
+        }
+
+    name = Keyword()  # The name of the service account, must be unique
+    # A description of the service account
+    description = Text(fields={'keyword': Keyword()})
+    # The permissions that this service account has
+    permissions = Object(Permission)
+    tlps = Keyword()  # The TLPs that this service account can access
+    # Whether or not this service account is active, if not it cannot be used
+    active = Boolean()
+    last_used = Date()  # The last time this service account was used
+    # The organizations that this service account can access
+    organization_scope = Keyword()
+    tags = Keyword()  # The tags that this service account can access
+    expires_at = Date()  # The date that this service account expires
+
+    @property
+    def username(self):
+        return self.name
+    
+    def _log_event(self, event_type, event_sub_category, status, message, *args, **kwargs):
+        ''' Logs an event for the user '''
+
+        
+        source_user = self.username
+        if 'source_user' in kwargs:
+            source_user = kwargs['source_user']
+        
+        source_user_uuid = self.uuid
+        if 'source_user_uuid' in kwargs:
+            source_user_uuid = kwargs['source_user_uuid']
+
+
+        log = EventLog(event_type=event_type,
+                       event_sub_category=event_sub_category,
+                       source_user=source_user,
+                       source_user_uuid=source_user_uuid,
+                       source_ip=get_user_real_ip(),
+                       status=status,
+                       message=message)
+        log.save()
+
+    def has_right(self, permission):
+        '''
+        Returns true if the service account has the specified permission
+        '''
+
+        if hasattr(self, 'token_permissions'):
+            if permission in self.token_permissions and self.token_permissions[permission]:
+                return True
+
+        return getattr(self.permissions, permission)
+
+    def has_org_access(self, organization):
+        ''' Checks if the user has access to the specified organization '''
+
+        if self.organization_scope is None:
+            return False
+
+        if organization in self.organization_scope:
+            return True
+
+        return False
+
+    def get_by_name(self, name, organization=None):
+        '''
+        Returns a service account by name
+        '''
+        search = ServiceAccount.search()
+        if isinstance(name, list):
+            search = search.filter('terms', name=name)
+        else:
+            search = search.filter('term', name=name)
+
+        if organization:
+            search = search.filter('term', organization=organization)
+
+        return [o for o in search.scan()]
+
+    def create_access_token(self):
+        '''
+        Generates an access_token that is presented each time the
+        user calls the API, valid for 6 hours by default
+        '''
+
+        organization = Organization.get_by_uuid(self.organization)
+        settings = Settings.load(organization=self.organization)
+
+        jwt_exp = settings.api_key_expire if hasattr(
+            settings, 'api_key_expire') and settings.api_key_expire else 365
+
+        _access_token = jwt.encode({
+            'uuid': str(self.uuid),
+            'organization': self.organization,
+            'default_org': organization.default_org if organization else False,
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=jwt_exp),
+            'iat': datetime.datetime.utcnow(),
+            'type': 'service_account',
+            # 'permissions': self.permissions
+        }, current_app.config['SECRET_KEY'])
+
+        self.expires_at = (datetime.datetime.utcnow() +
+                           datetime.timedelta(days=jwt_exp))
+        self.save()
+
+        return _access_token
+
+    def save(self, *args, **kwargs):
+        '''
+        Saves the service account
+        '''
+        exists = self.get_by_name(name=self.name)
+        success = True
+        if exists:
+            success = False
+            self._log_event("User Management", "Service Account",
+                            "Failed", f"Service account {self.name} already exists", source_user=utils._current_user_id_or_none()['username'],
+                            source_user_uuid=utils._current_user_id_or_none()['uuid'])
+            raise ValidationError(
+                'A service account with that name already exists')
+
+        super(ServiceAccount, self).save(*args, **kwargs)
+
+        self._log_event("User Management", "Service Account",
+                        "Success", f"Service account {self.name} created", source_user=utils._current_user_id_or_none()['username'],
+                        source_user_uuid=utils._current_user_id_or_none()['uuid'])
 
 
 class Role(base.BaseDocument):
@@ -520,12 +1011,14 @@ class Role(base.BaseDocument):
     '''
 
     name = Keyword()  # The name of the role (should be unique)
-    description = Text(fields={'keyword':Keyword()})  # A brief description of the role
+    # A brief description of the role
+    description = Text(fields={'keyword': Keyword()})
     members = Keyword()  # Contains a list of user IDs
     permissions = Nested(Permission)
-    system_generated = Boolean() # If this is a default Role in the system
+    tlps = Keyword()  # The TLPs that this role can access
+    system_generated = Boolean()  # If this is a default Role in the system
 
-    class Index: # pylint: disable=too-few-public-methods
+    class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-user-roles'
         settings = {
@@ -543,7 +1036,7 @@ class Role(base.BaseDocument):
                 self.members.append(user_id)
             else:
                 self.members = [user_id]
-        self.save()
+        self.save(refresh=True)
 
     def remove_user_from_role(self, user_id):
         '''
@@ -552,9 +1045,9 @@ class Role(base.BaseDocument):
         if isinstance(user_id, list):
             self.members = [m for m in self.members if m not in user_id]
         else:
-            if self.members is not None:
+            if self.members is not None and user_id in self.members:
                 self.members.remove(user_id)
-        self.save()
+        self.save(refresh=True)
 
     @classmethod
     def get_by_member(self, uuid):
@@ -573,13 +1066,19 @@ class Role(base.BaseDocument):
         response = self.search()
         response = response.filter('term', name=name)
         if organization:
-            response=response.filter('term', organization=organization)
-            
+            response = response.filter('term', organization=organization)
+
         response = response.execute()
         if response:
             user = response[0]
             return user
         return response
+
+    @classmethod
+    def get_by_organization(self, organization):
+        response = self.search().query(
+            'term', organization=organization).scan()
+        return [r for r in response]
 
 
 class ExpiredToken(base.BaseDocument):
@@ -589,6 +1088,6 @@ class ExpiredToken(base.BaseDocument):
 
     token = Keyword()
 
-    class Index: # pylint: disable=too-few-public-methods
+    class Index:  # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-expired-tokens'

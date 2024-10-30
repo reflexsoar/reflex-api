@@ -1,0 +1,14 @@
+{
+    "version": "2024.01.12-rc0",
+    "sections": [
+        {
+            "title": "Fixes",
+            "items": [
+                {
+                    "title": "Multiple Bug Fixes",
+                    "description": "See https://github.com/reflexsoar/reflex-api/pull/472 for more details"
+                }
+            ]
+        }
+    ]
+}

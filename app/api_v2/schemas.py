@@ -185,8 +185,70 @@ mod_permissions = Model('Permissions', {
     'update_detection': fields.Boolean,
     'view_detections': fields.Boolean,
     'delete_detection': fields.Boolean,
+    'create_notification_channel': fields.Boolean,
+    'view_notification_channels': fields.Boolean,
+    'update_notification_channel': fields.Boolean,
+    'delete_notification_channel': fields.Boolean,
+    'view_notifications': fields.Boolean,
     'create_persistent_pairing_token': fields.Boolean,
-    'use_api': fields.Boolean
+    'use_api': fields.Boolean,
+    'create_service_account': fields.Boolean,
+    'view_service_accounts': fields.Boolean,
+    'delete_service_account': fields.Boolean,
+    'view_integrations': fields.Boolean,
+    'create_integration': fields.Boolean,
+    'update_integration': fields.Boolean,
+    'delete_integration': fields.Boolean,
+    'view_integrations': fields.Boolean,
+    'view_integration_configurations': fields.Boolean,
+    'create_integration_configuration': fields.Boolean,
+    'update_integration_configuration': fields.Boolean,
+    'delete_integration_configuration': fields.Boolean,
+    'create_sso_provider': fields.Boolean,
+    'view_sso_providers': fields.Boolean,
+    'update_sso_provider': fields.Boolean,
+    'delete_sso_provider': fields.Boolean,
+    'create_sso_mapping_policy': fields.Boolean,
+    'update_sso_mapping_policy': fields.Boolean,
+    'delete_sso_mapping_policy': fields.Boolean,
+    'view_sso_mapping_policies': fields.Boolean,
+    'view_packages': fields.Boolean,
+    'create_package': fields.Boolean,
+    'update_package': fields.Boolean,
+    'delete_package': fields.Boolean,
+    'view_data_source_templates': fields.Boolean,
+    'add_data_source_templates': fields.Boolean,
+    'update_data_source_templates': fields.Boolean,
+    'delete_data_source_templates': fields.Boolean,
+    'view_fim_rules': fields.Boolean,
+    'create_fim_rule': fields.Boolean,
+    'update_fim_rule': fields.Boolean,
+    'delete_fim_rule': fields.Boolean,
+    'view_schedules': fields.Boolean,
+    'create_schedule': fields.Boolean,
+    'update_schedule': fields.Boolean,
+    'delete_schedule': fields.Boolean,
+    'view_benchmarks': fields.Boolean,
+    'create_benchmark_rule': fields.Boolean,
+    'update_benchmark_rule': fields.Boolean,
+    'view_benchmark_rulesets': fields.Boolean,
+    'create_benchmark_ruleset': fields.Boolean,
+    'update_benchmark_ruleset': fields.Boolean,
+    'delete_benchmark_ruleset': fields.Boolean,
+    'view_benchmark_exceptions': fields.Boolean,
+    'create_benchmark_exclusion': fields.Boolean,
+    'update_benchmark_exclusion': fields.Boolean,
+    'delete_benchmark_exclusion': fields.Boolean,
+    'create_benchmark_result': fields.Boolean,
+    'view_agent_tags': fields.Boolean,
+    'create_agent_tag': fields.Boolean,
+    'update_agent_tag': fields.Boolean,
+    'delete_agent_tag': fields.Boolean,
+    'sync_local_subscribers': fields.Boolean,
+    #'create_log_source': fields.Boolean,
+    #'update_log_source': fields.Boolean,
+    #'delete_log_source': fields.Boolean,
+    #'view_log_sources': fields.Boolean
 })
 
 mod_role_create = Model('RoleCreate', {
@@ -268,7 +330,8 @@ mod_user_create = Model('UserCreate', {
     'password': fields.String(required=True),
     'first_name': fields.String(required=True),
     'last_name': fields.String(required=True),
-    'locked': fields.Boolean
+    'locked': fields.Boolean,
+    'role_uuid': fields.String(required=True)
 }, strict=True)
 
 
@@ -491,6 +554,7 @@ mod_event_details = Model('EventDetails', {
     'description': fields.String(required=True),
     'tlp': fields.Integer,
     'severity': fields.Integer,
+    'risk_score': fields.Integer,
     'status': fields.Nested(mod_event_status),
     'source': fields.String,
     'tags': fields.List(fields.String),
@@ -545,6 +609,7 @@ mod_settings = Model('SettingsList', {
     'persistent_pairing_token': fields.String,
     'require_event_dismiss_comment': fields.Boolean,
     'require_case_close_comment': fields.Boolean,
+    'reopen_case_on_event_merge': fields.Boolean,
     'allow_event_deletion': fields.Boolean,
     'assign_case_on_create': fields.Boolean,
     'assign_task_on_start': fields.Boolean,
@@ -557,7 +622,18 @@ mod_settings = Model('SettingsList', {
     'require_mfa': fields.Boolean,
     'minimum_password_length': fields.Integer,
     'enforce_password_complexity': fields.Boolean,
-    'disallowed_password_keywords': AsNewLineDelimited()
+    'disallowed_password_keywords': AsNewLineDelimited(),
+    'logon_expire_at': fields.Integer,
+    'utc_offset': fields.String,
+    'slow_detection_threshold': fields.Integer,
+    'high_volume_threshold': fields.Integer,
+    'slow_detection_warning_threshold': fields.Integer,
+    'high_volume_warning_threshold': fields.Integer,
+    'benchmark_history_retention': fields.Integer(default=365),
+    'case_auto_close': fields.Boolean(default=False),
+    'case_auto_close_days': fields.Integer(default=7),
+    'case_auto_close_reason': fields.String,
+    'case_auto_close_comment': fields.String,
 })
 
 mod_persistent_pairing_token = Model('PeristentPairingToken', {
@@ -565,10 +641,17 @@ mod_persistent_pairing_token = Model('PeristentPairingToken', {
 })
 
 mod_credential_create = Model('CredentialCreate', {
-    'username': fields.String(required=True),
-    'secret': fields.String(required=True),
+    'username': fields.String(required=False),
+    'secret': fields.String(required=False),
     'name': fields.String(required=True),
-    'description': fields.String(required=True)
+    'description': fields.String(required=True),
+    'credential_type': fields.String(required=True),
+    'generate_secret': fields.Boolean(required=False, default=False),
+    'key_type': fields.String(required=False, default='ec'),
+})
+
+mod_credential_public_key = Model('CredentialPublicKey', {
+    'public_key': fields.String
 })
 
 mod_credential_update = Model('CredentialUpdate', {
@@ -576,7 +659,10 @@ mod_credential_update = Model('CredentialUpdate', {
     'secret': fields.String,
     'name': fields.String,
     'description': fields.String,
-    'organization': fields.String
+    'organization': fields.String,
+    'credential_type': fields.String(required=True),
+    'generate_secret': fields.Boolean(required=False, default=False),
+    'key_type': fields.String(required=False, default='ec')
 })
 
 mod_credential_full = Model('Credential', {
@@ -584,7 +670,8 @@ mod_credential_full = Model('Credential', {
     'organization': fields.String,
     'username': fields.String,
     'name': fields.String,
-    'description': fields.String
+    'description': fields.String,
+    'credential_type': fields.String,
 })
 
 mod_credential_list = Model('CredentialLIst', {
@@ -592,7 +679,8 @@ mod_credential_list = Model('CredentialLIst', {
     'organization': fields.String,
     'name': fields.String,
     'username': fields.String,
-    'description': fields.String
+    'description': fields.String,
+    'credential_type': fields.String,
 })
 
 mod_credential_list_paged = Model('CredentialListPaged', {
@@ -615,8 +703,14 @@ mod_input_list = Model('InputList', {
     'tags': fields.List(fields.String),
     'config': JSONField(attribute="_config"),
     'field_mapping': JSONField(attribute="_field_mapping"),
+    'field_mapping_templates': fields.List(fields.String),
     'created_at': ISO8601(attribute='created_at'),
-    'updated_at': ISO8601(attribute='updated_at')
+    'updated_at': ISO8601(attribute='updated_at'),
+    'index_fields': fields.List(fields.String),
+    'index_fields_last_updated': ISO8601(attribute='index_fields_last_updated'),
+    'sigma_backend': fields.String,
+    'sigma_pipeline': fields.String,
+    'sigma_field_mapping': fields.String
 })
 
 mod_input_list_paged = Model('InputListPaged', {
@@ -633,7 +727,11 @@ mod_input_create = Model('CreateInput', {
     'credential': fields.String(required=True),
     'tags': fields.List(fields.String),
     'config': fields.String,
-    'field_mapping': fields.String
+    'field_mapping': fields.String,
+    'field_mapping_templates': fields.List(fields.String),
+    'sigma_backend': fields.String,
+    'sigma_pipeline': fields.String,
+    'sigma_field_mapping': fields.String
 })
 
 mod_agent_create = Model('AgentCreate', {
@@ -676,7 +774,15 @@ mod_agent_list = Model('AgentList', {
     'groups': fields.List(fields.Nested(mod_agent_group_list), attribute="_groups"),
     'active': fields.Boolean,
     'ip_address': fields.String,
+    'healthy': fields.Boolean,
+    'health_issues': fields.List(fields.String),
     'last_heartbeat': ISO8601(attribute='last_heartbeat')
+})
+
+mod_agent_heartbeat = Model('AgentHeartbeat', {
+    'healthy': fields.Boolean,
+    'health_issues': fields.List(fields.String),
+    'recovered': fields.Boolean
 })
 
 mod_agent_list_paged = Model('AgentListPaged', {
@@ -771,7 +877,7 @@ mod_event_rule_test = Model('TestEventRuleQuery', {
     'end_date': fields.String,
 })
 
-mod_event_rule_create = Model('CreateEventRule', {
+mod_event_rule_create = Model('CreateEventRule22', {
     'name': fields.String,
     'organization': fields.String,
     'description': fields.String,
@@ -1105,27 +1211,32 @@ mod_bulk_event_uuids = Model('BulkEventUUIDs', {
     'organizations': JSONField(attribute='organizations')
 })
 
+mod_input_index_fields = Model('InputIndexFields', {
+    'index_fields': fields.List(fields.String)
+})
+
 schema_models = [mod_user_role_no_members, mod_user_self, mod_user_full,
-mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, mod_event_create,
+mod_auth, mod_auth_success_token, mod_refresh_token, mod_event_list, #mod_event_create,
 mod_observable_brief, mod_observable_create, mod_observable_update, mod_raw_log, mod_permissions,
 mod_api_key,mod_user_create, mod_user_update, mod_user_create_success, mod_settings, mod_persistent_pairing_token,
 mod_credential_create, mod_credential_update, mod_credential_full, mod_credential_list,
-mod_credential_return, mod_input_create, mod_input_list, mod_agent_list, mod_agent_create,
-mod_list_list, mod_list_create, mod_event_rule_create, mod_event_rule_list, mod_data_type_list,
+mod_credential_return, mod_input_create, mod_input_list, mod_agent_create, #mod_agent_list,
+mod_list_list, mod_list_create, mod_data_type_list,
 mod_data_type_create, mod_user_role_no_perms, mod_user_brief, mod_role_list, mod_role_create,
 mod_case_history, mod_comment, mod_comment_create, mod_case_close_reason, mod_case_template_create,
 mod_case_template_task_create, mod_case_task_create, mod_case_template_task_full,
 mod_case_template_full, mod_close_reason_create, mod_close_reason_list, mod_case_status,
 mod_case_status_create, mod_case_status_list, mod_case_template_brief, mod_case_create,
-mod_case_list, mod_case_details, mod_case_paged_list, mod_user_list, mod_tag_list, mod_tag,
+mod_case_list, mod_case_paged_list, mod_user_list, mod_tag_list, mod_tag,
 mod_related_case, mod_link_cases, mod_case_task_full, mod_event_status, mod_event_paged_list,
 mod_event_details, mod_observable_list, mod_observable_list_paged, mod_bulk_add_observables,
-mod_case_observables, mod_related_events, mod_pagination, mod_event_create_bulk,
+mod_case_observables, mod_related_events, mod_pagination, #mod_event_create_bulk,
 mod_agent_group_list, mod_paged_agent_group_list, mod_agent_group_create, mod_case_task_note,
 mod_case_task_note_create, mod_case_task_note_details, mod_audit_log, mod_audit_log_paged_list,
 mod_event_bulk_dismiss,mod_add_events_to_case, mod_response_message, mod_add_events_response,
 mod_plugin_create,mod_plugin_name,mod_plugin_config_list,mod_plugin_list,mod_plugin_manifest_action,
-mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rule_test, mod_event_rql,
-mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_event_rule_list_paged, mod_bulk_event_uuids,
+mod_plugin_manifest, mod_mfa_token, mod_mfa_challenge, mod_event_rql,
+mod_event_rql_list, mod_toggle_user_mfa, mod_create_backup, mod_bulk_event_uuids,
 mod_list_values, mod_input_list_paged, mod_agent_group_list_paged, mod_credential_list_paged, mod_agent_list_paged,
-mod_user_list_paged, mod_password_update]
+mod_user_list_paged, mod_password_update, mod_input_index_fields, mod_agent_heartbeat,
+mod_credential_public_key]

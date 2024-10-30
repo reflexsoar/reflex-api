@@ -1,19 +1,20 @@
 version: '2.2'
 services:
   reflex-api:
+    image: reflex-api:latest
+    env_file:
+      - ./local.env
     environment:
       - FLASK_CONFIG=production
-    build: .
     container_name: reflex-api
     volumes:
       - ./instance/application.conf:/instance/application.conf
-      - ./config.py:/config.py
     ports:
       - "80:80"
-    command: pipenv run python manage.py run
     networks:
-      - elastic
+      - elastictest
 
 networks:
-  elastic:
-    driver: bridge
+  elastictest:
+    name: es_elastictest
+    external: true

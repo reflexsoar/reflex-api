@@ -1,0 +1,33 @@
+{% macro trend_arrow(value) %}
+    {% if value == 'up' %}
+        <span class="fa-solid fa-arrow-up" style="color: green"></span>
+    {% elif value == 'down' %}
+        <span class="fa-solid fa-arrow-down" style="color: red"></span>
+    {% else %}
+        <span class="fa-solid fa-arrow-right" style="color: grey"></span>
+    {% endif %}
+{% endmacro %}
+
+{% macro severity_badge(value) %}
+    {% if value == 1 %}
+        <span class="badge bg-info">Low</span>
+    {% elif value == 2 %}
+        <span class="badge bg-primary">Medium</span>
+    {% elif value == 3 %}
+        <span class="badge bg-warning">High</span>
+    {% else %}
+        <span class="badge bg-danger">Critical</span>
+    {% endif %}
+{% endmacro %}
+
+{% macro severity_text(value) %}
+    {% if value == 1 %}
+        Low
+    {% elif value == 2 %}
+        Medium
+    {% elif value == 3 %}
+        High
+    {% else %}
+        Critical
+    {% endif %}
+{% endmacro %}

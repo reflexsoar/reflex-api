@@ -1,0 +1,22 @@
+format_version: "1.0.0"
+name: Windows Event Logs
+product_identifier: dab1a493-8d9c-4729-81e0-1f430999cc94
+brief_description: A Windows Event Log integration for ReflexSOAR
+description: "## Overview\nThe Windows Event Log integration allows for enabling Windows Event Log channels that will be picked up by the Reflex Agent"
+author: "Brian Carroll <brian@hasecuritysolutions.com>"
+tags:
+  - logging
+category:
+  - Logging
+  - Operations
+enabled: false
+contributor:
+  - Justin Henderson <justin@hasecuritysolutions.com>
+license: "H&A Security Solutions - Premium Support"
+version: "1.0.0"
+policy:
+  actions:
+    
+  configuration:
+
+

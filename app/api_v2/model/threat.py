@@ -5,6 +5,7 @@ import json
 import hashlib
 import datetime
 from flask import current_app
+
 from .utils import build_elastic_connection, execution_timer
 from . import (
     base,
@@ -19,7 +20,8 @@ from . import (
 
 from opensearchpy.helpers import streaming_bulk as obulk
 from elasticsearch.helpers import streaming_bulk as ebulk
-from pymemcache.client.base import Client
+from . import memcached_client
+
 
 class ThreatValue(base.BaseDocument):
     '''
@@ -46,7 +48,9 @@ class ThreatValue(base.BaseDocument):
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-threat-values'
-        refresh_interval = '1s'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     @classmethod
     def prepare_value(self, values, case_insensitive=False):
@@ -92,7 +96,8 @@ class ThreatValue(base.BaseDocument):
         '''
         Pushes the intel to memcached if memcached is enabled and configured
         '''
-        client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
+        #client = Client(f"{current_app.config['THREAT_POLLER_MEMCACHED_HOST']}:{current_app.config['THREAT_POLLER_MEMCACHED_PORT']}")
+        client = memcached_client.client
 
         for value in values:
 
@@ -127,11 +132,27 @@ class ThreatValue(base.BaseDocument):
         desired intel value, responses are returned as a list of IntelValue
         objects
         '''
-        search = self.search()
+
+        # TODO: Update this to allow global searches by checking if 
+        # the target list is global and if so, don't filter on the 
+        # current_users organization
+        _list = ThreatList.search(skip_org_check=True)
+        _list = _list.filter('term', uuid=list_uuid)
+        _list = _list.execute()
+        if len(_list) > 0 and _list[0].global_list:
+            search = self.search(skip_org_check=True)
+        else:
+            search = self.search()
+
+        search = self.search(skip_org_check=True)
         search = search.filter('term', list_uuid=list_uuid)
 
         if values:
             search = search.filter('terms', value=values)
+        
+        # Limit the number of results to 10,000
+        search = search[0:10000]
+        
         return list(search.scan())
 
 
@@ -146,6 +167,7 @@ class ThreatList(base.BaseDocument):
     description = Text(fields={'keyword':Keyword()})
     list_type = Text(fields={'keyword':Keyword()})  # value, pattern, csv
     data_type_uuid = Keyword()
+    data_type_name = Keyword() # The data type of the values in the list
     tag_on_match = Boolean()  # Default to False
     url = Text(fields={'keyword':Keyword()}) # A url to pull threat information from
     poll_interval = Integer() # How often to pull from this list
@@ -158,10 +180,19 @@ class ThreatList(base.BaseDocument):
     case_sensitive = Boolean() # Are the values on the list case sensitive
     import_time = Integer() # The time in seconds it took to import this list
     poll_uuid = Keyword() # The UUID of the last poll event that populated this lists values
+    flag_safe = Boolean()
+    flag_spotted = Boolean()
+    flag_ioc = Boolean()
+    change_tlp = Boolean()
+    new_tlp = Integer()
+    global_list = Boolean() # Is this a global list
 
     class Index: # pylint: disable=too-few-public-methods
         ''' Defines the index to use '''
         name = 'reflex-threat-lists'
+        settings = {
+            'refresh_interval': '1s'
+        }
 
     @property
     def data_type(self):
@@ -181,7 +212,7 @@ class ThreatList(base.BaseDocument):
         # Only return results for manual lists
         if not self.url:
             search = ThreatValue.search()
-            search = search[0:5000]
+            search = search[0:10000]
             search = search.filter('term', list_uuid=self.uuid)
             return list(search.execute())
         else:
@@ -207,10 +238,12 @@ class ThreatList(base.BaseDocument):
 
             found = False
 
-            
             if self.list_type != 'patterns':
                 hasher = hashlib.md5()
-                hasher.update(value.encode())
+                if isinstance(value, int):
+                    hasher.update(str(value).encode())
+                else:
+                    hasher.update(value.encode())
                 value = hasher.hexdigest()
 
                 if 'MEMCACHED_CONFIG' in kwargs and kwargs['MEMCACHED_CONFIG']:
@@ -220,15 +253,20 @@ class ThreatList(base.BaseDocument):
                     memcached_port = os.getenv('REFLEX_THREAT_POLLER_MEMCACHED_PORT')
 
                 # Create the memcached client
-                client = Client(f"{memcached_host}:{memcached_port}")
+                #client = Client(f"{memcached_host}:{memcached_port}")
+                client = memcached_client.client
             
                 # Check memcached first
-                memcached_key = f"{self.organization}:{self.uuid}:{self.data_type.name}:{value}"
+                memcached_key = f"{self.organization}:{self.uuid}:{self.data_type_name}:{value}"
 
-                if not found:               
-                    result = client.get(memcached_key)
-                    if result:
-                        found = True
+                if not found:
+                    try:
+                        result = client.get(memcached_key)
+                        if result:
+                            found = True
+                    except Exception as e:
+                        pass
+                        #current_app.logger.error(f"Error checking memcached for {memcached_key}: {e}")
             
             else:
                 patterns = list(self.values)
@@ -268,7 +306,7 @@ class ThreatList(base.BaseDocument):
 
             values = [{
                 'value': v,
-                'data_type': self.data_type.name,
+                'data_type': self.data_type_name,
                 'organization': self.organization,
                 'poll_interval': poll_interval,
                 'from_poll': from_poll,

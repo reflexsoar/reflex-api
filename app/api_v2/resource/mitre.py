@@ -1,13 +1,18 @@
-from app.api_v2.model import MITRETactic, MITRETechnique, Q
+from app.api_v2.model import MITRETactic, MITRETechnique, Q, Detection
 from flask import request
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
+
+from app.api_v2.model.inout import Input
 from .shared import mod_pagination
-from ..utils import page_results, token_required
+from ..utils import page_results, token_required, user_has
 
 
 api = Namespace(
     'MITRE', description='MITRE ATT&CK related information', path='/mitre')
 
+mod_data_sources = api.model('MITREDataSources', {
+    'data_sources': fields.List(fields.String)
+})
 
 mod_external_reference = api.model('MITREExternalReference', {
     'external_id': fields.String,
@@ -41,13 +46,20 @@ mod_technique_details = api.model('MITRETechnique', {
     'uuid': fields.String,
     'mitre_id': fields.String,
     'external_id': fields.String,
+    'external_id_parent': fields.String,
+    'has_subs': fields.Boolean,
+    'is_sub': fields.Boolean(attribute='is_sub_technique'),
+    'is_deprecated': fields.Boolean,
     'name': fields.String,
     'shortname': fields.String,
     'description': fields.String,
     'external_references': fields.List(fields.Nested(mod_external_reference)),
     'phase_names': fields.List(fields.String),
     'kill_chain_phases': fields.List(fields.Nested(mod_kill_chain_phase)),
-    'data_sources': fields.List(fields.String)
+    'data_sources': fields.List(fields.String),
+    'is_revoked': fields.Boolean(default=False),
+    'total_detections': fields.Integer(default=0),
+    'active_detections': fields.Integer(default=0)
 })
 
 mod_technique_brief = api.model('MITRETechniqueBrief', {
@@ -69,11 +81,13 @@ mod_techniques_paged = api.model('MITRETechniquePaged', {
 
 tactic_list_parser = api.parser()
 tactic_list_parser.add_argument('name__like', location='args', type=str, required=False)
+
 tactic_list_parser.add_argument('external_id__like', location='args', type=str, required=False)
 tactic_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 tactic_list_parser.add_argument(
     'page_size', type=int, location='args', default=25, required=False)
+
 
 @api.route("/tactic")
 class TacticList(Resource):
@@ -92,8 +106,8 @@ class TacticList(Resource):
 
         args = tactic_list_parser.parse_args()
         
-        search = MITRETactic.search()   
-
+        search = MITRETactic.search()
+        
         if args.name__like and not args.external_id__like:
             search = search.filter('wildcard', name=f"{args.name__like}*")
 
@@ -101,7 +115,10 @@ class TacticList(Resource):
             search = search.filter('wildcard', external_id=f"{args.external_id__like.upper()}*")
 
         if args.name__like and args.external_id__like:
-            search = search.filter('bool', should=[Q('wildcard', external_id__keyword=f"{args.external_id__like.upper()}*"), Q('wildcard', name=f"*{args.name__like}*")])
+            search = search.filter('bool', should=[Q('wildcard', external_id=f"{args.external_id__like.upper()}*"), Q('wildcard', name=f"*{args.name__like}*")])
+
+        # Sort by external_id
+        search = search.sort('external_id')
 
         search, total_results, pages = page_results(search, args.page, args.page_size)
         tactics = search.execute()
@@ -118,12 +135,19 @@ class TacticList(Resource):
 
 technique_list_parser = api.parser()
 technique_list_parser.add_argument('name__like', location='args', type=str, required=False)
+technique_list_parser.add_argument('external_id', location='args', type=str, required=False)
 technique_list_parser.add_argument('external_id__like', location='args', type=str, required=False)
 technique_list_parser.add_argument('phase_names', location='args', required=False, type=str, action='split')
 technique_list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
 technique_list_parser.add_argument(
     'page_size', type=int, location='args', default=25, required=False)
+technique_list_parser.add_argument(
+    'show_revoked', type=xinputs.boolean, location='args', default=False, required=False
+)
+technique_list_parser.add_argument(
+    'show_detection_metrics', type=xinputs.boolean, location='args', default=False, required=False
+)
 
 @api.route("/technique")
 class TechniqueList(Resource):
@@ -144,21 +168,71 @@ class TechniqueList(Resource):
         
         search = MITRETechnique.search()
 
+        if args.external_id:
+            search = search.filter('term', external_id=args.external_id)
+
         if args.name__like and not args.external_id__like:
             search = search.filter('wildcard', name=f"{args.name__like}*")
 
         if args.external_id__like and not args.name__like:
-            search = search.filter('wildcard', external_id__keyword=f"{args.external_id__like.upper()}*")
+            search = search.filter('wildcard', external_id=f"{args.external_id__like.upper()}*")
 
         if args.name__like and args.external_id__like:
-            search = search.filter('bool', should=[Q('wildcard', external_id__keyword=f"{args.external_id__like.upper()}*"), Q('wildcard', name=f"*{args.name__like}*")])
+            search = search.filter('bool', should=[Q('wildcard', external_id=f"{args.external_id__like.upper()}*"), Q('wildcard', name=f"*{args.name__like}*")])
 
         if args.phase_names and len(args.phase_names) > 0 and args.phase_names != ['']:
             search = search.filter('terms', phase_names=args.phase_names)
 
+        if args.show_revoked:
+            search = search.filter('terms', is_revoked=[True, False])
+        else:
+            search = search.filter('term', is_revoked=False)
+
+        # Sort by external_id
+        search = search.sort('external_id')
+
         search, total_results, pages = page_results(search, args.page, args.page_size)
         techniques = search.execute()
 
+        # Create a map of the number of times a techniques external_id_parent appears
+        # in the results.  This will be used to determine if a technique has sub-techniques
+        # or not.
+        technique_counts = {}
+
+        for technique in techniques:
+            if technique.external_id_parent not in technique_counts:
+                technique_counts[technique.external_id_parent] = 0
+            technique_counts[technique.external_id_parent] += 1
+
+        # Loop through the techniques and set the has_subs property
+        for technique in techniques:
+            technique.has_subs = technique_counts.get(technique.external_id, 0) > 1
+
+        # If the user is authenticated and the show_detection_metrics flag is set to true
+        # aggregate the number of detections per technique and the number of active detections
+        # per technique
+        if args.show_detection_metrics is True and current_user:
+            detections = Detection.search()
+            detections.aggs.bucket('techniques', 'nested', path='techniques').bucket('external_ids', 'terms', field='techniques.external_id', size=10000)
+            detections.aggs.bucket('active', 'filter', filter={'term': {'active': True}}).bucket('techniques', 'nested', path='techniques').bucket('external_ids', 'terms', field='techniques.external_id', size=10000)
+            detections = detections[0:0]
+
+            detections = detections.execute()
+
+            # Create a lookup dictionary of the external_id and the count of total and active detections
+            technique_total = {}
+            technique_active_total = {}
+            for bucket in detections.aggregations.techniques.external_ids.buckets:
+                technique_total[bucket.key] = bucket.doc_count
+
+            for bucket in detections.aggregations.active.techniques.external_ids.buckets:
+                technique_active_total[bucket.key] = bucket.doc_count
+
+            # Loop through the techniques and set the total and active properties
+            for technique in techniques:
+                technique.total_detections = technique_total.get(technique.external_id, 0)
+                technique.active_detections = technique_active_total.get(technique.external_id, 0)
+        
         return {
             'techniques': list(techniques),
             'pagination': {
@@ -168,3 +242,100 @@ class TechniqueList(Resource):
                 'page_size': args.page_size
             }
         }
+
+data_source_parser = api.parser()
+data_source_parser.add_argument('with_coverage', location='args', type=xinputs.boolean, default=False, required=False)
+
+@api.route("/data_sources")
+class DataSourceList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(data_source_parser)
+    @api.marshal_with(mod_data_sources)
+    @token_required
+    def get(self, current_user):
+        '''
+        Returns a list of MITRE ATT&CK Data Sources
+        '''
+
+        args = data_source_parser.parse_args()
+        
+        search = MITRETechnique.search()
+        search = search[0:]
+        search.aggs.bucket('data_sources', 'terms', field='data_sources', size=1000)
+        results = search.execute()
+
+        if current_user and args.with_coverage and args.with_coverage is True:
+            covered_filter = []
+            inputs = Input.search()
+            inputs.aggs.bucket('mitre_data_sources', 'terms', field='mitre_data_sources', size=1000)
+            inputs = inputs[0]
+            inputs = inputs.execute()
+            input_buckets = inputs.aggregations.mitre_data_sources.buckets
+            covered_filter = [bucket.key for bucket in input_buckets]
+            return {'data_sources': [bucket.key for bucket in results.aggregations.data_sources.buckets if bucket.key in covered_filter]}            
+        
+        return {'data_sources': [bucket.key for bucket in results.aggregations.data_sources.buckets]}
+    
+
+detection_list_parser = api.parser()
+detection_list_parser.add_argument('organization', location='args', type=str, required=False)
+
+@api.route("/detections")
+class DetectionList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(detection_list_parser)
+    @token_required
+    @user_has("view_detections")
+    def get(self, current_user):
+        '''
+        Returns a list of techniques with the UUIDs of all the detections
+        that map to them.
+        '''
+
+        args = detection_list_parser.parse_args()
+
+        search = Detection.search()
+
+        if args.organization:
+            if not current_user.is_default_org():
+                search = search.filter('term', organization=current_user.organization)
+            else:
+                search = search.filter('term', organization=args.organization)
+
+        # Count the number of detections per techniques.external_id.  techniques.external_id is
+        # nested under techniques
+        search.aggs.bucket('techniques', 'nested', path='techniques').bucket('external_ids', 'terms', field='techniques.external_id', size=10000)
+        search.aggs.bucket('active', 'filter', filter={'term': {'active': True}}).bucket('techniques', 'nested', path='techniques').bucket('external_ids', 'terms', field='techniques.external_id', size=10000)
+
+        # Set the size to 0 so we don't return any hits
+        search = search[0:0]
+
+        # Return the results
+        results = search.execute()
+
+        # Create a dictionary of technique.external_id to detection UUIDs
+        detection_mapping = {
+            'techniques': {}
+        }
+
+        technique_active_total = {}
+        # Create a lookup dictionary of the external_id and the count of active detections
+        for bucket in results.aggregations.active.techniques.external_ids.buckets:
+            technique_active_total[bucket.key] = bucket.doc_count
+        
+        for bucket in results.aggregations.techniques.external_ids.buckets:
+            #detection_mapping['techniques'].append({
+            #    'external_id': bucket.key,
+            #    'count': bucket.doc_count
+            #})
+            detection_mapping['techniques'][bucket.key] = {
+                'total': bucket.doc_count,
+                'active': technique_active_total.get(bucket.key, 0)
+            }
+
+        return detection_mapping
+
+        
+

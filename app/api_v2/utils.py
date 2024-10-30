@@ -1,19 +1,25 @@
 from app.api_v2.model.user import Organization
-import json
 import jwt
-import base64
 import datetime
 import smtplib
-import logging
 import string
 import random
 import ipaddress
 import math
 import elasticapm
+from functools import lru_cache
 
 from flask import request, current_app, abort
-from flask_restx import fields
-from .model import EventLog, User, ExpiredToken, Settings, Agent
+from .model import EventLog, User, ExpiredToken, Settings, Agent, ServiceAccount, Organization
+
+@lru_cache(maxsize=None)
+def org_uuid_to_name(org_id):
+    """Returns the organization name based on the UUID"""
+    if org_id:
+        organization = Organization.get_by_uuid(org_id)
+        if organization:
+            return organization.name
+    return ""
 
 def random_ending(prefix=None, length=10):
     '''
@@ -60,6 +66,16 @@ def escape_special_characters_rql(value):
             value = value.replace(c, characters[c])
 
     return value
+
+
+def get_user_real_ip():
+    '''
+    Returns the real IP address of the user
+    '''
+    if request.headers.getlist('X-Forwarded-For'):
+        return request.headers.getlist('X-Forwarded-For')[0]
+    else:
+        return request.remote_addr
 
 
 def log_event(event_type, *args, **kwargs):
@@ -109,6 +125,20 @@ def org_check(current_user, payload):
     if 'organization' in payload and hasattr(current_user,'default_org') and not current_user.default_org:
         payload.pop('organization')
     return payload
+
+
+def strip_meta_fields(f):
+    '''
+    Strips the meta fields off the API request as only the system can update them
+    '''
+    def wrapper(*args, **kwargs):
+        for key in ['created_at','updated_at','created_by','updated_by','uuid']:
+            if hasattr(args[0].api,'payload') and key in args[0].api.payload:
+                args[0].api.payload.pop(key)
+        return f(*args, **kwargs)
+    wrapper.__doc__ = f.__doc__
+    wrapper.__name__ = f.__name__
+    return wrapper
 
 
 def check_org(f):
@@ -237,6 +267,91 @@ def default_org(f):
     return wrapper
 
 
+def request_user():
+    try:
+        return request.current_user
+    except AttributeError:
+        return None
+
+def user_scope_has(permission: str):
+    '''
+    Route decorator that takes a permission as a string and determines if the
+    current_user has that permission.  If they do return the current route, if
+    they do not return 401 Unauthorized
+    '''
+
+    def decorator(f):
+        def wrapper(*args, **kwargs):
+
+            # Skip the scope check if the SCOPE_BASED_ACCESS is set to False
+            if not current_app.config['SCOPE_BASED_ACCESS']:
+                return f(*args, **kwargs)
+
+            # Define an empty scope check dictionary to track the scope and
+            # permission checks per organization when organization is a list
+            # of multiple oranizations
+            scope_checks = {}
+            
+            current_user = None
+            organization = None
+            
+            if 'current_user' in kwargs:
+                current_user = kwargs['current_user']
+
+            if 'organization' in request.args:
+                organization = request.args.get('organization').split(',')
+            
+            # If the user is authenticated and on the request object
+            if current_user:
+
+                # If the current_user is a pairing token and the route requires add_agent
+                # return the route unimpeded
+                if isinstance(current_user, dict) and current_user['type'] == 'pairing' and permission == 'add_agent':
+                    return f(*args, **kwargs)
+                
+                if not organization:
+                    organization = current_user.get_access_scope_orgs()
+
+                    if current_user.organization not in organization:
+                        organization.append(current_user.organization)
+
+                request.current_user = current_user
+
+                if request.method in ['POST', 'PUT', 'PATCH']:
+                    payload = request.get_json()
+                    if 'organization' in payload:
+                        if not current_user.has_org_access(payload['organization']):
+                            abort(403, f"You do not have permission to perform this action.  Not scoped for '{payload['organization']}'")
+                        
+                        if not current_user.has_org_permission(permission, payload['organization']):
+                            abort(403, f"You do not have permission to perform this action.  Required permission '{permission}'")
+                    return f(*args, **kwargs)
+
+                for org in organization:
+                    scope_checks[org] = current_user.has_org_permission(permission, org)
+                
+                # If any of the scope checks fail, remove the organization from the list of
+                # requested organizations
+                if False in scope_checks.values():
+                    for org in scope_checks:
+                        if not scope_checks[org]:
+                            organization.remove(org)
+
+                # If any organizations are left in the list, return the route
+                if len(organization) > 0:
+                    request.current_user.request_org_filter = organization
+                    return f(*args, **kwargs)
+                else:
+                    request.current_user.request_org_filter = [current_user.organization]
+                
+            abort(403, f"You do not have permission to perform this action.  Required permission '{permission}'")
+
+        wrapper.__doc__ = f.__doc__
+        wrapper.__name__ = f.__name__
+        return wrapper
+    return decorator
+
+
 def user_has(permission: str):
     '''
     Route decorator that takes a permission as a string and determines if the
@@ -255,10 +370,10 @@ def user_has(permission: str):
             # bypass the route guard and let the route finish
             if isinstance(current_user, dict) and current_user['type'] == 'pairing' and permission == 'add_agent':
                 return f(*args, **kwargs)
-            if not isinstance(current_user, list) and current_user.has_right(permission):
+            if current_user and not isinstance(current_user, list) and current_user.has_right(permission):
                 return f(*args, **kwargs)
             else:
-                abort(401, f"You do not have permission to perform this action.  Required permission '{permission}'")
+                abort(403, f"You do not have permission to perform this action.  Required permission '{permission}'")
 
         wrapper.__doc__ = f.__doc__
         wrapper.__name__ = f.__name__
@@ -281,9 +396,12 @@ def check_password_reset_token(token):
     try:
         decoded_token = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
 
-        expired = ExpiredToken.search().filter('term', token=token).execute()
-        if expired:
-            abort(401, 'Token retired.')
+        try:
+            expired = ExpiredToken.search().filter('term', token=token).execute()
+            if expired:
+                abort(401, 'Token retired.')
+        except ConnectionResetError as e:
+            current_app.logger.error(f"Error checking for expired token: {e}")
 
         if 'type' in decoded_token and decoded_token['type'] in ['password_reset','mfa_challenge']:
             user = User.get_by_uuid(uuid=decoded_token['uuid'])
@@ -293,8 +411,8 @@ def check_password_reset_token(token):
         abort(401, 'Token retired.')
     except jwt.ExpiredSignatureError:
         abort(401, 'Access token expired.')
-    except (jwt.DecodeError, jwt.InvalidTokenError):
-        abort(401, 'Invalid access token.')
+    except (jwt.DecodeError, jwt.InvalidTokenError) as e:
+        abort(401, f'Invalid access token. {e}')
     except Exception as e:
         abort(401, str(e))
 
@@ -308,9 +426,14 @@ def _check_token():
         try:
             access_token = auth_header.split(' ')[1]
 
-            expired = ExpiredToken.search().filter('term', token=access_token).execute()
-            if expired:
-                abort(401, 'Token retired.')
+            try:
+                #expired = ExpiredToken.search().filter('term', token=access_token).execute()
+                expired = None
+                if expired:
+                    abort(401, 'Token retired.')
+            except ConnectionResetError as e:
+                current_app.logger.error(f"Error checking for expired token: {e}")
+
             try:
                 token = jwt.decode(access_token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
 
@@ -326,10 +449,16 @@ def _check_token():
                 elif 'type' in token and token['type'] in ['refresh','password_reset']:
                     abort(401, 'Unauthorized')
                     
+                # Service Accounts are for persistent access and have longer than
+                # normal expiration times.  They are not tied to a specific user
+                elif 'type' in token and token['type'] == 'service_account':
+                    current_user = ServiceAccount.get_by_uuid(uuid=token['uuid'])
+                    if not current_user:
+                        abort(401, 'Unknown user error.')
+                
                 # The pairing token can only be used on the add_agent endpoint
                 # and because the token is signed we don't have to worry about 
                 # someone adding a the pairing type to their token
-
                 elif 'type' in token and token['type'] == 'pairing':
                     current_user = token
                 else:
@@ -348,18 +477,22 @@ def _check_token():
                 if 'default_org' in token and token['default_org']:
                     current_user.default_org = True
 
+                # Append the users token claims/permissions to their
+                # user object
+                if 'permissions' in token:
+                    current_user.token_permissions = token['permissions']
+
             except ValueError:
                 abort(401, 'Token retired.')
             except jwt.ExpiredSignatureError:
                 abort(401, 'Access token expired.')
             except (jwt.DecodeError, jwt.InvalidTokenError) as e:
-                abort(401, 'Invalid access token.')
+                abort(401, f'Invalid access token. {e}')
             except Exception as e:
-                print(e)
                 abort(401, 'Unknown token error.')
 
-        except IndexError:
-            abort(401, 'Invalid access token.')
+        except IndexError as e:
+            abort(401, f'Invalid access token. {e}')
             raise jwt.InvalidTokenError
     else:
         abort(403, 'Access token required.')
@@ -379,4 +512,3 @@ def _check_token():
             elasticapm.set_user_context(username=username+'-'+current_user.organization, user_id=current_user.uuid, email=email)
 
     return current_user
-

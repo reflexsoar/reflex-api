@@ -2,8 +2,8 @@ import datetime
 from app.api_v2.model.threat import ThreatValue
 from ..utils import check_org, default_org, token_required, user_has, ip_approved, page_results
 from flask_restx import Resource, Namespace, fields, inputs as xinputs
-from ..model import ThreatList, DataType
-from .shared import ISO8601, mod_pagination, ValueCount
+from ..model import ThreatList, DataType, Q
+from .shared import ISO8601, mod_pagination
 from ... import ep
 
 
@@ -35,6 +35,7 @@ mod_threat_value = api.model('ThreatValue', {
     'data_type': fields.String,
     'list_uuid': fields.String,
     'list_name': fields.String,
+    'event_hits': fields.Integer,
     'created_at': ISO8601
 })
 
@@ -45,6 +46,7 @@ mod_list_list = api.model('ListView', {
     'list_type': fields.String,
     'tag_on_match': fields.Boolean,
     'data_type': fields.Nested(mod_data_type_list),
+    'data_type_name': fields.String,
     'url': fields.String,
     'poll_interval': fields.Integer,
     'last_polled': ISO8601(attribute='last_polled'),
@@ -57,7 +59,11 @@ mod_list_list = api.model('ListView', {
     'updated_at': ISO8601(attribute='updated_at'),
     'csv_headers': fields.String,
     'csv_headers_data_types': fields.String,
-    'case_sensitive': fields.Boolean
+    'case_sensitive': fields.Boolean,
+    'flag_ioc': fields.Boolean,
+    'flag_safe': fields.Boolean,
+    'flag_spotted': fields.Boolean,
+    'global_list': fields.Boolean(default=False)
 })
 
 mod_list_list_paged = api.model('ListViewPaged', {
@@ -78,7 +84,11 @@ mod_list_create = api.model('ListCreate', {
     'active': fields.Boolean(example=True),
     'csv_headers': fields.String,
     'csv_headers_data_types': fields.String,
-    'case_sensitive': fields.Boolean
+    'case_sensitive': fields.Boolean,
+    'flag_ioc': fields.Boolean,
+    'flag_safe': fields.Boolean,
+    'flag_spotted': fields.Boolean,
+    'global_list': fields.Boolean(default=False)
 })
 
 mod_list_values = api.model('ListValues', {
@@ -91,6 +101,10 @@ mod_list_match = api.model('ListMatch', {
     'matched': fields.Boolean
 })
 
+mod_list_multi_match = api.model('ListMultiMatch', {
+    'values': fields.List(fields.String, required=True)
+})
+
 mod_list_values_paged = api.model('ListValuesPaged', {
     'values': fields.Nested(mod_threat_value),
     'pagination': fields.Nested(mod_pagination)
@@ -101,6 +115,9 @@ list_parser.add_argument(
     'data_type', location='args', required=False)
 list_parser.add_argument(
     'organization', location='args', required=False
+)
+list_parser.add_argument(
+    'name__like', location='args', required=False
 )
 list_parser.add_argument(
     'page', type=int, location='args', default=1, required=False)
@@ -121,18 +138,33 @@ class ThreatListList(Resource):
 
         args = list_parser.parse_args()
 
-        lists = ThreatList.search()
+        lists = ThreatList.search(skip_org_check=True)
+
+        # If the organization args are set and the user is in the default org
+        if current_user.is_default_org() == True and args.organization:
+            lists = lists.filter(
+                'bool',
+                should=[
+                    Q('term', organization=args.organization),
+                    Q('term', global_list=True)
+                ]
+            )
+
+        if current_user.is_default_org() == False:
+            # Search for the target organization or any global_list
+            lists = lists.filter(
+                'bool',
+                should=[
+                    Q('term', organization=current_user.organization),
+                    Q('term', global_list=True)
+                ]
+            )
+
+        if args.name__like:
+            lists = lists.filter('wildcard', name=args.name__like+"*")
 
         if args.data_type:
-            if user_in_default_org and args.organization:
-                data_type = DataType.get_by_name(name=args.data_type, organization=args.organization)
-            else:
-                data_type = DataType.get_by_name(name=args.data_type)
-            if data_type:
-                lists = lists.filter('term', data_type_uuid=data_type.uuid)
-
-        if user_in_default_org and args.organization:
-            lists = lists.filter('term', organization=args.organization)
+            lists = lists.filter('term', data_type_name=args.data_type)
 
         lists, total_results, pages = page_results(lists, args.page, args.page_size)
 
@@ -173,11 +205,18 @@ class ThreatListList(Resource):
 
         value_list = ThreatList.get_by_name(name=api.payload['name'])
 
-        if value_list:
+        if value_list and value_list.organization == current_user.organization:
             api.abort(409, "ThreatList already exists.")
 
         if api.payload['list_type'] not in ['values', 'patterns', 'csv']:
             api.abort(400, "Invalid list type.")
+
+        if 'global_list' in api.payload and api.payload['global_list']:
+            if not current_user.is_default_org():
+                api.abort(400, 'You do not have permission to set the global_list setting.')
+
+            if current_user.is_default_org() and 'organization' in api.payload and api.payload['organization'] != current_user.organization:
+                api.abort(400, 'global_list can only be set on the default organizations lists')
 
         # Remove any values entered by the user as they also want to pull
         # from a URL and the URL will overwrite their additions
@@ -223,17 +262,21 @@ class ThreatListList(Resource):
                     continue
                 values.append(value)
 
-        if 'data_type_uuid' in api.payload and DataType.get_by_uuid(api.payload['data_type_uuid']) is None:
-            api.abort(400, "Invalid data type")
+        # TODO: Get rid of this uuid association entirely at some point
+        if 'data_type_uuid' in api.payload:
+            data_type = DataType.get_by_uuid(api.payload['data_type_uuid'])
+            if data_type is None:
+                api.abort(400, "Invalid data type")
+            else:
+                api.payload['data_type_name'] = data_type.name
 
         value_list = ThreatList(**api.payload)
         value_list.save()
-        
 
         if not 'url' in api.payload:
             value_list.set_values(values)
 
-        ep.restart_workers()
+        ep.restart_workers(organization=value_list.organization)
 
         return value_list            
 
@@ -264,6 +307,17 @@ class ThreatListDetails(Resource):
         value_list = ThreatList.get_by_uuid(uuid=uuid)
 
         if value_list:
+
+            if 'global_list' in api.payload:
+                current_state = getattr(value_list, 'global_list')
+                
+                if not current_user.is_default_org():
+                    del api.payload['global_list']
+
+                if current_user.is_default_org() and value_list.organization != current_user.organization:
+                    if current_state == True:
+                        api.abort(400, 'global_list can only be set on the default organizations lists')
+                        
 
             if 'name' in api.payload:
                 l = ThreatList.get_by_name(name=api.payload['name'])
@@ -304,7 +358,7 @@ class ThreatListDetails(Resource):
 
             # Update the list with all other fields
             if len(api.payload) > 0:
-                value_list.update(**api.payload)
+                value_list.update(**api.payload, refresh=True)
                 ep.restart_workers()
 
             return value_list
@@ -367,6 +421,31 @@ class ThreatListTest(Resource):
         else:
             api.abort(404, {'message': 'Intel List not found'})
 
+@api.route('/test/<uuid>')
+class ThreatListMultiTest(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_list_multi_match)
+    @token_required
+    @user_has('view_lists')
+    def post(self, current_user, uuid):
+        '''
+        Takes a list of values to check against a list.  If the value appears
+        in the list add it to a dictionary of matched values with the value
+        as a key and True as the value.
+        '''
+
+        if 'values' not in api.payload or len(api.payload['values']) == 0:
+            api.abort(400, 'Values are required.')
+
+        if len(api.payload['values']) > 10000:
+            api.abort(400, 'Too many values.  Can not exceed 10000 values.')
+
+        values = ThreatValue.find(list_uuid=uuid, values=api.payload['values'])
+
+        return {v['value']: True for v in values}
+
+
 list_stats_parser = api.parser()
 list_stats_parser.add_argument('list', location='args', type=str, action='split', required=False)
 list_stats_parser.add_argument('value', location='args', type=str, action='split', required=False)
@@ -393,6 +472,11 @@ class IntelListStats(Resource):
         args = list_stats_parser.parse_args()
         
         search_filters = []
+
+        organization = current_user.organization
+
+        if current_user.is_default_org() and args.organization:
+            organization = args.organization
 
         if args.value__like and args.value__like != '':
             search_filters.append({
@@ -443,7 +527,31 @@ class IntelListStats(Resource):
                 'value': args.record_id
             })
 
-        search = ThreatValue.search()        
+        search = ThreatList.search(skip_org_check=True)
+
+        if not current_user.is_default_org() and not args.organization:
+            # Search for the target organization or any global_list
+            search = search.filter(
+                'bool',
+                should=[
+                    Q('term', organization=organization),
+                    Q('term', global_list=True)
+                ]
+            )
+
+        if args.list_name__like:
+            search = search.filter('wildcard', name="*"+args.list_name__like+"*")
+
+        if args.list:
+            search = search.filter('terms', uuid=args.list)
+
+        #search = search.filter('terms', uuid=[v['key'] for v in values.aggs.range.lists.buckets])
+        
+        lists = list(search.scan())
+
+        search = ThreatValue.search(skip_org_check=True)
+
+        search = search.filter('terms', list_uuid=[l.uuid for l in lists])
 
         # Apply all filters
         for _filter in search_filters:
@@ -469,13 +577,6 @@ class IntelListStats(Resource):
         search = search[0:0]
         
         values = search.execute()
-
-        search = ThreatList.search()
-
-        search = search.filter('terms', uuid=[v['key'] for v in values.aggs.range.lists.buckets])
-
-        search = search[0:args.top]
-        lists = list(search.scan())
 
         data = {}
 
@@ -520,17 +621,53 @@ class IntelListValues(Resource):
         args = list_value_parser.parse_args()
 
         lists = None
+        organization = current_user.organization
+
+        if current_user.is_default_org() and args.organization:
+            organization = args.organization
+
+        intel_list = ThreatList.search(skip_org_check=True)
+
+        if not current_user.is_default_org() and not args.organization:
+                # Search for the target organization or any global_list
+                intel_list = intel_list.filter(
+                    'bool',
+                    should=[
+                        Q('term', organization=organization),
+                        Q('term', global_list=True)
+                    ]
+                )
 
         if args.list_name__like:
-            intel_list = ThreatList.search()
+            intel_list = intel_list.filter('wildcard', name="*"+args.list_name__like+"*")
 
-            if user_in_default_org and args.organization:
-                intel_list = intel_list.filter('term', organization=args.organization)
-
-            intel_list = intel_list.filter('wildcard', name=args.list_name__like+"*")
-            lists = list(intel_list.scan())
+        if args.list:
+            intel_list = intel_list.filter('terms', uuid=args.list)
         
-        values = ThreatValue.search()
+        lists = list(intel_list.scan())
+
+        if len(lists) == 0:
+            return {
+                'values': [],
+                'pagination': {
+                    'total_results': 0,
+                    'pages': 1,
+                    'page': 1,
+                    'page_size': args['page_size']
+                }
+            }
+        
+        values = ThreatValue.search(skip_org_check=True)
+
+        if not current_user.is_default_org() and not args.organization:
+            # Search for the target organization or any global_list
+            values = values.filter(
+                'bool',
+                should=[
+                    Q('term', organization=organization),
+                    Q('terms', list_uuid=[l.uuid for l in lists])
+                ]
+            )
 
         if args.list:
             if lists:
@@ -568,6 +705,33 @@ class IntelListValues(Resource):
         return response
 
 
+@api.route("/<uuid>/replace_values")
+class ReplaceValuesInThreatList(Resource):
+
+    @api.doc(security="Bearer")
+    @api.expect(mod_list_values)
+    @token_required
+    @user_has('update_list')
+    def put(self, uuid, current_user):
+        ''' Replaces all the values in the list with the values
+        provided in the API call'''
+
+        value_list = ThreatList.get_by_uuid(uuid=uuid)
+        if value_list:
+
+            #if current_user.has_org_permission(value_list.organization, 'update_list') is False:
+            #    api.abort(403, 'You do not have permission to update this list.')
+
+            if 'values' in api.payload and api.payload['values'] not in [None, '']:
+                tv = ThreatValue.search()
+                tv = tv.filter('term', list_uuid=uuid)
+                tv.delete()
+                value_list.set_values(api.payload['values'])
+                return {'message': 'Succesfully replaced values in list.'}    
+            api.abort(400, {'message':'Values are required.'})
+        api.abort(404, 'ThreatList not found.')
+
+
 @api.route("/<uuid>/add_value")
 class AddValueToThreatList(Resource):
 
@@ -580,12 +744,23 @@ class AddValueToThreatList(Resource):
         value_list = ThreatList.get_by_uuid(uuid=uuid)
         if value_list:
 
+            #if current_user.has_org_permission(value_list.organization, 'update_list') is False:
+            #    api.abort(403, 'You do not have permission to update this list.')
+
             if 'values' in api.payload and api.payload['values'] not in [None,'']:
                 value_list.set_values(api.payload['values'])
                 return {'message': 'Succesfully added values to list.'}
             else:
                 api.abort(400, {'message':'Values are required.'})
         else:
+
+            value_list = ThreatList.search(skip_org_check=True)
+            value_list = value_list.filter('term', uuid=uuid)
+            value_list = value_list.execute()
+
+            if value_list and value_list[0].organization != current_user.organization and value_list[0].global_list:
+                api.abort(400, 'You do not have permission to update this list.')
+
             api.abort(404, 'ThreatList not found.')
 
 
@@ -599,11 +774,18 @@ class RemoveValueFromThreatList(Resource):
     def delete(self, uuid, current_user):
         ''' Deletes values from a ThreatList '''
 
-        if 'values' in api.payload:
-            values = ThreatValue.search()
-            values = values.filter('term', list_uuid=uuid)
-            values = values.filter('terms', values=api.payload['values'])
-            values.delete()
-            
-            return {'message': 'Succesfully removed values from list.'}
-        api.abort(400, {'message':'Values are required.'})
+        value_list = ThreatList.get_by_uuid(uuid=uuid)
+
+        if value_list:
+            #if current_user.has_org_permission(value_list.organization, 'update_list') is False:
+            #    api.abort(403, 'You do not have permission to update this list.')
+
+            if 'values' in api.payload:
+                values = ThreatValue.search()
+                values = values.filter('term', list_uuid=uuid)
+                values = values.filter('terms', values=api.payload['values'])
+                values.delete()
+                
+                return {'message': 'Succesfully removed values from list.'}
+            api.abort(400, {'message':'Values are required.'})
+        api.abort(404, 'ThreatList not found.')

@@ -58,7 +58,7 @@ class MITREAttack(object):
                 existing_tactic = MITRETactic.get_by_external_id(
                     tactic.external_id)
                 if existing_tactic:
-                    existing_tactic.update(**tactic.to_dict())
+                    existing_tactic.update(**tactic.to_dict(), refresh=True)
                 else:
                     tactic.save()
 
@@ -76,18 +76,21 @@ class MITREAttack(object):
                                                  description=tech['description'],
                                                  external_references=tech['external_references'],
                                                  kill_chain_phases=tech['kill_chain_phases'],
-                                                 data_sources=data_sources
+                                                 data_sources=data_sources,
+                                                 is_sub_technique=tech['x_mitre_is_subtechnique'],
+                                                 is_deprecated=tech['x_mitre_deprecated'] if 'x_mitre_deprecated' in tech else False,
+                                                 is_revoked=tech['revoked'] if 'revoked' in tech else False
                                                  ))
-#
+
             # Extract the external_id and kill_chain_phases for each technique
             [t.get_external_id() for t in techniques]
             [t.get_kill_chain_phase_names() for t in techniques]
-#
+
             # Save or update the technique
             self.logger.info('Updating MITRE ATT&CK Techniques')
             for tech in techniques:
                 existing_tech = MITRETechnique.get_by_external_id(tech.external_id)
                 if existing_tech:
-                    existing_tech.update(**tech.to_dict())
+                    existing_tech.update(**tech.to_dict(), refresh=True)
                 else:
                     tech.save()

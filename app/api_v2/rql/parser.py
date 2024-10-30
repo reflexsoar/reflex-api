@@ -54,7 +54,7 @@ class QueryLexer(object):
     t_COMMA = r','
     t_EQUALS = r'=|eq|Eq|EQ'
     t_NOTEQUALS = r'!=|ne|NE|ne'
-    t_CIDR = r'cidr|InCIDR'
+    t_CIDR = r'cidr|InCIDR|incidr'
     t_CONTAINS = r'contains|Contains'
     t_CONTAINSCIS = r'containscis|ContainsCIS'
     t_IN = r'In|in|IN'
@@ -106,7 +106,7 @@ class QueryLexer(object):
         #|data_type|ioc|original_source_field|title|severity|status(\.([^\s\|]+))?|reference|source
         #|signature|tags|raw_log(\.([^\s\|]+))?
         #'''
-        r'''observables(\.([\.\w]+))?|value|tlp|tags|spotted|safe|source_field|description|data_type|ioc|original_source_field|title|severity|status(\.([\.\w]+))?|reference|source|signature|tags|raw_log(\.([\.\w]+))?'''
+        r'''observables(\.([\.\w]+))?|agent(\.([\.\w]+))?|value|tlp|tags|spotted|safe|source_field|description|data_type|ioc|original_source_field|title|organization|severity|risk_score|status(\.([\.\w]+))?|reference|source|signature|namespace|name|version|vendor|tags|raw_log(\.([\.\w]+))?'''
         return t
     
     def t_ARRAY(self, t):
@@ -377,9 +377,16 @@ class QueryParser(object):
     
         p[0] = self.search.MathOp(mutators=mutators, operator=op, **{field: target})
 
+    
+    def p_expression_in_cidr_intel(self, p):
+        'expression : target CIDR INTEL LPAREN STRING RPAREN'
+        p[0] = self.search.InCIDR(mutators=[], **{p[1]: self.search.ThreatLookup(organization=self.organization, target={}).fetch_values(name=p[5])})
+
     def p_expression_in_cidr(self, p):
         """expression : target CIDR STRING
                     | target NOT CIDR STRING
+                    | target CIDR ARRAY
+                    | target NOT CIDR ARRAY
         """
 
         contains_not = False

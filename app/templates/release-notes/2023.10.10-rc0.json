@@ -1,0 +1,27 @@
+{
+    "version": "2023.10.10-rc0",
+    "sections": [
+        {
+            "title": "Enhancements",
+            "items": [
+                {
+                    "title": "Detection Field Assessment",
+                    "description": "Detection rules will now automatically have all the fields required for the detection to fire assessed during the rule assessment phase. Any detection with fields that do not exist will be tagged with warnings showing fields are missing and what fields are missing"
+                }
+            ]
+        },
+        {
+            "title": "Bug Fixes",
+            "items": [
+               {
+                "title": "Users",
+                "description": "- Users were not assigned their role correctly on creation."
+               },
+               {
+                "title": "Permissions",
+                "description": "- Several default permissions were missing during upgrade that prevented users from accessing certain areas of the system."
+               }
+            ]
+        }
+    ]
+}

@@ -25,6 +25,7 @@ from ...defaults import (
     create_default_event_status,
     initial_settings
 )
+from ... import ep
 
 api = Namespace('Organizations',
                 description="Organization operations", path="/organization")
@@ -43,12 +44,22 @@ mod_organization_list_paged = api.model('PagedOrganizationList', {
     'pagination': fields.Nested(mod_pagination)
 })
 
+mod_admin_user_create = api.model('AdminUserCreate', {
+    'username': fields.String(required=True),
+    'email': fields.String(required=True),
+    'password': fields.String(required=True),
+    'first_name': fields.String(required=True),
+    'last_name': fields.String(required=True),
+    'locked': fields.Boolean,
+    'role_uuid': fields.String(required=False)
+}, strict=True)
+
 mod_organization_create = api.model('CreateOrganization', {
     'name': fields.String,
     'description': fields.String,
     'url': fields.String,
     'logon_domains': fields.List(fields.String),
-    'admin_user': fields.Nested(mod_user_create, required=True)
+    'admin_user': fields.Nested(mod_admin_user_create, required=True)
 }, strict=True)
 
 
@@ -81,11 +92,11 @@ class OrganizationDetails(Resource):
         organization = Organization.get_by_uuid(uuid=uuid)
 
         # If the user is the default organization allow them to view any organization
-        if user_in_default_org:
-            return organization      
+        if current_user.is_default_org():
+            return organization
         
         # If the user is not the default organization and they try to access a different organization
-        if not user_in_default_org and organization.uuid != current_user.organization:
+        if not current_user.is_default_org() and organization.uuid != current_user.organization:
             api.abort(404, 'Organization not found.')
 
         return organization
@@ -124,7 +135,7 @@ class OrganizationDetails(Resource):
                 # if they had this level of access anyway
                 api.abort(400, 'Invalid logon domain provided.')
 
-        organization.update(**api.payload)
+        organization.update(**api.payload, refresh=True)
 
         return organization
 

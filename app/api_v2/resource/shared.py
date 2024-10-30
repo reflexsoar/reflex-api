@@ -1,10 +1,28 @@
 import json
 import dateutil.parser
-from flask_restx import Model, fields
+
+from flask_restx import Model, fields, reqparse
+from opensearch_dsl import AttrDict
+
+
+class NullableString(fields.String):
+    ''' Returns a String or None '''
+    __schema_type__ = ['string', 'null']
+    __schema_example__ = 'string or null'
+
+class AsAttrDict(fields.Raw):
+    ''' Converts an AttrDict to a normal Dict'''
+
+    def format(self, value):
+        if isinstance(value, AttrDict):
+            return value.to_dict()
 
 
 class ISO8601(fields.Raw):
     ''' Returns a Python DateTime object in ISO8601 format with the Zulu time indicator '''
+
+    __schema_example__ = '2019-01-01T00:00:00.000Z'
+    __schema_type__ = 'string'
 
     def format(self, value):
         if isinstance(value, str):
@@ -153,6 +171,10 @@ mod_permissions = Model('Permissions', {
     'view_agent_groups': fields.Boolean,
     'update_agent_group': fields.Boolean,
     'delete_agent_group': fields.Boolean,
+    'create_agent_policy': fields.Boolean,
+    'view_agent_policies': fields.Boolean,
+    'update_agent_policy': fields.Boolean,
+    'delete_agent_policy': fields.Boolean,
     'add_input': fields.Boolean,
     'view_inputs': fields.Boolean,
     'update_input': fields.Boolean,
@@ -212,8 +234,79 @@ mod_permissions = Model('Permissions', {
     'update_detection': fields.Boolean,
     'view_detections': fields.Boolean,
     'delete_detection': fields.Boolean,
+    'create_notification_channel': fields.Boolean,
+    'view_notification_channels': fields.Boolean,
+    'update_notification_channel': fields.Boolean,
+    'delete_notification_channel': fields.Boolean,
+    'view_notifications': fields.Boolean,
     'create_persistent_pairing_token': fields.Boolean,
-    'use_api': fields.Boolean(optional=True)
+    'use_api': fields.Boolean(optional=True),
+    'create_service_account': fields.Boolean,
+    'view_service_accounts': fields.Boolean,
+    'delete_service_account': fields.Boolean,
+    'create_asset': fields.Boolean,
+    'view_assets': fields.Boolean,
+    'update_asset': fields.Boolean,
+    'delete_asset': fields.Boolean,
+    'create_detection_repository': fields.Boolean,
+    'view_detection_repositories': fields.Boolean,
+    'update_detection_repository': fields.Boolean,
+    'delete_detection_repository': fields.Boolean,
+    'share_detection_repository': fields.Boolean,
+    'subscribe_detection_repository': fields.Boolean,
+    'create_integration': fields.Boolean,
+    'update_integration': fields.Boolean,
+    'delete_integration': fields.Boolean,
+    'view_integrations': fields.Boolean,
+    'view_integration_configurations': fields.Boolean,
+    'create_integration_configuration': fields.Boolean,
+    'update_integration_configuration': fields.Boolean,
+    'delete_integration_configuration': fields.Boolean,
+    'create_sso_provider': fields.Boolean,
+    'update_sso_provider': fields.Boolean,
+    'delete_sso_provider': fields.Boolean,
+    'view_sso_providers': fields.Boolean,
+    'create_sso_mapping_policy': fields.Boolean,
+    'update_sso_mapping_policy': fields.Boolean,
+    'delete_sso_mapping_policy': fields.Boolean,
+    'view_sso_mapping_policies': fields.Boolean,
+    'create_package': fields.Boolean,
+    'update_package': fields.Boolean,
+    'delete_package': fields.Boolean,
+    'view_packages': fields.Boolean,
+    'create_data_source_template': fields.Boolean,
+    'update_data_source_template': fields.Boolean,
+    'delete_data_source_template': fields.Boolean,
+    'view_data_source_templates': fields.Boolean,
+    'view_fim_rules': fields.Boolean,
+    'create_fim_rule': fields.Boolean,
+    'update_fim_rule': fields.Boolean,
+    'delete_fim_rule': fields.Boolean,
+    'create_schedule': fields.Boolean,
+    'update_schedule': fields.Boolean,
+    'delete_schedule': fields.Boolean,
+    'view_schedules': fields.Boolean,
+    'view_benchmarks': fields.Boolean,
+    'create_benchmark_rule': fields.Boolean,
+    'update_benchmark_rule': fields.Boolean,
+    'view_benchmark_rulesets': fields.Boolean,
+    'create_benchmark_ruleset': fields.Boolean,
+    'update_benchmark_ruleset': fields.Boolean,
+    'delete_benchmark_ruleset': fields.Boolean,
+    'view_benchmark_exceptions': fields.Boolean,
+    'create_benchmark_exclusion': fields.Boolean,
+    'update_benchmark_exclusion': fields.Boolean,
+    'delete_benchmark_exclusion': fields.Boolean,
+    'create_benchmark_result': fields.Boolean,
+    'view_agent_tags': fields.Boolean,
+    'create_agent_tag': fields.Boolean,
+    'update_agent_tag': fields.Boolean,
+    'delete_agent_tag': fields.Boolean,
+    'sync_local_subscribers': fields.Boolean,
+    #'create_log_source': fields.Boolean,
+    #'update_log_source': fields.Boolean,
+    #'delete_log_source': fields.Boolean,
+    #'view_log_sources': fields.Boolean
 }, strict=True)
 
 mod_user_list = Model('UserList', {
@@ -222,3 +315,17 @@ mod_user_list = Model('UserList', {
     'organization': fields.String
 })
 
+
+
+DEFAULT_ORG_ONLY_PERMISSIONS = [
+    'create_service_account',
+    'view_service_accounts',
+    'delete_service_account'
+    'update_service_account'
+]
+
+pager_parser = reqparse.RequestParser()
+pager_parser.add_argument('page_size', location='args',
+                          required=False, type=int, default=25)
+pager_parser.add_argument('page', location='args',
+                          required=False, type=int, default=1)

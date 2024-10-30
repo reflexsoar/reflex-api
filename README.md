@@ -2,8 +2,9 @@
 
 ![coverage](coverage.svg) ![pep508](pep508.svg) ![vulnerable](vulnerable.svg)
 
-## Development
+## Quick Start
 
+<<<<<<< HEAD
 1. Run `pipenv install`
 2. Create `instance\application.conf` and provide the following 
 
@@ -60,3 +61,6 @@ services:
 8. Run `docker exec reflex-api sh -c "pipenv run python setup.py"` to perform initial setup
 8. Navigate to https://localhost
 9. Login as admin@reflexsoar.com\reflex
+=======
+https://docs.reflexsoar.com/en/dev/getting-started/
+>>>>>>> 76f5512f763c8b24a0bb9a743b4a6892e5c686d4

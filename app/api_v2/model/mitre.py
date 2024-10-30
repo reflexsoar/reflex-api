@@ -52,14 +52,27 @@ class MITRETechnique(base.BaseDocument):
         settings = {
             "refresh_interval": "1s"
         }
+        version = "0.1.5"
 
     mitre_id = Keyword(fields={'text':Text()}) # Example: x-mitre-tactic--2558fd61-8c75-4730-94c4-11926db2a263
     description = Keyword(fields={'text':Text()})
     name = Keyword(fields={'text':Text()}) # Example: Credential Access
+    external_id = Keyword(fields={'text':Text()}) # Example: TA0006
     external_references = Nested(MITREExternalReference)
     kill_chain_phases = Nested(MITREKillChainPhase)
     phase_names = Keyword(fields={'text':Text()}) # Example: defense-evasion
     data_sources = Keyword(fields={'text':Text()}) # Example: Process: OS API Execution
+    is_sub_technique = Boolean()
+    is_deprecated = Boolean()
+    is_revoked = Boolean()
+
+    @property
+    def external_id_parent(self):
+        ''' Returns just the parent external_id '''
+        parts = self.external_id.split('.')
+        if len(parts) > 1:
+            return parts[0]
+        return self.external_id
 
     def get_external_id(self):
         ''' Pulls the MITRE External ID from external_references '''
@@ -79,9 +92,14 @@ class MITRETechnique(base.BaseDocument):
     def get_by_external_id(cls, external_id):
         ''' Fetches the tactic by its external ID '''
         search = cls.search()
-        search = search.filter('match', external_id=external_id)
-        result = search.execute()
+        if isinstance(external_id, list):
+            search = search.filter('terms', external_id=external_id)
+        else:
+            search = search.filter('term', external_id=external_id)
+        result = [r for r in search.scan()]
         if result:
+            if isinstance(external_id, list):
+                return result
             return result[0]
         else:
             return None
@@ -115,7 +133,24 @@ class MITRETactic(base.BaseDocument):
     def get_by_external_id(cls, external_id):
         ''' Fetches the tactic by its external ID '''
         search = cls.search()
-        search = search.filter('term', external_id=external_id)
+        if isinstance(external_id, list):
+            search = search.filter('terms', external_id=external_id)
+        else:
+            search = search.filter('term', external_id=external_id)
+        result = [r for r in search.scan()]
+        if result:
+            if isinstance(external_id, list):
+                return result
+            return result[0]
+        else:
+            return None
+
+
+    @classmethod
+    def get_by_shortname(cls, shortname):
+        ''' Fetches the tactic by its short_name '''
+        search = cls.search()
+        search = search.filter('match_phrase', shortname=shortname)
         result = search.execute()
         if result:
             return result[0]

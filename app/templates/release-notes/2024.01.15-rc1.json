@@ -1,0 +1,23 @@
+{
+    "version": "2024.01.15-rc1",
+    "sections": [
+        {
+            "title": "Enhancements",
+            "items": [
+                {
+                    "title": "Detections: Agents",
+                    "description": "- Agents will now get their detection rules assigned with the oldest running rules first.\n- Only detection rules that need to be runned will be returned on each Agent call to get assigned detections.\n- During each run cycle, Detection Agents will only fetch rule configurations for the number of rules matching the max_concurrent_rules setting.\n- Detection agents will now bulk update detection metrics/stats after detection rules finish instead of updating each rule one at at time, this should alleviate detection pressure on the API."
+                }
+            ]
+        },
+        {
+            "title": "Fixes",
+            "items": [
+                {
+                    "title": "Multiple Bug Fixes",
+                    "description": "- A bug in detection field calculations in 2024.01.12 created a corner case where Detections leveraging inputs that did not have their own field mappings defined would result in no fields being returned and the Detection would fail to run entirely.\n- When processing an event rule if the target value list was empty the entire rule would fail when using the contains operator."
+                }
+            ]
+        }
+    ]
+}

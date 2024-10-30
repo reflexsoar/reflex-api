@@ -126,71 +126,74 @@ Rule 120   expression -> target MUTATOR GT FLOAT
 Rule 121   expression -> target MUTATOR GTE FLOAT
 Rule 122   expression -> target MUTATOR LT FLOAT
 Rule 123   expression -> target MUTATOR LTE FLOAT
-Rule 124   expression -> target CIDR STRING
-Rule 125   expression -> target NOT CIDR STRING
-Rule 126   expression -> target EXISTS
-Rule 127   expression -> target NOT EXISTS
-Rule 128   expression -> target REGEXP STRING
-Rule 129   expression -> target MUTATOR REGEXP STRING
-Rule 130   expression -> target MUTATOR MUTATOR REGEXP STRING
-Rule 131   expression -> target MUTATOR MUTATOR MUTATOR REGEXP STRING
-Rule 132   expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-Rule 133   expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-Rule 134   expression -> target NOT REGEXP STRING
-Rule 135   expression -> target MUTATOR NOT REGEXP STRING
-Rule 136   expression -> target MUTATOR MUTATOR NOT REGEXP STRING
-Rule 137   expression -> target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-Rule 138   expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-Rule 139   expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-Rule 140   expression -> target IS BOOL
-Rule 141   expression -> target MUTATOR IS BOOL
-Rule 142   expression -> target MUTATOR MUTATOR IS BOOL
-Rule 143   expression -> target MUTATOR MUTATOR MUTATOR IS BOOL
-Rule 144   expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-Rule 145   expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-Rule 146   expression -> INTEL LPAREN target COMMA STRING RPAREN
-Rule 147   expression -> INTEL LPAREN target MUTATOR COMMA STRING RPAREN
-Rule 148   expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
-Rule 149   expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-Rule 150   expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-Rule 151   expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-Rule 152   expression -> target BETWEEN STRING
-Rule 153   expression -> target NOT BETWEEN STRING
+Rule 124   expression -> target CIDR INTEL LPAREN STRING RPAREN
+Rule 125   expression -> target CIDR STRING
+Rule 126   expression -> target NOT CIDR STRING
+Rule 127   expression -> target CIDR ARRAY
+Rule 128   expression -> target NOT CIDR ARRAY
+Rule 129   expression -> target EXISTS
+Rule 130   expression -> target NOT EXISTS
+Rule 131   expression -> target REGEXP STRING
+Rule 132   expression -> target MUTATOR REGEXP STRING
+Rule 133   expression -> target MUTATOR MUTATOR REGEXP STRING
+Rule 134   expression -> target MUTATOR MUTATOR MUTATOR REGEXP STRING
+Rule 135   expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+Rule 136   expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+Rule 137   expression -> target NOT REGEXP STRING
+Rule 138   expression -> target MUTATOR NOT REGEXP STRING
+Rule 139   expression -> target MUTATOR MUTATOR NOT REGEXP STRING
+Rule 140   expression -> target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+Rule 141   expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+Rule 142   expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+Rule 143   expression -> target IS BOOL
+Rule 144   expression -> target MUTATOR IS BOOL
+Rule 145   expression -> target MUTATOR MUTATOR IS BOOL
+Rule 146   expression -> target MUTATOR MUTATOR MUTATOR IS BOOL
+Rule 147   expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+Rule 148   expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+Rule 149   expression -> INTEL LPAREN target COMMA STRING RPAREN
+Rule 150   expression -> INTEL LPAREN target MUTATOR COMMA STRING RPAREN
+Rule 151   expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
+Rule 152   expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+Rule 153   expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+Rule 154   expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+Rule 155   expression -> target BETWEEN STRING
+Rule 156   expression -> target NOT BETWEEN STRING
 
 Terminals, with rules where they appear
 
 AND                  : 3 5
-ARRAY                : 60 61 62 63 64 65 66 67 68 69 70 71 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107
-BETWEEN              : 152 153
-BOOL                 : 140 141 142 143 144 145
-CIDR                 : 124 125
-COMMA                : 146 147 148 149 150 151
+ARRAY                : 60 61 62 63 64 65 66 67 68 69 70 71 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 127 128
+BETWEEN              : 155 156
+BOOL                 : 143 144 145 146 147 148
+CIDR                 : 124 125 126 127 128
+COMMA                : 149 150 151 152 153 154
 CONTAINS             : 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71
 CONTAINSCIS          : 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95
 EQUALS               : 34 35 36 37 38 39 40 41 42 43 44 45 46 47
 EWITH                : 14 15 16 17 18 19
-EXISTS               : 126 127
+EXISTS               : 129 130
 EXPAND               : 7
 FLOAT                : 116 117 118 119 120 121 122 123
 GT                   : 108 112 116 120
 GTE                  : 109 113 117 121
 IN                   : 96 97 98 99 100 101 102 103 104 105 106 107
-INTEL                : 146 147 148 149 150 151
-IS                   : 140 141 142 143 144 145
-LPAREN               : 4 5 6 7 146 147 148 149 150 151
+INTEL                : 124 149 150 151 152 153 154
+IS                   : 143 144 145 146 147 148
+LPAREN               : 4 5 6 7 124 149 150 151 152 153 154
 LT                   : 110 114 118 122
 LTE                  : 111 115 119 123
-MUTATOR              : 9 10 10 11 11 11 12 12 12 12 13 13 13 13 13 15 16 16 17 17 17 18 18 18 18 19 19 19 19 19 21 22 22 23 23 23 24 24 24 24 25 25 25 25 25 28 29 29 30 30 30 31 31 31 31 32 32 32 32 32 35 36 36 37 37 37 38 38 38 38 39 39 39 39 39 42 43 43 44 44 44 45 45 45 45 46 46 46 46 46 49 50 50 51 51 51 52 52 52 52 53 53 53 53 53 55 56 56 57 57 57 58 58 58 58 59 59 59 59 59 61 62 62 63 63 63 64 64 64 64 65 65 65 65 65 67 68 68 69 69 69 70 70 70 70 71 71 71 71 71 73 74 74 75 75 75 76 76 76 76 77 77 77 77 77 79 80 80 81 81 81 82 82 82 82 83 83 83 83 83 85 86 86 87 87 87 88 88 88 88 89 89 89 89 89 91 92 92 93 93 93 94 94 94 94 95 95 95 95 95 97 98 98 99 99 99 100 100 100 100 101 101 101 101 101 103 104 104 105 105 105 106 106 106 106 107 107 107 107 107 112 113 114 115 120 121 122 123 129 130 130 131 131 131 132 132 132 132 132 133 133 133 133 133 133 135 136 136 137 137 137 138 138 138 138 138 139 139 139 139 139 139 141 142 142 143 143 143 144 144 144 144 145 145 145 145 145 147 148 148 149 149 149 150 150 150 150 151 151 151 151 151
-NOT                  : 27 28 29 30 31 32 33 41 42 43 44 45 46 47 54 55 56 57 58 59 66 67 68 69 70 71 78 79 80 81 82 83 90 91 92 93 94 95 102 103 104 105 106 107 125 127 134 135 136 137 138 139 153
+MUTATOR              : 9 10 10 11 11 11 12 12 12 12 13 13 13 13 13 15 16 16 17 17 17 18 18 18 18 19 19 19 19 19 21 22 22 23 23 23 24 24 24 24 25 25 25 25 25 28 29 29 30 30 30 31 31 31 31 32 32 32 32 32 35 36 36 37 37 37 38 38 38 38 39 39 39 39 39 42 43 43 44 44 44 45 45 45 45 46 46 46 46 46 49 50 50 51 51 51 52 52 52 52 53 53 53 53 53 55 56 56 57 57 57 58 58 58 58 59 59 59 59 59 61 62 62 63 63 63 64 64 64 64 65 65 65 65 65 67 68 68 69 69 69 70 70 70 70 71 71 71 71 71 73 74 74 75 75 75 76 76 76 76 77 77 77 77 77 79 80 80 81 81 81 82 82 82 82 83 83 83 83 83 85 86 86 87 87 87 88 88 88 88 89 89 89 89 89 91 92 92 93 93 93 94 94 94 94 95 95 95 95 95 97 98 98 99 99 99 100 100 100 100 101 101 101 101 101 103 104 104 105 105 105 106 106 106 106 107 107 107 107 107 112 113 114 115 120 121 122 123 132 133 133 134 134 134 135 135 135 135 135 136 136 136 136 136 136 138 139 139 140 140 140 141 141 141 141 141 142 142 142 142 142 142 144 145 145 146 146 146 147 147 147 147 148 148 148 148 148 150 151 151 152 152 152 153 153 153 153 154 154 154 154 154
+NOT                  : 27 28 29 30 31 32 33 41 42 43 44 45 46 47 54 55 56 57 58 59 66 67 68 69 70 71 78 79 80 81 82 83 90 91 92 93 94 95 102 103 104 105 106 107 126 128 130 137 138 139 140 141 142 156
 NOTEQUALS            : 20 21 22 23 24 25 26 27 28 29 30 31 32 33
 NUMBER               : 26 33 40 47 108 109 110 111 112 113 114 115
 OR                   : 2 6
-REGEXP               : 128 129 130 131 132 133 134 135 136 137 138 139
-RPAREN               : 4 5 6 7 146 147 148 149 150 151
-STRING               : 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 27 28 29 30 31 32 34 35 36 37 38 39 41 42 43 44 45 46 48 49 50 51 52 53 54 55 56 57 58 59 72 73 74 75 76 77 78 79 80 81 82 83 124 125 128 129 130 131 132 133 134 135 136 137 138 139 146 147 148 149 150 151 152 153
+REGEXP               : 131 132 133 134 135 136 137 138 139 140 141 142
+RPAREN               : 4 5 6 7 124 149 150 151 152 153 154
+STRING               : 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 27 28 29 30 31 32 34 35 36 37 38 39 41 42 43 44 45 46 48 49 50 51 52 53 54 55 56 57 58 59 72 73 74 75 76 77 78 79 80 81 82 83 124 125 126 131 132 133 134 135 136 137 138 139 140 141 142 149 150 151 152 153 154 155 156
 SWITH                : 8 9 10 11 12 13
 error                : 
-target               : 1 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148 149 150 151 152 153
+target               : 1 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148 149 150 151 152 153 154 155 156
 
 Nonterminals, with rules where they appear
 
@@ -324,36 +327,39 @@ state 0
     (121) expression -> . target MUTATOR GTE FLOAT
     (122) expression -> . target MUTATOR LT FLOAT
     (123) expression -> . target MUTATOR LTE FLOAT
-    (124) expression -> . target CIDR STRING
-    (125) expression -> . target NOT CIDR STRING
-    (126) expression -> . target EXISTS
-    (127) expression -> . target NOT EXISTS
-    (128) expression -> . target REGEXP STRING
-    (129) expression -> . target MUTATOR REGEXP STRING
-    (130) expression -> . target MUTATOR MUTATOR REGEXP STRING
-    (131) expression -> . target MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (132) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (133) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (134) expression -> . target NOT REGEXP STRING
-    (135) expression -> . target MUTATOR NOT REGEXP STRING
-    (136) expression -> . target MUTATOR MUTATOR NOT REGEXP STRING
-    (137) expression -> . target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (138) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (139) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (140) expression -> . target IS BOOL
-    (141) expression -> . target MUTATOR IS BOOL
-    (142) expression -> . target MUTATOR MUTATOR IS BOOL
-    (143) expression -> . target MUTATOR MUTATOR MUTATOR IS BOOL
-    (144) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (145) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (146) expression -> . INTEL LPAREN target COMMA STRING RPAREN
-    (147) expression -> . INTEL LPAREN target MUTATOR COMMA STRING RPAREN
-    (148) expression -> . INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
-    (149) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (150) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (151) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (152) expression -> . target BETWEEN STRING
-    (153) expression -> . target NOT BETWEEN STRING
+    (124) expression -> . target CIDR INTEL LPAREN STRING RPAREN
+    (125) expression -> . target CIDR STRING
+    (126) expression -> . target NOT CIDR STRING
+    (127) expression -> . target CIDR ARRAY
+    (128) expression -> . target NOT CIDR ARRAY
+    (129) expression -> . target EXISTS
+    (130) expression -> . target NOT EXISTS
+    (131) expression -> . target REGEXP STRING
+    (132) expression -> . target MUTATOR REGEXP STRING
+    (133) expression -> . target MUTATOR MUTATOR REGEXP STRING
+    (134) expression -> . target MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (135) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (136) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (137) expression -> . target NOT REGEXP STRING
+    (138) expression -> . target MUTATOR NOT REGEXP STRING
+    (139) expression -> . target MUTATOR MUTATOR NOT REGEXP STRING
+    (140) expression -> . target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (141) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (142) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (143) expression -> . target IS BOOL
+    (144) expression -> . target MUTATOR IS BOOL
+    (145) expression -> . target MUTATOR MUTATOR IS BOOL
+    (146) expression -> . target MUTATOR MUTATOR MUTATOR IS BOOL
+    (147) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (148) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (149) expression -> . INTEL LPAREN target COMMA STRING RPAREN
+    (150) expression -> . INTEL LPAREN target MUTATOR COMMA STRING RPAREN
+    (151) expression -> . INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
+    (152) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (153) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (154) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (155) expression -> . target BETWEEN STRING
+    (156) expression -> . target NOT BETWEEN STRING
 
     target          shift and go to state 2
     LPAREN          shift and go to state 3
@@ -491,30 +497,33 @@ state 2
     (121) expression -> target . MUTATOR GTE FLOAT
     (122) expression -> target . MUTATOR LT FLOAT
     (123) expression -> target . MUTATOR LTE FLOAT
-    (124) expression -> target . CIDR STRING
-    (125) expression -> target . NOT CIDR STRING
-    (126) expression -> target . EXISTS
-    (127) expression -> target . NOT EXISTS
-    (128) expression -> target . REGEXP STRING
-    (129) expression -> target . MUTATOR REGEXP STRING
-    (130) expression -> target . MUTATOR MUTATOR REGEXP STRING
-    (131) expression -> target . MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (132) expression -> target . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (133) expression -> target . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (134) expression -> target . NOT REGEXP STRING
-    (135) expression -> target . MUTATOR NOT REGEXP STRING
-    (136) expression -> target . MUTATOR MUTATOR NOT REGEXP STRING
-    (137) expression -> target . MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (138) expression -> target . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (139) expression -> target . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (140) expression -> target . IS BOOL
-    (141) expression -> target . MUTATOR IS BOOL
-    (142) expression -> target . MUTATOR MUTATOR IS BOOL
-    (143) expression -> target . MUTATOR MUTATOR MUTATOR IS BOOL
-    (144) expression -> target . MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (145) expression -> target . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (152) expression -> target . BETWEEN STRING
-    (153) expression -> target . NOT BETWEEN STRING
+    (124) expression -> target . CIDR INTEL LPAREN STRING RPAREN
+    (125) expression -> target . CIDR STRING
+    (126) expression -> target . NOT CIDR STRING
+    (127) expression -> target . CIDR ARRAY
+    (128) expression -> target . NOT CIDR ARRAY
+    (129) expression -> target . EXISTS
+    (130) expression -> target . NOT EXISTS
+    (131) expression -> target . REGEXP STRING
+    (132) expression -> target . MUTATOR REGEXP STRING
+    (133) expression -> target . MUTATOR MUTATOR REGEXP STRING
+    (134) expression -> target . MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (135) expression -> target . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (136) expression -> target . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (137) expression -> target . NOT REGEXP STRING
+    (138) expression -> target . MUTATOR NOT REGEXP STRING
+    (139) expression -> target . MUTATOR MUTATOR NOT REGEXP STRING
+    (140) expression -> target . MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (141) expression -> target . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (142) expression -> target . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (143) expression -> target . IS BOOL
+    (144) expression -> target . MUTATOR IS BOOL
+    (145) expression -> target . MUTATOR MUTATOR IS BOOL
+    (146) expression -> target . MUTATOR MUTATOR MUTATOR IS BOOL
+    (147) expression -> target . MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (148) expression -> target . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (155) expression -> target . BETWEEN STRING
+    (156) expression -> target . NOT BETWEEN STRING
 
     OR              reduce using rule 1 (expression -> target .)
     AND             reduce using rule 1 (expression -> target .)
@@ -668,36 +677,39 @@ state 3
     (121) expression -> . target MUTATOR GTE FLOAT
     (122) expression -> . target MUTATOR LT FLOAT
     (123) expression -> . target MUTATOR LTE FLOAT
-    (124) expression -> . target CIDR STRING
-    (125) expression -> . target NOT CIDR STRING
-    (126) expression -> . target EXISTS
-    (127) expression -> . target NOT EXISTS
-    (128) expression -> . target REGEXP STRING
-    (129) expression -> . target MUTATOR REGEXP STRING
-    (130) expression -> . target MUTATOR MUTATOR REGEXP STRING
-    (131) expression -> . target MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (132) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (133) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (134) expression -> . target NOT REGEXP STRING
-    (135) expression -> . target MUTATOR NOT REGEXP STRING
-    (136) expression -> . target MUTATOR MUTATOR NOT REGEXP STRING
-    (137) expression -> . target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (138) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (139) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (140) expression -> . target IS BOOL
-    (141) expression -> . target MUTATOR IS BOOL
-    (142) expression -> . target MUTATOR MUTATOR IS BOOL
-    (143) expression -> . target MUTATOR MUTATOR MUTATOR IS BOOL
-    (144) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (145) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (146) expression -> . INTEL LPAREN target COMMA STRING RPAREN
-    (147) expression -> . INTEL LPAREN target MUTATOR COMMA STRING RPAREN
-    (148) expression -> . INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
-    (149) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (150) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (151) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (152) expression -> . target BETWEEN STRING
-    (153) expression -> . target NOT BETWEEN STRING
+    (124) expression -> . target CIDR INTEL LPAREN STRING RPAREN
+    (125) expression -> . target CIDR STRING
+    (126) expression -> . target NOT CIDR STRING
+    (127) expression -> . target CIDR ARRAY
+    (128) expression -> . target NOT CIDR ARRAY
+    (129) expression -> . target EXISTS
+    (130) expression -> . target NOT EXISTS
+    (131) expression -> . target REGEXP STRING
+    (132) expression -> . target MUTATOR REGEXP STRING
+    (133) expression -> . target MUTATOR MUTATOR REGEXP STRING
+    (134) expression -> . target MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (135) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (136) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (137) expression -> . target NOT REGEXP STRING
+    (138) expression -> . target MUTATOR NOT REGEXP STRING
+    (139) expression -> . target MUTATOR MUTATOR NOT REGEXP STRING
+    (140) expression -> . target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (141) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (142) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (143) expression -> . target IS BOOL
+    (144) expression -> . target MUTATOR IS BOOL
+    (145) expression -> . target MUTATOR MUTATOR IS BOOL
+    (146) expression -> . target MUTATOR MUTATOR MUTATOR IS BOOL
+    (147) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (148) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (149) expression -> . INTEL LPAREN target COMMA STRING RPAREN
+    (150) expression -> . INTEL LPAREN target MUTATOR COMMA STRING RPAREN
+    (151) expression -> . INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
+    (152) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (153) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (154) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (155) expression -> . target BETWEEN STRING
+    (156) expression -> . target NOT BETWEEN STRING
 
     target          shift and go to state 2
     LPAREN          shift and go to state 3
@@ -715,12 +727,12 @@ state 4
 
 state 5
 
-    (146) expression -> INTEL . LPAREN target COMMA STRING RPAREN
-    (147) expression -> INTEL . LPAREN target MUTATOR COMMA STRING RPAREN
-    (148) expression -> INTEL . LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
-    (149) expression -> INTEL . LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (150) expression -> INTEL . LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (151) expression -> INTEL . LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (149) expression -> INTEL . LPAREN target COMMA STRING RPAREN
+    (150) expression -> INTEL . LPAREN target MUTATOR COMMA STRING RPAREN
+    (151) expression -> INTEL . LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
+    (152) expression -> INTEL . LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (153) expression -> INTEL . LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (154) expression -> INTEL . LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
 
     LPAREN          shift and go to state 28
 
@@ -851,36 +863,39 @@ state 6
     (121) expression -> . target MUTATOR GTE FLOAT
     (122) expression -> . target MUTATOR LT FLOAT
     (123) expression -> . target MUTATOR LTE FLOAT
-    (124) expression -> . target CIDR STRING
-    (125) expression -> . target NOT CIDR STRING
-    (126) expression -> . target EXISTS
-    (127) expression -> . target NOT EXISTS
-    (128) expression -> . target REGEXP STRING
-    (129) expression -> . target MUTATOR REGEXP STRING
-    (130) expression -> . target MUTATOR MUTATOR REGEXP STRING
-    (131) expression -> . target MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (132) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (133) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (134) expression -> . target NOT REGEXP STRING
-    (135) expression -> . target MUTATOR NOT REGEXP STRING
-    (136) expression -> . target MUTATOR MUTATOR NOT REGEXP STRING
-    (137) expression -> . target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (138) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (139) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (140) expression -> . target IS BOOL
-    (141) expression -> . target MUTATOR IS BOOL
-    (142) expression -> . target MUTATOR MUTATOR IS BOOL
-    (143) expression -> . target MUTATOR MUTATOR MUTATOR IS BOOL
-    (144) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (145) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (146) expression -> . INTEL LPAREN target COMMA STRING RPAREN
-    (147) expression -> . INTEL LPAREN target MUTATOR COMMA STRING RPAREN
-    (148) expression -> . INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
-    (149) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (150) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (151) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (152) expression -> . target BETWEEN STRING
-    (153) expression -> . target NOT BETWEEN STRING
+    (124) expression -> . target CIDR INTEL LPAREN STRING RPAREN
+    (125) expression -> . target CIDR STRING
+    (126) expression -> . target NOT CIDR STRING
+    (127) expression -> . target CIDR ARRAY
+    (128) expression -> . target NOT CIDR ARRAY
+    (129) expression -> . target EXISTS
+    (130) expression -> . target NOT EXISTS
+    (131) expression -> . target REGEXP STRING
+    (132) expression -> . target MUTATOR REGEXP STRING
+    (133) expression -> . target MUTATOR MUTATOR REGEXP STRING
+    (134) expression -> . target MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (135) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (136) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (137) expression -> . target NOT REGEXP STRING
+    (138) expression -> . target MUTATOR NOT REGEXP STRING
+    (139) expression -> . target MUTATOR MUTATOR NOT REGEXP STRING
+    (140) expression -> . target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (141) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (142) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (143) expression -> . target IS BOOL
+    (144) expression -> . target MUTATOR IS BOOL
+    (145) expression -> . target MUTATOR MUTATOR IS BOOL
+    (146) expression -> . target MUTATOR MUTATOR MUTATOR IS BOOL
+    (147) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (148) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (149) expression -> . INTEL LPAREN target COMMA STRING RPAREN
+    (150) expression -> . INTEL LPAREN target MUTATOR COMMA STRING RPAREN
+    (151) expression -> . INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
+    (152) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (153) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (154) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (155) expression -> . target BETWEEN STRING
+    (156) expression -> . target NOT BETWEEN STRING
 
     target          shift and go to state 2
     LPAREN          shift and go to state 3
@@ -1015,36 +1030,39 @@ state 7
     (121) expression -> . target MUTATOR GTE FLOAT
     (122) expression -> . target MUTATOR LT FLOAT
     (123) expression -> . target MUTATOR LTE FLOAT
-    (124) expression -> . target CIDR STRING
-    (125) expression -> . target NOT CIDR STRING
-    (126) expression -> . target EXISTS
-    (127) expression -> . target NOT EXISTS
-    (128) expression -> . target REGEXP STRING
-    (129) expression -> . target MUTATOR REGEXP STRING
-    (130) expression -> . target MUTATOR MUTATOR REGEXP STRING
-    (131) expression -> . target MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (132) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (133) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (134) expression -> . target NOT REGEXP STRING
-    (135) expression -> . target MUTATOR NOT REGEXP STRING
-    (136) expression -> . target MUTATOR MUTATOR NOT REGEXP STRING
-    (137) expression -> . target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (138) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (139) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (140) expression -> . target IS BOOL
-    (141) expression -> . target MUTATOR IS BOOL
-    (142) expression -> . target MUTATOR MUTATOR IS BOOL
-    (143) expression -> . target MUTATOR MUTATOR MUTATOR IS BOOL
-    (144) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (145) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (146) expression -> . INTEL LPAREN target COMMA STRING RPAREN
-    (147) expression -> . INTEL LPAREN target MUTATOR COMMA STRING RPAREN
-    (148) expression -> . INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
-    (149) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (150) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (151) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (152) expression -> . target BETWEEN STRING
-    (153) expression -> . target NOT BETWEEN STRING
+    (124) expression -> . target CIDR INTEL LPAREN STRING RPAREN
+    (125) expression -> . target CIDR STRING
+    (126) expression -> . target NOT CIDR STRING
+    (127) expression -> . target CIDR ARRAY
+    (128) expression -> . target NOT CIDR ARRAY
+    (129) expression -> . target EXISTS
+    (130) expression -> . target NOT EXISTS
+    (131) expression -> . target REGEXP STRING
+    (132) expression -> . target MUTATOR REGEXP STRING
+    (133) expression -> . target MUTATOR MUTATOR REGEXP STRING
+    (134) expression -> . target MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (135) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (136) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (137) expression -> . target NOT REGEXP STRING
+    (138) expression -> . target MUTATOR NOT REGEXP STRING
+    (139) expression -> . target MUTATOR MUTATOR NOT REGEXP STRING
+    (140) expression -> . target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (141) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (142) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (143) expression -> . target IS BOOL
+    (144) expression -> . target MUTATOR IS BOOL
+    (145) expression -> . target MUTATOR MUTATOR IS BOOL
+    (146) expression -> . target MUTATOR MUTATOR MUTATOR IS BOOL
+    (147) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (148) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (149) expression -> . INTEL LPAREN target COMMA STRING RPAREN
+    (150) expression -> . INTEL LPAREN target MUTATOR COMMA STRING RPAREN
+    (151) expression -> . INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
+    (152) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (153) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (154) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (155) expression -> . target BETWEEN STRING
+    (156) expression -> . target NOT BETWEEN STRING
 
     target          shift and go to state 2
     LPAREN          shift and go to state 3
@@ -1150,21 +1168,21 @@ state 9
     (121) expression -> target MUTATOR . GTE FLOAT
     (122) expression -> target MUTATOR . LT FLOAT
     (123) expression -> target MUTATOR . LTE FLOAT
-    (129) expression -> target MUTATOR . REGEXP STRING
-    (130) expression -> target MUTATOR . MUTATOR REGEXP STRING
-    (131) expression -> target MUTATOR . MUTATOR MUTATOR REGEXP STRING
-    (132) expression -> target MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (133) expression -> target MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (135) expression -> target MUTATOR . NOT REGEXP STRING
-    (136) expression -> target MUTATOR . MUTATOR NOT REGEXP STRING
-    (137) expression -> target MUTATOR . MUTATOR MUTATOR NOT REGEXP STRING
-    (138) expression -> target MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (139) expression -> target MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (141) expression -> target MUTATOR . IS BOOL
-    (142) expression -> target MUTATOR . MUTATOR IS BOOL
-    (143) expression -> target MUTATOR . MUTATOR MUTATOR IS BOOL
-    (144) expression -> target MUTATOR . MUTATOR MUTATOR MUTATOR IS BOOL
-    (145) expression -> target MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (132) expression -> target MUTATOR . REGEXP STRING
+    (133) expression -> target MUTATOR . MUTATOR REGEXP STRING
+    (134) expression -> target MUTATOR . MUTATOR MUTATOR REGEXP STRING
+    (135) expression -> target MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (136) expression -> target MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (138) expression -> target MUTATOR . NOT REGEXP STRING
+    (139) expression -> target MUTATOR . MUTATOR NOT REGEXP STRING
+    (140) expression -> target MUTATOR . MUTATOR MUTATOR NOT REGEXP STRING
+    (141) expression -> target MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (142) expression -> target MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (144) expression -> target MUTATOR . IS BOOL
+    (145) expression -> target MUTATOR . MUTATOR IS BOOL
+    (146) expression -> target MUTATOR . MUTATOR MUTATOR IS BOOL
+    (147) expression -> target MUTATOR . MUTATOR MUTATOR MUTATOR IS BOOL
+    (148) expression -> target MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
 
     SWITH           shift and go to state 33
     MUTATOR         shift and go to state 32
@@ -1210,10 +1228,11 @@ state 12
     (78) expression -> target NOT . CONTAINSCIS STRING
     (90) expression -> target NOT . CONTAINSCIS ARRAY
     (102) expression -> target NOT . IN ARRAY
-    (125) expression -> target NOT . CIDR STRING
-    (127) expression -> target NOT . EXISTS
-    (134) expression -> target NOT . REGEXP STRING
-    (153) expression -> target NOT . BETWEEN STRING
+    (126) expression -> target NOT . CIDR STRING
+    (128) expression -> target NOT . CIDR ARRAY
+    (130) expression -> target NOT . EXISTS
+    (137) expression -> target NOT . REGEXP STRING
+    (156) expression -> target NOT . BETWEEN STRING
 
     NOTEQUALS       shift and go to state 50
     EQUALS          shift and go to state 51
@@ -1298,40 +1317,44 @@ state 20
 
 state 21
 
-    (124) expression -> target CIDR . STRING
+    (124) expression -> target CIDR . INTEL LPAREN STRING RPAREN
+    (125) expression -> target CIDR . STRING
+    (127) expression -> target CIDR . ARRAY
 
-    STRING          shift and go to state 74
+    INTEL           shift and go to state 74
+    STRING          shift and go to state 75
+    ARRAY           shift and go to state 76
 
 
 state 22
 
-    (126) expression -> target EXISTS .
+    (129) expression -> target EXISTS .
 
-    OR              reduce using rule 126 (expression -> target EXISTS .)
-    AND             reduce using rule 126 (expression -> target EXISTS .)
-    $end            reduce using rule 126 (expression -> target EXISTS .)
-    RPAREN          reduce using rule 126 (expression -> target EXISTS .)
+    OR              reduce using rule 129 (expression -> target EXISTS .)
+    AND             reduce using rule 129 (expression -> target EXISTS .)
+    $end            reduce using rule 129 (expression -> target EXISTS .)
+    RPAREN          reduce using rule 129 (expression -> target EXISTS .)
 
 
 state 23
 
-    (128) expression -> target REGEXP . STRING
+    (131) expression -> target REGEXP . STRING
 
-    STRING          shift and go to state 75
+    STRING          shift and go to state 77
 
 
 state 24
 
-    (140) expression -> target IS . BOOL
+    (143) expression -> target IS . BOOL
 
-    BOOL            shift and go to state 76
+    BOOL            shift and go to state 78
 
 
 state 25
 
-    (152) expression -> target BETWEEN . STRING
+    (155) expression -> target BETWEEN . STRING
 
-    STRING          shift and go to state 77
+    STRING          shift and go to state 79
 
 
 state 26
@@ -1342,28 +1365,28 @@ state 26
     (2) expression -> expression . OR expression
     (3) expression -> expression . AND expression
 
-    RPAREN          shift and go to state 78
-    AND             shift and go to state 79
-    OR              shift and go to state 80
+    RPAREN          shift and go to state 80
+    AND             shift and go to state 81
+    OR              shift and go to state 82
 
 
 state 27
 
     (7) expression -> EXPAND target . LPAREN expression RPAREN
 
-    LPAREN          shift and go to state 81
+    LPAREN          shift and go to state 83
 
 
 state 28
 
-    (146) expression -> INTEL LPAREN . target COMMA STRING RPAREN
-    (147) expression -> INTEL LPAREN . target MUTATOR COMMA STRING RPAREN
-    (148) expression -> INTEL LPAREN . target MUTATOR MUTATOR COMMA STRING RPAREN
-    (149) expression -> INTEL LPAREN . target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (150) expression -> INTEL LPAREN . target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (151) expression -> INTEL LPAREN . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (149) expression -> INTEL LPAREN . target COMMA STRING RPAREN
+    (150) expression -> INTEL LPAREN . target MUTATOR COMMA STRING RPAREN
+    (151) expression -> INTEL LPAREN . target MUTATOR MUTATOR COMMA STRING RPAREN
+    (152) expression -> INTEL LPAREN . target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (153) expression -> INTEL LPAREN . target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (154) expression -> INTEL LPAREN . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
 
-    target          shift and go to state 82
+    target          shift and go to state 84
 
 
 state 29
@@ -1476,51 +1499,51 @@ state 32
     (105) expression -> target MUTATOR MUTATOR . MUTATOR NOT IN ARRAY
     (106) expression -> target MUTATOR MUTATOR . MUTATOR MUTATOR NOT IN ARRAY
     (107) expression -> target MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR NOT IN ARRAY
-    (130) expression -> target MUTATOR MUTATOR . REGEXP STRING
-    (131) expression -> target MUTATOR MUTATOR . MUTATOR REGEXP STRING
-    (132) expression -> target MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (133) expression -> target MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (136) expression -> target MUTATOR MUTATOR . NOT REGEXP STRING
-    (137) expression -> target MUTATOR MUTATOR . MUTATOR NOT REGEXP STRING
-    (138) expression -> target MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (139) expression -> target MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (142) expression -> target MUTATOR MUTATOR . IS BOOL
-    (143) expression -> target MUTATOR MUTATOR . MUTATOR IS BOOL
-    (144) expression -> target MUTATOR MUTATOR . MUTATOR MUTATOR IS BOOL
-    (145) expression -> target MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR IS BOOL
+    (133) expression -> target MUTATOR MUTATOR . REGEXP STRING
+    (134) expression -> target MUTATOR MUTATOR . MUTATOR REGEXP STRING
+    (135) expression -> target MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (136) expression -> target MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (139) expression -> target MUTATOR MUTATOR . NOT REGEXP STRING
+    (140) expression -> target MUTATOR MUTATOR . MUTATOR NOT REGEXP STRING
+    (141) expression -> target MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (142) expression -> target MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (145) expression -> target MUTATOR MUTATOR . IS BOOL
+    (146) expression -> target MUTATOR MUTATOR . MUTATOR IS BOOL
+    (147) expression -> target MUTATOR MUTATOR . MUTATOR MUTATOR IS BOOL
+    (148) expression -> target MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR IS BOOL
 
-    SWITH           shift and go to state 84
-    MUTATOR         shift and go to state 83
-    EWITH           shift and go to state 85
-    NOTEQUALS       shift and go to state 86
-    NOT             shift and go to state 87
-    EQUALS          shift and go to state 88
-    CONTAINS        shift and go to state 89
-    CONTAINSCIS     shift and go to state 90
-    IN              shift and go to state 91
-    REGEXP          shift and go to state 92
-    IS              shift and go to state 93
+    SWITH           shift and go to state 86
+    MUTATOR         shift and go to state 85
+    EWITH           shift and go to state 87
+    NOTEQUALS       shift and go to state 88
+    NOT             shift and go to state 89
+    EQUALS          shift and go to state 90
+    CONTAINS        shift and go to state 91
+    CONTAINSCIS     shift and go to state 92
+    IN              shift and go to state 93
+    REGEXP          shift and go to state 94
+    IS              shift and go to state 95
 
 
 state 33
 
     (9) expression -> target MUTATOR SWITH . STRING
 
-    STRING          shift and go to state 94
+    STRING          shift and go to state 96
 
 
 state 34
 
     (15) expression -> target MUTATOR EWITH . STRING
 
-    STRING          shift and go to state 95
+    STRING          shift and go to state 97
 
 
 state 35
 
     (21) expression -> target MUTATOR NOTEQUALS . STRING
 
-    STRING          shift and go to state 96
+    STRING          shift and go to state 98
 
 
 state 36
@@ -1532,21 +1555,21 @@ state 36
     (79) expression -> target MUTATOR NOT . CONTAINSCIS STRING
     (91) expression -> target MUTATOR NOT . CONTAINSCIS ARRAY
     (103) expression -> target MUTATOR NOT . IN ARRAY
-    (135) expression -> target MUTATOR NOT . REGEXP STRING
+    (138) expression -> target MUTATOR NOT . REGEXP STRING
 
-    NOTEQUALS       shift and go to state 97
-    EQUALS          shift and go to state 98
-    CONTAINS        shift and go to state 99
-    CONTAINSCIS     shift and go to state 100
-    IN              shift and go to state 101
-    REGEXP          shift and go to state 102
+    NOTEQUALS       shift and go to state 99
+    EQUALS          shift and go to state 100
+    CONTAINS        shift and go to state 101
+    CONTAINSCIS     shift and go to state 102
+    IN              shift and go to state 103
+    REGEXP          shift and go to state 104
 
 
 state 37
 
     (35) expression -> target MUTATOR EQUALS . STRING
 
-    STRING          shift and go to state 103
+    STRING          shift and go to state 105
 
 
 state 38
@@ -1554,8 +1577,8 @@ state 38
     (49) expression -> target MUTATOR CONTAINS . STRING
     (61) expression -> target MUTATOR CONTAINS . ARRAY
 
-    STRING          shift and go to state 104
-    ARRAY           shift and go to state 105
+    STRING          shift and go to state 106
+    ARRAY           shift and go to state 107
 
 
 state 39
@@ -1563,15 +1586,15 @@ state 39
     (73) expression -> target MUTATOR CONTAINSCIS . STRING
     (85) expression -> target MUTATOR CONTAINSCIS . ARRAY
 
-    STRING          shift and go to state 106
-    ARRAY           shift and go to state 107
+    STRING          shift and go to state 108
+    ARRAY           shift and go to state 109
 
 
 state 40
 
     (97) expression -> target MUTATOR IN . ARRAY
 
-    ARRAY           shift and go to state 108
+    ARRAY           shift and go to state 110
 
 
 state 41
@@ -1579,8 +1602,8 @@ state 41
     (112) expression -> target MUTATOR GT . NUMBER
     (120) expression -> target MUTATOR GT . FLOAT
 
-    NUMBER          shift and go to state 109
-    FLOAT           shift and go to state 110
+    NUMBER          shift and go to state 111
+    FLOAT           shift and go to state 112
 
 
 state 42
@@ -1588,8 +1611,8 @@ state 42
     (113) expression -> target MUTATOR GTE . NUMBER
     (121) expression -> target MUTATOR GTE . FLOAT
 
-    NUMBER          shift and go to state 111
-    FLOAT           shift and go to state 112
+    NUMBER          shift and go to state 113
+    FLOAT           shift and go to state 114
 
 
 state 43
@@ -1597,8 +1620,8 @@ state 43
     (114) expression -> target MUTATOR LT . NUMBER
     (122) expression -> target MUTATOR LT . FLOAT
 
-    NUMBER          shift and go to state 113
-    FLOAT           shift and go to state 114
+    NUMBER          shift and go to state 115
+    FLOAT           shift and go to state 116
 
 
 state 44
@@ -1606,22 +1629,22 @@ state 44
     (115) expression -> target MUTATOR LTE . NUMBER
     (123) expression -> target MUTATOR LTE . FLOAT
 
-    NUMBER          shift and go to state 115
-    FLOAT           shift and go to state 116
+    NUMBER          shift and go to state 117
+    FLOAT           shift and go to state 118
 
 
 state 45
 
-    (129) expression -> target MUTATOR REGEXP . STRING
+    (132) expression -> target MUTATOR REGEXP . STRING
 
-    STRING          shift and go to state 117
+    STRING          shift and go to state 119
 
 
 state 46
 
-    (141) expression -> target MUTATOR IS . BOOL
+    (144) expression -> target MUTATOR IS . BOOL
 
-    BOOL            shift and go to state 118
+    BOOL            shift and go to state 120
 
 
 state 47
@@ -1659,8 +1682,8 @@ state 50
     (27) expression -> target NOT NOTEQUALS . STRING
     (33) expression -> target NOT NOTEQUALS . NUMBER
 
-    STRING          shift and go to state 119
-    NUMBER          shift and go to state 120
+    STRING          shift and go to state 121
+    NUMBER          shift and go to state 122
 
 
 state 51
@@ -1668,8 +1691,8 @@ state 51
     (41) expression -> target NOT EQUALS . STRING
     (47) expression -> target NOT EQUALS . NUMBER
 
-    STRING          shift and go to state 121
-    NUMBER          shift and go to state 122
+    STRING          shift and go to state 123
+    NUMBER          shift and go to state 124
 
 
 state 52
@@ -1677,8 +1700,8 @@ state 52
     (54) expression -> target NOT CONTAINS . STRING
     (66) expression -> target NOT CONTAINS . ARRAY
 
-    STRING          shift and go to state 123
-    ARRAY           shift and go to state 124
+    STRING          shift and go to state 125
+    ARRAY           shift and go to state 126
 
 
 state 53
@@ -1686,46 +1709,48 @@ state 53
     (78) expression -> target NOT CONTAINSCIS . STRING
     (90) expression -> target NOT CONTAINSCIS . ARRAY
 
-    STRING          shift and go to state 125
-    ARRAY           shift and go to state 126
+    STRING          shift and go to state 127
+    ARRAY           shift and go to state 128
 
 
 state 54
 
     (102) expression -> target NOT IN . ARRAY
 
-    ARRAY           shift and go to state 127
+    ARRAY           shift and go to state 129
 
 
 state 55
 
-    (125) expression -> target NOT CIDR . STRING
+    (126) expression -> target NOT CIDR . STRING
+    (128) expression -> target NOT CIDR . ARRAY
 
-    STRING          shift and go to state 128
+    STRING          shift and go to state 130
+    ARRAY           shift and go to state 131
 
 
 state 56
 
-    (127) expression -> target NOT EXISTS .
+    (130) expression -> target NOT EXISTS .
 
-    OR              reduce using rule 127 (expression -> target NOT EXISTS .)
-    AND             reduce using rule 127 (expression -> target NOT EXISTS .)
-    $end            reduce using rule 127 (expression -> target NOT EXISTS .)
-    RPAREN          reduce using rule 127 (expression -> target NOT EXISTS .)
+    OR              reduce using rule 130 (expression -> target NOT EXISTS .)
+    AND             reduce using rule 130 (expression -> target NOT EXISTS .)
+    $end            reduce using rule 130 (expression -> target NOT EXISTS .)
+    RPAREN          reduce using rule 130 (expression -> target NOT EXISTS .)
 
 
 state 57
 
-    (134) expression -> target NOT REGEXP . STRING
+    (137) expression -> target NOT REGEXP . STRING
 
-    STRING          shift and go to state 129
+    STRING          shift and go to state 132
 
 
 state 58
 
-    (153) expression -> target NOT BETWEEN . STRING
+    (156) expression -> target NOT BETWEEN . STRING
 
-    STRING          shift and go to state 130
+    STRING          shift and go to state 133
 
 
 state 59
@@ -1880,45 +1905,62 @@ state 73
 
 state 74
 
-    (124) expression -> target CIDR STRING .
+    (124) expression -> target CIDR INTEL . LPAREN STRING RPAREN
 
-    OR              reduce using rule 124 (expression -> target CIDR STRING .)
-    AND             reduce using rule 124 (expression -> target CIDR STRING .)
-    $end            reduce using rule 124 (expression -> target CIDR STRING .)
-    RPAREN          reduce using rule 124 (expression -> target CIDR STRING .)
+    LPAREN          shift and go to state 134
 
 
 state 75
 
-    (128) expression -> target REGEXP STRING .
+    (125) expression -> target CIDR STRING .
 
-    OR              reduce using rule 128 (expression -> target REGEXP STRING .)
-    AND             reduce using rule 128 (expression -> target REGEXP STRING .)
-    $end            reduce using rule 128 (expression -> target REGEXP STRING .)
-    RPAREN          reduce using rule 128 (expression -> target REGEXP STRING .)
+    OR              reduce using rule 125 (expression -> target CIDR STRING .)
+    AND             reduce using rule 125 (expression -> target CIDR STRING .)
+    $end            reduce using rule 125 (expression -> target CIDR STRING .)
+    RPAREN          reduce using rule 125 (expression -> target CIDR STRING .)
 
 
 state 76
 
-    (140) expression -> target IS BOOL .
+    (127) expression -> target CIDR ARRAY .
 
-    OR              reduce using rule 140 (expression -> target IS BOOL .)
-    AND             reduce using rule 140 (expression -> target IS BOOL .)
-    $end            reduce using rule 140 (expression -> target IS BOOL .)
-    RPAREN          reduce using rule 140 (expression -> target IS BOOL .)
+    OR              reduce using rule 127 (expression -> target CIDR ARRAY .)
+    AND             reduce using rule 127 (expression -> target CIDR ARRAY .)
+    $end            reduce using rule 127 (expression -> target CIDR ARRAY .)
+    RPAREN          reduce using rule 127 (expression -> target CIDR ARRAY .)
 
 
 state 77
 
-    (152) expression -> target BETWEEN STRING .
+    (131) expression -> target REGEXP STRING .
 
-    OR              reduce using rule 152 (expression -> target BETWEEN STRING .)
-    AND             reduce using rule 152 (expression -> target BETWEEN STRING .)
-    $end            reduce using rule 152 (expression -> target BETWEEN STRING .)
-    RPAREN          reduce using rule 152 (expression -> target BETWEEN STRING .)
+    OR              reduce using rule 131 (expression -> target REGEXP STRING .)
+    AND             reduce using rule 131 (expression -> target REGEXP STRING .)
+    $end            reduce using rule 131 (expression -> target REGEXP STRING .)
+    RPAREN          reduce using rule 131 (expression -> target REGEXP STRING .)
 
 
 state 78
+
+    (143) expression -> target IS BOOL .
+
+    OR              reduce using rule 143 (expression -> target IS BOOL .)
+    AND             reduce using rule 143 (expression -> target IS BOOL .)
+    $end            reduce using rule 143 (expression -> target IS BOOL .)
+    RPAREN          reduce using rule 143 (expression -> target IS BOOL .)
+
+
+state 79
+
+    (155) expression -> target BETWEEN STRING .
+
+    OR              reduce using rule 155 (expression -> target BETWEEN STRING .)
+    AND             reduce using rule 155 (expression -> target BETWEEN STRING .)
+    $end            reduce using rule 155 (expression -> target BETWEEN STRING .)
+    RPAREN          reduce using rule 155 (expression -> target BETWEEN STRING .)
+
+
+state 80
 
     (4) expression -> LPAREN expression RPAREN .
 
@@ -1928,7 +1970,7 @@ state 78
     RPAREN          reduce using rule 4 (expression -> LPAREN expression RPAREN .)
 
 
-state 79
+state 81
 
     (5) expression -> LPAREN expression AND . expression RPAREN
     (3) expression -> expression AND . expression
@@ -2055,45 +2097,48 @@ state 79
     (121) expression -> . target MUTATOR GTE FLOAT
     (122) expression -> . target MUTATOR LT FLOAT
     (123) expression -> . target MUTATOR LTE FLOAT
-    (124) expression -> . target CIDR STRING
-    (125) expression -> . target NOT CIDR STRING
-    (126) expression -> . target EXISTS
-    (127) expression -> . target NOT EXISTS
-    (128) expression -> . target REGEXP STRING
-    (129) expression -> . target MUTATOR REGEXP STRING
-    (130) expression -> . target MUTATOR MUTATOR REGEXP STRING
-    (131) expression -> . target MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (132) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (133) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (134) expression -> . target NOT REGEXP STRING
-    (135) expression -> . target MUTATOR NOT REGEXP STRING
-    (136) expression -> . target MUTATOR MUTATOR NOT REGEXP STRING
-    (137) expression -> . target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (138) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (139) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (140) expression -> . target IS BOOL
-    (141) expression -> . target MUTATOR IS BOOL
-    (142) expression -> . target MUTATOR MUTATOR IS BOOL
-    (143) expression -> . target MUTATOR MUTATOR MUTATOR IS BOOL
-    (144) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (145) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (146) expression -> . INTEL LPAREN target COMMA STRING RPAREN
-    (147) expression -> . INTEL LPAREN target MUTATOR COMMA STRING RPAREN
-    (148) expression -> . INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
-    (149) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (150) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (151) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (152) expression -> . target BETWEEN STRING
-    (153) expression -> . target NOT BETWEEN STRING
+    (124) expression -> . target CIDR INTEL LPAREN STRING RPAREN
+    (125) expression -> . target CIDR STRING
+    (126) expression -> . target NOT CIDR STRING
+    (127) expression -> . target CIDR ARRAY
+    (128) expression -> . target NOT CIDR ARRAY
+    (129) expression -> . target EXISTS
+    (130) expression -> . target NOT EXISTS
+    (131) expression -> . target REGEXP STRING
+    (132) expression -> . target MUTATOR REGEXP STRING
+    (133) expression -> . target MUTATOR MUTATOR REGEXP STRING
+    (134) expression -> . target MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (135) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (136) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (137) expression -> . target NOT REGEXP STRING
+    (138) expression -> . target MUTATOR NOT REGEXP STRING
+    (139) expression -> . target MUTATOR MUTATOR NOT REGEXP STRING
+    (140) expression -> . target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (141) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (142) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (143) expression -> . target IS BOOL
+    (144) expression -> . target MUTATOR IS BOOL
+    (145) expression -> . target MUTATOR MUTATOR IS BOOL
+    (146) expression -> . target MUTATOR MUTATOR MUTATOR IS BOOL
+    (147) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (148) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (149) expression -> . INTEL LPAREN target COMMA STRING RPAREN
+    (150) expression -> . INTEL LPAREN target MUTATOR COMMA STRING RPAREN
+    (151) expression -> . INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
+    (152) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (153) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (154) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (155) expression -> . target BETWEEN STRING
+    (156) expression -> . target NOT BETWEEN STRING
 
     target          shift and go to state 2
     LPAREN          shift and go to state 3
     EXPAND          shift and go to state 4
     INTEL           shift and go to state 5
 
-    expression                     shift and go to state 131
+    expression                     shift and go to state 135
 
-state 80
+state 82
 
     (6) expression -> LPAREN expression OR . expression RPAREN
     (2) expression -> expression OR . expression
@@ -2220,45 +2265,48 @@ state 80
     (121) expression -> . target MUTATOR GTE FLOAT
     (122) expression -> . target MUTATOR LT FLOAT
     (123) expression -> . target MUTATOR LTE FLOAT
-    (124) expression -> . target CIDR STRING
-    (125) expression -> . target NOT CIDR STRING
-    (126) expression -> . target EXISTS
-    (127) expression -> . target NOT EXISTS
-    (128) expression -> . target REGEXP STRING
-    (129) expression -> . target MUTATOR REGEXP STRING
-    (130) expression -> . target MUTATOR MUTATOR REGEXP STRING
-    (131) expression -> . target MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (132) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (133) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (134) expression -> . target NOT REGEXP STRING
-    (135) expression -> . target MUTATOR NOT REGEXP STRING
-    (136) expression -> . target MUTATOR MUTATOR NOT REGEXP STRING
-    (137) expression -> . target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (138) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (139) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (140) expression -> . target IS BOOL
-    (141) expression -> . target MUTATOR IS BOOL
-    (142) expression -> . target MUTATOR MUTATOR IS BOOL
-    (143) expression -> . target MUTATOR MUTATOR MUTATOR IS BOOL
-    (144) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (145) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (146) expression -> . INTEL LPAREN target COMMA STRING RPAREN
-    (147) expression -> . INTEL LPAREN target MUTATOR COMMA STRING RPAREN
-    (148) expression -> . INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
-    (149) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (150) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (151) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (152) expression -> . target BETWEEN STRING
-    (153) expression -> . target NOT BETWEEN STRING
+    (124) expression -> . target CIDR INTEL LPAREN STRING RPAREN
+    (125) expression -> . target CIDR STRING
+    (126) expression -> . target NOT CIDR STRING
+    (127) expression -> . target CIDR ARRAY
+    (128) expression -> . target NOT CIDR ARRAY
+    (129) expression -> . target EXISTS
+    (130) expression -> . target NOT EXISTS
+    (131) expression -> . target REGEXP STRING
+    (132) expression -> . target MUTATOR REGEXP STRING
+    (133) expression -> . target MUTATOR MUTATOR REGEXP STRING
+    (134) expression -> . target MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (135) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (136) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (137) expression -> . target NOT REGEXP STRING
+    (138) expression -> . target MUTATOR NOT REGEXP STRING
+    (139) expression -> . target MUTATOR MUTATOR NOT REGEXP STRING
+    (140) expression -> . target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (141) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (142) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (143) expression -> . target IS BOOL
+    (144) expression -> . target MUTATOR IS BOOL
+    (145) expression -> . target MUTATOR MUTATOR IS BOOL
+    (146) expression -> . target MUTATOR MUTATOR MUTATOR IS BOOL
+    (147) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (148) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (149) expression -> . INTEL LPAREN target COMMA STRING RPAREN
+    (150) expression -> . INTEL LPAREN target MUTATOR COMMA STRING RPAREN
+    (151) expression -> . INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
+    (152) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (153) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (154) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (155) expression -> . target BETWEEN STRING
+    (156) expression -> . target NOT BETWEEN STRING
 
     target          shift and go to state 2
     LPAREN          shift and go to state 3
     EXPAND          shift and go to state 4
     INTEL           shift and go to state 5
 
-    expression                     shift and go to state 132
+    expression                     shift and go to state 136
 
-state 81
+state 83
 
     (7) expression -> EXPAND target LPAREN . expression RPAREN
     (1) expression -> . target
@@ -2384,58 +2432,61 @@ state 81
     (121) expression -> . target MUTATOR GTE FLOAT
     (122) expression -> . target MUTATOR LT FLOAT
     (123) expression -> . target MUTATOR LTE FLOAT
-    (124) expression -> . target CIDR STRING
-    (125) expression -> . target NOT CIDR STRING
-    (126) expression -> . target EXISTS
-    (127) expression -> . target NOT EXISTS
-    (128) expression -> . target REGEXP STRING
-    (129) expression -> . target MUTATOR REGEXP STRING
-    (130) expression -> . target MUTATOR MUTATOR REGEXP STRING
-    (131) expression -> . target MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (132) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (133) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (134) expression -> . target NOT REGEXP STRING
-    (135) expression -> . target MUTATOR NOT REGEXP STRING
-    (136) expression -> . target MUTATOR MUTATOR NOT REGEXP STRING
-    (137) expression -> . target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (138) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (139) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (140) expression -> . target IS BOOL
-    (141) expression -> . target MUTATOR IS BOOL
-    (142) expression -> . target MUTATOR MUTATOR IS BOOL
-    (143) expression -> . target MUTATOR MUTATOR MUTATOR IS BOOL
-    (144) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (145) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
-    (146) expression -> . INTEL LPAREN target COMMA STRING RPAREN
-    (147) expression -> . INTEL LPAREN target MUTATOR COMMA STRING RPAREN
-    (148) expression -> . INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
-    (149) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (150) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (151) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (152) expression -> . target BETWEEN STRING
-    (153) expression -> . target NOT BETWEEN STRING
+    (124) expression -> . target CIDR INTEL LPAREN STRING RPAREN
+    (125) expression -> . target CIDR STRING
+    (126) expression -> . target NOT CIDR STRING
+    (127) expression -> . target CIDR ARRAY
+    (128) expression -> . target NOT CIDR ARRAY
+    (129) expression -> . target EXISTS
+    (130) expression -> . target NOT EXISTS
+    (131) expression -> . target REGEXP STRING
+    (132) expression -> . target MUTATOR REGEXP STRING
+    (133) expression -> . target MUTATOR MUTATOR REGEXP STRING
+    (134) expression -> . target MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (135) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (136) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (137) expression -> . target NOT REGEXP STRING
+    (138) expression -> . target MUTATOR NOT REGEXP STRING
+    (139) expression -> . target MUTATOR MUTATOR NOT REGEXP STRING
+    (140) expression -> . target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (141) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (142) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (143) expression -> . target IS BOOL
+    (144) expression -> . target MUTATOR IS BOOL
+    (145) expression -> . target MUTATOR MUTATOR IS BOOL
+    (146) expression -> . target MUTATOR MUTATOR MUTATOR IS BOOL
+    (147) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (148) expression -> . target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL
+    (149) expression -> . INTEL LPAREN target COMMA STRING RPAREN
+    (150) expression -> . INTEL LPAREN target MUTATOR COMMA STRING RPAREN
+    (151) expression -> . INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN
+    (152) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (153) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (154) expression -> . INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (155) expression -> . target BETWEEN STRING
+    (156) expression -> . target NOT BETWEEN STRING
 
     target          shift and go to state 2
     LPAREN          shift and go to state 3
     EXPAND          shift and go to state 4
     INTEL           shift and go to state 5
 
-    expression                     shift and go to state 133
+    expression                     shift and go to state 137
 
-state 82
+state 84
 
-    (146) expression -> INTEL LPAREN target . COMMA STRING RPAREN
-    (147) expression -> INTEL LPAREN target . MUTATOR COMMA STRING RPAREN
-    (148) expression -> INTEL LPAREN target . MUTATOR MUTATOR COMMA STRING RPAREN
-    (149) expression -> INTEL LPAREN target . MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (150) expression -> INTEL LPAREN target . MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (151) expression -> INTEL LPAREN target . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (149) expression -> INTEL LPAREN target . COMMA STRING RPAREN
+    (150) expression -> INTEL LPAREN target . MUTATOR COMMA STRING RPAREN
+    (151) expression -> INTEL LPAREN target . MUTATOR MUTATOR COMMA STRING RPAREN
+    (152) expression -> INTEL LPAREN target . MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (153) expression -> INTEL LPAREN target . MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (154) expression -> INTEL LPAREN target . MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
 
-    COMMA           shift and go to state 134
-    MUTATOR         shift and go to state 135
+    COMMA           shift and go to state 138
+    MUTATOR         shift and go to state 139
 
 
-state 83
+state 85
 
     (11) expression -> target MUTATOR MUTATOR MUTATOR . SWITH STRING
     (12) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR SWITH STRING
@@ -2485,51 +2536,51 @@ state 83
     (105) expression -> target MUTATOR MUTATOR MUTATOR . NOT IN ARRAY
     (106) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR NOT IN ARRAY
     (107) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR NOT IN ARRAY
-    (131) expression -> target MUTATOR MUTATOR MUTATOR . REGEXP STRING
-    (132) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR REGEXP STRING
-    (133) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR REGEXP STRING
-    (137) expression -> target MUTATOR MUTATOR MUTATOR . NOT REGEXP STRING
-    (138) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR NOT REGEXP STRING
-    (139) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
-    (143) expression -> target MUTATOR MUTATOR MUTATOR . IS BOOL
-    (144) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR IS BOOL
-    (145) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR IS BOOL
+    (134) expression -> target MUTATOR MUTATOR MUTATOR . REGEXP STRING
+    (135) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR REGEXP STRING
+    (136) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR REGEXP STRING
+    (140) expression -> target MUTATOR MUTATOR MUTATOR . NOT REGEXP STRING
+    (141) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR NOT REGEXP STRING
+    (142) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR NOT REGEXP STRING
+    (146) expression -> target MUTATOR MUTATOR MUTATOR . IS BOOL
+    (147) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR IS BOOL
+    (148) expression -> target MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR IS BOOL
 
-    SWITH           shift and go to state 137
-    MUTATOR         shift and go to state 136
-    EWITH           shift and go to state 138
-    NOTEQUALS       shift and go to state 139
-    NOT             shift and go to state 140
-    EQUALS          shift and go to state 141
-    CONTAINS        shift and go to state 142
-    CONTAINSCIS     shift and go to state 143
-    IN              shift and go to state 144
-    REGEXP          shift and go to state 145
-    IS              shift and go to state 146
-
-
-state 84
-
-    (10) expression -> target MUTATOR MUTATOR SWITH . STRING
-
-    STRING          shift and go to state 147
-
-
-state 85
-
-    (16) expression -> target MUTATOR MUTATOR EWITH . STRING
-
-    STRING          shift and go to state 148
+    SWITH           shift and go to state 141
+    MUTATOR         shift and go to state 140
+    EWITH           shift and go to state 142
+    NOTEQUALS       shift and go to state 143
+    NOT             shift and go to state 144
+    EQUALS          shift and go to state 145
+    CONTAINS        shift and go to state 146
+    CONTAINSCIS     shift and go to state 147
+    IN              shift and go to state 148
+    REGEXP          shift and go to state 149
+    IS              shift and go to state 150
 
 
 state 86
 
-    (22) expression -> target MUTATOR MUTATOR NOTEQUALS . STRING
+    (10) expression -> target MUTATOR MUTATOR SWITH . STRING
 
-    STRING          shift and go to state 149
+    STRING          shift and go to state 151
 
 
 state 87
+
+    (16) expression -> target MUTATOR MUTATOR EWITH . STRING
+
+    STRING          shift and go to state 152
+
+
+state 88
+
+    (22) expression -> target MUTATOR MUTATOR NOTEQUALS . STRING
+
+    STRING          shift and go to state 153
+
+
+state 89
 
     (29) expression -> target MUTATOR MUTATOR NOT . NOTEQUALS STRING
     (43) expression -> target MUTATOR MUTATOR NOT . EQUALS STRING
@@ -2538,63 +2589,63 @@ state 87
     (80) expression -> target MUTATOR MUTATOR NOT . CONTAINSCIS STRING
     (92) expression -> target MUTATOR MUTATOR NOT . CONTAINSCIS ARRAY
     (104) expression -> target MUTATOR MUTATOR NOT . IN ARRAY
-    (136) expression -> target MUTATOR MUTATOR NOT . REGEXP STRING
+    (139) expression -> target MUTATOR MUTATOR NOT . REGEXP STRING
 
-    NOTEQUALS       shift and go to state 150
-    EQUALS          shift and go to state 151
-    CONTAINS        shift and go to state 152
-    CONTAINSCIS     shift and go to state 153
-    IN              shift and go to state 154
-    REGEXP          shift and go to state 155
-
-
-state 88
-
-    (36) expression -> target MUTATOR MUTATOR EQUALS . STRING
-
-    STRING          shift and go to state 156
-
-
-state 89
-
-    (50) expression -> target MUTATOR MUTATOR CONTAINS . STRING
-    (62) expression -> target MUTATOR MUTATOR CONTAINS . ARRAY
-
-    STRING          shift and go to state 157
-    ARRAY           shift and go to state 158
+    NOTEQUALS       shift and go to state 154
+    EQUALS          shift and go to state 155
+    CONTAINS        shift and go to state 156
+    CONTAINSCIS     shift and go to state 157
+    IN              shift and go to state 158
+    REGEXP          shift and go to state 159
 
 
 state 90
 
-    (74) expression -> target MUTATOR MUTATOR CONTAINSCIS . STRING
-    (86) expression -> target MUTATOR MUTATOR CONTAINSCIS . ARRAY
+    (36) expression -> target MUTATOR MUTATOR EQUALS . STRING
 
-    STRING          shift and go to state 159
-    ARRAY           shift and go to state 160
+    STRING          shift and go to state 160
 
 
 state 91
 
-    (98) expression -> target MUTATOR MUTATOR IN . ARRAY
+    (50) expression -> target MUTATOR MUTATOR CONTAINS . STRING
+    (62) expression -> target MUTATOR MUTATOR CONTAINS . ARRAY
 
-    ARRAY           shift and go to state 161
+    STRING          shift and go to state 161
+    ARRAY           shift and go to state 162
 
 
 state 92
 
-    (130) expression -> target MUTATOR MUTATOR REGEXP . STRING
+    (74) expression -> target MUTATOR MUTATOR CONTAINSCIS . STRING
+    (86) expression -> target MUTATOR MUTATOR CONTAINSCIS . ARRAY
 
-    STRING          shift and go to state 162
+    STRING          shift and go to state 163
+    ARRAY           shift and go to state 164
 
 
 state 93
 
-    (142) expression -> target MUTATOR MUTATOR IS . BOOL
+    (98) expression -> target MUTATOR MUTATOR IN . ARRAY
 
-    BOOL            shift and go to state 163
+    ARRAY           shift and go to state 165
 
 
 state 94
+
+    (133) expression -> target MUTATOR MUTATOR REGEXP . STRING
+
+    STRING          shift and go to state 166
+
+
+state 95
+
+    (145) expression -> target MUTATOR MUTATOR IS . BOOL
+
+    BOOL            shift and go to state 167
+
+
+state 96
 
     (9) expression -> target MUTATOR SWITH STRING .
 
@@ -2604,7 +2655,7 @@ state 94
     RPAREN          reduce using rule 9 (expression -> target MUTATOR SWITH STRING .)
 
 
-state 95
+state 97
 
     (15) expression -> target MUTATOR EWITH STRING .
 
@@ -2614,7 +2665,7 @@ state 95
     RPAREN          reduce using rule 15 (expression -> target MUTATOR EWITH STRING .)
 
 
-state 96
+state 98
 
     (21) expression -> target MUTATOR NOTEQUALS STRING .
 
@@ -2624,53 +2675,53 @@ state 96
     RPAREN          reduce using rule 21 (expression -> target MUTATOR NOTEQUALS STRING .)
 
 
-state 97
+state 99
 
     (28) expression -> target MUTATOR NOT NOTEQUALS . STRING
 
-    STRING          shift and go to state 164
-
-
-state 98
-
-    (42) expression -> target MUTATOR NOT EQUALS . STRING
-
-    STRING          shift and go to state 165
-
-
-state 99
-
-    (55) expression -> target MUTATOR NOT CONTAINS . STRING
-    (67) expression -> target MUTATOR NOT CONTAINS . ARRAY
-
-    STRING          shift and go to state 166
-    ARRAY           shift and go to state 167
+    STRING          shift and go to state 168
 
 
 state 100
 
-    (79) expression -> target MUTATOR NOT CONTAINSCIS . STRING
-    (91) expression -> target MUTATOR NOT CONTAINSCIS . ARRAY
+    (42) expression -> target MUTATOR NOT EQUALS . STRING
 
-    STRING          shift and go to state 168
-    ARRAY           shift and go to state 169
+    STRING          shift and go to state 169
 
 
 state 101
 
-    (103) expression -> target MUTATOR NOT IN . ARRAY
+    (55) expression -> target MUTATOR NOT CONTAINS . STRING
+    (67) expression -> target MUTATOR NOT CONTAINS . ARRAY
 
-    ARRAY           shift and go to state 170
+    STRING          shift and go to state 170
+    ARRAY           shift and go to state 171
 
 
 state 102
 
-    (135) expression -> target MUTATOR NOT REGEXP . STRING
+    (79) expression -> target MUTATOR NOT CONTAINSCIS . STRING
+    (91) expression -> target MUTATOR NOT CONTAINSCIS . ARRAY
 
-    STRING          shift and go to state 171
+    STRING          shift and go to state 172
+    ARRAY           shift and go to state 173
 
 
 state 103
+
+    (103) expression -> target MUTATOR NOT IN . ARRAY
+
+    ARRAY           shift and go to state 174
+
+
+state 104
+
+    (138) expression -> target MUTATOR NOT REGEXP . STRING
+
+    STRING          shift and go to state 175
+
+
+state 105
 
     (35) expression -> target MUTATOR EQUALS STRING .
 
@@ -2680,7 +2731,7 @@ state 103
     RPAREN          reduce using rule 35 (expression -> target MUTATOR EQUALS STRING .)
 
 
-state 104
+state 106
 
     (49) expression -> target MUTATOR CONTAINS STRING .
 
@@ -2690,7 +2741,7 @@ state 104
     RPAREN          reduce using rule 49 (expression -> target MUTATOR CONTAINS STRING .)
 
 
-state 105
+state 107
 
     (61) expression -> target MUTATOR CONTAINS ARRAY .
 
@@ -2700,7 +2751,7 @@ state 105
     RPAREN          reduce using rule 61 (expression -> target MUTATOR CONTAINS ARRAY .)
 
 
-state 106
+state 108
 
     (73) expression -> target MUTATOR CONTAINSCIS STRING .
 
@@ -2710,7 +2761,7 @@ state 106
     RPAREN          reduce using rule 73 (expression -> target MUTATOR CONTAINSCIS STRING .)
 
 
-state 107
+state 109
 
     (85) expression -> target MUTATOR CONTAINSCIS ARRAY .
 
@@ -2720,7 +2771,7 @@ state 107
     RPAREN          reduce using rule 85 (expression -> target MUTATOR CONTAINSCIS ARRAY .)
 
 
-state 108
+state 110
 
     (97) expression -> target MUTATOR IN ARRAY .
 
@@ -2730,7 +2781,7 @@ state 108
     RPAREN          reduce using rule 97 (expression -> target MUTATOR IN ARRAY .)
 
 
-state 109
+state 111
 
     (112) expression -> target MUTATOR GT NUMBER .
 
@@ -2740,7 +2791,7 @@ state 109
     RPAREN          reduce using rule 112 (expression -> target MUTATOR GT NUMBER .)
 
 
-state 110
+state 112
 
     (120) expression -> target MUTATOR GT FLOAT .
 
@@ -2750,7 +2801,7 @@ state 110
     RPAREN          reduce using rule 120 (expression -> target MUTATOR GT FLOAT .)
 
 
-state 111
+state 113
 
     (113) expression -> target MUTATOR GTE NUMBER .
 
@@ -2760,7 +2811,7 @@ state 111
     RPAREN          reduce using rule 113 (expression -> target MUTATOR GTE NUMBER .)
 
 
-state 112
+state 114
 
     (121) expression -> target MUTATOR GTE FLOAT .
 
@@ -2770,7 +2821,7 @@ state 112
     RPAREN          reduce using rule 121 (expression -> target MUTATOR GTE FLOAT .)
 
 
-state 113
+state 115
 
     (114) expression -> target MUTATOR LT NUMBER .
 
@@ -2780,7 +2831,7 @@ state 113
     RPAREN          reduce using rule 114 (expression -> target MUTATOR LT NUMBER .)
 
 
-state 114
+state 116
 
     (122) expression -> target MUTATOR LT FLOAT .
 
@@ -2790,7 +2841,7 @@ state 114
     RPAREN          reduce using rule 122 (expression -> target MUTATOR LT FLOAT .)
 
 
-state 115
+state 117
 
     (115) expression -> target MUTATOR LTE NUMBER .
 
@@ -2800,7 +2851,7 @@ state 115
     RPAREN          reduce using rule 115 (expression -> target MUTATOR LTE NUMBER .)
 
 
-state 116
+state 118
 
     (123) expression -> target MUTATOR LTE FLOAT .
 
@@ -2810,27 +2861,27 @@ state 116
     RPAREN          reduce using rule 123 (expression -> target MUTATOR LTE FLOAT .)
 
 
-state 117
-
-    (129) expression -> target MUTATOR REGEXP STRING .
-
-    OR              reduce using rule 129 (expression -> target MUTATOR REGEXP STRING .)
-    AND             reduce using rule 129 (expression -> target MUTATOR REGEXP STRING .)
-    $end            reduce using rule 129 (expression -> target MUTATOR REGEXP STRING .)
-    RPAREN          reduce using rule 129 (expression -> target MUTATOR REGEXP STRING .)
-
-
-state 118
-
-    (141) expression -> target MUTATOR IS BOOL .
-
-    OR              reduce using rule 141 (expression -> target MUTATOR IS BOOL .)
-    AND             reduce using rule 141 (expression -> target MUTATOR IS BOOL .)
-    $end            reduce using rule 141 (expression -> target MUTATOR IS BOOL .)
-    RPAREN          reduce using rule 141 (expression -> target MUTATOR IS BOOL .)
-
-
 state 119
+
+    (132) expression -> target MUTATOR REGEXP STRING .
+
+    OR              reduce using rule 132 (expression -> target MUTATOR REGEXP STRING .)
+    AND             reduce using rule 132 (expression -> target MUTATOR REGEXP STRING .)
+    $end            reduce using rule 132 (expression -> target MUTATOR REGEXP STRING .)
+    RPAREN          reduce using rule 132 (expression -> target MUTATOR REGEXP STRING .)
+
+
+state 120
+
+    (144) expression -> target MUTATOR IS BOOL .
+
+    OR              reduce using rule 144 (expression -> target MUTATOR IS BOOL .)
+    AND             reduce using rule 144 (expression -> target MUTATOR IS BOOL .)
+    $end            reduce using rule 144 (expression -> target MUTATOR IS BOOL .)
+    RPAREN          reduce using rule 144 (expression -> target MUTATOR IS BOOL .)
+
+
+state 121
 
     (27) expression -> target NOT NOTEQUALS STRING .
 
@@ -2840,7 +2891,7 @@ state 119
     RPAREN          reduce using rule 27 (expression -> target NOT NOTEQUALS STRING .)
 
 
-state 120
+state 122
 
     (33) expression -> target NOT NOTEQUALS NUMBER .
 
@@ -2850,7 +2901,7 @@ state 120
     RPAREN          reduce using rule 33 (expression -> target NOT NOTEQUALS NUMBER .)
 
 
-state 121
+state 123
 
     (41) expression -> target NOT EQUALS STRING .
 
@@ -2860,7 +2911,7 @@ state 121
     RPAREN          reduce using rule 41 (expression -> target NOT EQUALS STRING .)
 
 
-state 122
+state 124
 
     (47) expression -> target NOT EQUALS NUMBER .
 
@@ -2870,7 +2921,7 @@ state 122
     RPAREN          reduce using rule 47 (expression -> target NOT EQUALS NUMBER .)
 
 
-state 123
+state 125
 
     (54) expression -> target NOT CONTAINS STRING .
 
@@ -2880,7 +2931,7 @@ state 123
     RPAREN          reduce using rule 54 (expression -> target NOT CONTAINS STRING .)
 
 
-state 124
+state 126
 
     (66) expression -> target NOT CONTAINS ARRAY .
 
@@ -2890,7 +2941,7 @@ state 124
     RPAREN          reduce using rule 66 (expression -> target NOT CONTAINS ARRAY .)
 
 
-state 125
+state 127
 
     (78) expression -> target NOT CONTAINSCIS STRING .
 
@@ -2900,7 +2951,7 @@ state 125
     RPAREN          reduce using rule 78 (expression -> target NOT CONTAINSCIS STRING .)
 
 
-state 126
+state 128
 
     (90) expression -> target NOT CONTAINSCIS ARRAY .
 
@@ -2910,7 +2961,7 @@ state 126
     RPAREN          reduce using rule 90 (expression -> target NOT CONTAINSCIS ARRAY .)
 
 
-state 127
+state 129
 
     (102) expression -> target NOT IN ARRAY .
 
@@ -2920,37 +2971,54 @@ state 127
     RPAREN          reduce using rule 102 (expression -> target NOT IN ARRAY .)
 
 
-state 128
-
-    (125) expression -> target NOT CIDR STRING .
-
-    OR              reduce using rule 125 (expression -> target NOT CIDR STRING .)
-    AND             reduce using rule 125 (expression -> target NOT CIDR STRING .)
-    $end            reduce using rule 125 (expression -> target NOT CIDR STRING .)
-    RPAREN          reduce using rule 125 (expression -> target NOT CIDR STRING .)
-
-
-state 129
-
-    (134) expression -> target NOT REGEXP STRING .
-
-    OR              reduce using rule 134 (expression -> target NOT REGEXP STRING .)
-    AND             reduce using rule 134 (expression -> target NOT REGEXP STRING .)
-    $end            reduce using rule 134 (expression -> target NOT REGEXP STRING .)
-    RPAREN          reduce using rule 134 (expression -> target NOT REGEXP STRING .)
-
-
 state 130
 
-    (153) expression -> target NOT BETWEEN STRING .
+    (126) expression -> target NOT CIDR STRING .
 
-    OR              reduce using rule 153 (expression -> target NOT BETWEEN STRING .)
-    AND             reduce using rule 153 (expression -> target NOT BETWEEN STRING .)
-    $end            reduce using rule 153 (expression -> target NOT BETWEEN STRING .)
-    RPAREN          reduce using rule 153 (expression -> target NOT BETWEEN STRING .)
+    OR              reduce using rule 126 (expression -> target NOT CIDR STRING .)
+    AND             reduce using rule 126 (expression -> target NOT CIDR STRING .)
+    $end            reduce using rule 126 (expression -> target NOT CIDR STRING .)
+    RPAREN          reduce using rule 126 (expression -> target NOT CIDR STRING .)
 
 
 state 131
+
+    (128) expression -> target NOT CIDR ARRAY .
+
+    OR              reduce using rule 128 (expression -> target NOT CIDR ARRAY .)
+    AND             reduce using rule 128 (expression -> target NOT CIDR ARRAY .)
+    $end            reduce using rule 128 (expression -> target NOT CIDR ARRAY .)
+    RPAREN          reduce using rule 128 (expression -> target NOT CIDR ARRAY .)
+
+
+state 132
+
+    (137) expression -> target NOT REGEXP STRING .
+
+    OR              reduce using rule 137 (expression -> target NOT REGEXP STRING .)
+    AND             reduce using rule 137 (expression -> target NOT REGEXP STRING .)
+    $end            reduce using rule 137 (expression -> target NOT REGEXP STRING .)
+    RPAREN          reduce using rule 137 (expression -> target NOT REGEXP STRING .)
+
+
+state 133
+
+    (156) expression -> target NOT BETWEEN STRING .
+
+    OR              reduce using rule 156 (expression -> target NOT BETWEEN STRING .)
+    AND             reduce using rule 156 (expression -> target NOT BETWEEN STRING .)
+    $end            reduce using rule 156 (expression -> target NOT BETWEEN STRING .)
+    RPAREN          reduce using rule 156 (expression -> target NOT BETWEEN STRING .)
+
+
+state 134
+
+    (124) expression -> target CIDR INTEL LPAREN . STRING RPAREN
+
+    STRING          shift and go to state 176
+
+
+state 135
 
     (5) expression -> LPAREN expression AND expression . RPAREN
     (3) expression -> expression AND expression .
@@ -2960,7 +3028,7 @@ state 131
   ! shift/reduce conflict for RPAREN resolved as shift
   ! shift/reduce conflict for OR resolved as shift
   ! shift/reduce conflict for AND resolved as shift
-    RPAREN          shift and go to state 172
+    RPAREN          shift and go to state 177
     OR              shift and go to state 6
     AND             shift and go to state 7
 
@@ -2969,7 +3037,7 @@ state 131
   ! OR              [ reduce using rule 3 (expression -> expression AND expression .) ]
 
 
-state 132
+state 136
 
     (6) expression -> LPAREN expression OR expression . RPAREN
     (2) expression -> expression OR expression .
@@ -2979,7 +3047,7 @@ state 132
   ! shift/reduce conflict for RPAREN resolved as shift
   ! shift/reduce conflict for OR resolved as shift
   ! shift/reduce conflict for AND resolved as shift
-    RPAREN          shift and go to state 173
+    RPAREN          shift and go to state 178
     OR              shift and go to state 6
     AND             shift and go to state 7
 
@@ -2988,37 +3056,37 @@ state 132
   ! OR              [ reduce using rule 2 (expression -> expression OR expression .) ]
 
 
-state 133
+state 137
 
     (7) expression -> EXPAND target LPAREN expression . RPAREN
     (2) expression -> expression . OR expression
     (3) expression -> expression . AND expression
 
-    RPAREN          shift and go to state 174
+    RPAREN          shift and go to state 179
     OR              shift and go to state 6
     AND             shift and go to state 7
 
 
-state 134
+state 138
 
-    (146) expression -> INTEL LPAREN target COMMA . STRING RPAREN
+    (149) expression -> INTEL LPAREN target COMMA . STRING RPAREN
 
-    STRING          shift and go to state 175
-
-
-state 135
-
-    (147) expression -> INTEL LPAREN target MUTATOR . COMMA STRING RPAREN
-    (148) expression -> INTEL LPAREN target MUTATOR . MUTATOR COMMA STRING RPAREN
-    (149) expression -> INTEL LPAREN target MUTATOR . MUTATOR MUTATOR COMMA STRING RPAREN
-    (150) expression -> INTEL LPAREN target MUTATOR . MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-    (151) expression -> INTEL LPAREN target MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-
-    COMMA           shift and go to state 177
-    MUTATOR         shift and go to state 176
+    STRING          shift and go to state 180
 
 
-state 136
+state 139
+
+    (150) expression -> INTEL LPAREN target MUTATOR . COMMA STRING RPAREN
+    (151) expression -> INTEL LPAREN target MUTATOR . MUTATOR COMMA STRING RPAREN
+    (152) expression -> INTEL LPAREN target MUTATOR . MUTATOR MUTATOR COMMA STRING RPAREN
+    (153) expression -> INTEL LPAREN target MUTATOR . MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+    (154) expression -> INTEL LPAREN target MUTATOR . MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
+
+    COMMA           shift and go to state 182
+    MUTATOR         shift and go to state 181
+
+
+state 140
 
     (12) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . SWITH STRING
     (13) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR SWITH STRING
@@ -3052,47 +3120,47 @@ state 136
     (101) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR IN ARRAY
     (106) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . NOT IN ARRAY
     (107) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR NOT IN ARRAY
-    (132) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR REGEXP STRING
-    (133) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR REGEXP STRING
-    (138) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR NOT REGEXP STRING
-    (139) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR NOT REGEXP STRING
-    (144) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . IS BOOL
-    (145) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR IS BOOL
+    (135) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR REGEXP STRING
+    (136) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR REGEXP STRING
+    (141) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR NOT REGEXP STRING
+    (142) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR NOT REGEXP STRING
+    (147) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . IS BOOL
+    (148) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR IS BOOL
 
-    SWITH           shift and go to state 179
-    MUTATOR         shift and go to state 178
-    EWITH           shift and go to state 180
-    NOTEQUALS       shift and go to state 181
-    NOT             shift and go to state 182
-    EQUALS          shift and go to state 183
-    CONTAINS        shift and go to state 184
-    CONTAINSCIS     shift and go to state 185
-    IN              shift and go to state 186
-    IS              shift and go to state 187
+    SWITH           shift and go to state 184
+    MUTATOR         shift and go to state 183
+    EWITH           shift and go to state 185
+    NOTEQUALS       shift and go to state 186
+    NOT             shift and go to state 187
+    EQUALS          shift and go to state 188
+    CONTAINS        shift and go to state 189
+    CONTAINSCIS     shift and go to state 190
+    IN              shift and go to state 191
+    IS              shift and go to state 192
 
 
-state 137
+state 141
 
     (11) expression -> target MUTATOR MUTATOR MUTATOR SWITH . STRING
 
-    STRING          shift and go to state 188
+    STRING          shift and go to state 193
 
 
-state 138
+state 142
 
     (17) expression -> target MUTATOR MUTATOR MUTATOR EWITH . STRING
 
-    STRING          shift and go to state 189
+    STRING          shift and go to state 194
 
 
-state 139
+state 143
 
     (23) expression -> target MUTATOR MUTATOR MUTATOR NOTEQUALS . STRING
 
-    STRING          shift and go to state 190
+    STRING          shift and go to state 195
 
 
-state 140
+state 144
 
     (30) expression -> target MUTATOR MUTATOR MUTATOR NOT . NOTEQUALS STRING
     (44) expression -> target MUTATOR MUTATOR MUTATOR NOT . EQUALS STRING
@@ -3101,63 +3169,63 @@ state 140
     (81) expression -> target MUTATOR MUTATOR MUTATOR NOT . CONTAINSCIS STRING
     (93) expression -> target MUTATOR MUTATOR MUTATOR NOT . CONTAINSCIS ARRAY
     (105) expression -> target MUTATOR MUTATOR MUTATOR NOT . IN ARRAY
-    (137) expression -> target MUTATOR MUTATOR MUTATOR NOT . REGEXP STRING
+    (140) expression -> target MUTATOR MUTATOR MUTATOR NOT . REGEXP STRING
 
-    NOTEQUALS       shift and go to state 191
-    EQUALS          shift and go to state 192
-    CONTAINS        shift and go to state 193
-    CONTAINSCIS     shift and go to state 194
-    IN              shift and go to state 195
-    REGEXP          shift and go to state 196
-
-
-state 141
-
-    (37) expression -> target MUTATOR MUTATOR MUTATOR EQUALS . STRING
-
-    STRING          shift and go to state 197
-
-
-state 142
-
-    (51) expression -> target MUTATOR MUTATOR MUTATOR CONTAINS . STRING
-    (63) expression -> target MUTATOR MUTATOR MUTATOR CONTAINS . ARRAY
-
-    STRING          shift and go to state 198
-    ARRAY           shift and go to state 199
-
-
-state 143
-
-    (75) expression -> target MUTATOR MUTATOR MUTATOR CONTAINSCIS . STRING
-    (87) expression -> target MUTATOR MUTATOR MUTATOR CONTAINSCIS . ARRAY
-
-    STRING          shift and go to state 200
-    ARRAY           shift and go to state 201
-
-
-state 144
-
-    (99) expression -> target MUTATOR MUTATOR MUTATOR IN . ARRAY
-
-    ARRAY           shift and go to state 202
+    NOTEQUALS       shift and go to state 196
+    EQUALS          shift and go to state 197
+    CONTAINS        shift and go to state 198
+    CONTAINSCIS     shift and go to state 199
+    IN              shift and go to state 200
+    REGEXP          shift and go to state 201
 
 
 state 145
 
-    (131) expression -> target MUTATOR MUTATOR MUTATOR REGEXP . STRING
+    (37) expression -> target MUTATOR MUTATOR MUTATOR EQUALS . STRING
 
-    STRING          shift and go to state 203
+    STRING          shift and go to state 202
 
 
 state 146
 
-    (143) expression -> target MUTATOR MUTATOR MUTATOR IS . BOOL
+    (51) expression -> target MUTATOR MUTATOR MUTATOR CONTAINS . STRING
+    (63) expression -> target MUTATOR MUTATOR MUTATOR CONTAINS . ARRAY
 
-    BOOL            shift and go to state 204
+    STRING          shift and go to state 203
+    ARRAY           shift and go to state 204
 
 
 state 147
+
+    (75) expression -> target MUTATOR MUTATOR MUTATOR CONTAINSCIS . STRING
+    (87) expression -> target MUTATOR MUTATOR MUTATOR CONTAINSCIS . ARRAY
+
+    STRING          shift and go to state 205
+    ARRAY           shift and go to state 206
+
+
+state 148
+
+    (99) expression -> target MUTATOR MUTATOR MUTATOR IN . ARRAY
+
+    ARRAY           shift and go to state 207
+
+
+state 149
+
+    (134) expression -> target MUTATOR MUTATOR MUTATOR REGEXP . STRING
+
+    STRING          shift and go to state 208
+
+
+state 150
+
+    (146) expression -> target MUTATOR MUTATOR MUTATOR IS . BOOL
+
+    BOOL            shift and go to state 209
+
+
+state 151
 
     (10) expression -> target MUTATOR MUTATOR SWITH STRING .
 
@@ -3167,7 +3235,7 @@ state 147
     RPAREN          reduce using rule 10 (expression -> target MUTATOR MUTATOR SWITH STRING .)
 
 
-state 148
+state 152
 
     (16) expression -> target MUTATOR MUTATOR EWITH STRING .
 
@@ -3177,7 +3245,7 @@ state 148
     RPAREN          reduce using rule 16 (expression -> target MUTATOR MUTATOR EWITH STRING .)
 
 
-state 149
+state 153
 
     (22) expression -> target MUTATOR MUTATOR NOTEQUALS STRING .
 
@@ -3187,53 +3255,53 @@ state 149
     RPAREN          reduce using rule 22 (expression -> target MUTATOR MUTATOR NOTEQUALS STRING .)
 
 
-state 150
+state 154
 
     (29) expression -> target MUTATOR MUTATOR NOT NOTEQUALS . STRING
 
-    STRING          shift and go to state 205
-
-
-state 151
-
-    (43) expression -> target MUTATOR MUTATOR NOT EQUALS . STRING
-
-    STRING          shift and go to state 206
-
-
-state 152
-
-    (56) expression -> target MUTATOR MUTATOR NOT CONTAINS . STRING
-    (68) expression -> target MUTATOR MUTATOR NOT CONTAINS . ARRAY
-
-    STRING          shift and go to state 207
-    ARRAY           shift and go to state 208
-
-
-state 153
-
-    (80) expression -> target MUTATOR MUTATOR NOT CONTAINSCIS . STRING
-    (92) expression -> target MUTATOR MUTATOR NOT CONTAINSCIS . ARRAY
-
-    STRING          shift and go to state 209
-    ARRAY           shift and go to state 210
-
-
-state 154
-
-    (104) expression -> target MUTATOR MUTATOR NOT IN . ARRAY
-
-    ARRAY           shift and go to state 211
+    STRING          shift and go to state 210
 
 
 state 155
 
-    (136) expression -> target MUTATOR MUTATOR NOT REGEXP . STRING
+    (43) expression -> target MUTATOR MUTATOR NOT EQUALS . STRING
 
-    STRING          shift and go to state 212
+    STRING          shift and go to state 211
 
 
 state 156
+
+    (56) expression -> target MUTATOR MUTATOR NOT CONTAINS . STRING
+    (68) expression -> target MUTATOR MUTATOR NOT CONTAINS . ARRAY
+
+    STRING          shift and go to state 212
+    ARRAY           shift and go to state 213
+
+
+state 157
+
+    (80) expression -> target MUTATOR MUTATOR NOT CONTAINSCIS . STRING
+    (92) expression -> target MUTATOR MUTATOR NOT CONTAINSCIS . ARRAY
+
+    STRING          shift and go to state 214
+    ARRAY           shift and go to state 215
+
+
+state 158
+
+    (104) expression -> target MUTATOR MUTATOR NOT IN . ARRAY
+
+    ARRAY           shift and go to state 216
+
+
+state 159
+
+    (139) expression -> target MUTATOR MUTATOR NOT REGEXP . STRING
+
+    STRING          shift and go to state 217
+
+
+state 160
 
     (36) expression -> target MUTATOR MUTATOR EQUALS STRING .
 
@@ -3243,7 +3311,7 @@ state 156
     RPAREN          reduce using rule 36 (expression -> target MUTATOR MUTATOR EQUALS STRING .)
 
 
-state 157
+state 161
 
     (50) expression -> target MUTATOR MUTATOR CONTAINS STRING .
 
@@ -3253,7 +3321,7 @@ state 157
     RPAREN          reduce using rule 50 (expression -> target MUTATOR MUTATOR CONTAINS STRING .)
 
 
-state 158
+state 162
 
     (62) expression -> target MUTATOR MUTATOR CONTAINS ARRAY .
 
@@ -3263,7 +3331,7 @@ state 158
     RPAREN          reduce using rule 62 (expression -> target MUTATOR MUTATOR CONTAINS ARRAY .)
 
 
-state 159
+state 163
 
     (74) expression -> target MUTATOR MUTATOR CONTAINSCIS STRING .
 
@@ -3273,7 +3341,7 @@ state 159
     RPAREN          reduce using rule 74 (expression -> target MUTATOR MUTATOR CONTAINSCIS STRING .)
 
 
-state 160
+state 164
 
     (86) expression -> target MUTATOR MUTATOR CONTAINSCIS ARRAY .
 
@@ -3283,7 +3351,7 @@ state 160
     RPAREN          reduce using rule 86 (expression -> target MUTATOR MUTATOR CONTAINSCIS ARRAY .)
 
 
-state 161
+state 165
 
     (98) expression -> target MUTATOR MUTATOR IN ARRAY .
 
@@ -3293,27 +3361,27 @@ state 161
     RPAREN          reduce using rule 98 (expression -> target MUTATOR MUTATOR IN ARRAY .)
 
 
-state 162
+state 166
 
-    (130) expression -> target MUTATOR MUTATOR REGEXP STRING .
+    (133) expression -> target MUTATOR MUTATOR REGEXP STRING .
 
-    OR              reduce using rule 130 (expression -> target MUTATOR MUTATOR REGEXP STRING .)
-    AND             reduce using rule 130 (expression -> target MUTATOR MUTATOR REGEXP STRING .)
-    $end            reduce using rule 130 (expression -> target MUTATOR MUTATOR REGEXP STRING .)
-    RPAREN          reduce using rule 130 (expression -> target MUTATOR MUTATOR REGEXP STRING .)
-
-
-state 163
-
-    (142) expression -> target MUTATOR MUTATOR IS BOOL .
-
-    OR              reduce using rule 142 (expression -> target MUTATOR MUTATOR IS BOOL .)
-    AND             reduce using rule 142 (expression -> target MUTATOR MUTATOR IS BOOL .)
-    $end            reduce using rule 142 (expression -> target MUTATOR MUTATOR IS BOOL .)
-    RPAREN          reduce using rule 142 (expression -> target MUTATOR MUTATOR IS BOOL .)
+    OR              reduce using rule 133 (expression -> target MUTATOR MUTATOR REGEXP STRING .)
+    AND             reduce using rule 133 (expression -> target MUTATOR MUTATOR REGEXP STRING .)
+    $end            reduce using rule 133 (expression -> target MUTATOR MUTATOR REGEXP STRING .)
+    RPAREN          reduce using rule 133 (expression -> target MUTATOR MUTATOR REGEXP STRING .)
 
 
-state 164
+state 167
+
+    (145) expression -> target MUTATOR MUTATOR IS BOOL .
+
+    OR              reduce using rule 145 (expression -> target MUTATOR MUTATOR IS BOOL .)
+    AND             reduce using rule 145 (expression -> target MUTATOR MUTATOR IS BOOL .)
+    $end            reduce using rule 145 (expression -> target MUTATOR MUTATOR IS BOOL .)
+    RPAREN          reduce using rule 145 (expression -> target MUTATOR MUTATOR IS BOOL .)
+
+
+state 168
 
     (28) expression -> target MUTATOR NOT NOTEQUALS STRING .
 
@@ -3323,7 +3391,7 @@ state 164
     RPAREN          reduce using rule 28 (expression -> target MUTATOR NOT NOTEQUALS STRING .)
 
 
-state 165
+state 169
 
     (42) expression -> target MUTATOR NOT EQUALS STRING .
 
@@ -3333,7 +3401,7 @@ state 165
     RPAREN          reduce using rule 42 (expression -> target MUTATOR NOT EQUALS STRING .)
 
 
-state 166
+state 170
 
     (55) expression -> target MUTATOR NOT CONTAINS STRING .
 
@@ -3343,7 +3411,7 @@ state 166
     RPAREN          reduce using rule 55 (expression -> target MUTATOR NOT CONTAINS STRING .)
 
 
-state 167
+state 171
 
     (67) expression -> target MUTATOR NOT CONTAINS ARRAY .
 
@@ -3353,7 +3421,7 @@ state 167
     RPAREN          reduce using rule 67 (expression -> target MUTATOR NOT CONTAINS ARRAY .)
 
 
-state 168
+state 172
 
     (79) expression -> target MUTATOR NOT CONTAINSCIS STRING .
 
@@ -3363,7 +3431,7 @@ state 168
     RPAREN          reduce using rule 79 (expression -> target MUTATOR NOT CONTAINSCIS STRING .)
 
 
-state 169
+state 173
 
     (91) expression -> target MUTATOR NOT CONTAINSCIS ARRAY .
 
@@ -3373,7 +3441,7 @@ state 169
     RPAREN          reduce using rule 91 (expression -> target MUTATOR NOT CONTAINSCIS ARRAY .)
 
 
-state 170
+state 174
 
     (103) expression -> target MUTATOR NOT IN ARRAY .
 
@@ -3383,17 +3451,24 @@ state 170
     RPAREN          reduce using rule 103 (expression -> target MUTATOR NOT IN ARRAY .)
 
 
-state 171
+state 175
 
-    (135) expression -> target MUTATOR NOT REGEXP STRING .
+    (138) expression -> target MUTATOR NOT REGEXP STRING .
 
-    OR              reduce using rule 135 (expression -> target MUTATOR NOT REGEXP STRING .)
-    AND             reduce using rule 135 (expression -> target MUTATOR NOT REGEXP STRING .)
-    $end            reduce using rule 135 (expression -> target MUTATOR NOT REGEXP STRING .)
-    RPAREN          reduce using rule 135 (expression -> target MUTATOR NOT REGEXP STRING .)
+    OR              reduce using rule 138 (expression -> target MUTATOR NOT REGEXP STRING .)
+    AND             reduce using rule 138 (expression -> target MUTATOR NOT REGEXP STRING .)
+    $end            reduce using rule 138 (expression -> target MUTATOR NOT REGEXP STRING .)
+    RPAREN          reduce using rule 138 (expression -> target MUTATOR NOT REGEXP STRING .)
 
 
-state 172
+state 176
+
+    (124) expression -> target CIDR INTEL LPAREN STRING . RPAREN
+
+    RPAREN          shift and go to state 218
+
+
+state 177
 
     (5) expression -> LPAREN expression AND expression RPAREN .
 
@@ -3403,7 +3478,7 @@ state 172
     RPAREN          reduce using rule 5 (expression -> LPAREN expression AND expression RPAREN .)
 
 
-state 173
+state 178
 
     (6) expression -> LPAREN expression OR expression RPAREN .
 
@@ -3413,7 +3488,7 @@ state 173
     RPAREN          reduce using rule 6 (expression -> LPAREN expression OR expression RPAREN .)
 
 
-state 174
+state 179
 
     (7) expression -> EXPAND target LPAREN expression RPAREN .
 
@@ -3423,32 +3498,32 @@ state 174
     RPAREN          reduce using rule 7 (expression -> EXPAND target LPAREN expression RPAREN .)
 
 
-state 175
+state 180
 
-    (146) expression -> INTEL LPAREN target COMMA STRING . RPAREN
+    (149) expression -> INTEL LPAREN target COMMA STRING . RPAREN
 
-    RPAREN          shift and go to state 213
-
-
-state 176
-
-    (148) expression -> INTEL LPAREN target MUTATOR MUTATOR . COMMA STRING RPAREN
-    (149) expression -> INTEL LPAREN target MUTATOR MUTATOR . MUTATOR COMMA STRING RPAREN
-    (150) expression -> INTEL LPAREN target MUTATOR MUTATOR . MUTATOR MUTATOR COMMA STRING RPAREN
-    (151) expression -> INTEL LPAREN target MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
-
-    COMMA           shift and go to state 215
-    MUTATOR         shift and go to state 214
+    RPAREN          shift and go to state 219
 
 
-state 177
+state 181
 
-    (147) expression -> INTEL LPAREN target MUTATOR COMMA . STRING RPAREN
+    (151) expression -> INTEL LPAREN target MUTATOR MUTATOR . COMMA STRING RPAREN
+    (152) expression -> INTEL LPAREN target MUTATOR MUTATOR . MUTATOR COMMA STRING RPAREN
+    (153) expression -> INTEL LPAREN target MUTATOR MUTATOR . MUTATOR MUTATOR COMMA STRING RPAREN
+    (154) expression -> INTEL LPAREN target MUTATOR MUTATOR . MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN
 
-    STRING          shift and go to state 216
+    COMMA           shift and go to state 221
+    MUTATOR         shift and go to state 220
 
 
-state 178
+state 182
+
+    (150) expression -> INTEL LPAREN target MUTATOR COMMA . STRING RPAREN
+
+    STRING          shift and go to state 222
+
+
+state 183
 
     (13) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . SWITH STRING
     (19) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . EWITH STRING
@@ -3466,47 +3541,47 @@ state 178
     (95) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . NOT CONTAINSCIS ARRAY
     (101) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . IN ARRAY
     (107) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . NOT IN ARRAY
-    (132) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . REGEXP STRING
-    (133) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR REGEXP STRING
-    (138) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . NOT REGEXP STRING
-    (139) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR NOT REGEXP STRING
-    (145) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . IS BOOL
+    (135) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . REGEXP STRING
+    (136) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR REGEXP STRING
+    (141) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . NOT REGEXP STRING
+    (142) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR NOT REGEXP STRING
+    (148) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . IS BOOL
 
-    SWITH           shift and go to state 218
-    EWITH           shift and go to state 219
-    NOTEQUALS       shift and go to state 220
-    NOT             shift and go to state 221
-    EQUALS          shift and go to state 222
-    CONTAINS        shift and go to state 223
-    CONTAINSCIS     shift and go to state 224
-    IN              shift and go to state 225
-    REGEXP          shift and go to state 226
-    MUTATOR         shift and go to state 217
-    IS              shift and go to state 227
+    SWITH           shift and go to state 224
+    EWITH           shift and go to state 225
+    NOTEQUALS       shift and go to state 226
+    NOT             shift and go to state 227
+    EQUALS          shift and go to state 228
+    CONTAINS        shift and go to state 229
+    CONTAINSCIS     shift and go to state 230
+    IN              shift and go to state 231
+    REGEXP          shift and go to state 232
+    MUTATOR         shift and go to state 223
+    IS              shift and go to state 233
 
 
-state 179
+state 184
 
     (12) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR SWITH . STRING
 
-    STRING          shift and go to state 228
+    STRING          shift and go to state 234
 
 
-state 180
+state 185
 
     (18) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR EWITH . STRING
 
-    STRING          shift and go to state 229
+    STRING          shift and go to state 235
 
 
-state 181
+state 186
 
     (24) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOTEQUALS . STRING
 
-    STRING          shift and go to state 230
+    STRING          shift and go to state 236
 
 
-state 182
+state 187
 
     (31) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT . NOTEQUALS STRING
     (45) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT . EQUALS STRING
@@ -3516,53 +3591,53 @@ state 182
     (94) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT . CONTAINSCIS ARRAY
     (106) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT . IN ARRAY
 
-    NOTEQUALS       shift and go to state 231
-    EQUALS          shift and go to state 232
-    CONTAINS        shift and go to state 233
-    CONTAINSCIS     shift and go to state 234
-    IN              shift and go to state 235
+    NOTEQUALS       shift and go to state 237
+    EQUALS          shift and go to state 238
+    CONTAINS        shift and go to state 239
+    CONTAINSCIS     shift and go to state 240
+    IN              shift and go to state 241
 
 
-state 183
+state 188
 
     (38) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR EQUALS . STRING
 
-    STRING          shift and go to state 236
+    STRING          shift and go to state 242
 
 
-state 184
+state 189
 
     (52) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS . STRING
     (64) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS . ARRAY
 
-    STRING          shift and go to state 237
-    ARRAY           shift and go to state 238
+    STRING          shift and go to state 243
+    ARRAY           shift and go to state 244
 
 
-state 185
+state 190
 
     (76) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS . STRING
     (88) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS . ARRAY
 
-    STRING          shift and go to state 239
-    ARRAY           shift and go to state 240
+    STRING          shift and go to state 245
+    ARRAY           shift and go to state 246
 
 
-state 186
+state 191
 
     (100) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IN . ARRAY
 
-    ARRAY           shift and go to state 241
+    ARRAY           shift and go to state 247
 
 
-state 187
+state 192
 
-    (144) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IS . BOOL
+    (147) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IS . BOOL
 
-    BOOL            shift and go to state 242
+    BOOL            shift and go to state 248
 
 
-state 188
+state 193
 
     (11) expression -> target MUTATOR MUTATOR MUTATOR SWITH STRING .
 
@@ -3572,7 +3647,7 @@ state 188
     RPAREN          reduce using rule 11 (expression -> target MUTATOR MUTATOR MUTATOR SWITH STRING .)
 
 
-state 189
+state 194
 
     (17) expression -> target MUTATOR MUTATOR MUTATOR EWITH STRING .
 
@@ -3582,7 +3657,7 @@ state 189
     RPAREN          reduce using rule 17 (expression -> target MUTATOR MUTATOR MUTATOR EWITH STRING .)
 
 
-state 190
+state 195
 
     (23) expression -> target MUTATOR MUTATOR MUTATOR NOTEQUALS STRING .
 
@@ -3592,53 +3667,53 @@ state 190
     RPAREN          reduce using rule 23 (expression -> target MUTATOR MUTATOR MUTATOR NOTEQUALS STRING .)
 
 
-state 191
+state 196
 
     (30) expression -> target MUTATOR MUTATOR MUTATOR NOT NOTEQUALS . STRING
 
-    STRING          shift and go to state 243
+    STRING          shift and go to state 249
 
 
-state 192
+state 197
 
     (44) expression -> target MUTATOR MUTATOR MUTATOR NOT EQUALS . STRING
-
-    STRING          shift and go to state 244
-
-
-state 193
-
-    (57) expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINS . STRING
-    (69) expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINS . ARRAY
-
-    STRING          shift and go to state 245
-    ARRAY           shift and go to state 246
-
-
-state 194
-
-    (81) expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS . STRING
-    (93) expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS . ARRAY
-
-    STRING          shift and go to state 247
-    ARRAY           shift and go to state 248
-
-
-state 195
-
-    (105) expression -> target MUTATOR MUTATOR MUTATOR NOT IN . ARRAY
-
-    ARRAY           shift and go to state 249
-
-
-state 196
-
-    (137) expression -> target MUTATOR MUTATOR MUTATOR NOT REGEXP . STRING
 
     STRING          shift and go to state 250
 
 
-state 197
+state 198
+
+    (57) expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINS . STRING
+    (69) expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINS . ARRAY
+
+    STRING          shift and go to state 251
+    ARRAY           shift and go to state 252
+
+
+state 199
+
+    (81) expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS . STRING
+    (93) expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS . ARRAY
+
+    STRING          shift and go to state 253
+    ARRAY           shift and go to state 254
+
+
+state 200
+
+    (105) expression -> target MUTATOR MUTATOR MUTATOR NOT IN . ARRAY
+
+    ARRAY           shift and go to state 255
+
+
+state 201
+
+    (140) expression -> target MUTATOR MUTATOR MUTATOR NOT REGEXP . STRING
+
+    STRING          shift and go to state 256
+
+
+state 202
 
     (37) expression -> target MUTATOR MUTATOR MUTATOR EQUALS STRING .
 
@@ -3648,7 +3723,7 @@ state 197
     RPAREN          reduce using rule 37 (expression -> target MUTATOR MUTATOR MUTATOR EQUALS STRING .)
 
 
-state 198
+state 203
 
     (51) expression -> target MUTATOR MUTATOR MUTATOR CONTAINS STRING .
 
@@ -3658,7 +3733,7 @@ state 198
     RPAREN          reduce using rule 51 (expression -> target MUTATOR MUTATOR MUTATOR CONTAINS STRING .)
 
 
-state 199
+state 204
 
     (63) expression -> target MUTATOR MUTATOR MUTATOR CONTAINS ARRAY .
 
@@ -3668,7 +3743,7 @@ state 199
     RPAREN          reduce using rule 63 (expression -> target MUTATOR MUTATOR MUTATOR CONTAINS ARRAY .)
 
 
-state 200
+state 205
 
     (75) expression -> target MUTATOR MUTATOR MUTATOR CONTAINSCIS STRING .
 
@@ -3678,7 +3753,7 @@ state 200
     RPAREN          reduce using rule 75 (expression -> target MUTATOR MUTATOR MUTATOR CONTAINSCIS STRING .)
 
 
-state 201
+state 206
 
     (87) expression -> target MUTATOR MUTATOR MUTATOR CONTAINSCIS ARRAY .
 
@@ -3688,7 +3763,7 @@ state 201
     RPAREN          reduce using rule 87 (expression -> target MUTATOR MUTATOR MUTATOR CONTAINSCIS ARRAY .)
 
 
-state 202
+state 207
 
     (99) expression -> target MUTATOR MUTATOR MUTATOR IN ARRAY .
 
@@ -3698,27 +3773,27 @@ state 202
     RPAREN          reduce using rule 99 (expression -> target MUTATOR MUTATOR MUTATOR IN ARRAY .)
 
 
-state 203
+state 208
 
-    (131) expression -> target MUTATOR MUTATOR MUTATOR REGEXP STRING .
+    (134) expression -> target MUTATOR MUTATOR MUTATOR REGEXP STRING .
 
-    OR              reduce using rule 131 (expression -> target MUTATOR MUTATOR MUTATOR REGEXP STRING .)
-    AND             reduce using rule 131 (expression -> target MUTATOR MUTATOR MUTATOR REGEXP STRING .)
-    $end            reduce using rule 131 (expression -> target MUTATOR MUTATOR MUTATOR REGEXP STRING .)
-    RPAREN          reduce using rule 131 (expression -> target MUTATOR MUTATOR MUTATOR REGEXP STRING .)
-
-
-state 204
-
-    (143) expression -> target MUTATOR MUTATOR MUTATOR IS BOOL .
-
-    OR              reduce using rule 143 (expression -> target MUTATOR MUTATOR MUTATOR IS BOOL .)
-    AND             reduce using rule 143 (expression -> target MUTATOR MUTATOR MUTATOR IS BOOL .)
-    $end            reduce using rule 143 (expression -> target MUTATOR MUTATOR MUTATOR IS BOOL .)
-    RPAREN          reduce using rule 143 (expression -> target MUTATOR MUTATOR MUTATOR IS BOOL .)
+    OR              reduce using rule 134 (expression -> target MUTATOR MUTATOR MUTATOR REGEXP STRING .)
+    AND             reduce using rule 134 (expression -> target MUTATOR MUTATOR MUTATOR REGEXP STRING .)
+    $end            reduce using rule 134 (expression -> target MUTATOR MUTATOR MUTATOR REGEXP STRING .)
+    RPAREN          reduce using rule 134 (expression -> target MUTATOR MUTATOR MUTATOR REGEXP STRING .)
 
 
-state 205
+state 209
+
+    (146) expression -> target MUTATOR MUTATOR MUTATOR IS BOOL .
+
+    OR              reduce using rule 146 (expression -> target MUTATOR MUTATOR MUTATOR IS BOOL .)
+    AND             reduce using rule 146 (expression -> target MUTATOR MUTATOR MUTATOR IS BOOL .)
+    $end            reduce using rule 146 (expression -> target MUTATOR MUTATOR MUTATOR IS BOOL .)
+    RPAREN          reduce using rule 146 (expression -> target MUTATOR MUTATOR MUTATOR IS BOOL .)
+
+
+state 210
 
     (29) expression -> target MUTATOR MUTATOR NOT NOTEQUALS STRING .
 
@@ -3728,7 +3803,7 @@ state 205
     RPAREN          reduce using rule 29 (expression -> target MUTATOR MUTATOR NOT NOTEQUALS STRING .)
 
 
-state 206
+state 211
 
     (43) expression -> target MUTATOR MUTATOR NOT EQUALS STRING .
 
@@ -3738,7 +3813,7 @@ state 206
     RPAREN          reduce using rule 43 (expression -> target MUTATOR MUTATOR NOT EQUALS STRING .)
 
 
-state 207
+state 212
 
     (56) expression -> target MUTATOR MUTATOR NOT CONTAINS STRING .
 
@@ -3748,7 +3823,7 @@ state 207
     RPAREN          reduce using rule 56 (expression -> target MUTATOR MUTATOR NOT CONTAINS STRING .)
 
 
-state 208
+state 213
 
     (68) expression -> target MUTATOR MUTATOR NOT CONTAINS ARRAY .
 
@@ -3758,7 +3833,7 @@ state 208
     RPAREN          reduce using rule 68 (expression -> target MUTATOR MUTATOR NOT CONTAINS ARRAY .)
 
 
-state 209
+state 214
 
     (80) expression -> target MUTATOR MUTATOR NOT CONTAINSCIS STRING .
 
@@ -3768,7 +3843,7 @@ state 209
     RPAREN          reduce using rule 80 (expression -> target MUTATOR MUTATOR NOT CONTAINSCIS STRING .)
 
 
-state 210
+state 215
 
     (92) expression -> target MUTATOR MUTATOR NOT CONTAINSCIS ARRAY .
 
@@ -3778,7 +3853,7 @@ state 210
     RPAREN          reduce using rule 92 (expression -> target MUTATOR MUTATOR NOT CONTAINSCIS ARRAY .)
 
 
-state 211
+state 216
 
     (104) expression -> target MUTATOR MUTATOR NOT IN ARRAY .
 
@@ -3788,81 +3863,91 @@ state 211
     RPAREN          reduce using rule 104 (expression -> target MUTATOR MUTATOR NOT IN ARRAY .)
 
 
-state 212
-
-    (136) expression -> target MUTATOR MUTATOR NOT REGEXP STRING .
-
-    OR              reduce using rule 136 (expression -> target MUTATOR MUTATOR NOT REGEXP STRING .)
-    AND             reduce using rule 136 (expression -> target MUTATOR MUTATOR NOT REGEXP STRING .)
-    $end            reduce using rule 136 (expression -> target MUTATOR MUTATOR NOT REGEXP STRING .)
-    RPAREN          reduce using rule 136 (expression -> target MUTATOR MUTATOR NOT REGEXP STRING .)
-
-
-state 213
-
-    (146) expression -> INTEL LPAREN target COMMA STRING RPAREN .
-
-    OR              reduce using rule 146 (expression -> INTEL LPAREN target COMMA STRING RPAREN .)
-    AND             reduce using rule 146 (expression -> INTEL LPAREN target COMMA STRING RPAREN .)
-    $end            reduce using rule 146 (expression -> INTEL LPAREN target COMMA STRING RPAREN .)
-    RPAREN          reduce using rule 146 (expression -> INTEL LPAREN target COMMA STRING RPAREN .)
-
-
-state 214
-
-    (149) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR . COMMA STRING RPAREN
-    (150) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR . MUTATOR COMMA STRING RPAREN
-    (151) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR COMMA STRING RPAREN
-
-    COMMA           shift and go to state 252
-    MUTATOR         shift and go to state 251
-
-
-state 215
-
-    (148) expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA . STRING RPAREN
-
-    STRING          shift and go to state 253
-
-
-state 216
-
-    (147) expression -> INTEL LPAREN target MUTATOR COMMA STRING . RPAREN
-
-    RPAREN          shift and go to state 254
-
-
 state 217
 
-    (133) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . REGEXP STRING
-    (139) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . NOT REGEXP STRING
+    (139) expression -> target MUTATOR MUTATOR NOT REGEXP STRING .
 
-    REGEXP          shift and go to state 255
-    NOT             shift and go to state 256
+    OR              reduce using rule 139 (expression -> target MUTATOR MUTATOR NOT REGEXP STRING .)
+    AND             reduce using rule 139 (expression -> target MUTATOR MUTATOR NOT REGEXP STRING .)
+    $end            reduce using rule 139 (expression -> target MUTATOR MUTATOR NOT REGEXP STRING .)
+    RPAREN          reduce using rule 139 (expression -> target MUTATOR MUTATOR NOT REGEXP STRING .)
 
 
 state 218
 
-    (13) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR SWITH . STRING
+    (124) expression -> target CIDR INTEL LPAREN STRING RPAREN .
 
-    STRING          shift and go to state 257
+    OR              reduce using rule 124 (expression -> target CIDR INTEL LPAREN STRING RPAREN .)
+    AND             reduce using rule 124 (expression -> target CIDR INTEL LPAREN STRING RPAREN .)
+    $end            reduce using rule 124 (expression -> target CIDR INTEL LPAREN STRING RPAREN .)
+    RPAREN          reduce using rule 124 (expression -> target CIDR INTEL LPAREN STRING RPAREN .)
 
 
 state 219
 
-    (19) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR EWITH . STRING
+    (149) expression -> INTEL LPAREN target COMMA STRING RPAREN .
 
-    STRING          shift and go to state 258
+    OR              reduce using rule 149 (expression -> INTEL LPAREN target COMMA STRING RPAREN .)
+    AND             reduce using rule 149 (expression -> INTEL LPAREN target COMMA STRING RPAREN .)
+    $end            reduce using rule 149 (expression -> INTEL LPAREN target COMMA STRING RPAREN .)
+    RPAREN          reduce using rule 149 (expression -> INTEL LPAREN target COMMA STRING RPAREN .)
 
 
 state 220
 
-    (25) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOTEQUALS . STRING
+    (152) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR . COMMA STRING RPAREN
+    (153) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR . MUTATOR COMMA STRING RPAREN
+    (154) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR . MUTATOR MUTATOR COMMA STRING RPAREN
+
+    COMMA           shift and go to state 258
+    MUTATOR         shift and go to state 257
+
+
+state 221
+
+    (151) expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA . STRING RPAREN
 
     STRING          shift and go to state 259
 
 
-state 221
+state 222
+
+    (150) expression -> INTEL LPAREN target MUTATOR COMMA STRING . RPAREN
+
+    RPAREN          shift and go to state 260
+
+
+state 223
+
+    (136) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . REGEXP STRING
+    (142) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . NOT REGEXP STRING
+
+    REGEXP          shift and go to state 261
+    NOT             shift and go to state 262
+
+
+state 224
+
+    (13) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR SWITH . STRING
+
+    STRING          shift and go to state 263
+
+
+state 225
+
+    (19) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR EWITH . STRING
+
+    STRING          shift and go to state 264
+
+
+state 226
+
+    (25) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOTEQUALS . STRING
+
+    STRING          shift and go to state 265
+
+
+state 227
 
     (32) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT . NOTEQUALS STRING
     (46) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT . EQUALS STRING
@@ -3871,63 +3956,63 @@ state 221
     (83) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT . CONTAINSCIS STRING
     (95) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT . CONTAINSCIS ARRAY
     (107) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT . IN ARRAY
-    (138) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT . REGEXP STRING
+    (141) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT . REGEXP STRING
 
-    NOTEQUALS       shift and go to state 260
-    EQUALS          shift and go to state 261
-    CONTAINS        shift and go to state 262
-    CONTAINSCIS     shift and go to state 263
-    IN              shift and go to state 264
-    REGEXP          shift and go to state 265
+    NOTEQUALS       shift and go to state 266
+    EQUALS          shift and go to state 267
+    CONTAINS        shift and go to state 268
+    CONTAINSCIS     shift and go to state 269
+    IN              shift and go to state 270
+    REGEXP          shift and go to state 271
 
 
-state 222
+state 228
 
     (39) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR EQUALS . STRING
-
-    STRING          shift and go to state 266
-
-
-state 223
-
-    (53) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS . STRING
-    (65) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS . ARRAY
-
-    STRING          shift and go to state 267
-    ARRAY           shift and go to state 268
-
-
-state 224
-
-    (77) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS . STRING
-    (89) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS . ARRAY
-
-    STRING          shift and go to state 269
-    ARRAY           shift and go to state 270
-
-
-state 225
-
-    (101) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IN . ARRAY
-
-    ARRAY           shift and go to state 271
-
-
-state 226
-
-    (132) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP . STRING
 
     STRING          shift and go to state 272
 
 
-state 227
+state 229
 
-    (145) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS . BOOL
+    (53) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS . STRING
+    (65) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS . ARRAY
 
-    BOOL            shift and go to state 273
+    STRING          shift and go to state 273
+    ARRAY           shift and go to state 274
 
 
-state 228
+state 230
+
+    (77) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS . STRING
+    (89) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS . ARRAY
+
+    STRING          shift and go to state 275
+    ARRAY           shift and go to state 276
+
+
+state 231
+
+    (101) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IN . ARRAY
+
+    ARRAY           shift and go to state 277
+
+
+state 232
+
+    (135) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP . STRING
+
+    STRING          shift and go to state 278
+
+
+state 233
+
+    (148) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS . BOOL
+
+    BOOL            shift and go to state 279
+
+
+state 234
 
     (12) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR SWITH STRING .
 
@@ -3937,7 +4022,7 @@ state 228
     RPAREN          reduce using rule 12 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR SWITH STRING .)
 
 
-state 229
+state 235
 
     (18) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR EWITH STRING .
 
@@ -3947,7 +4032,7 @@ state 229
     RPAREN          reduce using rule 18 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR EWITH STRING .)
 
 
-state 230
+state 236
 
     (24) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOTEQUALS STRING .
 
@@ -3957,46 +4042,46 @@ state 230
     RPAREN          reduce using rule 24 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOTEQUALS STRING .)
 
 
-state 231
+state 237
 
     (31) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT NOTEQUALS . STRING
 
-    STRING          shift and go to state 274
+    STRING          shift and go to state 280
 
 
-state 232
+state 238
 
     (45) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT EQUALS . STRING
 
-    STRING          shift and go to state 275
+    STRING          shift and go to state 281
 
 
-state 233
+state 239
 
     (58) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS . STRING
     (70) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS . ARRAY
 
-    STRING          shift and go to state 276
-    ARRAY           shift and go to state 277
+    STRING          shift and go to state 282
+    ARRAY           shift and go to state 283
 
 
-state 234
+state 240
 
     (82) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS . STRING
     (94) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS . ARRAY
 
-    STRING          shift and go to state 278
-    ARRAY           shift and go to state 279
+    STRING          shift and go to state 284
+    ARRAY           shift and go to state 285
 
 
-state 235
+state 241
 
     (106) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT IN . ARRAY
 
-    ARRAY           shift and go to state 280
+    ARRAY           shift and go to state 286
 
 
-state 236
+state 242
 
     (38) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR EQUALS STRING .
 
@@ -4006,7 +4091,7 @@ state 236
     RPAREN          reduce using rule 38 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR EQUALS STRING .)
 
 
-state 237
+state 243
 
     (52) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS STRING .
 
@@ -4016,7 +4101,7 @@ state 237
     RPAREN          reduce using rule 52 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS STRING .)
 
 
-state 238
+state 244
 
     (64) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS ARRAY .
 
@@ -4026,7 +4111,7 @@ state 238
     RPAREN          reduce using rule 64 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS ARRAY .)
 
 
-state 239
+state 245
 
     (76) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS STRING .
 
@@ -4036,7 +4121,7 @@ state 239
     RPAREN          reduce using rule 76 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS STRING .)
 
 
-state 240
+state 246
 
     (88) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS ARRAY .
 
@@ -4046,7 +4131,7 @@ state 240
     RPAREN          reduce using rule 88 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS ARRAY .)
 
 
-state 241
+state 247
 
     (100) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IN ARRAY .
 
@@ -4056,17 +4141,17 @@ state 241
     RPAREN          reduce using rule 100 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IN ARRAY .)
 
 
-state 242
+state 248
 
-    (144) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .
+    (147) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .
 
-    OR              reduce using rule 144 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
-    AND             reduce using rule 144 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
-    $end            reduce using rule 144 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
-    RPAREN          reduce using rule 144 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
+    OR              reduce using rule 147 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
+    AND             reduce using rule 147 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
+    $end            reduce using rule 147 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
+    RPAREN          reduce using rule 147 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
 
 
-state 243
+state 249
 
     (30) expression -> target MUTATOR MUTATOR MUTATOR NOT NOTEQUALS STRING .
 
@@ -4076,7 +4161,7 @@ state 243
     RPAREN          reduce using rule 30 (expression -> target MUTATOR MUTATOR MUTATOR NOT NOTEQUALS STRING .)
 
 
-state 244
+state 250
 
     (44) expression -> target MUTATOR MUTATOR MUTATOR NOT EQUALS STRING .
 
@@ -4086,7 +4171,7 @@ state 244
     RPAREN          reduce using rule 44 (expression -> target MUTATOR MUTATOR MUTATOR NOT EQUALS STRING .)
 
 
-state 245
+state 251
 
     (57) expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINS STRING .
 
@@ -4096,7 +4181,7 @@ state 245
     RPAREN          reduce using rule 57 (expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINS STRING .)
 
 
-state 246
+state 252
 
     (69) expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINS ARRAY .
 
@@ -4106,7 +4191,7 @@ state 246
     RPAREN          reduce using rule 69 (expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINS ARRAY .)
 
 
-state 247
+state 253
 
     (81) expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS STRING .
 
@@ -4116,7 +4201,7 @@ state 247
     RPAREN          reduce using rule 81 (expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS STRING .)
 
 
-state 248
+state 254
 
     (93) expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS ARRAY .
 
@@ -4126,7 +4211,7 @@ state 248
     RPAREN          reduce using rule 93 (expression -> target MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS ARRAY .)
 
 
-state 249
+state 255
 
     (105) expression -> target MUTATOR MUTATOR MUTATOR NOT IN ARRAY .
 
@@ -4136,64 +4221,64 @@ state 249
     RPAREN          reduce using rule 105 (expression -> target MUTATOR MUTATOR MUTATOR NOT IN ARRAY .)
 
 
-state 250
-
-    (137) expression -> target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .
-
-    OR              reduce using rule 137 (expression -> target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
-    AND             reduce using rule 137 (expression -> target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
-    $end            reduce using rule 137 (expression -> target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
-    RPAREN          reduce using rule 137 (expression -> target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
-
-
-state 251
-
-    (150) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR . COMMA STRING RPAREN
-    (151) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR COMMA STRING RPAREN
-
-    COMMA           shift and go to state 282
-    MUTATOR         shift and go to state 281
-
-
-state 252
-
-    (149) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA . STRING RPAREN
-
-    STRING          shift and go to state 283
-
-
-state 253
-
-    (148) expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA STRING . RPAREN
-
-    RPAREN          shift and go to state 284
-
-
-state 254
-
-    (147) expression -> INTEL LPAREN target MUTATOR COMMA STRING RPAREN .
-
-    OR              reduce using rule 147 (expression -> INTEL LPAREN target MUTATOR COMMA STRING RPAREN .)
-    AND             reduce using rule 147 (expression -> INTEL LPAREN target MUTATOR COMMA STRING RPAREN .)
-    $end            reduce using rule 147 (expression -> INTEL LPAREN target MUTATOR COMMA STRING RPAREN .)
-    RPAREN          reduce using rule 147 (expression -> INTEL LPAREN target MUTATOR COMMA STRING RPAREN .)
-
-
-state 255
-
-    (133) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP . STRING
-
-    STRING          shift and go to state 285
-
-
 state 256
 
-    (139) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT . REGEXP STRING
+    (140) expression -> target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .
 
-    REGEXP          shift and go to state 286
+    OR              reduce using rule 140 (expression -> target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
+    AND             reduce using rule 140 (expression -> target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
+    $end            reduce using rule 140 (expression -> target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
+    RPAREN          reduce using rule 140 (expression -> target MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
 
 
 state 257
+
+    (153) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR . COMMA STRING RPAREN
+    (154) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR . MUTATOR COMMA STRING RPAREN
+
+    COMMA           shift and go to state 288
+    MUTATOR         shift and go to state 287
+
+
+state 258
+
+    (152) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA . STRING RPAREN
+
+    STRING          shift and go to state 289
+
+
+state 259
+
+    (151) expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA STRING . RPAREN
+
+    RPAREN          shift and go to state 290
+
+
+state 260
+
+    (150) expression -> INTEL LPAREN target MUTATOR COMMA STRING RPAREN .
+
+    OR              reduce using rule 150 (expression -> INTEL LPAREN target MUTATOR COMMA STRING RPAREN .)
+    AND             reduce using rule 150 (expression -> INTEL LPAREN target MUTATOR COMMA STRING RPAREN .)
+    $end            reduce using rule 150 (expression -> INTEL LPAREN target MUTATOR COMMA STRING RPAREN .)
+    RPAREN          reduce using rule 150 (expression -> INTEL LPAREN target MUTATOR COMMA STRING RPAREN .)
+
+
+state 261
+
+    (136) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP . STRING
+
+    STRING          shift and go to state 291
+
+
+state 262
+
+    (142) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT . REGEXP STRING
+
+    REGEXP          shift and go to state 292
+
+
+state 263
 
     (13) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR SWITH STRING .
 
@@ -4203,7 +4288,7 @@ state 257
     RPAREN          reduce using rule 13 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR SWITH STRING .)
 
 
-state 258
+state 264
 
     (19) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR EWITH STRING .
 
@@ -4213,7 +4298,7 @@ state 258
     RPAREN          reduce using rule 19 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR EWITH STRING .)
 
 
-state 259
+state 265
 
     (25) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOTEQUALS STRING .
 
@@ -4223,53 +4308,53 @@ state 259
     RPAREN          reduce using rule 25 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOTEQUALS STRING .)
 
 
-state 260
+state 266
 
     (32) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT NOTEQUALS . STRING
 
-    STRING          shift and go to state 287
+    STRING          shift and go to state 293
 
 
-state 261
+state 267
 
     (46) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT EQUALS . STRING
-
-    STRING          shift and go to state 288
-
-
-state 262
-
-    (59) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS . STRING
-    (71) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS . ARRAY
-
-    STRING          shift and go to state 289
-    ARRAY           shift and go to state 290
-
-
-state 263
-
-    (83) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS . STRING
-    (95) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS . ARRAY
-
-    STRING          shift and go to state 291
-    ARRAY           shift and go to state 292
-
-
-state 264
-
-    (107) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT IN . ARRAY
-
-    ARRAY           shift and go to state 293
-
-
-state 265
-
-    (138) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP . STRING
 
     STRING          shift and go to state 294
 
 
-state 266
+state 268
+
+    (59) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS . STRING
+    (71) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS . ARRAY
+
+    STRING          shift and go to state 295
+    ARRAY           shift and go to state 296
+
+
+state 269
+
+    (83) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS . STRING
+    (95) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS . ARRAY
+
+    STRING          shift and go to state 297
+    ARRAY           shift and go to state 298
+
+
+state 270
+
+    (107) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT IN . ARRAY
+
+    ARRAY           shift and go to state 299
+
+
+state 271
+
+    (141) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP . STRING
+
+    STRING          shift and go to state 300
+
+
+state 272
 
     (39) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR EQUALS STRING .
 
@@ -4279,7 +4364,7 @@ state 266
     RPAREN          reduce using rule 39 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR EQUALS STRING .)
 
 
-state 267
+state 273
 
     (53) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS STRING .
 
@@ -4289,7 +4374,7 @@ state 267
     RPAREN          reduce using rule 53 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS STRING .)
 
 
-state 268
+state 274
 
     (65) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS ARRAY .
 
@@ -4299,7 +4384,7 @@ state 268
     RPAREN          reduce using rule 65 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINS ARRAY .)
 
 
-state 269
+state 275
 
     (77) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS STRING .
 
@@ -4309,7 +4394,7 @@ state 269
     RPAREN          reduce using rule 77 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS STRING .)
 
 
-state 270
+state 276
 
     (89) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS ARRAY .
 
@@ -4319,7 +4404,7 @@ state 270
     RPAREN          reduce using rule 89 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR CONTAINSCIS ARRAY .)
 
 
-state 271
+state 277
 
     (101) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IN ARRAY .
 
@@ -4329,27 +4414,27 @@ state 271
     RPAREN          reduce using rule 101 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IN ARRAY .)
 
 
-state 272
+state 278
 
-    (132) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .
+    (135) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .
 
-    OR              reduce using rule 132 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
-    AND             reduce using rule 132 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
-    $end            reduce using rule 132 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
-    RPAREN          reduce using rule 132 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
-
-
-state 273
-
-    (145) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .
-
-    OR              reduce using rule 145 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
-    AND             reduce using rule 145 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
-    $end            reduce using rule 145 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
-    RPAREN          reduce using rule 145 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
+    OR              reduce using rule 135 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
+    AND             reduce using rule 135 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
+    $end            reduce using rule 135 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
+    RPAREN          reduce using rule 135 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
 
 
-state 274
+state 279
+
+    (148) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .
+
+    OR              reduce using rule 148 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
+    AND             reduce using rule 148 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
+    $end            reduce using rule 148 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
+    RPAREN          reduce using rule 148 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR IS BOOL .)
+
+
+state 280
 
     (31) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT NOTEQUALS STRING .
 
@@ -4359,7 +4444,7 @@ state 274
     RPAREN          reduce using rule 31 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT NOTEQUALS STRING .)
 
 
-state 275
+state 281
 
     (45) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT EQUALS STRING .
 
@@ -4369,7 +4454,7 @@ state 275
     RPAREN          reduce using rule 45 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT EQUALS STRING .)
 
 
-state 276
+state 282
 
     (58) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS STRING .
 
@@ -4379,7 +4464,7 @@ state 276
     RPAREN          reduce using rule 58 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS STRING .)
 
 
-state 277
+state 283
 
     (70) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS ARRAY .
 
@@ -4389,7 +4474,7 @@ state 277
     RPAREN          reduce using rule 70 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS ARRAY .)
 
 
-state 278
+state 284
 
     (82) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS STRING .
 
@@ -4399,7 +4484,7 @@ state 278
     RPAREN          reduce using rule 82 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS STRING .)
 
 
-state 279
+state 285
 
     (94) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS ARRAY .
 
@@ -4409,7 +4494,7 @@ state 279
     RPAREN          reduce using rule 94 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS ARRAY .)
 
 
-state 280
+state 286
 
     (106) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT IN ARRAY .
 
@@ -4419,55 +4504,55 @@ state 280
     RPAREN          reduce using rule 106 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR NOT IN ARRAY .)
 
 
-state 281
-
-    (151) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . COMMA STRING RPAREN
-
-    COMMA           shift and go to state 295
-
-
-state 282
-
-    (150) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA . STRING RPAREN
-
-    STRING          shift and go to state 296
-
-
-state 283
-
-    (149) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING . RPAREN
-
-    RPAREN          shift and go to state 297
-
-
-state 284
-
-    (148) expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN .
-
-    OR              reduce using rule 148 (expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN .)
-    AND             reduce using rule 148 (expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN .)
-    $end            reduce using rule 148 (expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN .)
-    RPAREN          reduce using rule 148 (expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN .)
-
-
-state 285
-
-    (133) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .
-
-    OR              reduce using rule 133 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
-    AND             reduce using rule 133 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
-    $end            reduce using rule 133 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
-    RPAREN          reduce using rule 133 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
-
-
-state 286
-
-    (139) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP . STRING
-
-    STRING          shift and go to state 298
-
-
 state 287
+
+    (154) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR . COMMA STRING RPAREN
+
+    COMMA           shift and go to state 301
+
+
+state 288
+
+    (153) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA . STRING RPAREN
+
+    STRING          shift and go to state 302
+
+
+state 289
+
+    (152) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING . RPAREN
+
+    RPAREN          shift and go to state 303
+
+
+state 290
+
+    (151) expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN .
+
+    OR              reduce using rule 151 (expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN .)
+    AND             reduce using rule 151 (expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN .)
+    $end            reduce using rule 151 (expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN .)
+    RPAREN          reduce using rule 151 (expression -> INTEL LPAREN target MUTATOR MUTATOR COMMA STRING RPAREN .)
+
+
+state 291
+
+    (136) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .
+
+    OR              reduce using rule 136 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
+    AND             reduce using rule 136 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
+    $end            reduce using rule 136 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
+    RPAREN          reduce using rule 136 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR REGEXP STRING .)
+
+
+state 292
+
+    (142) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP . STRING
+
+    STRING          shift and go to state 304
+
+
+state 293
 
     (32) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT NOTEQUALS STRING .
 
@@ -4477,7 +4562,7 @@ state 287
     RPAREN          reduce using rule 32 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT NOTEQUALS STRING .)
 
 
-state 288
+state 294
 
     (46) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT EQUALS STRING .
 
@@ -4487,7 +4572,7 @@ state 288
     RPAREN          reduce using rule 46 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT EQUALS STRING .)
 
 
-state 289
+state 295
 
     (59) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS STRING .
 
@@ -4497,7 +4582,7 @@ state 289
     RPAREN          reduce using rule 59 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS STRING .)
 
 
-state 290
+state 296
 
     (71) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS ARRAY .
 
@@ -4507,7 +4592,7 @@ state 290
     RPAREN          reduce using rule 71 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINS ARRAY .)
 
 
-state 291
+state 297
 
     (83) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS STRING .
 
@@ -4517,7 +4602,7 @@ state 291
     RPAREN          reduce using rule 83 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS STRING .)
 
 
-state 292
+state 298
 
     (95) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS ARRAY .
 
@@ -4527,7 +4612,7 @@ state 292
     RPAREN          reduce using rule 95 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT CONTAINSCIS ARRAY .)
 
 
-state 293
+state 299
 
     (107) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT IN ARRAY .
 
@@ -4537,75 +4622,75 @@ state 293
     RPAREN          reduce using rule 107 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT IN ARRAY .)
 
 
-state 294
-
-    (138) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .
-
-    OR              reduce using rule 138 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
-    AND             reduce using rule 138 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
-    $end            reduce using rule 138 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
-    RPAREN          reduce using rule 138 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
-
-
-state 295
-
-    (151) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA . STRING RPAREN
-
-    STRING          shift and go to state 299
-
-
-state 296
-
-    (150) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING . RPAREN
-
-    RPAREN          shift and go to state 300
-
-
-state 297
-
-    (149) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .
-
-    OR              reduce using rule 149 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
-    AND             reduce using rule 149 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
-    $end            reduce using rule 149 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
-    RPAREN          reduce using rule 149 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
-
-
-state 298
-
-    (139) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .
-
-    OR              reduce using rule 139 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
-    AND             reduce using rule 139 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
-    $end            reduce using rule 139 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
-    RPAREN          reduce using rule 139 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
-
-
-state 299
-
-    (151) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING . RPAREN
-
-    RPAREN          shift and go to state 301
-
-
 state 300
 
-    (150) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .
+    (141) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .
 
-    OR              reduce using rule 150 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
-    AND             reduce using rule 150 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
-    $end            reduce using rule 150 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
-    RPAREN          reduce using rule 150 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
+    OR              reduce using rule 141 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
+    AND             reduce using rule 141 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
+    $end            reduce using rule 141 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
+    RPAREN          reduce using rule 141 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
 
 
 state 301
 
-    (151) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .
+    (154) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA . STRING RPAREN
 
-    OR              reduce using rule 151 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
-    AND             reduce using rule 151 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
-    $end            reduce using rule 151 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
-    RPAREN          reduce using rule 151 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
+    STRING          shift and go to state 305
+
+
+state 302
+
+    (153) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING . RPAREN
+
+    RPAREN          shift and go to state 306
+
+
+state 303
+
+    (152) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .
+
+    OR              reduce using rule 152 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
+    AND             reduce using rule 152 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
+    $end            reduce using rule 152 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
+    RPAREN          reduce using rule 152 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
+
+
+state 304
+
+    (142) expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .
+
+    OR              reduce using rule 142 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
+    AND             reduce using rule 142 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
+    $end            reduce using rule 142 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
+    RPAREN          reduce using rule 142 (expression -> target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR NOT REGEXP STRING .)
+
+
+state 305
+
+    (154) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING . RPAREN
+
+    RPAREN          shift and go to state 307
+
+
+state 306
+
+    (153) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .
+
+    OR              reduce using rule 153 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
+    AND             reduce using rule 153 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
+    $end            reduce using rule 153 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
+    RPAREN          reduce using rule 153 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
+
+
+state 307
+
+    (154) expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .
+
+    OR              reduce using rule 154 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
+    AND             reduce using rule 154 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
+    $end            reduce using rule 154 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
+    RPAREN          reduce using rule 154 (expression -> INTEL LPAREN target MUTATOR MUTATOR MUTATOR MUTATOR MUTATOR COMMA STRING RPAREN .)
 
 WARNING: 
 WARNING: Conflicts:
@@ -4614,9 +4699,9 @@ WARNING: shift/reduce conflict for OR in state 29 resolved as shift
 WARNING: shift/reduce conflict for AND in state 29 resolved as shift
 WARNING: shift/reduce conflict for OR in state 30 resolved as shift
 WARNING: shift/reduce conflict for AND in state 30 resolved as shift
-WARNING: shift/reduce conflict for RPAREN in state 131 resolved as shift
-WARNING: shift/reduce conflict for OR in state 131 resolved as shift
-WARNING: shift/reduce conflict for AND in state 131 resolved as shift
-WARNING: shift/reduce conflict for RPAREN in state 132 resolved as shift
-WARNING: shift/reduce conflict for OR in state 132 resolved as shift
-WARNING: shift/reduce conflict for AND in state 132 resolved as shift
+WARNING: shift/reduce conflict for RPAREN in state 135 resolved as shift
+WARNING: shift/reduce conflict for OR in state 135 resolved as shift
+WARNING: shift/reduce conflict for AND in state 135 resolved as shift
+WARNING: shift/reduce conflict for RPAREN in state 136 resolved as shift
+WARNING: shift/reduce conflict for OR in state 136 resolved as shift
+WARNING: shift/reduce conflict for AND in state 136 resolved as shift
