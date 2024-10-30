@@ -178,7 +178,8 @@ class SourceMonitorConfig(base.InnerDoc):
     excluded_sources = Keyword()
     excluded_source_lists = Nested()
     autodiscover_data_streams = Boolean()
-    ignore_data_streams_older_than_days = Integer() # If a data stream is older than this number of days ignore it
+    # If a data stream is older than this number of days ignore it
+    ignore_data_streams_older_than_days = Integer()
     delta_change = Boolean()  # True = delta change, False = absolute change
     delta_window = Integer()  # How far back to look for the delta
     operator = Keyword()  # The operator to use e.g. >, <, >=, <=, ==, !=
@@ -196,7 +197,8 @@ class RepositorySyncLog(base.BaseDocument):
     level = Keyword()  # info, error, warning
     detection_uuid = Keyword()  # the ID of the detection that was synced
     subscription = Keyword()  # The subscription that was synced
-    message = Keyword(fields={'text': Text()})  # Any message related to the log
+    # Any message related to the log
+    message = Keyword(fields={'text': Text()})
     status = Keyword()  # success, failure, warning
 
     class Index:
@@ -298,7 +300,7 @@ class DetectionState(base.BaseDocument):
             return False
 
         return True
-    
+
     def _agent_has_assessments(self, agent_uuid):
         '''
         Returns true if the agent_uuid has any assessments assigned to it
@@ -306,13 +308,13 @@ class DetectionState(base.BaseDocument):
 
         agent = next(
             (agent for agent in self.agents if agent.agent == agent_uuid), None)
-        
+
         if agent is None:
             return False
-        
+
         if not agent.assessments or len(agent.assessments) == 0:
             return False
-        
+
         return True
 
     def _detection_assigned(self, detection_uuid):
@@ -385,7 +387,8 @@ class DetectionState(base.BaseDocument):
                 rebalance = True
                 break
 
-        agent_inventory = [a.uuid for a in Agent.get_by_organization(self.organization)]
+        agent_inventory = [
+            a.uuid for a in Agent.get_by_organization(self.organization)]
         # If the agent no longer exists
         for agent in self.agents:
             if agent.agent not in agent_inventory:
@@ -417,7 +420,7 @@ class DetectionState(base.BaseDocument):
             return state[0]
 
         return None
-    
+
     def get_agent_assessments(self, agent_uuid: str):
         '''
         Returns the assessment UUIDs assigned to the agent
@@ -472,7 +475,8 @@ class DetectionState(base.BaseDocument):
 
             if state._needs_rebalance(detections=detections, agents=agents):
 
-                state.rebalance_detections(detections=detections, agents=agents)
+                state.rebalance_detections(
+                    detections=detections, agents=agents)
 
             state.assign_assessments(detections, agents)
 
@@ -493,8 +497,9 @@ class DetectionState(base.BaseDocument):
                 for i, agent in enumerate(agents):
                     for a in self.agents:
                         if a.agent == agent.uuid:
-                            a.assessments = assessments[i*chunk_size:(i+1)*chunk_size]
-                
+                            a.assessments = assessments[i *
+                                                        chunk_size:(i+1)*chunk_size]
+
                 self.save()
 
     def rebalance_detections(self, detections, agents, force=False):
@@ -654,9 +659,10 @@ class Detection(base.BaseDocument):
     is_hunting_rule = Boolean()  # If true the rule is a hunting rule
     # The maximum number of events to create per run
     suppression_max_events = Integer()
-    required_fields = Keyword()  # A list of fields that must be present on the source event
-    author = Keyword() # A list of authors
-    field_metrics = Object(enabled=False) # A list of field metrics
+    # A list of fields that must be present on the source event
+    required_fields = Keyword()
+    author = Keyword()  # A list of authors
+    field_metrics = Object(enabled=False)  # A list of field metrics
     field_settings = Object(properties={
         'fields': Nested(FieldMap),
         'signature_fields': Keyword(),
@@ -750,22 +756,23 @@ class Detection(base.BaseDocument):
                 now = datetime.datetime.now(timezone(self.schedule_timezone))
             else:
                 now = datetime.datetime.utcnow()
-                
+
             for day_of_week in self.schedule:
                 day_config = self.schedule[day_of_week]
-                if 'active' in day_config and day_config['active']:
+                if 'active' in day_config and day_config['active'] and 'custom' in day_config and day_config['custom']:
                     if day_of_week == now.strftime("%A").lower():
 
-                        # For each define from to in hours check if the 
+                        # For each define from to in hours check if the
                         # current hours and minutes is within the range
                         for time_range in day_config['hours']:
-                            
+
                             # Get the current hours and minutes in 24 hour format
                             now_time = f"{now.hour:02d}{now.minute:02d}"
                             now_time = int(now_time)
 
                             # Get the from and to hours and minutes in 24 hour format
-                            from_time = int(time_range["from"].replace(":", ""))
+                            from_time = int(
+                                time_range["from"].replace(":", ""))
                             to_time = int(time_range["to"].replace(":", ""))
 
                             # If the current time is within the range, allow the run
@@ -804,7 +811,7 @@ class Detection(base.BaseDocument):
             # If the current_time is greater than the when the detection rule should run again
             if current_time > next_run and current_time >= mute_time:
                 return True
-            
+
         return False
 
     def extract_fields_from_query(self, query=None):
@@ -820,7 +827,7 @@ class Detection(base.BaseDocument):
 
         if not query:
             query = self.query.query
-        
+
         matches = pattern.findall(query)
         if matches:
             fields = [m for m in matches]
@@ -829,10 +836,11 @@ class Detection(base.BaseDocument):
 
         EXCLUDED_FIELDS = ['_exists_']
 
-        self.required_fields = [f.lstrip("-") for f in fields if f not in EXCLUDED_FIELDS and len(f) > 1]
-            
+        self.required_fields = [
+            f.lstrip("-") for f in fields if f not in EXCLUDED_FIELDS and len(f) > 1]
+
         return fields
-    
+
     @classmethod
     def get_by_detection_id(cls, detection_id, repository=None, organization=None):
         '''
@@ -892,7 +900,7 @@ class Detection(base.BaseDocument):
         if len(response) > 0:
             return response
         return []
-    
+
     def update_field_settings(self):
         '''
         Updates the field settings for this detection
@@ -905,7 +913,8 @@ class Detection(base.BaseDocument):
         Updates the field settings for a list of detections
         '''
 
-        detections = [d for d in cls.search().filter('term', field_templates=field_template).scan()]
+        detections = [d for d in cls.search().filter(
+            'term', field_templates=field_template).scan()]
 
         for detection in detections:
             detection.update_field_settings()
@@ -926,13 +935,13 @@ class Detection(base.BaseDocument):
                 _items.append(item.to_dict(True))
 
         bulk(cls._get_connection(), (i for i in _items))
-    
+
     @property
     def final_fields(self):
 
         if hasattr(self, 'ignore_final_fields') and self.ignore_final_fields:
             return {}
-        
+
         _final_fields = self.get_field_settings()
 
         source_input = None
@@ -947,22 +956,25 @@ class Detection(base.BaseDocument):
         # If the final_fields has any signature_fields, add them to the signature_fields list
         # then deduplicate the list and sort it alphabetically
         if any('signature_field' in field and field['signature_field'] is True for field in _final_fields):
-            signature_fields.extend([field['field'] for field in _final_fields if 'signature_field' in field and field['signature_field'] is True])
+            signature_fields.extend(
+                [field['field'] for field in _final_fields if 'signature_field' in field and field['signature_field'] is True])
 
         # Sort the signature fields alphabetically
         signature_fields = sorted(signature_fields)
 
         # Determine which fields are tag fields
-        tag_fields.extend([field['field'] for field in _final_fields if 'tag_field' in field and field['tag_field'] is True])
+        tag_fields.extend(
+            [field['field'] for field in _final_fields if 'tag_field' in field and field['tag_field'] is True])
 
         # Include only fields that are marked as observable fields
         """ DEPRECATION WARNING: The inclusion of fields missing the observable_field flag will
             be removed in a future release.  We maintain backwards compatibility for now but
             this will be removed in a future release. """
-        observable_fields = [field for field in _final_fields if ('observable_field' in field and field['observable_field'] is True) or 'observable_field' not in field]
+        observable_fields = [field for field in _final_fields if (
+            'observable_field' in field and field['observable_field'] is True) or 'observable_field' not in field]
 
         # If the detection rule has no field settings or signature fields
-        # or tag fields, fetch the settings from the source input            
+        # or tag fields, fetch the settings from the source input
         if not observable_fields or not signature_fields or not tag_fields:
             source_input = Input.get_by_uuid(self.source.uuid)
 
@@ -975,7 +987,8 @@ class Detection(base.BaseDocument):
             # If no signature fields were determined, default to the source input signature fields
             if not signature_fields:
                 if hasattr(source_input.config, 'signature_fields'):
-                    signature_fields = [field['field'] for field in _input_fields if 'signature_field' in field and field['signature_field'] is True]
+                    signature_fields = [
+                        field['field'] for field in _input_fields if 'signature_field' in field and field['signature_field'] is True]
                 else:
                     signature_fields = []
 
@@ -983,7 +996,8 @@ class Detection(base.BaseDocument):
             if not tag_fields:
                 # Get any tag fields from the input
                 if hasattr(source_input.config, 'tag_fields'):
-                    tag_fields.extend([field['field'] for field in _input_fields if 'tag_field' in field and field['tag_field'] is True])
+                    tag_fields.extend(
+                        [field['field'] for field in _input_fields if 'tag_field' in field and field['tag_field'] is True])
                 else:
                     tag_fields = []
 
@@ -994,7 +1008,6 @@ class Detection(base.BaseDocument):
         }
 
         return response
-    
 
     def get_field_settings(self):
         '''Provides a list of field settings for this detection'''
@@ -1012,8 +1025,10 @@ class Detection(base.BaseDocument):
             templates = templates.filter(
                 'bool',
                 should=[
-                    Q('bool', must=[Q('term', is_global=True), Q('terms', uuid=self.field_templates)]),
-                    Q('bool', must=[Q('term', organization=self.organization), Q('terms', uuid=self.field_templates)])
+                    Q('bool', must=[Q('term', is_global=True),
+                      Q('terms', uuid=self.field_templates)]),
+                    Q('bool', must=[Q('term', organization=self.organization), Q(
+                        'terms', uuid=self.field_templates)])
                 ]
             )
 
@@ -1031,7 +1046,7 @@ class Detection(base.BaseDocument):
 
                             final_fields[final_fields.index(
                                 field)] = template_field
-                            
+
                             replaced = True
                             break
 
@@ -1078,7 +1093,7 @@ class Detection(base.BaseDocument):
             if not repository_uuid:
                 raise ValueError(
                     "Repository ID is required when creating a detection from a repository")
-            
+
             data['from_repo_sync'] = True
             data['repository'] = repository_uuid
 
@@ -1247,14 +1262,14 @@ class DetectionRepositorySubscription(base.BaseDocument):
 
         if not self.last_sync:
             return True
-        
+
         now = datetime.datetime.utcnow()
-        
+
         # If the time (in minutes) between now and the last sync is greater than the sync interval
         # then it is time to sync
         if (now - self.last_sync).total_seconds() / 60 > self.sync_interval:
             return True
-        
+
         return False
 
     def save(self, *args, **kwargs):
@@ -1317,7 +1332,7 @@ class DetectionRepository(base.BaseDocument):
             return response
         return response
 
-    def get_subscription(self, organization = None):
+    def get_subscription(self, organization=None):
         '''
         Returns the subscription for this repository
         '''
@@ -1412,7 +1427,7 @@ class DetectionRepository(base.BaseDocument):
             self.__dict__['read_only'] = False
 
         return self.read_only
-    
+
     @classmethod
     def check_detection_repo_subscription_sync(cls):
         '''
@@ -1451,9 +1466,9 @@ class DetectionRepository(base.BaseDocument):
         }
 
         try:
-        
+
             existing_detection = Detection.get_by_detection_id(
-                                detection.detection_id, organization=organization)
+                detection.detection_id, organization=organization)
             if not existing_detection:
                 new_detection = Detection(
                     name=detection.name,
@@ -1560,7 +1575,7 @@ class DetectionRepository(base.BaseDocument):
                         level="info",
                         status="success"
                     ).save()
-                    
+
         except Exception as e:
             RepositorySyncLog(
                 **log_message_base,
@@ -1569,7 +1584,6 @@ class DetectionRepository(base.BaseDocument):
                 status="failed"
             ).save()
             return False
-
 
     def sync(self, organization, subscription=None, ignore_versions=False):
         ''' Synchronizes the repository if it is a local repository '''
@@ -1609,10 +1623,11 @@ class DetectionRepository(base.BaseDocument):
                 if self.repo_type == 'local':
                     detections_to_sync = Detection.get_by_detection_id(
                         self.detections, repository=self.uuid)
-                    
+
                     with ThreadPoolExecutor(max_workers=1) as executor:
                         for detection in detections_to_sync:
-                            executor.submit(self.sync_rule, detection, organization, subscription, input_config, ignore_versions)
+                            executor.submit(
+                                self.sync_rule, detection, organization, subscription, input_config, ignore_versions)
 
                     # Update the subscription with the last sync time
                     subscription.last_sync = datetime.datetime.utcnow()
@@ -1698,7 +1713,7 @@ class DetectionRepository(base.BaseDocument):
             ubq = UpdateByQuery(index=Detection._index._name)
 
             # Removed 2023.10.25 by @n3tsurge
-            #ubq = ubq.query('term', organization=self.organization)
+            # ubq = ubq.query('term', organization=self.organization)
 
             ubq = ubq.query('term', from_repo_sync=True)
             ubq = ubq.query('terms', detection_id=detections)
@@ -1752,7 +1767,8 @@ class DetectionChangeLog(base.BaseDocument):
     organization = Keyword()  # The organization that the detection belongs to
     change_description = Text()  # A description of the change that was made
     field = Keyword()  # The field that wsa changed
-    field_type = Keyword()  # The type of the field that was changed (str, int, float, date, bool)
+    # The type of the field that was changed (str, int, float, date, bool)
+    field_type = Keyword()
     new_value = Keyword()  # The new value of the field
     old_value = Keyword()  # The old value of the field
 
@@ -1776,7 +1792,7 @@ class DetectionChangeLog(base.BaseDocument):
                 _items.append(item.to_dict(True))
 
         bulk(cls._get_connection(), (i for i in _items))
-    
+
     @classmethod
     def find_differences(cls, new, old):
         ''' Finds the differences between two objects and returns a list of changes '''
@@ -1788,7 +1804,7 @@ class DetectionChangeLog(base.BaseDocument):
         for key, value in new.items():
 
             if key in ['tactics', 'techniques']:
-                
+
                 _old_list = []
                 if getattr(old, key) != None:
                     _old_list = [t['external_id'] for t in getattr(old, key)]
@@ -1828,7 +1844,7 @@ class DetectionChangeLog(base.BaseDocument):
                     continue
             if key in ['exceptions']:
                 continue
-            
+
             if key in old.to_dict():
                 if value != getattr(old, key):
                     _change_logs.append({
@@ -1840,7 +1856,7 @@ class DetectionChangeLog(base.BaseDocument):
                     })
 
         return _change_logs
-    
+
     @classmethod
     def _cast_value_as_string(cls, value):
 
@@ -1849,10 +1865,10 @@ class DetectionChangeLog(base.BaseDocument):
 
         if isinstance(value, str):
             return [value]
-        
-        if isinstance(value, (list,AttrList)):
+
+        if isinstance(value, (list, AttrList)):
             return [str(v) if not isinstance(v, str) else v for v in value]
-        
+
         return [str(value)]
 
     @classmethod
@@ -1885,7 +1901,7 @@ class DetectionChangeLog(base.BaseDocument):
             change_payload['field_type'] = 'bool'
         else:
             return False
-        
+
         change_payload['detection_uuid'] = detection_uuid
         change_payload['organization'] = organization
         change_payload['field'] = field
