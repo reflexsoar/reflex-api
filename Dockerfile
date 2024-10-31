@@ -13,11 +13,9 @@ ENV REFLEX_API_PORT=80
 WORKDIR /
 RUN apt-get update \
 && apt-get install -y --no-install-recommends git curl htop gcc libxmlsec1 libxmlsec1-dev libxml2 pkg-config \
-&& [ $(uname -m) = "aarch64" ] && apt install build-essential -y || true \
 && mkdir instance \
 && pip install --upgrade pip \
 && pip install pipenv \
-&& [ $(uname -m) = "aarch64" ] && cp -f Pipfile-arm64.lock Pipfile.lock || true \
 && pipenv install \
 && pipenv install tzdata
 
