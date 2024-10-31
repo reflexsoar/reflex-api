@@ -13,10 +13,10 @@ ENV REFLEX_API_PORT=80
 WORKDIR /
 RUN apt-get update \
 && apt-get install -y --no-install-recommends git curl htop gcc libxmlsec1 libxmlsec1-dev libxml2 pkg-config \
-&& mkdir instance \
-&& pip install --upgrade pip \
-&& pip install pipenv \
-&& pipenv install \
-&& pipenv install tzdata
+    && mkdir instance \
+&& pip install --upgrade pip
+RUN pip install pipenv
+RUN pipenv install
+RUN pipenv install tzdata
 
 CMD ["pipenv", "run", "gunicorn", "app:create_app('production')", "--preload", "-b 0.0.0.0:$REFLEX_API_PORT", "--workers=$GUNICORN_WORKERS", "--threads=$GUNICORN_THREADS", "--worker-class=$GUNICORN_WORKER_CLASS"]
